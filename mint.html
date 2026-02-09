@@ -760,8 +760,25 @@
     </div>
   </div>
 
+  <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
   <script>
+    // ========== CONFIG ==========
     const PRICE = 3;
+    const AVAX_CHAIN_ID = '0xa86a'; // 43114
+    const AVAX_CHAIN = {
+      chainId: AVAX_CHAIN_ID,
+      chainName: 'Avalanche C-Chain',
+      nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+      rpcUrls: ['https://api.avax.network/ext/bc/C/rpc'],
+      blockExplorerUrls: ['https://snowtrace.io/']
+    };
+    // TODO: Replace with your deployed contract address and ABI
+    const CONTRACT_ADDRESS = '';
+    const CONTRACT_ABI = [];
+    // TODO: Set your WalletConnect project ID from https://cloud.walletconnect.com
+    const WALLETCONNECT_PROJECT_ID = '';
+
+    // ========== DOM ==========
     const slider = document.getElementById('qtySlider');
     const qtyDisplay = document.getElementById('qtyDisplay');
     const totalValue = document.getElementById('totalValue');
@@ -773,11 +790,15 @@
     const qtyMinus = document.getElementById('qtyMinus');
     const qtyPlus = document.getElementById('qtyPlus');
     const pipsContainer = document.getElementById('sliderPips');
+    const btnText = mintBtn.querySelector('.btn-text');
 
-    let connected = false;
+    // ========== STATE ==========
+    let provider = null;
+    let signer = null;
+    let userAddress = null;
     let quantity = 1;
 
-    // Build pip markers
+    // ========== QUANTITY UI ==========
     for (let i = 1; i <= 10; i++) {
       const pip = document.createElement('span');
       pip.textContent = i;
@@ -792,56 +813,182 @@
       slider.value = quantity;
       qtyMinus.disabled = quantity <= 1;
       qtyPlus.disabled = quantity >= 10;
-
-      // Update pips
       const pips = pipsContainer.querySelectorAll('span');
-      pips.forEach((p, i) => {
-        p.classList.toggle('active', i + 1 <= quantity);
-      });
+      pips.forEach((p, i) => p.classList.toggle('active', i + 1 <= quantity));
     }
 
-    slider.addEventListener('input', () => {
-      quantity = parseInt(slider.value);
-      updateUI();
-    });
+    slider.addEventListener('input', () => { quantity = parseInt(slider.value); updateUI(); });
+    qtyMinus.addEventListener('click', () => { if (quantity > 1) { quantity--; updateUI(); } });
+    qtyPlus.addEventListener('click', () => { if (quantity < 10) { quantity++; updateUI(); } });
 
-    qtyMinus.addEventListener('click', () => {
-      if (quantity > 1) { quantity--; updateUI(); }
-    });
+    // ========== WALLET HELPERS ==========
+    function truncateAddress(addr) {
+      return addr.slice(0, 6) + '...' + addr.slice(-4);
+    }
 
-    qtyPlus.addEventListener('click', () => {
-      if (quantity < 10) { quantity++; updateUI(); }
-    });
+    async function switchToAvalanche(rawProvider) {
+      try {
+        await rawProvider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: AVAX_CHAIN_ID }]
+        });
+      } catch (err) {
+        if (err.code === 4902) {
+          await rawProvider.request({
+            method: 'wallet_addEthereumChain',
+            params: [AVAX_CHAIN]
+          });
+        } else {
+          throw err;
+        }
+      }
+    }
 
-    // Wallet connect
+    function onConnected(addr) {
+      userAddress = addr;
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      mintBtn.disabled = false;
+      btnText.textContent = 'MINT NOW';
+      mintBtn.classList.add('ready');
+      walletModal.classList.remove('show');
+    }
+
+    function onDisconnected() {
+      provider = null;
+      signer = null;
+      userAddress = null;
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+      mintBtn.disabled = true;
+      btnText.textContent = 'Connect Wallet';
+      mintBtn.classList.remove('ready');
+    }
+
+    // ========== INJECTED WALLET (Rabby, Core, MetaMask) ==========
+    async function connectInjected(walletName) {
+      let rawProvider = null;
+
+      // Core wallet injects window.avalanche
+      if (walletName === 'core' && window.avalanche) {
+        rawProvider = window.avalanche;
+      } else if (window.ethereum) {
+        // If multiple wallets are installed, check providers array (EIP-5749)
+        if (window.ethereum.providers && window.ethereum.providers.length) {
+          for (const p of window.ethereum.providers) {
+            if (walletName === 'rabby' && p.isRabby) { rawProvider = p; break; }
+            if (walletName === 'metamask' && p.isMetaMask && !p.isRabby) { rawProvider = p; break; }
+            if (walletName === 'core' && (p.isAvalanche || p.isCoreWallet)) { rawProvider = p; break; }
+          }
+        }
+        // Fallback to window.ethereum
+        if (!rawProvider) {
+          if (walletName === 'rabby' && window.ethereum.isRabby) rawProvider = window.ethereum;
+          else if (walletName === 'metamask' && window.ethereum.isMetaMask) rawProvider = window.ethereum;
+          else if (walletName === 'core' && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet)) rawProvider = window.ethereum;
+          else rawProvider = window.ethereum; // Use whatever is available
+        }
+      }
+
+      if (!rawProvider) {
+        const urls = {
+          rabby: 'https://rabby.io',
+          core: 'https://core.app',
+          metamask: 'https://metamask.io'
+        };
+        alert(walletName.charAt(0).toUpperCase() + walletName.slice(1) + ' wallet not detected.\nInstall it from: ' + (urls[walletName] || ''));
+        return;
+      }
+
+      try {
+        const accounts = await rawProvider.request({ method: 'eth_requestAccounts' });
+        if (!accounts || accounts.length === 0) throw new Error('No accounts returned');
+
+        await switchToAvalanche(rawProvider);
+
+        provider = new ethers.providers.Web3Provider(rawProvider);
+        signer = provider.getSigner();
+        onConnected(accounts[0]);
+
+        // Listen for account/chain changes
+        rawProvider.on('accountsChanged', (accs) => {
+          if (accs.length === 0) onDisconnected();
+          else onConnected(accs[0]);
+        });
+        rawProvider.on('chainChanged', () => window.location.reload());
+
+      } catch (err) {
+        console.error('Connection failed:', err);
+        if (err.code === 4001) {
+          // User rejected
+        } else {
+          alert('Failed to connect: ' + (err.message || err));
+        }
+      }
+    }
+
+    // ========== WALLETCONNECT ==========
+    async function connectWalletConnect() {
+      if (!WALLETCONNECT_PROJECT_ID) {
+        alert('WalletConnect project ID not configured.\n\nGet one at: https://cloud.walletconnect.com\n\nThen set WALLETCONNECT_PROJECT_ID in mint.html');
+        return;
+      }
+
+      try {
+        const { EthereumProvider } = await import('https://unpkg.com/@walletconnect/ethereum-provider@2/dist/index.es.js');
+        const wcProvider = await EthereumProvider.init({
+          projectId: WALLETCONNECT_PROJECT_ID,
+          chains: [43114],
+          showQrModal: true,
+          rpcMap: { 43114: 'https://api.avax.network/ext/bc/C/rpc' }
+        });
+
+        await wcProvider.connect();
+        provider = new ethers.providers.Web3Provider(wcProvider);
+        signer = provider.getSigner();
+        const addr = await signer.getAddress();
+        onConnected(addr);
+
+        wcProvider.on('accountsChanged', (accs) => {
+          if (accs.length === 0) onDisconnected();
+          else onConnected(accs[0]);
+        });
+        wcProvider.on('disconnect', onDisconnected);
+      } catch (err) {
+        console.error('WalletConnect failed:', err);
+        if (err.message && !err.message.includes('User closed')) {
+          alert('WalletConnect failed: ' + err.message);
+        }
+      }
+    }
+
+    // ========== MODAL EVENTS ==========
     walletBtn.addEventListener('click', () => {
-      if (connected) return;
+      if (userAddress) return;
       walletModal.classList.add('show');
     });
 
-    modalClose.addEventListener('click', () => {
-      walletModal.classList.remove('show');
-    });
-
+    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
     walletModal.addEventListener('click', (e) => {
       if (e.target === walletModal) walletModal.classList.remove('show');
     });
 
     document.querySelectorAll('.wallet-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        connected = true;
-        walletBtn.textContent = '0x1a2b...9z0x';
-        walletBtn.classList.add('connected');
-        mintBtn.disabled = false;
-        mintBtn.querySelector('.btn-text').textContent = 'MINT NOW';
-        mintBtn.classList.add('ready');
-        walletModal.classList.remove('show');
+      opt.addEventListener('click', async () => {
+        const wallet = opt.dataset.wallet;
+        if (wallet === 'walletconnect') {
+          await connectWalletConnect();
+        } else {
+          await connectInjected(wallet);
+        }
       });
     });
 
-    // Mint button ripple
-    mintBtn.addEventListener('click', function (e) {
-      if (this.disabled) return;
+    // ========== MINT ==========
+    mintBtn.addEventListener('click', async function (e) {
+      if (this.disabled || !signer) return;
+
+      // Ripple effect
       const ripple = document.createElement('div');
       ripple.classList.add('ripple-fx');
       const rect = this.getBoundingClientRect();
@@ -849,7 +996,59 @@
       ripple.style.top = (e.clientY - rect.top - 20) + 'px';
       this.appendChild(ripple);
       ripple.addEventListener('animationend', () => ripple.remove());
+
+      // Check contract is configured
+      if (!CONTRACT_ADDRESS || CONTRACT_ABI.length === 0) {
+        alert('Mint contract not configured yet.\n\nSet CONTRACT_ADDRESS and CONTRACT_ABI in mint.html to enable minting.');
+        return;
+      }
+
+      try {
+        mintBtn.disabled = true;
+        btnText.textContent = 'MINTING...';
+        mintBtn.classList.remove('ready');
+
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
+
+        // Call mint function — adjust method name to match your contract
+        const tx = await contract.mint(quantity, { value: totalCost });
+        btnText.textContent = 'CONFIRMING...';
+        await tx.wait();
+
+        btnText.textContent = 'MINTED!';
+        setTimeout(() => {
+          btnText.textContent = 'MINT NOW';
+          mintBtn.disabled = false;
+          mintBtn.classList.add('ready');
+        }, 3000);
+
+      } catch (err) {
+        console.error('Mint failed:', err);
+        if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
+          btnText.textContent = 'MINT NOW';
+        } else {
+          btnText.textContent = 'FAILED';
+          setTimeout(() => { btnText.textContent = 'MINT NOW'; }, 2000);
+        }
+        mintBtn.disabled = false;
+        mintBtn.classList.add('ready');
+      }
     });
+
+    // ========== AUTO-RECONNECT ==========
+    (async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            onConnected(accounts[0]);
+          }
+        } catch (e) {}
+      }
+    })();
   </script>
 </body>
 </html>
