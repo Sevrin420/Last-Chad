@@ -663,7 +663,7 @@
 
   <!-- Background -->
   <div class="bg">
-    <img src="assets/Picsart_26-02-06_20-37-20-976.jpg" alt="">
+    <img src="assets/last_chad_background.jpg" alt="">
   </div>
 
   <!-- Header -->
@@ -760,7 +760,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script>
     // ========== CONFIG ==========
     const PRICE = 3;
@@ -797,6 +797,19 @@
     let signer = null;
     let userAddress = null;
     let quantity = 1;
+
+    // ========== HELPERS ==========
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+    }
+
+    function getDappUrl() {
+      return window.location.href;
+    }
+
+    function getDappHost() {
+      return window.location.host + window.location.pathname;
+    }
 
     // ========== QUANTITY UI ==========
     for (let i = 1; i <= 10; i++) {
@@ -865,6 +878,50 @@
       mintBtn.classList.remove('ready');
     }
 
+    // ========== MOBILE DEEP LINKS ==========
+    // On mobile, wallets don't inject window.ethereum in regular browsers.
+    // We deep-link into the wallet app, which opens our site in its built-in browser.
+    function getMobileDeepLink(walletName) {
+      const url = getDappHost();
+      const fullUrl = getDappUrl();
+      switch (walletName) {
+        case 'metamask':
+          return 'https://metamask.app.link/dapp/' + url;
+        case 'core':
+          // Core wallet deep link
+          return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
+        case 'rabby':
+          // Rabby is desktop-only; on mobile fallback to their site
+          return 'https://rabby.io';
+        default:
+          return null;
+      }
+    }
+
+    // ========== CONNECT WALLET ==========
+    async function connectWallet(walletName) {
+      // If we already have window.ethereum or window.avalanche, we're inside
+      // a wallet browser or on desktop with extensions — connect directly.
+      const hasInjected = window.ethereum || window.avalanche;
+
+      if (!hasInjected && isMobile() && walletName !== 'walletconnect') {
+        // On mobile without injection — deep link into the wallet app
+        const deepLink = getMobileDeepLink(walletName);
+        if (deepLink) {
+          window.location.href = deepLink;
+          return;
+        }
+      }
+
+      if (walletName === 'walletconnect') {
+        await connectWalletConnect();
+        return;
+      }
+
+      // Desktop or inside wallet browser — use injected provider
+      await connectInjected(walletName);
+    }
+
     // ========== INJECTED WALLET (Rabby, Core, MetaMask) ==========
     async function connectInjected(walletName) {
       let rawProvider = null;
@@ -873,7 +930,7 @@
       if (walletName === 'core' && window.avalanche) {
         rawProvider = window.avalanche;
       } else if (window.ethereum) {
-        // If multiple wallets are installed, check providers array (EIP-5749)
+        // If multiple wallets installed, check providers array (EIP-5749)
         if (window.ethereum.providers && window.ethereum.providers.length) {
           for (const p of window.ethereum.providers) {
             if (walletName === 'rabby' && p.isRabby) { rawProvider = p; break; }
@@ -886,17 +943,27 @@
           if (walletName === 'rabby' && window.ethereum.isRabby) rawProvider = window.ethereum;
           else if (walletName === 'metamask' && window.ethereum.isMetaMask) rawProvider = window.ethereum;
           else if (walletName === 'core' && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet)) rawProvider = window.ethereum;
-          else rawProvider = window.ethereum; // Use whatever is available
+          else rawProvider = window.ethereum;
         }
       }
 
       if (!rawProvider) {
+        if (isMobile()) {
+          // Last resort on mobile — try deep link
+          const deepLink = getMobileDeepLink(walletName);
+          if (deepLink) {
+            window.location.href = deepLink;
+            return;
+          }
+        }
         const urls = {
           rabby: 'https://rabby.io',
           core: 'https://core.app',
           metamask: 'https://metamask.io'
         };
-        alert(walletName.charAt(0).toUpperCase() + walletName.slice(1) + ' wallet not detected.\nInstall it from: ' + (urls[walletName] || ''));
+        alert(walletName.charAt(0).toUpperCase() + walletName.slice(1) +
+          ' wallet not detected.\n\nOn mobile: install the app and open this site in its built-in browser.\n\nOn desktop: install the browser extension from ' +
+          (urls[walletName] || ''));
         return;
       }
 
@@ -910,7 +977,6 @@
         signer = provider.getSigner();
         onConnected(accounts[0]);
 
-        // Listen for account/chain changes
         rawProvider.on('accountsChanged', (accs) => {
           if (accs.length === 0) onDisconnected();
           else onConnected(accs[0]);
@@ -919,9 +985,7 @@
 
       } catch (err) {
         console.error('Connection failed:', err);
-        if (err.code === 4001) {
-          // User rejected
-        } else {
+        if (err.code !== 4001) {
           alert('Failed to connect: ' + (err.message || err));
         }
       }
@@ -930,7 +994,7 @@
     // ========== WALLETCONNECT ==========
     async function connectWalletConnect() {
       if (!WALLETCONNECT_PROJECT_ID) {
-        alert('WalletConnect project ID not configured.\n\nGet one at: https://cloud.walletconnect.com\n\nThen set WALLETCONNECT_PROJECT_ID in mint.html');
+        alert('WalletConnect project ID not configured.\n\nGet one free at:\nhttps://cloud.walletconnect.com\n\nThen set WALLETCONNECT_PROJECT_ID in mint.html');
         return;
       }
 
@@ -975,12 +1039,7 @@
 
     document.querySelectorAll('.wallet-option').forEach(opt => {
       opt.addEventListener('click', async () => {
-        const wallet = opt.dataset.wallet;
-        if (wallet === 'walletconnect') {
-          await connectWalletConnect();
-        } else {
-          await connectInjected(wallet);
-        }
+        await connectWallet(opt.dataset.wallet);
       });
     });
 
@@ -1011,7 +1070,6 @@
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
 
-        // Call mint function — adjust method name to match your contract
         const tx = await contract.mint(quantity, { value: totalCost });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
@@ -1037,12 +1095,15 @@
     });
 
     // ========== AUTO-RECONNECT ==========
+    // If we're inside a wallet browser, auto-connect on load
     (async () => {
-      if (window.ethereum) {
+      const rawProvider = window.ethereum || window.avalanche;
+      if (rawProvider) {
         try {
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          const accounts = await rawProvider.request({ method: 'eth_accounts' });
           if (accounts && accounts.length > 0) {
-            provider = new ethers.providers.Web3Provider(window.ethereum);
+            await switchToAvalanche(rawProvider);
+            provider = new ethers.providers.Web3Provider(rawProvider);
             signer = provider.getSigner();
             onConnected(accounts[0]);
           }
