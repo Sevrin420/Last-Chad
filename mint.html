@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mint | Fantasy Pit Fighters</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: #0a0a0f;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    /* --- Background --- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .bg img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      filter: brightness(0.35) blur(2px);
+    }
+
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgba(10, 10, 15, 0.5) 0%,
+        rgba(10, 10, 15, 0.7) 50%,
+        rgba(10, 10, 15, 0.9) 100%
+      );
+    }
+
+    /* --- Header --- */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(10, 10, 15, 0.85);
+      border-bottom: 2px solid #3d2e0a;
+      backdrop-filter: blur(8px);
+    }
+
+    .header-back {
+      color: #c9a84c;
+      text-decoration: none;
+      font-size: 0.65rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s;
+    }
+
+    .header-back:hover { color: #f5e6c8; }
+
+    .header-back svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 220, 120, 0.4),
+        0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    .wallet-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 220, 120, 0.5),
+        0 2px 10px rgba(201, 168, 76, 0.4);
+    }
+
+    .wallet-btn.connected {
+      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
+      border-color: #4caf50;
+      color: #a5d6a7;
+      font-size: 0.5rem;
+    }
+
+    /* --- Main content --- */
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 20px 40px;
+    }
+
+    /* --- Mint card --- */
+    .mint-card {
+      width: 100%;
+      max-width: 480px;
+      background: linear-gradient(
+        180deg,
+        rgba(30, 22, 8, 0.95) 0%,
+        rgba(20, 15, 5, 0.98) 100%
+      );
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 32px 28px;
+      box-shadow:
+        0 0 30px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(139, 105, 20, 0.1),
+        inset 0 1px 0 rgba(201, 168, 76, 0.15);
+    }
+
+    .card-title {
+      text-align: center;
+      font-size: clamp(0.9rem, 3vw, 1.2rem);
+      color: #c9a84c;
+      margin-bottom: 6px;
+      text-shadow: 0 0 10px rgba(201, 168, 76, 0.3);
+    }
+
+    .card-subtitle {
+      text-align: center;
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    /* --- Supply bar --- */
+    .supply-section {
+      margin-bottom: 24px;
+    }
+
+    .supply-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-bottom: 8px;
+    }
+
+    .supply-label span:last-child {
+      color: #c9a84c;
+    }
+
+    .supply-bar {
+      width: 100%;
+      height: 16px;
+      background: #1a1005;
+      border: 2px solid #3d2e0a;
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .supply-fill {
+      height: 100%;
+      width: 23%;
+      background: linear-gradient(90deg, #4caf50, #66bb6a, #4caf50);
+      border-radius: 1px;
+      position: relative;
+      transition: width 0.5s ease;
+      box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+    }
+
+    .supply-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* --- Divider --- */
+    .divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #5c4409, transparent);
+      margin: 24px 0;
+    }
+
+    /* --- Price row --- */
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .price-label {
+      font-size: 0.55rem;
+      color: #8a7a5a;
+    }
+
+    .price-value {
+      font-size: 0.75rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    .price-eth {
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-left: 4px;
+    }
+
+    /* --- Quantity section --- */
+    .quantity-section {
+      margin-bottom: 28px;
+    }
+
+    .quantity-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .quantity-label {
+      font-size: 0.55rem;
+      color: #8a7a5a;
+    }
+
+    .quantity-display {
+      font-size: 1rem;
+      color: #f5e6c8;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .qty-btn {
+      width: 40px;
+      height: 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.8rem;
+      background: linear-gradient(180deg, #3d2e0a 0%, #1a1005 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      color: #c9a84c;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .qty-btn:hover {
+      background: linear-gradient(180deg, #5c4409 0%, #3d2e0a 100%);
+      border-color: #8b6914;
+      box-shadow: 0 0 8px rgba(139, 105, 20, 0.3);
+    }
+
+    .qty-btn:active {
+      transform: scale(0.9);
+      background: linear-gradient(180deg, #1a1005 0%, #3d2e0a 100%);
+    }
+
+    .qty-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* --- Slider --- */
+    .slider-container {
+      flex: 1;
+      position: relative;
+    }
+
+    .slider-track {
+      position: relative;
+      height: 12px;
+      background: #1a1005;
+      border: 2px solid #3d2e0a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .slider-fill-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #8b6914, #c9a84c);
+      border-radius: 1px;
+      transition: width 0.1s;
+      box-shadow: 0 0 6px rgba(201, 168, 76, 0.3);
+    }
+
+    .slider-fill-bar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 12px;
+      background: transparent;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(180deg, #dabb5e, #8b6914);
+      border: 2px solid #f5e6c8;
+      border-radius: 3px;
+      cursor: grab;
+      box-shadow:
+        0 0 8px rgba(201, 168, 76, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.5);
+      transition: box-shadow 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow:
+        0 0 14px rgba(201, 168, 76, 0.7),
+        0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      background: linear-gradient(180deg, #f5e6c8, #c9a84c);
+      box-shadow:
+        0 0 20px rgba(201, 168, 76, 0.9),
+        0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(180deg, #dabb5e, #8b6914);
+      border: 2px solid #f5e6c8;
+      border-radius: 3px;
+      cursor: grab;
+      box-shadow:
+        0 0 8px rgba(201, 168, 76, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .slider-pips {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 2px 0;
+    }
+
+    .slider-pips span {
+      font-size: 0.35rem;
+      color: #5c4409;
+      width: 20px;
+      text-align: center;
+    }
+
+    .slider-pips span.active {
+      color: #c9a84c;
+    }
+
+    /* --- Total --- */
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 14px 16px;
+      background: rgba(92, 68, 9, 0.15);
+      border: 1px solid #3d2e0a;
+      border-radius: 4px;
+    }
+
+    .total-label {
+      font-size: 0.6rem;
+      color: #8a7a5a;
+    }
+
+    .total-value {
+      font-size: 0.85rem;
+      color: #f5e6c8;
+      text-shadow: 0 0 10px rgba(245, 230, 200, 0.2);
+    }
+
+    /* --- Mint button --- */
+    .mint-btn {
+      width: 100%;
+      padding: 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.7rem, 2.5vw, 0.9rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+      text-shadow:
+        1px 1px 0 #000,
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.4),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(139, 105, 20, 0.2);
+    }
+
+    .mint-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: none;
+    }
+
+    .mint-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%);
+      border-color: #f5e6c8;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.5),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+        0 4px 0 #3d2e0a,
+        0 6px 20px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(201, 168, 76, 0.4);
+    }
+
+    .mint-btn:hover::after {
+      left: 120%;
+      transition: left 0.5s ease;
+    }
+
+    .mint-btn:active {
+      transform: translateY(3px);
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.5),
+        0 1px 0 #3d2e0a,
+        0 2px 8px rgba(0, 0, 0, 0.5),
+        0 0 25px rgba(255, 200, 50, 0.5);
+      background: linear-gradient(180deg, #7a5c10 0%, #8b6914 50%, #c9a84c 100%);
+    }
+
+    .mint-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(0.5);
+    }
+
+    .mint-btn:disabled:hover {
+      transform: none;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.4),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .mint-btn .btn-text {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* --- Ripple --- */
+    @keyframes ripple {
+      0% { transform: scale(0); opacity: 0.6; }
+      100% { transform: scale(5); opacity: 0; }
+    }
+
+    .ripple-fx {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 220, 120, 0.6), transparent);
+      width: 40px;
+      height: 40px;
+      pointer-events: none;
+      z-index: 3;
+      animation: ripple 0.6s ease-out forwards;
+    }
+
+    /* --- Glow pulse on mint button --- */
+    @keyframes glow-pulse {
+      0%, 100% { box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.4),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0, 0, 0, 0.5),
+        0 0 15px rgba(139, 105, 20, 0.2);
+      }
+      50% { box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.4),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0, 0, 0, 0.5),
+        0 0 25px rgba(201, 168, 76, 0.4);
+      }
+    }
+
+    .mint-btn.ready {
+      animation: glow-pulse 2s ease-in-out infinite;
+    }
+
+    .mint-btn.ready:hover {
+      animation: none;
+    }
+
+    /* --- Contract info --- */
+    .contract-info {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 0.4rem;
+      color: #5c4409;
+      line-height: 2;
+    }
+
+    .contract-info a {
+      color: #8a7a5a;
+      text-decoration: none;
+      border-bottom: 1px dotted #5c4409;
+    }
+
+    .contract-info a:hover {
+      color: #c9a84c;
+    }
+
+    /* --- Wallet modal --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 28px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(139, 105, 20, 0.15);
+    }
+
+    .modal-title {
+      font-size: 0.7rem;
+      color: #c9a84c;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .wallet-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      background: rgba(61, 46, 10, 0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .wallet-option:hover {
+      border-color: #8b6914;
+      background: rgba(92, 68, 9, 0.3);
+      box-shadow: 0 0 10px rgba(139, 105, 20, 0.2);
+    }
+
+    .wallet-option:active {
+      transform: scale(0.97);
+    }
+
+    .wallet-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .modal-close {
+      display: block;
+      margin: 16px auto 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #5c4409;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    .modal-close:hover { color: #c9a84c; }
+
+    /* --- Responsive --- */
+    @media (max-width: 480px) {
+      .mint-card { padding: 24px 18px; }
+      .header { padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background -->
+  <div class="bg">
+    <img src="assets/Picsart_26-02-06_20-37-20-976.jpg" alt="">
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <a href="index.html" class="header-back">
+      <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      BACK
+    </a>
+    <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="mint-card">
+      <h1 class="card-title">Summon Your Fighter</h1>
+      <p class="card-subtitle">Mint a Fantasy Pit Fighter NFT<br>and enter the arena</p>
+
+      <!-- Supply -->
+      <div class="supply-section">
+        <div class="supply-label">
+          <span>MINTED</span>
+          <span id="supplyText">2,300 / 10,000</span>
+        </div>
+        <div class="supply-bar">
+          <div class="supply-fill" id="supplyFill"></div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Price -->
+      <div class="price-row">
+        <span class="price-label">PRICE</span>
+        <span class="price-value">0.05<span class="price-eth"> ETH</span></span>
+      </div>
+
+      <!-- Quantity -->
+      <div class="quantity-section">
+        <div class="quantity-header">
+          <span class="quantity-label">QUANTITY</span>
+          <span class="quantity-display" id="qtyDisplay">1</span>
+        </div>
+        <div class="slider-row">
+          <button class="qty-btn" id="qtyMinus" disabled>-</button>
+          <div class="slider-container">
+            <div class="slider-track">
+              <div class="slider-fill-bar" id="sliderFill" style="width: 0%"></div>
+            </div>
+            <input type="range" min="1" max="10" value="1" id="qtySlider">
+          </div>
+          <button class="qty-btn" id="qtyPlus">+</button>
+        </div>
+        <div class="slider-pips" id="sliderPips"></div>
+      </div>
+
+      <!-- Total -->
+      <div class="total-row">
+        <span class="total-label">TOTAL</span>
+        <span class="total-value" id="totalValue">0.05 ETH</span>
+      </div>
+
+      <!-- Mint button -->
+      <button class="mint-btn" id="mintBtn" disabled>
+        <span class="btn-text">Connect Wallet</span>
+      </button>
+
+      <div class="contract-info">
+        Contract: <a href="#" id="contractLink">0x1a2b...9z0x</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="metamask">
+        <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>
+        MetaMask
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
+        WalletConnect
+      </button>
+      <button class="wallet-option" data-wallet="coinbase">
+        <span class="wallet-icon" style="background:#0052ff;">&#128176;</span>
+        Coinbase Wallet
+      </button>
+      <button class="wallet-option" data-wallet="phantom">
+        <span class="wallet-icon" style="background:#ab9ff2;">&#128123;</span>
+        Phantom
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
+
+  <script>
+    const PRICE = 0.05;
+    const slider = document.getElementById('qtySlider');
+    const qtyDisplay = document.getElementById('qtyDisplay');
+    const totalValue = document.getElementById('totalValue');
+    const sliderFill = document.getElementById('sliderFill');
+    const mintBtn = document.getElementById('mintBtn');
+    const walletBtn = document.getElementById('walletBtn');
+    const walletModal = document.getElementById('walletModal');
+    const modalClose = document.getElementById('modalClose');
+    const qtyMinus = document.getElementById('qtyMinus');
+    const qtyPlus = document.getElementById('qtyPlus');
+    const pipsContainer = document.getElementById('sliderPips');
+
+    let connected = false;
+    let quantity = 1;
+
+    // Build pip markers
+    for (let i = 1; i <= 10; i++) {
+      const pip = document.createElement('span');
+      pip.textContent = i;
+      if (i === 1) pip.classList.add('active');
+      pipsContainer.appendChild(pip);
+    }
+
+    function updateUI() {
+      qtyDisplay.textContent = quantity;
+      totalValue.textContent = (quantity * PRICE).toFixed(2) + ' ETH';
+      sliderFill.style.width = ((quantity - 1) / 9 * 100) + '%';
+      slider.value = quantity;
+      qtyMinus.disabled = quantity <= 1;
+      qtyPlus.disabled = quantity >= 10;
+
+      // Update pips
+      const pips = pipsContainer.querySelectorAll('span');
+      pips.forEach((p, i) => {
+        p.classList.toggle('active', i + 1 <= quantity);
+      });
+    }
+
+    slider.addEventListener('input', () => {
+      quantity = parseInt(slider.value);
+      updateUI();
+    });
+
+    qtyMinus.addEventListener('click', () => {
+      if (quantity > 1) { quantity--; updateUI(); }
+    });
+
+    qtyPlus.addEventListener('click', () => {
+      if (quantity < 10) { quantity++; updateUI(); }
+    });
+
+    // Wallet connect
+    walletBtn.addEventListener('click', () => {
+      if (connected) return;
+      walletModal.classList.add('show');
+    });
+
+    modalClose.addEventListener('click', () => {
+      walletModal.classList.remove('show');
+    });
+
+    walletModal.addEventListener('click', (e) => {
+      if (e.target === walletModal) walletModal.classList.remove('show');
+    });
+
+    document.querySelectorAll('.wallet-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        connected = true;
+        walletBtn.textContent = '0x1a2b...9z0x';
+        walletBtn.classList.add('connected');
+        mintBtn.disabled = false;
+        mintBtn.querySelector('.btn-text').textContent = 'MINT NOW';
+        mintBtn.classList.add('ready');
+        walletModal.classList.remove('show');
+      });
+    });
+
+    // Mint button ripple
+    mintBtn.addEventListener('click', function (e) {
+      if (this.disabled) return;
+      const ripple = document.createElement('div');
+      ripple.classList.add('ripple-fx');
+      const rect = this.getBoundingClientRect();
+      ripple.style.left = (e.clientX - rect.left - 20) + 'px';
+      ripple.style.top = (e.clientY - rect.top - 20) + 'px';
+      this.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove());
+    });
+  </script>
+</body>
+</html>
