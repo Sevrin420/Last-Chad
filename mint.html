@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mint | Fantasy Pit Fighters</title>
+  <title>Mint | Last Chad</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -181,7 +181,7 @@
 
     .supply-fill {
       height: 100%;
-      width: 23%;
+      width: 0%;
       background: linear-gradient(90deg, #4caf50, #66bb6a, #4caf50);
       border-radius: 1px;
       position: relative;
@@ -678,14 +678,14 @@
   <!-- Main -->
   <main class="main">
     <div class="mint-card">
-      <h1 class="card-title">Summon Your Fighter</h1>
-      <p class="card-subtitle">Mint a Fantasy Pit Fighter NFT<br>and enter the arena</p>
+      <h1 class="card-title">Last Chad</h1>
+      <p class="card-subtitle">Mint a Last Chad NFT<br>Only 6 will ever exist</p>
 
       <!-- Supply -->
       <div class="supply-section">
         <div class="supply-label">
           <span>MINTED</span>
-          <span id="supplyText">2,300 / 10,000</span>
+          <span id="supplyText">0 / 6</span>
         </div>
         <div class="supply-bar">
           <div class="supply-fill" id="supplyFill"></div>
@@ -712,7 +712,7 @@
             <div class="slider-track">
               <div class="slider-fill-bar" id="sliderFill" style="width: 0%"></div>
             </div>
-            <input type="range" min="1" max="10" value="1" id="qtySlider">
+            <input type="range" min="1" max="6" value="1" id="qtySlider">
           </div>
           <button class="qty-btn" id="qtyPlus">+</button>
         </div>
@@ -764,6 +764,7 @@
   <script>
     // ========== CONFIG ==========
     const PRICE = 3;
+    const MAX_SUPPLY = 6;
     const AVAX_CHAIN_ID = '0xa86a'; // 43114
     const AVAX_CHAIN = {
       chainId: AVAX_CHAIN_ID,
@@ -772,9 +773,24 @@
       rpcUrls: ['https://api.avax.network/ext/bc/C/rpc'],
       blockExplorerUrls: ['https://snowtrace.io/']
     };
-    // TODO: Replace with your deployed contract address and ABI
+
+    // TODO: Replace with your deployed contract address after deploying LastChad.sol
     const CONTRACT_ADDRESS = '';
-    const CONTRACT_ABI = [];
+
+    // Contract ABI — matches LastChad.sol
+    const CONTRACT_ABI = [
+      'function mint(uint256 quantity) external payable',
+      'function totalSupply() external view returns (uint256)',
+      'function MAX_SUPPLY() external view returns (uint256)',
+      'function MINT_PRICE() external view returns (uint256)',
+      'function balanceOf(address owner) external view returns (uint256)',
+      'function ownerOf(uint256 tokenId) external view returns (address)',
+      'function tokenURI(uint256 tokenId) external view returns (string)'
+    ];
+
+    // Read-only provider for fetching supply even when wallet not connected
+    const READ_RPC = 'https://api.avax.network/ext/bc/C/rpc';
+
     // TODO: Set your WalletConnect project ID from https://cloud.walletconnect.com
     const WALLETCONNECT_PROJECT_ID = '';
 
@@ -791,12 +807,16 @@
     const qtyPlus = document.getElementById('qtyPlus');
     const pipsContainer = document.getElementById('sliderPips');
     const btnText = mintBtn.querySelector('.btn-text');
+    const supplyText = document.getElementById('supplyText');
+    const supplyFill = document.getElementById('supplyFill');
 
     // ========== STATE ==========
     let provider = null;
     let signer = null;
     let userAddress = null;
     let quantity = 1;
+    let minted = 0;
+    let maxQty = MAX_SUPPLY;
 
     // ========== HELPERS ==========
     function isMobile() {
@@ -811,8 +831,65 @@
       return window.location.host + window.location.pathname;
     }
 
+    // ========== SUPPLY TRACKING ==========
+    async function updateSupply() {
+      if (!CONTRACT_ADDRESS) return;
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+        const supply = await contract.totalSupply();
+        minted = supply.toNumber();
+        const remaining = MAX_SUPPLY - minted;
+
+        // Update supply display
+        supplyText.textContent = minted + ' / ' + MAX_SUPPLY;
+        supplyFill.style.width = (minted / MAX_SUPPLY * 100) + '%';
+
+        // Update max quantity slider
+        maxQty = Math.min(remaining, MAX_SUPPLY);
+        if (maxQty < 1) maxQty = 0;
+        slider.max = maxQty > 0 ? maxQty : 1;
+        if (quantity > maxQty) {
+          quantity = Math.max(maxQty, 1);
+        }
+
+        // Rebuild pips for new max
+        rebuildPips();
+        updateUI();
+
+        // If sold out, disable minting
+        if (minted >= MAX_SUPPLY) {
+          mintBtn.disabled = true;
+          btnText.textContent = 'SOLD OUT';
+          mintBtn.classList.remove('ready');
+        }
+
+        // Update contract link
+        if (CONTRACT_ADDRESS) {
+          const contractLink = document.getElementById('contractLink');
+          contractLink.textContent = CONTRACT_ADDRESS.slice(0, 6) + '...' + CONTRACT_ADDRESS.slice(-4);
+          contractLink.href = 'https://snowtrace.io/address/' + CONTRACT_ADDRESS;
+          contractLink.target = '_blank';
+        }
+      } catch (err) {
+        console.error('Failed to read supply:', err);
+      }
+    }
+
     // ========== QUANTITY UI ==========
-    for (let i = 1; i <= 10; i++) {
+    function rebuildPips() {
+      pipsContainer.innerHTML = '';
+      const max = parseInt(slider.max);
+      for (let i = 1; i <= max; i++) {
+        const pip = document.createElement('span');
+        pip.textContent = i;
+        if (i <= quantity) pip.classList.add('active');
+        pipsContainer.appendChild(pip);
+      }
+    }
+
+    // Initial pips
+    for (let i = 1; i <= MAX_SUPPLY; i++) {
       const pip = document.createElement('span');
       pip.textContent = i;
       if (i === 1) pip.classList.add('active');
@@ -820,19 +897,20 @@
     }
 
     function updateUI() {
+      const max = parseInt(slider.max);
       qtyDisplay.textContent = quantity;
       totalValue.textContent = (quantity * PRICE) + ' AVAX';
-      sliderFill.style.width = ((quantity - 1) / 9 * 100) + '%';
+      sliderFill.style.width = max > 1 ? ((quantity - 1) / (max - 1) * 100) + '%' : '0%';
       slider.value = quantity;
       qtyMinus.disabled = quantity <= 1;
-      qtyPlus.disabled = quantity >= 10;
+      qtyPlus.disabled = quantity >= max;
       const pips = pipsContainer.querySelectorAll('span');
       pips.forEach((p, i) => p.classList.toggle('active', i + 1 <= quantity));
     }
 
     slider.addEventListener('input', () => { quantity = parseInt(slider.value); updateUI(); });
     qtyMinus.addEventListener('click', () => { if (quantity > 1) { quantity--; updateUI(); } });
-    qtyPlus.addEventListener('click', () => { if (quantity < 10) { quantity++; updateUI(); } });
+    qtyPlus.addEventListener('click', () => { if (quantity < parseInt(slider.max)) { quantity++; updateUI(); } });
 
     // ========== WALLET HELPERS ==========
     function truncateAddress(addr) {
@@ -861,10 +939,13 @@
       userAddress = addr;
       walletBtn.textContent = truncateAddress(addr);
       walletBtn.classList.add('connected');
-      mintBtn.disabled = false;
-      btnText.textContent = 'MINT NOW';
-      mintBtn.classList.add('ready');
+      if (minted < MAX_SUPPLY) {
+        mintBtn.disabled = false;
+        btnText.textContent = 'MINT NOW';
+        mintBtn.classList.add('ready');
+      }
       walletModal.classList.remove('show');
+      updateSupply();
     }
 
     function onDisconnected() {
@@ -879,8 +960,6 @@
     }
 
     // ========== MOBILE DEEP LINKS ==========
-    // On mobile, wallets don't inject window.ethereum in regular browsers.
-    // We deep-link into the wallet app, which opens our site in its built-in browser.
     function getMobileDeepLink(walletName) {
       const url = getDappHost();
       const fullUrl = getDappUrl();
@@ -888,10 +967,8 @@
         case 'metamask':
           return 'https://metamask.app.link/dapp/' + url;
         case 'core':
-          // Core wallet deep link
           return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
         case 'rabby':
-          // Rabby is desktop-only; on mobile fallback to their site
           return 'https://rabby.io';
         default:
           return null;
@@ -900,12 +977,9 @@
 
     // ========== CONNECT WALLET ==========
     async function connectWallet(walletName) {
-      // If we already have window.ethereum or window.avalanche, we're inside
-      // a wallet browser or on desktop with extensions — connect directly.
       const hasInjected = window.ethereum || window.avalanche;
 
       if (!hasInjected && isMobile() && walletName !== 'walletconnect') {
-        // On mobile without injection — deep link into the wallet app
         const deepLink = getMobileDeepLink(walletName);
         if (deepLink) {
           window.location.href = deepLink;
@@ -918,7 +992,6 @@
         return;
       }
 
-      // Desktop or inside wallet browser — use injected provider
       await connectInjected(walletName);
     }
 
@@ -926,11 +999,9 @@
     async function connectInjected(walletName) {
       let rawProvider = null;
 
-      // Core wallet injects window.avalanche
       if (walletName === 'core' && window.avalanche) {
         rawProvider = window.avalanche;
       } else if (window.ethereum) {
-        // If multiple wallets installed, check providers array (EIP-5749)
         if (window.ethereum.providers && window.ethereum.providers.length) {
           for (const p of window.ethereum.providers) {
             if (walletName === 'rabby' && p.isRabby) { rawProvider = p; break; }
@@ -938,7 +1009,6 @@
             if (walletName === 'core' && (p.isAvalanche || p.isCoreWallet)) { rawProvider = p; break; }
           }
         }
-        // Fallback to window.ethereum
         if (!rawProvider) {
           if (walletName === 'rabby' && window.ethereum.isRabby) rawProvider = window.ethereum;
           else if (walletName === 'metamask' && window.ethereum.isMetaMask) rawProvider = window.ethereum;
@@ -949,7 +1019,6 @@
 
       if (!rawProvider) {
         if (isMobile()) {
-          // Last resort on mobile — try deep link
           const deepLink = getMobileDeepLink(walletName);
           if (deepLink) {
             window.location.href = deepLink;
@@ -1057,8 +1126,8 @@
       ripple.addEventListener('animationend', () => ripple.remove());
 
       // Check contract is configured
-      if (!CONTRACT_ADDRESS || CONTRACT_ABI.length === 0) {
-        alert('Mint contract not configured yet.\n\nSet CONTRACT_ADDRESS and CONTRACT_ABI in mint.html to enable minting.');
+      if (!CONTRACT_ADDRESS) {
+        alert('Mint contract not deployed yet.\n\nDeploy LastChad.sol and set CONTRACT_ADDRESS in mint.html.');
         return;
       }
 
@@ -1074,16 +1143,32 @@
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
 
+        // Refresh supply after successful mint
+        await updateSupply();
+
         btnText.textContent = 'MINTED!';
         setTimeout(() => {
-          btnText.textContent = 'MINT NOW';
-          mintBtn.disabled = false;
-          mintBtn.classList.add('ready');
+          if (minted >= MAX_SUPPLY) {
+            btnText.textContent = 'SOLD OUT';
+            mintBtn.disabled = true;
+          } else {
+            btnText.textContent = 'MINT NOW';
+            mintBtn.disabled = false;
+            mintBtn.classList.add('ready');
+          }
         }, 3000);
 
       } catch (err) {
         console.error('Mint failed:', err);
+        let msg = err.reason || err.message || 'Unknown error';
         if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
+          btnText.textContent = 'MINT NOW';
+        } else if (msg.includes('Exceeds max supply')) {
+          btnText.textContent = 'SOLD OUT';
+          await updateSupply();
+          return;
+        } else if (msg.includes('Insufficient payment')) {
+          alert('Insufficient AVAX. You need ' + (quantity * PRICE) + ' AVAX to mint.');
           btnText.textContent = 'MINT NOW';
         } else {
           btnText.textContent = 'FAILED';
@@ -1095,8 +1180,10 @@
     });
 
     // ========== AUTO-RECONNECT ==========
-    // If we're inside a wallet browser, auto-connect on load
     (async () => {
+      // Fetch supply on page load (works without wallet)
+      await updateSupply();
+
       const rawProvider = window.ethereum || window.avalanche;
       if (rawProvider) {
         try {
@@ -1110,6 +1197,9 @@
         } catch (e) {}
       }
     })();
+
+    // Poll supply every 15 seconds to keep it fresh
+    setInterval(updateSupply, 15000);
   </script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+{
+  "name": "Last Chad #4",
+  "description": "Last Chad NFT #4 — Only 6 will ever exist.",
+  "image": "https://lastchad.xyz/assets/chads/4.png",
+  "attributes": [
+    { "trait_type": "Chad Number", "value": "4" }
+  ]
+}
