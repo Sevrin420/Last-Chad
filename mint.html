@@ -697,7 +697,7 @@
       <!-- Price -->
       <div class="price-row">
         <span class="price-label">PRICE</span>
-        <span class="price-value">0.05<span class="price-eth"> ETH</span></span>
+        <span class="price-value">3<span class="price-eth"> AVAX</span></span>
       </div>
 
       <!-- Quantity -->
@@ -722,7 +722,7 @@
       <!-- Total -->
       <div class="total-row">
         <span class="total-label">TOTAL</span>
-        <span class="total-value" id="totalValue">0.05 ETH</span>
+        <span class="total-value" id="totalValue">3 AVAX</span>
       </div>
 
       <!-- Mint button -->
@@ -740,6 +740,14 @@
   <div class="modal-overlay" id="walletModal">
     <div class="modal">
       <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
+        Rabby
+      </button>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9889;</span>
+        Core
+      </button>
       <button class="wallet-option" data-wallet="metamask">
         <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>
         MetaMask
@@ -748,20 +756,12 @@
         <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
         WalletConnect
       </button>
-      <button class="wallet-option" data-wallet="coinbase">
-        <span class="wallet-icon" style="background:#0052ff;">&#128176;</span>
-        Coinbase Wallet
-      </button>
-      <button class="wallet-option" data-wallet="phantom">
-        <span class="wallet-icon" style="background:#ab9ff2;">&#128123;</span>
-        Phantom
-      </button>
       <button class="modal-close" id="modalClose">CANCEL</button>
     </div>
   </div>
 
   <script>
-    const PRICE = 0.05;
+    const PRICE = 3;
     const slider = document.getElementById('qtySlider');
     const qtyDisplay = document.getElementById('qtyDisplay');
     const totalValue = document.getElementById('totalValue');
@@ -787,7 +787,7 @@
 
     function updateUI() {
       qtyDisplay.textContent = quantity;
-      totalValue.textContent = (quantity * PRICE).toFixed(2) + ' ETH';
+      totalValue.textContent = (quantity * PRICE) + ' AVAX';
       sliderFill.style.width = ((quantity - 1) / 9 * 100) + '%';
       slider.value = quantity;
       qtyMinus.disabled = quantity <= 1;
