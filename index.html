@@ -53,6 +53,7 @@
       overflow: hidden;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
+      touch-action: manipulation;
     }
 
     /* Gold/bronze medieval gradient */
@@ -71,6 +72,7 @@
       );
       z-index: 0;
       transition: all 0.15s ease;
+      pointer-events: none;
     }
 
     /* Shine sweep on hover */
@@ -89,6 +91,7 @@
       );
       z-index: 1;
       transition: none;
+      pointer-events: none;
     }
 
     .btn span {
@@ -275,17 +278,21 @@
   </div>
 
   <script>
-    document.querySelectorAll('.btn').forEach(btn => {
-      btn.addEventListener('click', function (e) {
-        const ripple = document.createElement('div');
-        ripple.classList.add('ripple-effect');
-        const rect = this.getBoundingClientRect();
-        ripple.style.left = (e.clientX - rect.left - 25) + 'px';
-        ripple.style.top = (e.clientY - rect.top - 25) + 'px';
-        this.appendChild(ripple);
-        ripple.addEventListener('animationend', () => ripple.remove());
+    try {
+      document.querySelectorAll('.btn').forEach(function(btn) {
+        btn.addEventListener('click', function (e) {
+          try {
+            var ripple = document.createElement('div');
+            ripple.classList.add('ripple-effect');
+            var rect = this.getBoundingClientRect();
+            ripple.style.left = (e.clientX - rect.left - 25) + 'px';
+            ripple.style.top = (e.clientY - rect.top - 25) + 'px';
+            this.appendChild(ripple);
+            setTimeout(function() { ripple.remove(); }, 700);
+          } catch(err) {}
+        });
       });
-    });
+    } catch(err) {}
   </script>
 </body>
 </html>
