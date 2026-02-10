@@ -535,7 +535,7 @@
         <div class="checklist">
           <div class="check-item" id="check6">
             <div class="check-box"><span class="check-mark">✓</span></div>
-            <span>6 = Weapon</span>
+            <span>6 = Weapons</span>
           </div>
           <div class="check-item" id="check5">
             <div class="check-box"><span class="check-mark">✓</span></div>
@@ -751,13 +751,13 @@
       // Remaining 2 dice are the score
       const total = vals[0] + vals[1];
       scoreBox.className = 'score-box scored';
-      scoreLabel.textContent = '6-5-4 SCORED!';
+      scoreLabel.textContent = 'TEAM MEMBERS';
       scoreValue.textContent = total;
     }
 
     function showNoScore(box, label, value) {
       box.className = 'score-box no-score';
-      label.textContent = 'NO 6-5-4 COMBO';
+      label.textContent = 'NO TEAM ASSEMBLED';
       value.textContent = '0';
     }
 
