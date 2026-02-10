@@ -107,6 +107,44 @@
       font-size: 0.5rem;
     }
 
+    .wallet-wrapper {
+      position: relative;
+    }
+
+    .disconnect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      z-index: 110;
+      min-width: 160px;
+    }
+
+    .disconnect-dropdown.show {
+      display: block;
+    }
+
+    .disconnect-btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #e53935;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s;
+    }
+
+    .disconnect-btn:hover {
+      background: rgba(229, 57, 53, 0.15);
+    }
+
     /* --- Main content --- */
     .main {
       position: relative;
@@ -672,7 +710,12 @@
       <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
       BACK
     </a>
-    <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
   </header>
 
   <!-- Main -->
@@ -956,6 +999,7 @@
       mintBtn.disabled = true;
       btnText.textContent = 'MINT';
       mintBtn.classList.remove('ready');
+      try { document.getElementById('disconnectDropdown').classList.remove('show'); } catch(e) {}
     }
 
     // ========== MOBILE DEEP LINKS ==========
@@ -1095,9 +1139,27 @@
     }
 
     // ========== MODAL EVENTS ==========
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+
     walletBtn.addEventListener('click', () => {
-      if (userAddress) return;
+      if (userAddress) {
+        disconnectDropdown.classList.toggle('show');
+        return;
+      }
       walletModal.classList.add('show');
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      disconnectDropdown.classList.remove('show');
+      onDisconnected();
+    });
+
+    // Close dropdown when tapping elsewhere
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.wallet-wrapper')) {
+        disconnectDropdown.classList.remove('show');
+      }
     });
 
     modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
