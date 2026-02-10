@@ -241,11 +241,12 @@
       width: clamp(52px, 14vw, 80px);
       color: #8a7a5a;
       background: rgba(61, 46, 10, 0.3);
-      border: 2px solid #3d2e0a;
-      border-radius: 3px;
+      border: 3px solid #3d2e0a;
+      border-radius: 0px;
       cursor: pointer;
       transition: all 0.15s;
       touch-action: manipulation;
+      box-shadow: inset -2px -2px 0 #1a1200, inset 2px 2px 0 #5c4409, 2px 2px 0 #000;
     }
 
     .keep-btn:hover {
@@ -257,6 +258,7 @@
       border-color: #4caf50;
       color: #4caf50;
       background: rgba(76, 175, 80, 0.1);
+      box-shadow: inset -2px -2px 0 #2e7d32, inset 2px 2px 0 #66bb6a, 2px 2px 0 #000;
     }
 
     .keep-btn:disabled {
