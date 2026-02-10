@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Docs | Last Chad</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: #0a0a0f;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    /* --- Background --- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #0a0a0f;
+      background-image:
+        radial-gradient(ellipse at 50% 0%, rgba(92, 68, 9, 0.15) 0%, transparent 60%);
+    }
+
+    /* --- Header --- */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(10, 10, 15, 0.9);
+      border-bottom: 2px solid #3d2e0a;
+      backdrop-filter: blur(8px);
+    }
+
+    .nav-wrapper { position: relative; }
+
+    .nav-toggle {
+      width: 44px;
+      height: 44px;
+      background: rgba(10, 10, 15, 0.5);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .nav-toggle:hover { border-color: #c9a84c; background: rgba(30, 22, 8, 0.85); }
+    .nav-toggle span { display: block; width: 20px; height: 2px; background: #c9a84c; border-radius: 1px; transition: all 0.2s; }
+    .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-toggle.open span:nth-child(2) { opacity: 0; }
+    .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: linear-gradient(180deg, rgba(30, 22, 8, 0.95) 0%, rgba(20, 15, 5, 0.98) 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+      min-width: 160px;
+      overflow: hidden;
+      z-index: 110;
+    }
+    .nav-dropdown.show { display: block; }
+
+    .nav-link {
+      display: block;
+      padding: 14px 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      text-decoration: none;
+      transition: all 0.15s;
+      border-bottom: 1px solid #3d2e0a;
+    }
+    .nav-link:last-child { border-bottom: none; }
+    .nav-link:hover { background: rgba(92, 68, 9, 0.3); color: #c9a84c; }
+    .nav-link.active { color: #c9a84c; background: rgba(92, 68, 9, 0.15); }
+
+    .header-title {
+      font-size: 0.6rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    /* --- Main --- */
+    .main {
+      position: relative;
+      z-index: 1;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 90px 24px 60px;
+    }
+
+    .page-title {
+      font-size: clamp(0.9rem, 3vw, 1.2rem);
+      color: #c9a84c;
+      text-align: center;
+      margin-bottom: 32px;
+      text-shadow: 0 0 10px rgba(201, 168, 76, 0.3);
+    }
+
+    /* --- Sections --- */
+    .doc-section {
+      margin-bottom: 28px;
+      padding: 20px;
+      background: rgba(30, 22, 8, 0.6);
+      border: 2px solid #3d2e0a;
+      border-radius: 6px;
+    }
+
+    .doc-section h2 {
+      font-size: 0.6rem;
+      color: #c9a84c;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #3d2e0a;
+    }
+
+    .doc-section p {
+      font-size: 0.45rem;
+      color: #a89a7a;
+      line-height: 2.2;
+      margin-bottom: 10px;
+    }
+
+    .doc-section p:last-child { margin-bottom: 0; }
+
+    .doc-section ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .doc-section li {
+      font-size: 0.45rem;
+      color: #a89a7a;
+      line-height: 2.2;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .doc-section li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      background: #5c4409;
+      border-radius: 1px;
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .highlight { color: #c9a84c; }
+
+    .contract-addr {
+      font-size: 0.35rem;
+      color: #8a7a5a;
+      word-break: break-all;
+      background: rgba(10, 10, 15, 0.5);
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #3d2e0a;
+      margin-top: 8px;
+      line-height: 2;
+    }
+
+    .contract-addr a {
+      color: #c9a84c;
+      text-decoration: none;
+      border-bottom: 1px dotted #5c4409;
+    }
+    .contract-addr a:hover { color: #f5e6c8; }
+
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .main { padding: 80px 16px 40px; }
+      .doc-section { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg"></div>
+
+  <header class="header">
+    <div class="nav-wrapper">
+      <button class="nav-toggle" id="navToggle">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-dropdown" id="navDropdown">
+        <a href="index.html" class="nav-link">HOME</a>
+        <a href="mint.html" class="nav-link">MINT</a>
+        <a href="enter.html" class="nav-link">BATTLE</a>
+        <a href="docs.html" class="nav-link active">DOCS</a>
+      </div>
+    </div>
+    <span class="header-title">DOCS</span>
+  </header>
+
+  <main class="main">
+    <h1 class="page-title">Last Chad</h1>
+
+    <div class="doc-section">
+      <h2>What is Last Chad?</h2>
+      <p>Last Chad is an NFT collection of <span class="highlight">6 unique fighters</span> on the Avalanche C-Chain. Each Chad is a one-of-a-kind pixel art warrior ready for battle.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>How to Mint</h2>
+      <ul>
+        <li>Go to the <span class="highlight">Mint</span> page</li>
+        <li>Connect your wallet (Rabby, Core, MetaMask, or WalletConnect)</li>
+        <li>Select how many Chads to mint (1-6)</li>
+        <li>Each Chad costs <span class="highlight">0.02 AVAX</span></li>
+        <li>Confirm the transaction in your wallet</li>
+        <li>Your Chad will appear in your wallet and on the Battle page</li>
+      </ul>
+    </div>
+
+    <div class="doc-section">
+      <h2>Battle</h2>
+      <p>Visit the <span class="highlight">Battle</span> page to view your owned Chads. Select a fighter from your gallery and enter the arena.</p>
+      <p>Battle mode is coming soon. Stay tuned for PvP combat, dice rolls, and leaderboards.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>Collection Details</h2>
+      <ul>
+        <li><span class="highlight">Name:</span> Last Chad (CHAD)</li>
+        <li><span class="highlight">Supply:</span> 6 total</li>
+        <li><span class="highlight">Price:</span> 0.02 AVAX per mint</li>
+        <li><span class="highlight">Chain:</span> Avalanche C-Chain</li>
+        <li><span class="highlight">Standard:</span> ERC-721</li>
+      </ul>
+      <div class="contract-addr">
+        Contract: <a href="https://snowtrace.io/address/0xd96E719D84CC9BB919FC88172fBE2e3076c61e19" target="_blank">0xd96E719D84CC9BB919FC88172fBE2e3076c61e19</a>
+      </div>
+    </div>
+
+    <div class="doc-section">
+      <h2>Supported Wallets</h2>
+      <ul>
+        <li><span class="highlight">Rabby</span> - Desktop extension & mobile browser</li>
+        <li><span class="highlight">Core</span> - Avalanche native wallet</li>
+        <li><span class="highlight">MetaMask</span> - Desktop & mobile</li>
+        <li><span class="highlight">WalletConnect</span> - QR code scanning</li>
+      </ul>
+    </div>
+  </main>
+
+  <script>
+    const navToggle = document.getElementById('navToggle');
+    const navDropdown = document.getElementById('navDropdown');
+    navToggle.addEventListener('click', () => {
+      navToggle.classList.toggle('open');
+      navDropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.nav-wrapper')) {
+        navToggle.classList.remove('open');
+        navDropdown.classList.remove('show');
+      }
+    });
+  </script>
+</body>
+</html>
