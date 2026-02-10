@@ -268,17 +268,125 @@
       width: 36%;
       height: 8%;
     }
+
+    /* --- Nav menu --- */
+    .nav-wrapper {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 50;
+    }
+
+    .nav-toggle {
+      width: 44px;
+      height: 44px;
+      background: rgba(10, 10, 15, 0.75);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      backdrop-filter: blur(6px);
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+
+    .nav-toggle:hover {
+      border-color: #c9a84c;
+      background: rgba(30, 22, 8, 0.85);
+    }
+
+    .nav-toggle span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: #c9a84c;
+      border-radius: 1px;
+      transition: all 0.2s;
+    }
+
+    .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-toggle.open span:nth-child(2) { opacity: 0; }
+    .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: linear-gradient(180deg, rgba(30, 22, 8, 0.95) 0%, rgba(20, 15, 5, 0.98) 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+      min-width: 160px;
+      overflow: hidden;
+    }
+
+    .nav-dropdown.show { display: block; }
+
+    .nav-link {
+      display: block;
+      padding: 14px 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      text-decoration: none;
+      transition: all 0.15s;
+      border-bottom: 1px solid #3d2e0a;
+    }
+
+    .nav-link:last-child { border-bottom: none; }
+
+    .nav-link:hover {
+      background: rgba(92, 68, 9, 0.3);
+      color: #c9a84c;
+    }
+
+    .nav-link.active {
+      color: #c9a84c;
+      background: rgba(92, 68, 9, 0.15);
+    }
   </style>
 </head>
 <body>
   <div class="landing">
     <img src="assets/last_chad_background.jpg" alt="Fantasy Pit Fighters" class="hero-image">
+
+    <!-- Nav menu -->
+    <div class="nav-wrapper">
+      <button class="nav-toggle" id="navToggle">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-dropdown" id="navDropdown">
+        <a href="index.html" class="nav-link active">HOME</a>
+        <a href="mint.html" class="nav-link">MINT</a>
+        <a href="enter.html" class="nav-link">BATTLE</a>
+      </div>
+    </div>
+
     <a href="mint.html" class="btn mint-btn" aria-label="Mint"><span>Mint</span></a>
     <a href="enter.html" class="btn enter-btn" aria-label="Enter"><span>Enter</span></a>
   </div>
 
   <script>
     try {
+      // Nav menu toggle
+      var navToggle = document.getElementById('navToggle');
+      var navDropdown = document.getElementById('navDropdown');
+      navToggle.addEventListener('click', function() {
+        navToggle.classList.toggle('open');
+        navDropdown.classList.toggle('show');
+      });
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.nav-wrapper')) {
+          navToggle.classList.remove('open');
+          navDropdown.classList.remove('show');
+        }
+      });
+
       document.querySelectorAll('.btn').forEach(function(btn) {
         btn.addEventListener('click', function (e) {
           try {
