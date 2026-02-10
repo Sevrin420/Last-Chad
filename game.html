@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game | Last Chad</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    /* --- Pixelated brown background --- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #3b2a14;
+      background-image:
+        linear-gradient(45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
+        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      image-rendering: pixelated;
+    }
+
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(90, 65, 30, 0.4) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(30, 20, 10, 0.3) 0%, rgba(30, 20, 10, 0.6) 100%);
+    }
+
+    /* --- Header --- */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(30, 20, 10, 0.9);
+      border-bottom: 2px solid #5c4409;
+      backdrop-filter: blur(8px);
+    }
+
+    .nav-wrapper { position: relative; }
+
+    .nav-toggle {
+      width: 44px;
+      height: 44px;
+      background: rgba(30, 20, 10, 0.5);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .nav-toggle:hover { border-color: #c9a84c; background: rgba(30, 22, 8, 0.85); }
+    .nav-toggle span { display: block; width: 20px; height: 2px; background: #c9a84c; border-radius: 1px; transition: all 0.2s; }
+    .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-toggle.open span:nth-child(2) { opacity: 0; }
+    .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: linear-gradient(180deg, rgba(30, 22, 8, 0.95) 0%, rgba(20, 15, 5, 0.98) 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+      min-width: 160px;
+      overflow: hidden;
+      z-index: 110;
+    }
+    .nav-dropdown.show { display: block; }
+
+    .nav-link {
+      display: block;
+      padding: 14px 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      text-decoration: none;
+      transition: all 0.15s;
+      border-bottom: 1px solid #3d2e0a;
+    }
+    .nav-link:last-child { border-bottom: none; }
+    .nav-link:hover { background: rgba(92, 68, 9, 0.3); color: #c9a84c; }
+    .nav-link.active { color: #c9a84c; background: rgba(92, 68, 9, 0.15); }
+
+    .chad-name {
+      font-size: 0.55rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    /* --- Main --- */
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 80px 16px 40px;
+    }
+
+    /* --- Portrait --- */
+    .portrait {
+      width: clamp(140px, 35vw, 200px);
+      border: 4px solid #c9a84c;
+      border-radius: 4px;
+      background: rgba(30, 20, 10, 0.8);
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 20px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(201, 168, 76, 0.2);
+      image-rendering: pixelated;
+      margin-top: 10px;
+    }
+
+    .portrait img {
+      width: 100%;
+      height: auto;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    /* --- Dice area --- */
+    .dice-section {
+      width: 100%;
+      max-width: 520px;
+      margin-top: 24px;
+    }
+
+    .dice-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .dice-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* --- Dice box --- */
+    .dice-box {
+      width: clamp(52px, 14vw, 80px);
+      height: clamp(52px, 14vw, 80px);
+      background: rgba(20, 14, 6, 0.9);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.2rem, 4vw, 2rem);
+      color: #f5e6c8;
+      text-shadow: 0 0 6px rgba(245, 230, 200, 0.3);
+      box-shadow:
+        inset 0 0 15px rgba(0, 0, 0, 0.5),
+        0 2px 8px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .dice-box.rolling {
+      border-color: #c9a84c;
+      box-shadow:
+        inset 0 0 15px rgba(0, 0, 0, 0.4),
+        0 0 12px rgba(201, 168, 76, 0.3);
+    }
+
+    .dice-box.kept {
+      border-color: #4caf50;
+      box-shadow:
+        inset 0 0 10px rgba(0, 0, 0, 0.3),
+        0 0 10px rgba(76, 175, 80, 0.25);
+    }
+
+    .dice-box.settled {
+      border-color: #c9a84c;
+    }
+
+    /* --- Dice face dots (pixel style) --- */
+    .dice-face {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 15%;
+      gap: 2px;
+    }
+
+    .dice-face .dot {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #c9a84c;
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(201, 168, 76, 0.5);
+    }
+
+    .dice-box.kept .dice-face .dot {
+      background: #4caf50;
+      box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+    }
+
+    /* Dot positions for each face value */
+    .dot { visibility: hidden; }
+
+    /* --- Keep button --- */
+    .keep-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.3rem, 1.5vw, 0.4rem);
+      padding: 6px 0;
+      width: clamp(52px, 14vw, 80px);
+      color: #8a7a5a;
+      background: rgba(61, 46, 10, 0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      touch-action: manipulation;
+    }
+
+    .keep-btn:hover {
+      border-color: #5c4409;
+      color: #c9a84c;
+    }
+
+    .keep-btn.active {
+      border-color: #4caf50;
+      color: #4caf50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    .keep-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* --- Roll button --- */
+    .roll-section {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .roll-btn {
+      padding: 14px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.4),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(139, 105, 20, 0.2);
+      touch-action: manipulation;
+      animation: roll-glow 2s ease-in-out infinite;
+    }
+
+    .roll-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      pointer-events: none;
+    }
+
+    .roll-btn:hover {
+      animation: none;
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%);
+      border-color: #f5e6c8;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.5),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+        0 4px 0 #3d2e0a,
+        0 6px 20px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(201, 168, 76, 0.4);
+    }
+
+    .roll-btn:hover::after {
+      left: 120%;
+      transition: left 0.5s ease;
+    }
+
+    .roll-btn:active {
+      transform: translateY(3px);
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.5),
+        0 1px 0 #3d2e0a,
+        0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .roll-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      animation: none;
+    }
+
+    .roll-btn:disabled:hover {
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border-color: #d4a017;
+      transform: none;
+    }
+
+    @keyframes roll-glow {
+      0%, 100% { box-shadow:
+        inset 0 2px 0 rgba(255,220,120,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0,0,0,0.5),
+        0 0 15px rgba(139,105,20,0.2);
+      }
+      50% { box-shadow:
+        inset 0 2px 0 rgba(255,220,120,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0,0,0,0.5),
+        0 0 28px rgba(201,168,76,0.4);
+      }
+    }
+
+    .rolls-left {
+      margin-top: 12px;
+      font-size: 0.4rem;
+      color: #8a7a5a;
+    }
+
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .dice-row { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg"></div>
+
+  <header class="header">
+    <div class="nav-wrapper">
+      <button class="nav-toggle" id="navToggle">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-dropdown" id="navDropdown">
+        <a href="index.html" class="nav-link">HOME</a>
+        <a href="mint.html" class="nav-link">MINT</a>
+        <a href="enter.html" class="nav-link">BATTLE</a>
+        <a href="docs.html" class="nav-link">DOCS</a>
+      </div>
+    </div>
+    <span class="chad-name" id="chadName"></span>
+  </header>
+
+  <main class="main">
+    <!-- Portrait -->
+    <div class="portrait" id="portrait">
+      <img id="portraitImg" src="" alt="">
+    </div>
+
+    <!-- Dice -->
+    <div class="dice-section">
+      <div class="dice-row">
+        <div class="dice-col">
+          <div class="dice-box" id="die0"><div class="dice-face" id="face0"></div></div>
+          <button class="keep-btn" id="keep0" disabled>KEEP</button>
+        </div>
+        <div class="dice-col">
+          <div class="dice-box" id="die1"><div class="dice-face" id="face1"></div></div>
+          <button class="keep-btn" id="keep1" disabled>KEEP</button>
+        </div>
+        <div class="dice-col">
+          <div class="dice-box" id="die2"><div class="dice-face" id="face2"></div></div>
+          <button class="keep-btn" id="keep2" disabled>KEEP</button>
+        </div>
+        <div class="dice-col">
+          <div class="dice-box" id="die3"><div class="dice-face" id="face3"></div></div>
+          <button class="keep-btn" id="keep3" disabled>KEEP</button>
+        </div>
+        <div class="dice-col">
+          <div class="dice-box" id="die4"><div class="dice-face" id="face4"></div></div>
+          <button class="keep-btn" id="keep4" disabled>KEEP</button>
+        </div>
+      </div>
+
+      <div class="roll-section">
+        <button class="roll-btn" id="rollBtn">ROLL</button>
+        <div class="rolls-left" id="rollsLeft">3 ROLLS LEFT</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ========== GET CHAD FROM URL ==========
+    const params = new URLSearchParams(window.location.search);
+    const chadId = params.get('chad') || '1';
+    const chadImg = 'assets/chads/' + chadId + '.png';
+
+    document.getElementById('portraitImg').src = chadImg;
+    document.getElementById('chadName').textContent = 'CHAD #' + chadId;
+
+    // ========== NAV ==========
+    const navToggle = document.getElementById('navToggle');
+    const navDropdown = document.getElementById('navDropdown');
+    navToggle.addEventListener('click', () => {
+      navToggle.classList.toggle('open');
+      navDropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.nav-wrapper')) {
+        navToggle.classList.remove('open');
+        navDropdown.classList.remove('show');
+      }
+    });
+
+    // ========== DICE STATE ==========
+    const NUM_DICE = 5;
+    let diceValues = [0, 0, 0, 0, 0];
+    let kept = [false, false, false, false, false];
+    let rollsLeft = 3;
+    let isRolling = false;
+
+    const rollBtn = document.getElementById('rollBtn');
+    const rollsLeftText = document.getElementById('rollsLeft');
+
+    // ========== DOT LAYOUTS ==========
+    // 3x3 grid positions: top-left, top-center, top-right, mid-left, mid-center, mid-right, bot-left, bot-center, bot-right
+    const dotLayouts = {
+      1: [0,0,0, 0,1,0, 0,0,0],
+      2: [0,0,1, 0,0,0, 1,0,0],
+      3: [0,0,1, 0,1,0, 1,0,0],
+      4: [1,0,1, 0,0,0, 1,0,1],
+      5: [1,0,1, 0,1,0, 1,0,1],
+      6: [1,0,1, 1,0,1, 1,0,1]
+    };
+
+    function renderFace(index, value) {
+      const face = document.getElementById('face' + index);
+      face.innerHTML = '';
+      if (value === 0) return;
+
+      const layout = dotLayouts[value];
+      for (let i = 0; i < 9; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        if (layout[i]) dot.style.visibility = 'visible';
+        face.appendChild(dot);
+      }
+    }
+
+    // ========== KEEP BUTTONS ==========
+    for (let i = 0; i < NUM_DICE; i++) {
+      const keepBtn = document.getElementById('keep' + i);
+      keepBtn.addEventListener('click', () => {
+        if (isRolling || diceValues[i] === 0) return;
+        kept[i] = !kept[i];
+        keepBtn.classList.toggle('active', kept[i]);
+        keepBtn.textContent = kept[i] ? 'KEPT' : 'KEEP';
+        document.getElementById('die' + i).classList.toggle('kept', kept[i]);
+      });
+    }
+
+    // ========== ROLL ==========
+    function randomValue() {
+      return Math.floor(Math.random() * 6) + 1;
+    }
+
+    async function rollDice() {
+      if (isRolling || rollsLeft <= 0) return;
+      isRolling = true;
+      rollsLeft--;
+      rollBtn.disabled = true;
+
+      // Determine which dice to roll
+      const toRoll = [];
+      for (let i = 0; i < NUM_DICE; i++) {
+        if (!kept[i]) toRoll.push(i);
+      }
+
+      // Start all rolling animations
+      for (const i of toRoll) {
+        const box = document.getElementById('die' + i);
+        box.classList.add('rolling');
+        box.classList.remove('settled');
+      }
+
+      // Rapid cycling animation for all dice simultaneously
+      const cycleInterval = 60;
+      const cycleTimers = [];
+
+      for (const i of toRoll) {
+        const timer = setInterval(() => {
+          renderFace(i, randomValue());
+        }, cycleInterval);
+        cycleTimers.push({ index: i, timer: timer });
+      }
+
+      // Stop dice one at a time, left to right
+      const stopDelay = 400;
+      const baseWait = 500;
+
+      for (let order = 0; order < toRoll.length; order++) {
+        await new Promise(resolve => setTimeout(resolve, order === 0 ? baseWait : stopDelay));
+
+        const dieIndex = toRoll[order];
+        // Find and clear this die's cycling timer
+        const entry = cycleTimers.find(c => c.index === dieIndex);
+        if (entry) clearInterval(entry.timer);
+
+        // Set final value
+        const finalValue = randomValue();
+        diceValues[dieIndex] = finalValue;
+        renderFace(dieIndex, finalValue);
+
+        const box = document.getElementById('die' + dieIndex);
+        box.classList.remove('rolling');
+        box.classList.add('settled');
+
+        // Enable keep button
+        document.getElementById('keep' + dieIndex).disabled = false;
+      }
+
+      // Update UI
+      rollsLeftText.textContent = rollsLeft + ' ROLL' + (rollsLeft !== 1 ? 'S' : '') + ' LEFT';
+
+      if (rollsLeft <= 0) {
+        rollBtn.disabled = true;
+        rollBtn.textContent = 'NO ROLLS';
+        rollsLeftText.textContent = 'TURN OVER';
+        // Disable all keep buttons
+        for (let i = 0; i < NUM_DICE; i++) {
+          document.getElementById('keep' + i).disabled = true;
+        }
+      } else {
+        rollBtn.disabled = false;
+      }
+
+      isRolling = false;
+    }
+
+    rollBtn.addEventListener('click', rollDice);
+
+    // Init empty faces
+    for (let i = 0; i < NUM_DICE; i++) {
+      renderFace(i, 0);
+    }
+  </script>
+</body>
+</html>

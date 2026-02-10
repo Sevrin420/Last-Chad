@@ -896,7 +896,7 @@
 
     battleBtn.addEventListener('click', function () {
       if (!this.classList.contains('active') || !selectedTokenId) return;
-      alert('Battle mode coming soon!\n\nChad #' + selectedTokenId + ' is ready to fight.');
+      window.location.href = 'game.html?chad=' + selectedTokenId;
     });
 
     // ========== AUTO-RECONNECT ==========
