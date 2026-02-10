@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arena | Last Chad</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    /* --- Pixelated brown background --- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #3b2a14;
+      background-image:
+        linear-gradient(45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
+        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      image-rendering: pixelated;
+    }
+
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(90, 65, 30, 0.4) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(30, 20, 10, 0.3) 0%, rgba(30, 20, 10, 0.6) 100%);
+    }
+
+    /* --- Header --- */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(30, 20, 10, 0.9);
+      border-bottom: 2px solid #5c4409;
+      backdrop-filter: blur(8px);
+    }
+
+    .header-back {
+      color: #c9a84c;
+      text-decoration: none;
+      font-size: 0.65rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s;
+    }
+    .header-back:hover { color: #f5e6c8; }
+    .header-back svg { width: 16px; height: 16px; fill: currentColor; }
+
+    .wallet-wrapper { position: relative; }
+
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 220, 120, 0.4),
+        0 2px 6px rgba(0, 0, 0, 0.5);
+      touch-action: manipulation;
+    }
+    .wallet-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+    }
+    .wallet-btn.connected {
+      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
+      border-color: #4caf50;
+      color: #a5d6a7;
+      font-size: 0.5rem;
+    }
+
+    .disconnect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      z-index: 110;
+      min-width: 160px;
+    }
+    .disconnect-dropdown.show { display: block; }
+
+    .disconnect-btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #e53935;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s;
+    }
+    .disconnect-btn:hover { background: rgba(229, 57, 53, 0.15); }
+
+    /* --- Main content --- */
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 90px 20px 40px;
+    }
+
+    /* --- Connect prompt --- */
+    .connect-prompt {
+      text-align: center;
+      margin-top: 80px;
+    }
+    .connect-prompt p {
+      font-size: 0.6rem;
+      color: #8a7a5a;
+      line-height: 2;
+    }
+
+    /* --- Portrait frame --- */
+    .portrait-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .portrait-frame {
+      width: clamp(200px, 50vw, 280px);
+      height: clamp(200px, 50vw, 280px);
+      border: 4px solid #5c4409;
+      border-radius: 4px;
+      background: rgba(30, 20, 10, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 30px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(0, 0, 0, 0.4);
+      image-rendering: pixelated;
+    }
+
+    .portrait-frame.has-chad {
+      border-color: #c9a84c;
+      box-shadow:
+        inset 0 0 20px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(201, 168, 76, 0.2),
+        0 0 40px rgba(201, 168, 76, 0.1);
+    }
+
+    .portrait-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: pixelated;
+      display: none;
+    }
+
+    .portrait-frame img.show { display: block; }
+
+    .portrait-placeholder {
+      font-size: 0.5rem;
+      color: #5c4409;
+      text-align: center;
+      line-height: 2;
+      padding: 20px;
+    }
+
+    .portrait-placeholder.hidden { display: none; }
+
+    .portrait-name {
+      margin-top: 12px;
+      font-size: 0.55rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      min-height: 20px;
+    }
+
+    /* --- Battle button --- */
+    .battle-btn {
+      margin-top: 20px;
+      padding: 16px 48px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.7rem, 2.5vw, 0.9rem);
+      color: #fff;
+      background: linear-gradient(180deg, #555 0%, #333 50%, #222 100%);
+      border: 3px solid #555;
+      border-radius: 6px;
+      cursor: not-allowed;
+      opacity: 0.4;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.1),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #111,
+        0 6px 15px rgba(0,0,0,0.5);
+      touch-action: manipulation;
+    }
+
+    .battle-btn.active {
+      opacity: 1;
+      cursor: pointer;
+      background: linear-gradient(180deg, #e53935 0%, #c62828 50%, #8e0000 100%);
+      border-color: #ff5252;
+      box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #5d0000,
+        0 6px 15px rgba(0,0,0,0.5),
+        0 0 20px rgba(229, 57, 53, 0.3);
+      animation: battle-glow 2s ease-in-out infinite;
+    }
+
+    .battle-btn.active::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      pointer-events: none;
+    }
+
+    .battle-btn.active:hover {
+      animation: none;
+      background: linear-gradient(180deg, #ff5252 0%, #e53935 50%, #b71c1c 100%);
+      border-color: #ff8a80;
+      box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.5),
+        inset 0 -2px 0 rgba(0,0,0,0.3),
+        0 4px 0 #5d0000,
+        0 6px 20px rgba(0,0,0,0.5),
+        0 0 30px rgba(229, 57, 53, 0.5);
+    }
+
+    .battle-btn.active:hover::after {
+      left: 120%;
+      transition: left 0.5s ease;
+    }
+
+    .battle-btn.active:active {
+      transform: translateY(3px);
+      box-shadow:
+        inset 0 2px 4px rgba(0,0,0,0.5),
+        0 1px 0 #5d0000,
+        0 2px 8px rgba(0,0,0,0.5),
+        0 0 25px rgba(255, 80, 80, 0.6);
+    }
+
+    @keyframes battle-glow {
+      0%, 100% { box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #5d0000,
+        0 6px 15px rgba(0,0,0,0.5),
+        0 0 15px rgba(229, 57, 53, 0.2);
+      }
+      50% { box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #5d0000,
+        0 6px 15px rgba(0,0,0,0.5),
+        0 0 30px rgba(229, 57, 53, 0.5);
+      }
+    }
+
+    /* --- Gallery --- */
+    .gallery-section {
+      width: 100%;
+      max-width: 600px;
+      margin-top: 30px;
+    }
+
+    .gallery-label {
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .gallery-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 8px 4px 14px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .gallery-scroll::-webkit-scrollbar {
+      height: 6px;
+    }
+    .gallery-scroll::-webkit-scrollbar-track {
+      background: #1e1608;
+      border-radius: 3px;
+    }
+    .gallery-scroll::-webkit-scrollbar-thumb {
+      background: #5c4409;
+      border-radius: 3px;
+    }
+
+    .gallery-item {
+      flex-shrink: 0;
+      width: 100px;
+      height: 100px;
+      border: 3px solid #3d2e0a;
+      border-radius: 4px;
+      background: rgba(30, 20, 10, 0.7);
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.2s;
+      scroll-snap-align: center;
+      position: relative;
+      image-rendering: pixelated;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: pixelated;
+    }
+
+    .gallery-item:hover {
+      border-color: #8b6914;
+      box-shadow: 0 0 10px rgba(139, 105, 20, 0.3);
+    }
+
+    .gallery-item.selected {
+      border-color: #c9a84c;
+      box-shadow:
+        0 0 12px rgba(201, 168, 76, 0.5),
+        inset 0 0 8px rgba(201, 168, 76, 0.15);
+      transform: scale(1.05);
+    }
+
+    .gallery-item .token-id {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      font-size: 0.3rem;
+      color: #c9a84c;
+      background: rgba(0,0,0,0.7);
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
+
+    .gallery-empty {
+      text-align: center;
+      font-size: 0.45rem;
+      color: #5c4409;
+      padding: 30px 20px;
+      line-height: 2;
+    }
+
+    /* --- Wallet modal --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 28px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+    }
+
+    .modal-title {
+      font-size: 0.7rem;
+      color: #c9a84c;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .wallet-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      background: rgba(61, 46, 10, 0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .wallet-option:hover {
+      border-color: #8b6914;
+      background: rgba(92, 68, 9, 0.3);
+    }
+    .wallet-option:active { transform: scale(0.97); }
+
+    .wallet-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .modal-close {
+      display: block;
+      margin: 16px auto 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #5c4409;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .modal-close:hover { color: #c9a84c; }
+
+    /* --- Responsive --- */
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .gallery-item { width: 85px; height: 85px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background -->
+  <div class="bg"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <a href="index.html" class="header-back">
+      <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      BACK
+    </a>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Connect prompt (shown when not connected) -->
+    <div class="connect-prompt" id="connectPrompt">
+      <p>Connect your wallet<br>to view your Chads</p>
+    </div>
+
+    <!-- Arena content (shown when connected) -->
+    <div id="arenaContent" style="display:none; width:100%; display:flex; flex-direction:column; align-items:center;">
+      <!-- Portrait -->
+      <div class="portrait-section">
+        <div class="portrait-frame" id="portraitFrame">
+          <img id="portraitImg" src="" alt="">
+          <div class="portrait-placeholder" id="portraitPlaceholder">Select a<br>Chad below</div>
+        </div>
+        <div class="portrait-name" id="portraitName"></div>
+      </div>
+
+      <!-- Battle button -->
+      <button class="battle-btn" id="battleBtn">BATTLE</button>
+
+      <!-- Gallery -->
+      <div class="gallery-section">
+        <div class="gallery-label">YOUR CHADS</div>
+        <div id="galleryContainer">
+          <div class="gallery-empty" id="galleryEmpty">No Chads found in this wallet</div>
+          <div class="gallery-scroll" id="galleryScroll"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
+        Rabby
+      </button>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9889;</span>
+        Core
+      </button>
+      <button class="wallet-option" data-wallet="metamask">
+        <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>
+        MetaMask
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
+        WalletConnect
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script>
+    // ========== CONFIG ==========
+    const CONTRACT_ADDRESS = '0xd96E719D84CC9BB919FC88172fBE2e3076c61e19';
+    const CONTRACT_ABI = [
+      'function totalSupply() view returns (uint256)',
+      'function balanceOf(address owner) view returns (uint256)',
+      'function ownerOf(uint256 tokenId) view returns (address)',
+      'function tokenURI(uint256 tokenId) view returns (string)',
+      'function MAX_SUPPLY() view returns (uint256)'
+    ];
+    const AVAX_CHAIN_ID = '0xa86a';
+    const AVAX_CHAIN = {
+      chainId: AVAX_CHAIN_ID,
+      chainName: 'Avalanche C-Chain',
+      nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+      rpcUrls: ['https://api.avax.network/ext/bc/C/rpc'],
+      blockExplorerUrls: ['https://snowtrace.io/']
+    };
+    const READ_RPC = 'https://api.avax.network/ext/bc/C/rpc';
+    const MAX_SUPPLY = 6;
+    const WALLETCONNECT_PROJECT_ID = '';
+
+    // ========== DOM ==========
+    const walletBtn = document.getElementById('walletBtn');
+    const walletModal = document.getElementById('walletModal');
+    const modalClose = document.getElementById('modalClose');
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const connectPrompt = document.getElementById('connectPrompt');
+    const arenaContent = document.getElementById('arenaContent');
+    const portraitFrame = document.getElementById('portraitFrame');
+    const portraitImg = document.getElementById('portraitImg');
+    const portraitPlaceholder = document.getElementById('portraitPlaceholder');
+    const portraitName = document.getElementById('portraitName');
+    const battleBtn = document.getElementById('battleBtn');
+    const galleryScroll = document.getElementById('galleryScroll');
+    const galleryEmpty = document.getElementById('galleryEmpty');
+
+    // ========== STATE ==========
+    let provider = null;
+    let signer = null;
+    let userAddress = null;
+    let selectedTokenId = null;
+    let ownedTokens = [];
+
+    // ========== HELPERS ==========
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+    }
+    function getDappUrl() { return window.location.href; }
+    function getDappHost() { return window.location.host + window.location.pathname; }
+    function truncateAddress(addr) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
+
+    // ========== UI STATES ==========
+    function showArena() {
+      connectPrompt.style.display = 'none';
+      arenaContent.style.display = 'flex';
+    }
+
+    function hideArena() {
+      connectPrompt.style.display = 'block';
+      arenaContent.style.display = 'none';
+      galleryScroll.innerHTML = '';
+      selectedTokenId = null;
+      ownedTokens = [];
+      portraitImg.classList.remove('show');
+      portraitPlaceholder.classList.remove('hidden');
+      portraitFrame.classList.remove('has-chad');
+      portraitName.textContent = '';
+      battleBtn.classList.remove('active');
+    }
+
+    function selectChad(tokenId, imageUrl) {
+      selectedTokenId = tokenId;
+      portraitImg.src = imageUrl;
+      portraitImg.classList.add('show');
+      portraitPlaceholder.classList.add('hidden');
+      portraitFrame.classList.add('has-chad');
+      portraitName.textContent = 'Last Chad #' + tokenId;
+      battleBtn.classList.add('active');
+
+      document.querySelectorAll('.gallery-item').forEach(item => {
+        item.classList.toggle('selected', item.dataset.tokenId == tokenId);
+      });
+    }
+
+    // ========== LOAD OWNED NFTS ==========
+    async function loadOwnedChads() {
+      if (!userAddress || !CONTRACT_ADDRESS) return;
+
+      galleryScroll.innerHTML = '';
+      ownedTokens = [];
+
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+        const totalSupply = (await contract.totalSupply()).toNumber();
+
+        for (let tokenId = 1; tokenId <= totalSupply; tokenId++) {
+          try {
+            const owner = await contract.ownerOf(tokenId);
+            if (owner.toLowerCase() === userAddress.toLowerCase()) {
+              ownedTokens.push(tokenId);
+            }
+          } catch (e) {}
+        }
+
+        if (ownedTokens.length === 0) {
+          galleryEmpty.style.display = 'block';
+          galleryScroll.style.display = 'none';
+          return;
+        }
+
+        galleryEmpty.style.display = 'none';
+        galleryScroll.style.display = 'flex';
+
+        for (const tokenId of ownedTokens) {
+          const imageUrl = 'assets/chads/' + tokenId + '.png';
+
+          const item = document.createElement('div');
+          item.className = 'gallery-item';
+          item.dataset.tokenId = tokenId;
+          item.innerHTML = '<img src="' + imageUrl + '" alt="Chad #' + tokenId + '"><span class="token-id">#' + tokenId + '</span>';
+
+          item.addEventListener('click', () => {
+            selectChad(tokenId, imageUrl);
+          });
+
+          galleryScroll.appendChild(item);
+        }
+
+        // Auto-select first chad
+        if (ownedTokens.length > 0) {
+          selectChad(ownedTokens[0], 'assets/chads/' + ownedTokens[0] + '.png');
+        }
+
+      } catch (err) {
+        console.error('Failed to load Chads:', err);
+        galleryEmpty.textContent = 'Failed to load Chads';
+        galleryEmpty.style.display = 'block';
+        galleryScroll.style.display = 'none';
+      }
+    }
+
+    // ========== WALLET ==========
+    async function switchToAvalanche(rawProvider) {
+      try {
+        await rawProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
+      } catch (err) {
+        if (err.code === 4902) {
+          await rawProvider.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
+        } else throw err;
+      }
+    }
+
+    function onConnected(addr) {
+      userAddress = addr;
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      walletModal.classList.remove('show');
+      showArena();
+      loadOwnedChads();
+    }
+
+    function onDisconnected() {
+      provider = null;
+      signer = null;
+      userAddress = null;
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+      disconnectDropdown.classList.remove('show');
+      hideArena();
+    }
+
+    function getMobileDeepLink(walletName) {
+      const url = getDappHost();
+      const fullUrl = getDappUrl();
+      switch (walletName) {
+        case 'metamask': return 'https://metamask.app.link/dapp/' + url;
+        case 'core': return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
+        case 'rabby': return 'https://rabby.io';
+        default: return null;
+      }
+    }
+
+    async function connectWallet(walletName) {
+      const hasInjected = window.ethereum || window.avalanche;
+      if (!hasInjected && isMobile() && walletName !== 'walletconnect') {
+        const deepLink = getMobileDeepLink(walletName);
+        if (deepLink) { window.location.href = deepLink; return; }
+      }
+      if (walletName === 'walletconnect') { await connectWalletConnect(); return; }
+      await connectInjected(walletName);
+    }
+
+    async function connectInjected(walletName) {
+      let rawProvider = null;
+      if (walletName === 'core' && window.avalanche) {
+        rawProvider = window.avalanche;
+      } else if (window.ethereum) {
+        if (window.ethereum.providers && window.ethereum.providers.length) {
+          for (const p of window.ethereum.providers) {
+            if (walletName === 'rabby' && p.isRabby) { rawProvider = p; break; }
+            if (walletName === 'metamask' && p.isMetaMask && !p.isRabby) { rawProvider = p; break; }
+            if (walletName === 'core' && (p.isAvalanche || p.isCoreWallet)) { rawProvider = p; break; }
+          }
+        }
+        if (!rawProvider) {
+          if (walletName === 'rabby' && window.ethereum.isRabby) rawProvider = window.ethereum;
+          else if (walletName === 'metamask' && window.ethereum.isMetaMask) rawProvider = window.ethereum;
+          else if (walletName === 'core' && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet)) rawProvider = window.ethereum;
+          else rawProvider = window.ethereum;
+        }
+      }
+
+      if (!rawProvider) {
+        if (isMobile()) {
+          const deepLink = getMobileDeepLink(walletName);
+          if (deepLink) { window.location.href = deepLink; return; }
+        }
+        const urls = { rabby: 'https://rabby.io', core: 'https://core.app', metamask: 'https://metamask.io' };
+        alert(walletName.charAt(0).toUpperCase() + walletName.slice(1) +
+          ' wallet not detected.\n\nInstall the extension from ' + (urls[walletName] || ''));
+        return;
+      }
+
+      try {
+        const accounts = await rawProvider.request({ method: 'eth_requestAccounts' });
+        if (!accounts || accounts.length === 0) throw new Error('No accounts');
+        await switchToAvalanche(rawProvider);
+        provider = new ethers.providers.Web3Provider(rawProvider);
+        signer = provider.getSigner();
+        onConnected(accounts[0]);
+        rawProvider.on('accountsChanged', (accs) => {
+          if (accs.length === 0) onDisconnected();
+          else onConnected(accs[0]);
+        });
+        rawProvider.on('chainChanged', () => window.location.reload());
+      } catch (err) {
+        console.error('Connection failed:', err);
+        if (err.code !== 4001) alert('Failed to connect: ' + (err.message || err));
+      }
+    }
+
+    async function connectWalletConnect() {
+      if (!WALLETCONNECT_PROJECT_ID) {
+        alert('WalletConnect project ID not configured.');
+        return;
+      }
+      try {
+        const { EthereumProvider } = await import('https://unpkg.com/@walletconnect/ethereum-provider@2/dist/index.es.js');
+        const wcProvider = await EthereumProvider.init({
+          projectId: WALLETCONNECT_PROJECT_ID, chains: [43114], showQrModal: true,
+          rpcMap: { 43114: 'https://api.avax.network/ext/bc/C/rpc' }
+        });
+        await wcProvider.connect();
+        provider = new ethers.providers.Web3Provider(wcProvider);
+        signer = provider.getSigner();
+        onConnected(await signer.getAddress());
+        wcProvider.on('accountsChanged', (accs) => { if (!accs.length) onDisconnected(); else onConnected(accs[0]); });
+        wcProvider.on('disconnect', onDisconnected);
+      } catch (err) {
+        console.error('WalletConnect failed:', err);
+      }
+    }
+
+    // ========== EVENTS ==========
+    walletBtn.addEventListener('click', () => {
+      if (userAddress) { disconnectDropdown.classList.toggle('show'); return; }
+      walletModal.classList.add('show');
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      disconnectDropdown.classList.remove('show');
+      onDisconnected();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
+    });
+
+    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
+    walletModal.addEventListener('click', (e) => { if (e.target === walletModal) walletModal.classList.remove('show'); });
+
+    document.querySelectorAll('.wallet-option').forEach(opt => {
+      opt.addEventListener('click', () => connectWallet(opt.dataset.wallet));
+    });
+
+    battleBtn.addEventListener('click', function () {
+      if (!this.classList.contains('active') || !selectedTokenId) return;
+      alert('Battle mode coming soon!\n\nChad #' + selectedTokenId + ' is ready to fight.');
+    });
+
+    // ========== AUTO-RECONNECT ==========
+    (async () => {
+      const rawProvider = window.ethereum || window.avalanche;
+      if (rawProvider) {
+        try {
+          const accounts = await rawProvider.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            await switchToAvalanche(rawProvider);
+            provider = new ethers.providers.Web3Provider(rawProvider);
+            signer = provider.getSigner();
+            onConnected(accounts[0]);
+          }
+        } catch (e) {}
+      }
+    })();
+  </script>
+</body>
+</html>
