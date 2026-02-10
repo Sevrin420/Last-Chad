@@ -367,20 +367,77 @@
     }
 
     .score-box {
-      display: none;
+      display: flex;
       margin-top: 20px;
       padding: 18px 24px;
       background: #0a0a0f;
       border: 3px solid #5c4409;
       border-radius: 6px;
-      text-align: center;
       box-shadow:
         inset 0 0 20px rgba(0, 0, 0, 0.8),
         0 4px 16px rgba(0, 0, 0, 0.5);
-      min-width: 200px;
+      min-width: 260px;
+      gap: 20px;
+      align-items: flex-start;
     }
 
-    .score-box.show { display: block; }
+    .checklist {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: clamp(0.3rem, 1.5vw, 0.4rem);
+      color: #5a4a2a;
+      transition: color 0.3s;
+    }
+
+    .check-item.checked {
+      color: #4caf50;
+    }
+
+    .check-box {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #5a4a2a;
+      border-radius: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    .check-item.checked .check-box {
+      border-color: #4caf50;
+      background: rgba(76, 175, 80, 0.15);
+    }
+
+    .check-mark {
+      display: none;
+      color: #4caf50;
+      font-size: 0.5rem;
+      line-height: 1;
+    }
+
+    .check-item.checked .check-mark {
+      display: block;
+    }
+
+    .score-right {
+      flex: 1;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80px;
+    }
 
     .score-label {
       font-size: 0.45rem;
@@ -402,6 +459,14 @@
     .score-box.no-score .score-value {
       color: #e53935;
       text-shadow: 0 0 12px rgba(229, 57, 53, 0.4);
+    }
+
+    .score-box.scored .score-label {
+      color: #4caf50;
+    }
+
+    .score-box.scored .score-value {
+      color: #c9a84c;
     }
 
     @media (max-width: 480px) {
@@ -440,23 +505,23 @@
       <div class="dice-row">
         <div class="dice-col">
           <div class="dice-box" id="die0"><div class="dice-face" id="face0"></div></div>
-          <button class="keep-btn" id="keep0" disabled>KEEP</button>
+          <button class="keep-btn" id="keep0" disabled>LOCK</button>
         </div>
         <div class="dice-col">
           <div class="dice-box" id="die1"><div class="dice-face" id="face1"></div></div>
-          <button class="keep-btn" id="keep1" disabled>KEEP</button>
+          <button class="keep-btn" id="keep1" disabled>LOCK</button>
         </div>
         <div class="dice-col">
           <div class="dice-box" id="die2"><div class="dice-face" id="face2"></div></div>
-          <button class="keep-btn" id="keep2" disabled>KEEP</button>
+          <button class="keep-btn" id="keep2" disabled>LOCK</button>
         </div>
         <div class="dice-col">
           <div class="dice-box" id="die3"><div class="dice-face" id="face3"></div></div>
-          <button class="keep-btn" id="keep3" disabled>KEEP</button>
+          <button class="keep-btn" id="keep3" disabled>LOCK</button>
         </div>
         <div class="dice-col">
           <div class="dice-box" id="die4"><div class="dice-face" id="face4"></div></div>
-          <button class="keep-btn" id="keep4" disabled>KEEP</button>
+          <button class="keep-btn" id="keep4" disabled>LOCK</button>
         </div>
       </div>
 
@@ -467,8 +532,24 @@
 
       <!-- Score display -->
       <div class="score-box" id="scoreBox">
-        <div class="score-label" id="scoreLabel"></div>
-        <div class="score-value" id="scoreValue"></div>
+        <div class="checklist">
+          <div class="check-item" id="check6">
+            <div class="check-box"><span class="check-mark">✓</span></div>
+            <span>6 = Weapon</span>
+          </div>
+          <div class="check-item" id="check5">
+            <div class="check-box"><span class="check-mark">✓</span></div>
+            <span>5 = Armor</span>
+          </div>
+          <div class="check-item" id="check4">
+            <div class="check-box"><span class="check-mark">✓</span></div>
+            <span>4 = Comms</span>
+          </div>
+        </div>
+        <div class="score-right">
+          <div class="score-label" id="scoreLabel">ROLL THE DICE</div>
+          <div class="score-value" id="scoreValue">-</div>
+        </div>
       </div>
     </div>
   </main>
@@ -538,8 +619,9 @@
         if (isRolling || diceValues[i] === 0) return;
         kept[i] = !kept[i];
         keepBtn.classList.toggle('active', kept[i]);
-        keepBtn.textContent = kept[i] ? 'KEPT' : 'KEEP';
+        keepBtn.textContent = kept[i] ? 'LOCKED' : 'LOCK';
         document.getElementById('die' + i).classList.toggle('kept', kept[i]);
+        updateChecklist();
       });
     }
 
@@ -603,6 +685,9 @@
         document.getElementById('keep' + dieIndex).disabled = false;
       }
 
+      // Update checklist after all dice settled
+      updateChecklist();
+
       // Update UI
       rollsLeftText.textContent = rollsLeft + ' ROLL' + (rollsLeft !== 1 ? 'S' : '') + ' LEFT';
 
@@ -619,6 +704,28 @@
       }
 
       isRolling = false;
+    }
+
+    // ========== CHECKLIST ==========
+    function updateChecklist() {
+      // Collect values from kept dice AND all current dice values
+      const vals = [...diceValues];
+
+      // Check for 6, 5, 4 in current dice (kept or showing)
+      const tempVals = [...vals];
+
+      const has6 = tempVals.indexOf(6) !== -1;
+      if (has6) tempVals.splice(tempVals.indexOf(6), 1);
+
+      const has5 = tempVals.indexOf(5) !== -1;
+      if (has5) tempVals.splice(tempVals.indexOf(5), 1);
+
+      const has4 = tempVals.indexOf(4) !== -1;
+      if (has4) tempVals.splice(tempVals.indexOf(4), 1);
+
+      document.getElementById('check6').classList.toggle('checked', has6);
+      document.getElementById('check5').classList.toggle('checked', has5);
+      document.getElementById('check4').classList.toggle('checked', has4);
     }
 
     // ========== SCORING ==========
@@ -643,13 +750,13 @@
 
       // Remaining 2 dice are the score
       const total = vals[0] + vals[1];
-      scoreBox.className = 'score-box show';
+      scoreBox.className = 'score-box scored';
       scoreLabel.textContent = '6-5-4 SCORED!';
       scoreValue.textContent = total;
     }
 
     function showNoScore(box, label, value) {
-      box.className = 'score-box show no-score';
+      box.className = 'score-box no-score';
       label.textContent = 'NO 6-5-4 COMBO';
       value.textContent = '0';
     }
