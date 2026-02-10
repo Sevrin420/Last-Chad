@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Last Chad</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: #0a0a0f;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      width: 100%;
+      max-width: 500px;
+      background: linear-gradient(180deg, rgba(30,22,8,0.95) 0%, rgba(20,15,5,0.98) 100%);
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 28px 22px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    }
+    h1 {
+      text-align: center;
+      font-size: clamp(0.8rem, 3vw, 1rem);
+      color: #c9a84c;
+      margin-bottom: 24px;
+    }
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #3d2e0a;
+      font-size: 0.45rem;
+    }
+    .stat .label { color: #8a7a5a; }
+    .stat .value { color: #f5e6c8; }
+    .stat .value.green { color: #4caf50; }
+    .withdraw-btn {
+      width: 100%;
+      margin-top: 24px;
+      padding: 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.6rem, 2.5vw, 0.8rem);
+      color: #fff;
+      background: linear-gradient(180deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%);
+      border: 3px solid #66bb6a;
+      border-radius: 6px;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,0.2), 0 4px 0 #1b5e20, 0 6px 15px rgba(0,0,0,0.5);
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .withdraw-btn:hover {
+      background: linear-gradient(180deg, #66bb6a 0%, #43a047 50%, #2e7d32 100%);
+    }
+    .withdraw-btn:active {
+      transform: translateY(3px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 #1b5e20;
+    }
+    .withdraw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #status {
+      margin-top: 14px;
+      font-size: 0.4rem;
+      line-height: 2;
+      text-align: center;
+      word-break: break-all;
+    }
+    #status.success { color: #4caf50; }
+    #status.error { color: #e53935; }
+    .back { display: block; text-align: center; margin-top: 20px; color: #5c4409; font-size: 0.4rem; text-decoration: none; }
+    .back:hover { color: #c9a84c; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Admin Panel</h1>
+
+    <div class="stat">
+      <span class="label">CONTRACT</span>
+      <span class="value" id="contractVal">Loading...</span>
+    </div>
+    <div class="stat">
+      <span class="label">MINTED</span>
+      <span class="value" id="mintedVal">...</span>
+    </div>
+    <div class="stat">
+      <span class="label">BALANCE</span>
+      <span class="value green" id="balanceVal">...</span>
+    </div>
+    <div class="stat">
+      <span class="label">OWNER</span>
+      <span class="value" id="ownerVal">...</span>
+    </div>
+
+    <button class="withdraw-btn" id="withdrawBtn" disabled>WITHDRAW AVAX</button>
+    <div id="status"></div>
+    <a href="index.html" class="back">BACK TO SITE</a>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script>
+    const CONTRACT_ADDRESS = '0xd96E719D84CC9BB919FC88172fBE2e3076c61e19';
+    const ABI = [
+      'function withdraw() external',
+      'function totalSupply() view returns (uint256)',
+      'function MAX_SUPPLY() view returns (uint256)',
+      'function owner() view returns (address)'
+    ];
+    const RPC = 'https://api.avax.network/ext/bc/C/rpc';
+    const AVAX_CHAIN_ID = '0xa86a';
+    const AVAX_CHAIN = {
+      chainId: AVAX_CHAIN_ID,
+      chainName: 'Avalanche C-Chain',
+      nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+      rpcUrls: [RPC],
+      blockExplorerUrls: ['https://snowtrace.io/']
+    };
+
+    const withdrawBtn = document.getElementById('withdrawBtn');
+    const status = document.getElementById('status');
+
+    function setStatus(msg, type) {
+      status.textContent = msg;
+      status.className = type || '';
+    }
+
+    // Load contract info on page load (read-only, no wallet needed)
+    (async () => {
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+
+        const [supply, owner, balance] = await Promise.all([
+          contract.totalSupply(),
+          contract.owner(),
+          provider.getBalance(CONTRACT_ADDRESS)
+        ]);
+
+        document.getElementById('contractVal').textContent =
+          CONTRACT_ADDRESS.slice(0, 6) + '...' + CONTRACT_ADDRESS.slice(-4);
+        document.getElementById('mintedVal').textContent = supply.toNumber() + ' / 6';
+        document.getElementById('balanceVal').textContent =
+          ethers.utils.formatEther(balance) + ' AVAX';
+        document.getElementById('ownerVal').textContent =
+          owner.slice(0, 6) + '...' + owner.slice(-4);
+
+        if (balance.gt(0)) {
+          withdrawBtn.disabled = false;
+        } else {
+          setStatus('Contract balance is 0.', '');
+        }
+      } catch (e) {
+        console.error(e);
+        setStatus('Failed to load contract info.', 'error');
+      }
+    })();
+
+    withdrawBtn.addEventListener('click', async () => {
+      const rawProvider = window.ethereum || window.avalanche;
+      if (!rawProvider) {
+        setStatus('No wallet detected. Open in Rabby browser.', 'error');
+        return;
+      }
+
+      try {
+        withdrawBtn.disabled = true;
+        withdrawBtn.textContent = 'CONNECTING...';
+
+        await rawProvider.request({ method: 'eth_requestAccounts' });
+
+        try {
+          await rawProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
+        } catch (err) {
+          if (err.code === 4902) {
+            await rawProvider.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
+          } else throw err;
+        }
+
+        const provider = new ethers.providers.Web3Provider(rawProvider);
+        const signer = provider.getSigner();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+        withdrawBtn.textContent = 'CONFIRM IN WALLET...';
+        const tx = await contract.withdraw();
+
+        withdrawBtn.textContent = 'WITHDRAWING...';
+        await tx.wait();
+
+        withdrawBtn.textContent = 'WITHDRAWN!';
+        setStatus('Funds sent to your wallet!', 'success');
+        document.getElementById('balanceVal').textContent = '0.0 AVAX';
+
+      } catch (err) {
+        console.error(err);
+        if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+          setStatus('Cancelled.', 'error');
+        } else {
+          setStatus('Failed: ' + (err.reason || err.message || err), 'error');
+        }
+        withdrawBtn.disabled = false;
+        withdrawBtn.textContent = 'WITHDRAW AVAX';
+      }
+    });
+  </script>
+</body>
+</html>
