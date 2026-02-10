@@ -687,9 +687,6 @@
         document.getElementById('keep' + dieIndex).disabled = false;
       }
 
-      // Update checklist after all dice settled
-      updateChecklist();
-
       // Update UI
       rollsLeftText.textContent = rollsLeft + ' ROLL' + (rollsLeft !== 1 ? 'S' : '') + ' LEFT';
 
@@ -700,6 +697,7 @@
         for (let i = 0; i < NUM_DICE; i++) {
           document.getElementById('keep' + i).disabled = true;
         }
+        updateChecklist(true);
         calculateScore();
       } else {
         rollBtn.disabled = false;
@@ -709,11 +707,13 @@
     }
 
     // ========== CHECKLIST ==========
-    function updateChecklist() {
-      // Collect values from kept dice AND all current dice values
-      const vals = [...diceValues];
+    function updateChecklist(includeFinal) {
+      // Only check locked dice, unless final roll then check all
+      const vals = [];
+      for (let i = 0; i < NUM_DICE; i++) {
+        if (kept[i] || includeFinal) vals.push(diceValues[i]);
+      }
 
-      // Check for 6, 5, 4 in current dice (kept or showing)
       const tempVals = [...vals];
 
       const has6 = tempVals.indexOf(6) !== -1;
