@@ -578,7 +578,7 @@
 
       // Stop dice one at a time, left to right
       const stopDelay = 800;
-      const baseWait = 3500;
+      const baseWait = 2500;
 
       for (let order = 0; order < toRoll.length; order++) {
         await new Promise(resolve => setTimeout(resolve, order === 0 ? baseWait : stopDelay));
