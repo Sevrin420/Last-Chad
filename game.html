@@ -364,6 +364,44 @@
       color: #8a7a5a;
     }
 
+    .score-box {
+      display: none;
+      margin-top: 20px;
+      padding: 18px 24px;
+      background: #0a0a0f;
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      text-align: center;
+      box-shadow:
+        inset 0 0 20px rgba(0, 0, 0, 0.8),
+        0 4px 16px rgba(0, 0, 0, 0.5);
+      min-width: 200px;
+    }
+
+    .score-box.show { display: block; }
+
+    .score-label {
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      margin-bottom: 10px;
+      line-height: 2;
+    }
+
+    .score-value {
+      font-size: clamp(1.2rem, 5vw, 2rem);
+      color: #c9a84c;
+      text-shadow: 0 0 12px rgba(201, 168, 76, 0.5);
+    }
+
+    .score-box.no-score .score-label {
+      color: #e53935;
+    }
+
+    .score-box.no-score .score-value {
+      color: #e53935;
+      text-shadow: 0 0 12px rgba(229, 57, 53, 0.4);
+    }
+
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
       .dice-row { gap: 6px; }
@@ -423,6 +461,12 @@
       <div class="roll-section">
         <button class="roll-btn" id="rollBtn">ROLL</button>
         <div class="rolls-left" id="rollsLeft">3 ROLLS LEFT</div>
+      </div>
+
+      <!-- Score display -->
+      <div class="score-box" id="scoreBox">
+        <div class="score-label" id="scoreLabel"></div>
+        <div class="score-value" id="scoreValue"></div>
       </div>
     </div>
   </main>
@@ -533,8 +577,8 @@
       }
 
       // Stop dice one at a time, left to right
-      const stopDelay = 400;
-      const baseWait = 500;
+      const stopDelay = 800;
+      const baseWait = 3500;
 
       for (let order = 0; order < toRoll.length; order++) {
         await new Promise(resolve => setTimeout(resolve, order === 0 ? baseWait : stopDelay));
@@ -564,15 +608,48 @@
         rollBtn.disabled = true;
         rollBtn.textContent = 'NO ROLLS';
         rollsLeftText.textContent = 'TURN OVER';
-        // Disable all keep buttons
         for (let i = 0; i < NUM_DICE; i++) {
           document.getElementById('keep' + i).disabled = true;
         }
+        calculateScore();
       } else {
         rollBtn.disabled = false;
       }
 
       isRolling = false;
+    }
+
+    // ========== SCORING ==========
+    function calculateScore() {
+      const scoreBox = document.getElementById('scoreBox');
+      const scoreLabel = document.getElementById('scoreLabel');
+      const scoreValue = document.getElementById('scoreValue');
+
+      // Check if dice contain 6, 5, and 4
+      const vals = [...diceValues];
+      const has6 = vals.indexOf(6);
+      if (has6 === -1) { showNoScore(scoreBox, scoreLabel, scoreValue); return; }
+      vals.splice(has6, 1);
+
+      const has5 = vals.indexOf(5);
+      if (has5 === -1) { showNoScore(scoreBox, scoreLabel, scoreValue); return; }
+      vals.splice(has5, 1);
+
+      const has4 = vals.indexOf(4);
+      if (has4 === -1) { showNoScore(scoreBox, scoreLabel, scoreValue); return; }
+      vals.splice(has4, 1);
+
+      // Remaining 2 dice are the score
+      const total = vals[0] + vals[1];
+      scoreBox.className = 'score-box show';
+      scoreLabel.textContent = '6-5-4 SCORED!';
+      scoreValue.textContent = total;
+    }
+
+    function showNoScore(box, label, value) {
+      box.className = 'score-box show no-score';
+      label.textContent = 'NO 6-5-4 COMBO';
+      value.textContent = '0';
     }
 
     rollBtn.addEventListener('click', rollDice);
