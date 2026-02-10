@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract LastChad is ERC721, Ownable {
     uint256 public constant MAX_SUPPLY = 6;
-    uint256 public constant MINT_PRICE = 3 ether; // 3 AVAX
+    uint256 public constant MINT_PRICE = 0.02 ether; // 0.02 AVAX
 
     uint256 public totalSupply;
     string private _baseTokenURI;
