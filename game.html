@@ -391,9 +391,9 @@
     .check-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: clamp(0.3rem, 1.5vw, 0.4rem);
-      color: #5a4a2a;
+      gap: 10px;
+      font-size: clamp(0.45rem, 2vw, 0.6rem);
+      color: #e53935;
       transition: color 0.3s;
     }
 
@@ -402,9 +402,9 @@
     }
 
     .check-box {
-      width: 16px;
-      height: 16px;
-      border: 2px solid #5a4a2a;
+      width: 22px;
+      height: 22px;
+      border: 3px solid #e53935;
       border-radius: 0;
       display: flex;
       align-items: center;
@@ -421,7 +421,7 @@
     .check-mark {
       display: none;
       color: #4caf50;
-      font-size: 0.5rem;
+      font-size: 0.65rem;
       line-height: 1;
     }
 
@@ -440,14 +440,14 @@
     }
 
     .score-label {
-      font-size: 0.45rem;
+      font-size: clamp(0.55rem, 2.5vw, 0.75rem);
       color: #8a7a5a;
       margin-bottom: 10px;
       line-height: 2;
     }
 
     .score-value {
-      font-size: clamp(1.2rem, 5vw, 2rem);
+      font-size: clamp(1.8rem, 7vw, 3rem);
       color: #c9a84c;
       text-shadow: 0 0 12px rgba(201, 168, 76, 0.5);
     }
@@ -462,7 +462,7 @@
     }
 
     .score-box.scored .score-label {
-      color: #4caf50;
+      color: #e53935;
     }
 
     .score-box.scored .score-value {
