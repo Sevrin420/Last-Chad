@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deploy | Last Chad</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: #0a0a0f;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      width: 100%;
+      max-width: 500px;
+      background: linear-gradient(180deg, rgba(30,22,8,0.95) 0%, rgba(20,15,5,0.98) 100%);
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 28px 22px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.6), 0 0 60px rgba(139,105,20,0.1);
+    }
+    h1 {
+      text-align: center;
+      font-size: clamp(0.8rem, 3vw, 1rem);
+      color: #c9a84c;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      margin-bottom: 24px;
+      line-height: 1.8;
+    }
+    .field {
+      margin-bottom: 18px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      margin-bottom: 8px;
+    }
+    .field input {
+      width: 100%;
+      padding: 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem;
+      background: #1a1005;
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      color: #f5e6c8;
+      outline: none;
+    }
+    .field input:focus { border-color: #8b6914; }
+    .info {
+      font-size: 0.4rem;
+      color: #5c4409;
+      line-height: 1.8;
+      margin-bottom: 18px;
+      padding: 12px;
+      background: rgba(92,68,9,0.15);
+      border: 1px solid #3d2e0a;
+      border-radius: 4px;
+    }
+    .info span { color: #c9a84c; }
+    .deploy-btn {
+      width: 100%;
+      padding: 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.6rem, 2.5vw, 0.8rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5);
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .deploy-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%);
+      border-color: #f5e6c8;
+    }
+    .deploy-btn:active {
+      transform: translateY(3px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 #3d2e0a;
+    }
+    .deploy-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 16px;
+      font-size: 0.4rem;
+      line-height: 2;
+      color: #8a7a5a;
+      text-align: center;
+      word-break: break-all;
+    }
+    #status.success { color: #4caf50; }
+    #status.error { color: #e53935; }
+    .result-box {
+      display: none;
+      margin-top: 16px;
+      padding: 14px;
+      background: rgba(76,175,80,0.1);
+      border: 2px solid #4caf50;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .result-box .addr {
+      font-size: 0.4rem;
+      color: #4caf50;
+      word-break: break-all;
+      margin: 8px 0;
+      line-height: 1.8;
+    }
+    .result-box .label {
+      font-size: 0.4rem;
+      color: #8a7a5a;
+    }
+    .copy-btn {
+      margin-top: 8px;
+      padding: 8px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem;
+      background: #1a3d1a;
+      border: 2px solid #4caf50;
+      border-radius: 4px;
+      color: #a5d6a7;
+      cursor: pointer;
+    }
+    a { color: #c9a84c; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Deploy Contract</h1>
+    <p class="subtitle">Deploy the Last Chad NFT contract<br>to Avalanche C-Chain</p>
+
+    <div class="field">
+      <label>BASE URI (metadata URL)</label>
+      <input type="text" id="baseUri" value="https://lastchad.xyz/metadata/" placeholder="https://lastchad.xyz/metadata/">
+    </div>
+
+    <div class="info">
+      <span>Contract:</span> Last Chad (CHAD)<br>
+      <span>Network:</span> Avalanche C-Chain<br>
+      <span>Supply:</span> 6 NFTs<br>
+      <span>Price:</span> 0.02 AVAX each<br>
+      <span>Owner:</span> Your connected wallet
+    </div>
+
+    <button class="deploy-btn" id="deployBtn">DEPLOY CONTRACT</button>
+
+    <div id="status"></div>
+
+    <div class="result-box" id="resultBox">
+      <div class="label">CONTRACT ADDRESS</div>
+      <div class="addr" id="contractAddr"></div>
+      <button class="copy-btn" id="copyBtn">COPY ADDRESS</button>
+      <br><br>
+      <div class="label" style="font-size:0.35rem; line-height:1.6; color:#5c4409;">
+        Paste this address into<br>CONTRACT_ADDRESS in mint.html
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script>
+    const AVAX_CHAIN_ID = '0xa86a';
+    const AVAX_CHAIN = {
+      chainId: AVAX_CHAIN_ID,
+      chainName: 'Avalanche C-Chain',
+      nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+      rpcUrls: ['https://api.avax.network/ext/bc/C/rpc'],
+      blockExplorerUrls: ['https://snowtrace.io/']
+    };
+
+    const CONTRACT_ABI = [{"inputs":[{"internalType":"string","name":"baseURI","type":"string"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"address","name":"owner","type":"address"}],"name":"ERC721IncorrectOwner","type":"error"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ERC721InsufficientApproval","type":"error"},{"inputs":[{"internalType":"address","name":"approver","type":"address"}],"name":"ERC721InvalidApprover","type":"error"},{"inputs":[{"internalType":"address","name":"operator","type":"address"}],"name":"ERC721InvalidOperator","type":"error"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"ERC721InvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"receiver","type":"address"}],"name":"ERC721InvalidReceiver","type":"error"},{"inputs":[{"internalType":"address","name":"sender","type":"address"}],"name":"ERC721InvalidSender","type":"error"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ERC721NonexistentToken","type":"error"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"OwnableInvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"OwnableUnauthorizedAccount","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"MAX_SUPPLY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MINT_PRICE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"quantity","type":"uint256"}],"name":"mint","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"baseURI","type":"string"}],"name":"setBaseURI","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+
+    const BYTECODE = '0x608060405234801562000010575f80fd5b50604051620018e5380380620018e583398101604081905262000033916200014a565b336040518060400160405280600981526020016813185cdd0810da185960ba1b8152506040518060400160405280600481526020016310d2105160e21b815250815f9081620000839190620002a4565b506001620000928282620002a4565b5050506001600160a01b038116620000c357604051631e4fbdf760e01b81525f600482015260240160405180910390fd5b620000ce81620000e5565b506008620000dd8282620002a4565b50506200036c565b600680546001600160a01b038381166001600160a01b0319831681179093556040519116919082907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0905f90a35050565b634e487b7160e01b5f52604160045260245ffd5b5f60208083850312156200015c575f80fd5b82516001600160401b038082111562000173575f80fd5b818501915085601f83011262000187575f80fd5b8151818111156200019c576200019c62000136565b604051601f8201601f19908116603f01168101908382118183101715620001c757620001c762000136565b816040528281528886848701011115620001df575f80fd5b5f93505b82841015620002025784840186015181850187015292850192620001e3565b5f86848301015280965050505050505092915050565b600181811c908216806200022d57607f821691505b6020821081036200024c57634e487b7160e01b5f52602260045260245ffd5b50919050565b601f8211156200029f575f81815260208120601f850160051c810160208610156200027a5750805b601f850160051c820191505b818110156200029b5782815560010162000286565b5050505b505050565b81516001600160401b03811115620002c057620002c062000136565b620002d881620002d1845462000218565b8462000252565b602080601f8311600181146200030e575f8415620002f65750858301515b5f19600386901b1c1916600185901b1785556200029b565b5f85815260208120601f198616915b828110156200033e578886015182559484019460019091019084016200031d565b50858210156200035c57878501515f19600388901b60f8161c191681555b5050505050600190811b01905550565b61156b806200037a5f395ff3fe608060405260043610610131575f3560e01c806370a08231116100a8578063a22cb4651161006d578063a22cb46514610320578063b88d4fde1461033f578063c002d23d1461035e578063c87b56dd14610378578063e985e9c514610397578063f2fde38b146103b6575f80fd5b806370a08231146102a9578063715018a6146102c85780638da5cb5b146102dc57806395d89b41146102f9578063a0712d681461030d575f80fd5b806323b872dd116100f957806323b872dd1461020557806332cb6b0c146102245780633ccfd60b1461023857806342842e0e1461024c57806355f804b31461026b5780636352211e1461028a575f80fd5b806301ffc9a71461013557806306fdde0314610169578063081812fc1461018a578063095ea7b3146101c157806318160ddd146101e2575b5f80fd5b348015610140575f80fd5b5061015461014f366004611046565b6103d5565b60405190151581526020015b60405180910390f35b348015610174575f80fd5b5061017d610426565b60405161016091906110ae565b348015610195575f80fd5b506101a96101a43660046110c0565b6104b5565b6040516001600160a01b039091168152602001610160565b3480156101cc575f80fd5b506101e06101db3660046110f2565b6104dc565b005b3480156101ed575f80fd5b506101f760075481565b604051908152602001610160565b348015610210575f80fd5b506101e061021f36600461111a565b6104eb565b34801561022f575f80fd5b506101f7600681565b348015610243575f80fd5b506101e0610579565b348015610257575f80fd5b506101e061026636600461111a565b610628565b348015610276575f80fd5b506101e06102853660046111da565b610647565b348015610295575f80fd5b506101a96102a43660046110c0565b61065b565b3480156102b4575f80fd5b506101f76102c336600461121f565b610665565b3480156102d3575f80fd5b506101e06106aa565b3480156102e7575f80fd5b506006546001600160a01b03166101a9565b348015610304575f80fd5b5061017d6106bd565b6101e061031b3660046110c0565b6106cc565b34801561032b575f80fd5b506101e061033a366004611238565b6107f8565b34801561034a575f80fd5b506101e0610359366004611271565b610803565b348015610369575f80fd5b506101f766470de4df82000081565b348015610383575f80fd5b5061017d6103923660046110c0565b61081a565b3480156103a2575f80fd5b506101546103b13660046112e8565b61087f565b3480156103c1575f80fd5b506101e06103d036600461121f565b6108ac565b5f6001600160e01b031982166380ac58cd60e01b148061040557506001600160e01b03198216635b5e139f60e01b145b8061042057506301ffc9a760e01b6001600160e01b03198316145b92915050565b60605f805461043490611319565b80601f016020809104026020016040519081016040528092919081815260200182805461046090611319565b80156104ab5780601f10610482576101008083540402835291602001916104ab565b820191905f5260205f20905b81548152906001019060200180831161048e57829003601f168201915b5050505050905090565b5f6104bf826108e6565b505f828152600460205260409020546001600160a01b0316610420565b6104e782823361091e565b5050565b6001600160a01b03821661051957604051633250574960e11b81525f60048201526024015b60405180910390fd5b5f61052583833361092b565b9050836001600160a01b0316816001600160a01b031614610573576040516364283d7b60e01b81526001600160a01b0380861660048301526024820184905282166044820152606401610510565b50505050565b610581610a1d565b5f6105946006546001600160a01b031690565b6001600160a01b0316476040515f6040518083038185875af1925050503d805f81146105db576040519150601f19603f3d011682016040523d82523d5f602084013e6105e0565b606091505b50509050806106255760405162461bcd60e51b815260206004820152601160248201527015da5d1a191c985dd85b0819985a5b1959607a1b6044820152606401610510565b50565b61064283838360405180602001604052805f815250610803565b505050565b61064f610a1d565b60086104e7828261139e565b5f610420826108e6565b5f6001600160a01b03821661068f576040516322718ad960e21b81525f6004820152602401610510565b506001600160a01b03165f9081526003602052604090205490565b6106b2610a1d565b6106bb5f610a4a565b565b60606001805461043490611319565b5f81116107125760405162461bcd60e51b815260206004820152601460248201527305175616e74697479206d757374206265203e20360641b6044820152606401610510565b600681600754610722919061146e565b11156107655760405162461bcd60e51b815260206004820152601260248201527145786365656473206d617820737570706c7960701b6044820152606401610510565b6107768166470de4df820000611481565b3410156107bc5760405162461bcd60e51b8152602060048201526014602482015273125b9cdd59999a58da595b9d081c185e5b595b9d60621b6044820152606401610510565b5f5b818110156104e75760078054905f6107d583611498565b91905055506107e633600754610a9b565b806107f081611498565b9150506107be565b6104e7338383610ab4565b61080e8484846104eb565b61057384848484610b52565b6060610825826108e6565b505f61082f610c78565b90505f81511161084d5760405180602001604052805f815250610878565b8061085784610c87565b6040516020016108689291906114b0565b6040516020818303038152906040525b9392505050565b6001600160a01b039182165f90815260056020908152604080832093909416825291909152205460ff1690565b6108b4610a1d565b6001600160a01b0381166108dd57604051631e4fbdf760e01b81525f6004820152602401610510565b61062581610a4a565b5f818152600260205260408120546001600160a01b03168061042057604051637e27328960e01b815260048101849052602401610510565b6106428383836001610d17565b5f828152600260205260408120546001600160a01b039081169083161561095757610957818486610e1b565b6001600160a01b03811615610991576109725f855f80610d17565b6001600160a01b0381165f90815260036020526040902080545f190190555b6001600160a01b038516156109bf576001600160a01b0385165f908152600360205260409020805460010190555b5f8481526002602052604080822080546001600160a01b0319166001600160a01b0389811691821790925591518793918516917fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef91a4949350505050565b6006546001600160a01b031633146106bb5760405163118cdaa760e01b8152336004820152602401610510565b600680546001600160a01b038381166001600160a01b0319831681179093556040519116919082907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0905f90a35050565b6104e7828260405180602001604052805f815250610e7f565b6001600160a01b038216610ae657604051630b61174360e31b81526001600160a01b0383166004820152602401610510565b6001600160a01b038381165f81815260056020908152604080832094871680845294825291829020805460ff191686151590811790915591519182527f17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31910160405180910390a3505050565b6001600160a01b0383163b1561057357604051630a85bd0160e11b81526001600160a01b0384169063150b7a0290610b949033908890879087906004016114de565b6020604051808303815f875af1925050508015610bce575060408051601f3d908101601f19168201909252610bcb9181019061151a565b60015b610c35573d808015610bfb576040519150601f19603f3d011682016040523d82523d5f602084013e610c00565b606091505b5080515f03610c2d57604051633250574960e11b81526001600160a01b0385166004820152602401610510565b805181602001fd5b6001600160e01b03198116630a85bd0160e11b14610c7157604051633250574960e11b81526001600160a01b0385166004820152602401610510565b5050505050565b60606008805461043490611319565b60605f610c9383610e95565b60010190505f8167ffffffffffffffff811115610cb257610cb2611153565b6040519080825280601f01601f191660200182016040528015610cdc576020820181803683370190505b5090508181016020015b5f19016f181899199a1a9b1b9c1cb0b131b232b360811b600a86061a8153600a8504945084610ce657509392505050565b8080610d2b57506001600160a01b03821615155b15610dec575f610d3a846108e6565b90506001600160a01b03831615801590610d665750826001600160a01b0316816001600160a01b031614155b8015610d795750610d77818461087f565b155b15610da25760405163a9fbf51f60e01b81526001600160a01b0384166004820152602401610510565b8115610dea5783856001600160a01b0316826001600160a01b03167f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b92560405160405180910390a45b505b50505f90815260046020526040902080546001600160a01b0319166001600160a01b0392909216919091179055565b610e26838383610f6c565b610642576001600160a01b038316610e5457604051637e27328960e01b815260048101829052602401610510565b60405163177e802f60e01b81526001600160a01b038316600482015260248101829052604401610510565b610e898383610fd0565b6106425f848484610b52565b5f8072184f03e93ff9f4daa797ed6e38ed64bf6a1f0160401b8310610ed35772184f03e93ff9f4daa797ed6e38ed64bf6a1f0160401b830492506040015b6d04ee2d6d415b85acef81000000008310610eff576d04ee2d6d415b85acef8100000000830492506020015b662386f26fc100008310610f1d57662386f26fc10000830492506010015b6305f5e1008310610f35576305f5e100830492506008015b6127108310610f4957612710830492506004015b60648310610f5b576064830492506002015b600a83106104205760010192915050565b5f6001600160a01b03831615801590610fc85750826001600160a01b0316846001600160a01b03161480610fa55750610fa5848461087f565b80610fc857505f828152600460205260409020546001600160a01b038481169116145b949350505050565b6001600160a01b038216610ff957604051633250574960e11b81525f6004820152602401610510565b5f61100583835f61092b565b90506001600160a01b03811615610642576040516339e3563760e11b81525f6004820152602401610510565b6001600160e01b031981168114610625575f80fd5b5f60208284031215611056575f80fd5b813561087881611031565b5f5b8381101561107b578181015183820152602001611063565b50505f910152565b5f815180845261109a816020860160208601611061565b601f01601f19169290920160200192915050565b602081525f6108786020830184611083565b5f602082840312156110d0575f80fd5b5035919050565b80356001600160a01b03811681146110ed575f80fd5b919050565b5f8060408385031215611103575f80fd5b61110c836110d7565b946020939093013593505050565b5f805f6060848603121561112c575f80fd5b611135846110d7565b9250611143602085016110d7565b9150604084013590509250925092565b634e487b7160e01b5f52604160045260245ffd5b5f67ffffffffffffffff8084111561118157611181611153565b604051601f8501601f19908116603f011681019082821181831017156111a9576111a9611153565b816040528093508581528686860111156111c1575f80fd5b858560208301375f602087830101525050509392505050565b5f602082840312156111ea575f80fd5b813567ffffffffffffffff811115611200575f80fd5b8201601f81018413611210575f80fd5b610fc884823560208401611167565b5f6020828403121561122f575f80fd5b610878826110d7565b5f8060408385031215611249575f80fd5b611252836110d7565b915060208301358015158114611266575f80fd5b809150509250929050565b5f805f8060808587031215611284575f80fd5b61128d856110d7565b935061129b602086016110d7565b925060408501359150606085013567ffffffffffffffff8111156112bd575f80fd5b8501601f810187136112cd575f80fd5b6112dc87823560208401611167565b91505092959194509250565b5f80604083850312156112f9575f80fd5b611302836110d7565b9150611310602084016110d7565b90509250929050565b600181811c9082168061132d57607f821691505b60208210810361134b57634e487b7160e01b5f52602260045260245ffd5b50919050565b601f821115610642575f81815260208120601f850160051c810160208610156113775750805b601f850160051c820191505b8181101561139657828155600101611383565b505050505050565b815167ffffffffffffffff8111156113b8576113b8611153565b6113cc816113c68454611319565b84611351565b602080601f8311600181146113ff575f84156113e85750858301515b5f19600386901b1c1916600185901b178555611396565b5f85815260208120601f198616915b8281101561142d5788860151825594840194600190910190840161140e565b508582101561144a57878501515f19600388901b60f8161c191681555b5050505050600190811b01905550565b634e487b7160e01b5f52601160045260245ffd5b808201808211156104205761042061145a565b80820281158282048414176104205761042061145a565b5f600182016114a9576114a961145a565b5060010190565b5f83516114c1818460208801611061565b8351908301906114d5818360208801611061565b01949350505050565b6001600160a01b03858116825284166020820152604081018390526080606082018190525f9061151090830184611083565b9695505050505050565b5f6020828403121561152a575f80fd5b81516108788161103156fea2646970667358221220b33ec907d4d5fa80a9606447d074fe02f1de993285f98bae13432ed608749b0364736f6c63430008140033';
+
+    const deployBtn = document.getElementById('deployBtn');
+    const status = document.getElementById('status');
+    const resultBox = document.getElementById('resultBox');
+    const contractAddr = document.getElementById('contractAddr');
+    const copyBtn = document.getElementById('copyBtn');
+    const baseUriInput = document.getElementById('baseUri');
+
+    function setStatus(msg, type) {
+      status.textContent = msg;
+      status.className = type || '';
+    }
+
+    deployBtn.addEventListener('click', async () => {
+      const rawProvider = window.ethereum || window.avalanche;
+      if (!rawProvider) {
+        setStatus('No wallet detected. Open this page in your Rabby or wallet browser.', 'error');
+        return;
+      }
+
+      try {
+        deployBtn.disabled = true;
+        deployBtn.textContent = 'CONNECTING...';
+
+        // Connect wallet
+        const accounts = await rawProvider.request({ method: 'eth_requestAccounts' });
+        if (!accounts || !accounts.length) throw new Error('No accounts');
+
+        // Switch to Avalanche
+        try {
+          await rawProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
+        } catch (err) {
+          if (err.code === 4902) {
+            await rawProvider.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
+          } else throw err;
+        }
+
+        const provider = new ethers.providers.Web3Provider(rawProvider);
+        const signer = provider.getSigner();
+        const baseUri = baseUriInput.value.trim() || 'https://lastchad.xyz/metadata/';
+
+        setStatus('Deploying contract... Please confirm in your wallet.', '');
+        deployBtn.textContent = 'DEPLOYING...';
+
+        // Deploy
+        const factory = new ethers.ContractFactory(CONTRACT_ABI, BYTECODE, signer);
+        const contract = await factory.deploy(baseUri);
+
+        setStatus('Waiting for confirmation...', '');
+        deployBtn.textContent = 'CONFIRMING...';
+        await contract.deployed();
+
+        // Success
+        const addr = contract.address;
+        setStatus('Contract deployed successfully!', 'success');
+        deployBtn.textContent = 'DEPLOYED!';
+        contractAddr.textContent = addr;
+        resultBox.style.display = 'block';
+
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(addr).then(() => {
+            copyBtn.textContent = 'COPIED!';
+            setTimeout(() => { copyBtn.textContent = 'COPY ADDRESS'; }, 2000);
+          }).catch(() => {
+            // Fallback for mobile
+            const ta = document.createElement('textarea');
+            ta.value = addr;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            copyBtn.textContent = 'COPIED!';
+            setTimeout(() => { copyBtn.textContent = 'COPY ADDRESS'; }, 2000);
+          });
+        });
+
+      } catch (err) {
+        console.error('Deploy failed:', err);
+        if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+          setStatus('Deployment cancelled.', 'error');
+        } else {
+          setStatus('Deploy failed: ' + (err.reason || err.message || err), 'error');
+        }
+        deployBtn.disabled = false;
+        deployBtn.textContent = 'DEPLOY CONTRACT';
+      }
+    });
+  </script>
+</body>
+</html>
