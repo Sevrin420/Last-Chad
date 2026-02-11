@@ -22,12 +22,19 @@ contract LastChad is ERC721, Ownable {
     mapping(uint256 => Stats) private _tokenStats;
     mapping(uint256 => string) public tokenName;
     mapping(uint256 => uint256) private _tokenExperience;
+    mapping(address => bool) public authorizedGame;
 
     event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
     event StatsUpdated(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
     event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint8 amount, uint8 newValue);
     event NameSet(uint256 indexed tokenId, string name);
     event ExperienceAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalExperience, uint256 newLevel);
+    event GameContractSet(address indexed game, bool enabled);
+
+    modifier onlyGameOrOwner() {
+        require(authorizedGame[msg.sender] || msg.sender == owner(), "Not authorized");
+        _;
+    }
 
     constructor(string memory baseURI) ERC721("Last Chad", "CHAD") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
@@ -82,7 +89,13 @@ contract LastChad is ERC721, Ownable {
         emit StatIncremented(tokenId, statIndex, amount, newValue);
     }
 
-    function awardExperience(uint256 tokenId, uint256 amount) external onlyOwner {
+    function setGameContract(address game, bool enabled) external onlyOwner {
+        require(game != address(0), "Invalid address");
+        authorizedGame[game] = enabled;
+        emit GameContractSet(game, enabled);
+    }
+
+    function awardExperience(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         require(amount > 0, "Amount must be > 0");
         _tokenExperience[tokenId] += amount;
