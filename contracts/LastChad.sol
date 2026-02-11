@@ -22,6 +22,7 @@ contract LastChad is ERC721, Ownable {
     mapping(uint256 => Stats) private _tokenStats;
     mapping(uint256 => string) public tokenName;
     mapping(uint256 => uint256) private _tokenExperience;
+    mapping(uint256 => uint256) private _pendingStatPoints;
     mapping(address => bool) public authorizedGame;
 
     event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
@@ -29,6 +30,8 @@ contract LastChad is ERC721, Ownable {
     event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint8 amount, uint8 newValue);
     event NameSet(uint256 indexed tokenId, string name);
     event ExperienceAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalExperience, uint256 newLevel);
+    event LevelUp(uint256 indexed tokenId, uint256 newLevel, uint256 statPointsAwarded);
+    event StatPointSpent(uint256 indexed tokenId, uint8 statIndex, uint8 newValue);
     event GameContractSet(address indexed game, bool enabled);
 
     modifier onlyGameOrOwner() {
@@ -98,10 +101,37 @@ contract LastChad is ERC721, Ownable {
     function awardExperience(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         require(amount > 0, "Amount must be > 0");
+        uint256 oldLevel = (_tokenExperience[tokenId] / 100) + 1;
         _tokenExperience[tokenId] += amount;
         uint256 totalXP = _tokenExperience[tokenId];
         uint256 newLevel = (totalXP / 100) + 1;
+        if (newLevel > oldLevel) {
+            uint256 levelsGained = newLevel - oldLevel;
+            _pendingStatPoints[tokenId] += levelsGained;
+            emit LevelUp(tokenId, newLevel, levelsGained);
+        }
         emit ExperienceAwarded(tokenId, amount, totalXP, newLevel);
+    }
+
+    // statIndex: 0=strength, 1=intelligence, 2=dexterity, 3=charisma
+    function spendStatPoint(uint256 tokenId, uint8 statIndex) external {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(_pendingStatPoints[tokenId] > 0, "No stat points available");
+        require(statIndex <= 3, "Invalid stat index");
+
+        _pendingStatPoints[tokenId]--;
+        Stats storage s = _tokenStats[tokenId];
+        uint8 newValue;
+        if (statIndex == 0) { s.strength += 1; newValue = s.strength; }
+        else if (statIndex == 1) { s.intelligence += 1; newValue = s.intelligence; }
+        else if (statIndex == 2) { s.dexterity += 1; newValue = s.dexterity; }
+        else { s.charisma += 1; newValue = s.charisma; }
+
+        emit StatPointSpent(tokenId, statIndex, newValue);
+    }
+
+    function getPendingStatPoints(uint256 tokenId) external view returns (uint256) {
+        return _pendingStatPoints[tokenId];
     }
 
     function getExperience(uint256 tokenId) external view returns (uint256) {
