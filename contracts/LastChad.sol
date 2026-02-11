@@ -22,6 +22,7 @@ contract LastChad is ERC721, Ownable {
     mapping(uint256 => Stats) private _tokenStats;
 
     event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
+    event StatsUpdated(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
 
     constructor(string memory baseURI) ERC721("Last Chad", "CHAD") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
@@ -48,6 +49,12 @@ contract LastChad is ERC721, Ownable {
 
         _tokenStats[tokenId] = Stats(strength, intelligence, dexterity, charisma, true);
         emit StatsAssigned(tokenId, strength, intelligence, dexterity, charisma);
+    }
+
+    function updateStats(uint256 tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external onlyOwner {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        _tokenStats[tokenId] = Stats(strength, intelligence, dexterity, charisma, true);
+        emit StatsUpdated(tokenId, strength, intelligence, dexterity, charisma);
     }
 
     function getStats(uint256 tokenId) external view returns (uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma, bool assigned) {
