@@ -203,9 +203,11 @@
 
     .portrait-info {
       display: none;
-      margin-top: 10px;
+      margin-top: 16px;
       text-align: center;
       width: 100%;
+      max-width: 400px;
+      align-self: center;
     }
 
     .portrait-level {
@@ -623,14 +625,6 @@
             <img id="portraitImg" src="" alt="">
             <div class="portrait-placeholder" id="portraitPlaceholder">Select a<br>Chad below</div>
           </div>
-          <div class="portrait-info" id="portraitInfo">
-            <div class="portrait-name" id="portraitName"></div>
-            <div class="portrait-level" id="portraitLevel">LVL 1</div>
-            <div class="xp-bar-wrap">
-              <div class="xp-bar-fill" id="xpBarFill"></div>
-            </div>
-            <div class="xp-label" id="xpLabel">0 / 100 XP</div>
-          </div>
         </div>
         <div class="stats-panel" id="statsPanel">
           <div class="stat-box">
@@ -650,6 +644,16 @@
             <div class="stat-value" id="statCha">—</div>
           </div>
         </div>
+      </div>
+
+      <!-- Name / Level / XP (centered below portrait row) -->
+      <div class="portrait-info" id="portraitInfo">
+        <div class="portrait-name" id="portraitName"></div>
+        <div class="portrait-level" id="portraitLevel">LVL 1</div>
+        <div class="xp-bar-wrap">
+          <div class="xp-bar-fill" id="xpBarFill"></div>
+        </div>
+        <div class="xp-label" id="xpLabel">0 / 100 XP</div>
       </div>
 
       <!-- Battle button -->
