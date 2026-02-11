@@ -10,10 +10,10 @@ contract LastChad is ERC721, Ownable {
     uint256 public constant TOTAL_STAT_POINTS = 2;
 
     struct Stats {
-        uint8 strength;
-        uint8 intelligence;
-        uint8 dexterity;
-        uint8 charisma;
+        uint32 strength;
+        uint32 intelligence;
+        uint32 dexterity;
+        uint32 charisma;
         bool assigned;
     }
 
@@ -25,13 +25,13 @@ contract LastChad is ERC721, Ownable {
     mapping(uint256 => uint256) private _pendingStatPoints;
     mapping(address => bool) public authorizedGame;
 
-    event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
-    event StatsUpdated(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
-    event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint8 amount, uint8 newValue);
+    event StatsAssigned(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
+    event StatsUpdated(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
+    event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint32 amount, uint32 newValue);
     event NameSet(uint256 indexed tokenId, string name);
     event ExperienceAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalExperience, uint256 newLevel);
     event LevelUp(uint256 indexed tokenId, uint256 newLevel, uint256 statPointsAwarded);
-    event StatPointSpent(uint256 indexed tokenId, uint8 statIndex, uint8 newValue);
+    event StatPointSpent(uint256 indexed tokenId, uint8 statIndex, uint32 newValue);
     event GameContractSet(address indexed game, bool enabled);
 
     modifier onlyGameOrOwner() {
@@ -54,7 +54,7 @@ contract LastChad is ERC721, Ownable {
         }
     }
 
-    function setStats(uint256 tokenId, string calldata name, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external {
+    function setStats(uint256 tokenId, string calldata name, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!_tokenStats[tokenId].assigned, "Stats already assigned");
         require(
@@ -70,24 +70,24 @@ contract LastChad is ERC721, Ownable {
         emit StatsAssigned(tokenId, strength, intelligence, dexterity, charisma);
     }
 
-    function updateStats(uint256 tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external onlyOwner {
+    function updateStats(uint256 tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma) external onlyOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         _tokenStats[tokenId] = Stats(strength, intelligence, dexterity, charisma, true);
         emit StatsUpdated(tokenId, strength, intelligence, dexterity, charisma);
     }
 
     // statIndex: 0=strength, 1=intelligence, 2=dexterity, 3=charisma
-    function addStat(uint256 tokenId, uint8 statIndex, uint8 amount) external onlyOwner {
+    function addStat(uint256 tokenId, uint8 statIndex, uint32 amount) external onlyOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         require(statIndex <= 3, "Invalid stat index");
         require(amount > 0, "Amount must be > 0");
 
         Stats storage s = _tokenStats[tokenId];
-        uint8 newValue;
-        if (statIndex == 0) { newValue = s.strength + amount; s.strength = newValue; }
-        else if (statIndex == 1) { newValue = s.intelligence + amount; s.intelligence = newValue; }
-        else if (statIndex == 2) { newValue = s.dexterity + amount; s.dexterity = newValue; }
-        else { newValue = s.charisma + amount; s.charisma = newValue; }
+        uint32 newValue;
+        if (statIndex == 0) { s.strength += amount; newValue = s.strength; }
+        else if (statIndex == 1) { s.intelligence += amount; newValue = s.intelligence; }
+        else if (statIndex == 2) { s.dexterity += amount; newValue = s.dexterity; }
+        else { s.charisma += amount; newValue = s.charisma; }
 
         emit StatIncremented(tokenId, statIndex, amount, newValue);
     }
@@ -121,7 +121,7 @@ contract LastChad is ERC721, Ownable {
 
         _pendingStatPoints[tokenId]--;
         Stats storage s = _tokenStats[tokenId];
-        uint8 newValue;
+        uint32 newValue;
         if (statIndex == 0) { s.strength += 1; newValue = s.strength; }
         else if (statIndex == 1) { s.intelligence += 1; newValue = s.intelligence; }
         else if (statIndex == 2) { s.dexterity += 1; newValue = s.dexterity; }
@@ -142,7 +142,7 @@ contract LastChad is ERC721, Ownable {
         return (_tokenExperience[tokenId] / 100) + 1;
     }
 
-    function getStats(uint256 tokenId) external view returns (uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma, bool assigned) {
+    function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned) {
         Stats memory s = _tokenStats[tokenId];
         return (s.strength, s.intelligence, s.dexterity, s.charisma, s.assigned);
     }
