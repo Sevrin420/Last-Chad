@@ -59,7 +59,7 @@ contract LastChad is ERC721, Ownable {
         require(!_tokenStats[tokenId].assigned, "Stats already assigned");
         require(
             uint256(strength) + uint256(intelligence) + uint256(dexterity) + uint256(charisma) == TOTAL_STAT_POINTS,
-            "Must use exactly 10 points"
+            "Must use exactly 2 points"
         );
         require(bytes(name).length > 0, "Name cannot be empty");
         require(bytes(name).length <= 12, "Name too long");
