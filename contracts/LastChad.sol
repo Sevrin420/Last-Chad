@@ -21,11 +21,13 @@ contract LastChad is ERC721, Ownable {
     string private _baseTokenURI;
     mapping(uint256 => Stats) private _tokenStats;
     mapping(uint256 => string) public tokenName;
+    mapping(uint256 => uint256) private _tokenExperience;
 
     event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
     event StatsUpdated(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
     event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint8 amount, uint8 newValue);
     event NameSet(uint256 indexed tokenId, string name);
+    event ExperienceAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalExperience, uint256 newLevel);
 
     constructor(string memory baseURI) ERC721("Last Chad", "CHAD") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
@@ -78,6 +80,23 @@ contract LastChad is ERC721, Ownable {
         else { newValue = s.charisma + amount; s.charisma = newValue; }
 
         emit StatIncremented(tokenId, statIndex, amount, newValue);
+    }
+
+    function awardExperience(uint256 tokenId, uint256 amount) external onlyOwner {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        require(amount > 0, "Amount must be > 0");
+        _tokenExperience[tokenId] += amount;
+        uint256 totalXP = _tokenExperience[tokenId];
+        uint256 newLevel = (totalXP / 100) + 1;
+        emit ExperienceAwarded(tokenId, amount, totalXP, newLevel);
+    }
+
+    function getExperience(uint256 tokenId) external view returns (uint256) {
+        return _tokenExperience[tokenId];
+    }
+
+    function getLevel(uint256 tokenId) external view returns (uint256) {
+        return (_tokenExperience[tokenId] / 100) + 1;
     }
 
     function getStats(uint256 tokenId) external view returns (uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma, bool assigned) {
