@@ -8,6 +8,7 @@ contract LastChad is ERC721, Ownable {
     uint256 public constant MAX_SUPPLY = 70;
     uint256 public constant MINT_PRICE = 0.02 ether; // 0.02 AVAX
     uint256 public constant TOTAL_STAT_POINTS = 2;
+    uint256 public constant MAX_MINT_PER_WALLET = 5;
 
     struct Stats {
         uint32 strength;
@@ -24,6 +25,7 @@ contract LastChad is ERC721, Ownable {
     mapping(uint256 => uint256) private _tokenExperience;
     mapping(uint256 => uint256) private _pendingStatPoints;
     mapping(address => bool) public authorizedGame;
+    mapping(address => uint256) public mintedPerWallet;
 
     event StatsAssigned(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
     event StatsUpdated(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
@@ -46,8 +48,10 @@ contract LastChad is ERC721, Ownable {
     function mint(uint256 quantity) external payable {
         require(quantity > 0, "Quantity must be > 0");
         require(totalSupply + quantity <= MAX_SUPPLY, "Exceeds max supply");
+        require(mintedPerWallet[msg.sender] + quantity <= MAX_MINT_PER_WALLET, "Exceeds max per wallet");
         require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
 
+        mintedPerWallet[msg.sender] += quantity;
         for (uint256 i = 0; i < quantity; i++) {
             totalSupply++;
             _safeMint(msg.sender, totalSupply);
