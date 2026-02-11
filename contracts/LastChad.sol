@@ -23,6 +23,7 @@ contract LastChad is ERC721, Ownable {
 
     event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
     event StatsUpdated(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
+    event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint8 amount, uint8 newValue);
 
     constructor(string memory baseURI) ERC721("Last Chad", "CHAD") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
@@ -55,6 +56,22 @@ contract LastChad is ERC721, Ownable {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         _tokenStats[tokenId] = Stats(strength, intelligence, dexterity, charisma, true);
         emit StatsUpdated(tokenId, strength, intelligence, dexterity, charisma);
+    }
+
+    // statIndex: 0=strength, 1=intelligence, 2=dexterity, 3=charisma
+    function addStat(uint256 tokenId, uint8 statIndex, uint8 amount) external onlyOwner {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        require(statIndex <= 3, "Invalid stat index");
+        require(amount > 0, "Amount must be > 0");
+
+        Stats storage s = _tokenStats[tokenId];
+        uint8 newValue;
+        if (statIndex == 0) { newValue = s.strength + amount; s.strength = newValue; }
+        else if (statIndex == 1) { newValue = s.intelligence + amount; s.intelligence = newValue; }
+        else if (statIndex == 2) { newValue = s.dexterity + amount; s.dexterity = newValue; }
+        else { newValue = s.charisma + amount; s.charisma = newValue; }
+
+        emit StatIncremented(tokenId, statIndex, amount, newValue);
     }
 
     function getStats(uint256 tokenId) external view returns (uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma, bool assigned) {
