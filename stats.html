@@ -314,6 +314,15 @@
     .stat-name {
       font-size: 0.5rem;
       color: #f5e6c8;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .stat-full {
+      font-size: 0.35rem;
+      color: #8a7a5a;
+      text-transform: lowercase;
     }
 
     .stat-controls {
@@ -750,7 +759,7 @@
         <div class="stat-row">
           <div class="stat-info">
             <div class="stat-icon">&#9876;</div>
-            <span class="stat-name">STR</span>
+            <span class="stat-name">STR<span class="stat-full">strength</span></span>
           </div>
           <div class="stat-bar-container">
             <div class="stat-bar-fill str" id="barStr"></div>
@@ -766,7 +775,7 @@
         <div class="stat-row">
           <div class="stat-info">
             <div class="stat-icon">&#128218;</div>
-            <span class="stat-name">INT</span>
+            <span class="stat-name">INT<span class="stat-full">intelligence</span></span>
           </div>
           <div class="stat-bar-container">
             <div class="stat-bar-fill int" id="barInt"></div>
@@ -782,7 +791,7 @@
         <div class="stat-row">
           <div class="stat-info">
             <div class="stat-icon">&#127939;</div>
-            <span class="stat-name">DEX</span>
+            <span class="stat-name">DEX<span class="stat-full">dexterity</span></span>
           </div>
           <div class="stat-bar-container">
             <div class="stat-bar-fill dex" id="barDex"></div>
@@ -798,7 +807,7 @@
         <div class="stat-row">
           <div class="stat-info">
             <div class="stat-icon">&#128081;</div>
-            <span class="stat-name">CHA</span>
+            <span class="stat-name">CHA<span class="stat-full">charisma</span></span>
           </div>
           <div class="stat-bar-container">
             <div class="stat-bar-fill cha" id="barCha"></div>
