@@ -20,10 +20,12 @@ contract LastChad is ERC721, Ownable {
     uint256 public totalSupply;
     string private _baseTokenURI;
     mapping(uint256 => Stats) private _tokenStats;
+    mapping(uint256 => string) public tokenName;
 
     event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
     event StatsUpdated(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
     event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint8 amount, uint8 newValue);
+    event NameSet(uint256 indexed tokenId, string name);
 
     constructor(string memory baseURI) ERC721("Last Chad", "CHAD") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
@@ -40,15 +42,19 @@ contract LastChad is ERC721, Ownable {
         }
     }
 
-    function setStats(uint256 tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external {
+    function setStats(uint256 tokenId, string calldata name, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!_tokenStats[tokenId].assigned, "Stats already assigned");
         require(
             uint256(strength) + uint256(intelligence) + uint256(dexterity) + uint256(charisma) == TOTAL_STAT_POINTS,
             "Must use exactly 10 points"
         );
+        require(bytes(name).length > 0, "Name cannot be empty");
+        require(bytes(name).length <= 12, "Name too long");
 
+        tokenName[tokenId] = name;
         _tokenStats[tokenId] = Stats(strength, intelligence, dexterity, charisma, true);
+        emit NameSet(tokenId, name);
         emit StatsAssigned(tokenId, strength, intelligence, dexterity, charisma);
     }
 

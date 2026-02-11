@@ -693,6 +693,54 @@
     }
     .modal-close:hover { color: #c9a84c; }
 
+    /* --- Name input --- */
+    .name-section {
+      margin-bottom: 20px;
+    }
+
+    .name-label {
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .name-counter {
+      color: #5c4409;
+      transition: color 0.15s;
+    }
+
+    .name-counter.warn { color: #c9a84c; }
+    .name-counter.full { color: #e53935; }
+
+    .name-input {
+      width: 100%;
+      padding: 12px 14px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      color: #f5e6c8;
+      background: #1a1005;
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      letter-spacing: 0.05em;
+    }
+
+    .name-input:focus {
+      border-color: #8b6914;
+      box-shadow: 0 0 8px rgba(139, 105, 20, 0.2);
+    }
+
+    .name-input::placeholder { color: #3d2e0a; }
+
+    .name-input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     /* --- Responsive --- */
     @media (max-width: 480px) {
       .stats-card { padding: 24px 18px; }
@@ -747,6 +795,23 @@
 
       <!-- Allocation UI -->
       <div id="allocationUI">
+        <!-- Name -->
+        <div class="name-section">
+          <div class="name-label">
+            <span>CHAD NAME</span>
+            <span class="name-counter" id="nameCounter">0 / 12</span>
+          </div>
+          <input
+            type="text"
+            class="name-input"
+            id="nameInput"
+            maxlength="12"
+            placeholder="Enter a name..."
+            autocomplete="off"
+            spellcheck="false"
+          >
+        </div>
+
         <!-- Points remaining -->
         <div class="points-remaining">
           <div class="points-label">POINTS REMAINING</div>
@@ -881,8 +946,9 @@
     };
     const CONTRACT_ADDRESS = '0xd96E719D84CC9BB919FC88172fBE2e3076c61e19';
     const CONTRACT_ABI = [
-      'function setStats(uint256 tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external',
+      'function setStats(uint256 tokenId, string calldata name, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external',
       'function getStats(uint256 tokenId) external view returns (uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma, bool assigned)',
+      'function tokenName(uint256 tokenId) external view returns (string)',
       'function ownerOf(uint256 tokenId) external view returns (address)',
       'function totalSupply() external view returns (uint256)'
     ];
@@ -911,6 +977,8 @@
     const pointsValue = document.getElementById('pointsValue');
     const confirmBtn = document.getElementById('confirmBtn');
     const confirmText = document.getElementById('confirmText');
+    const nameInput = document.getElementById('nameInput');
+    const nameCounter = document.getElementById('nameCounter');
 
     // ========== STATE ==========
     let provider = null;
@@ -919,6 +987,7 @@
     let currentTokenId = tokenIds[0] || null;
     let stats = { str: 0, int: 0, dex: 0, cha: 0 };
     let assignedTokens = new Set();
+    let nameAlreadySet = false;
 
     // ========== STAT ELEMENTS ==========
     const statElements = {
@@ -964,9 +1033,20 @@
       return TOTAL_POINTS - totalUsed();
     }
 
+    // ========== NAME COUNTER ==========
+    nameInput.addEventListener('input', () => {
+      const len = nameInput.value.length;
+      nameCounter.textContent = len + ' / 12';
+      nameCounter.classList.remove('warn', 'full');
+      if (len >= 12) nameCounter.classList.add('full');
+      else if (len >= 9) nameCounter.classList.add('warn');
+      updateStatsUI();
+    });
+
     // ========== UI UPDATE ==========
     function updateStatsUI() {
       const rem = remaining();
+      const nameValid = nameInput.value.trim().length > 0;
 
       // Points remaining display
       pointsValue.textContent = rem;
@@ -982,8 +1062,8 @@
         el.plus.disabled = rem <= 0;
       }
 
-      // Confirm button
-      if (rem === 0 && signer) {
+      // Confirm button — requires name + all points spent
+      if (rem === 0 && nameValid && signer) {
         confirmBtn.disabled = false;
         confirmBtn.classList.add('ready');
       } else {
@@ -1014,7 +1094,12 @@
       chadImg.src = 'assets/chads/' + tokenId + '.png';
       chadLabel.textContent = 'CHAD #' + tokenId;
 
-      // Reset stats
+      // Reset name + stats
+      nameAlreadySet = false;
+      nameInput.value = '';
+      nameInput.disabled = false;
+      nameCounter.textContent = '0 / 12';
+      nameCounter.classList.remove('warn', 'full');
       stats = { str: 0, int: 0, dex: 0, cha: 0 };
       updateStatsUI();
 
@@ -1033,15 +1118,25 @@
       try {
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        const result = await contract.getStats(tokenId);
+        const [result, existingName] = await Promise.all([
+          contract.getStats(tokenId),
+          contract.tokenName(tokenId)
+        ]);
 
         if (result.assigned) {
           assignedTokens.add(tokenId);
-          showAssigned(result);
+          showAssigned(result, existingName);
           // Update tab to show done
           const tab = document.querySelector('.token-tab[data-token-id="' + tokenId + '"]');
           if (tab) tab.classList.add('done');
         } else {
+          // Pre-fill name if already set but stats aren't (edge case)
+          if (existingName) {
+            nameInput.value = existingName;
+            nameInput.disabled = true;
+            nameCounter.textContent = existingName.length + ' / 12';
+            nameAlreadySet = true;
+          }
           showAllocation();
         }
       } catch (err) {
@@ -1050,12 +1145,19 @@
       }
     }
 
-    function showAssigned(result) {
+    function showAssigned(result, name) {
       allocationUI.style.display = 'none';
       assignedUI.style.display = 'block';
 
       const container = document.getElementById('assignedStats');
       container.innerHTML = '';
+
+      if (name) {
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'assigned-stat';
+        nameDiv.innerHTML = '<span class="stat-name">&#128084; NAME</span><span class="stat-value" style="color:#c9a84c;font-size:0.55rem;">' + name + '</span>';
+        container.appendChild(nameDiv);
+      }
 
       const statNames = [
         { label: 'STR', icon: '&#9876;', value: result.strength },
@@ -1105,6 +1207,8 @@
     confirmBtn.addEventListener('click', async () => {
       if (confirmBtn.disabled || !signer || !currentTokenId) return;
       if (remaining() !== 0) return;
+      const name = nameInput.value.trim();
+      if (!name) return;
 
       try {
         confirmBtn.disabled = true;
@@ -1114,6 +1218,7 @@
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         const tx = await contract.setStats(
           currentTokenId,
+          name,
           stats.str,
           stats.int,
           stats.dex,
@@ -1155,6 +1260,12 @@
           confirmText.textContent = 'ALREADY ASSIGNED';
           setTimeout(() => checkIfAssigned(currentTokenId), 1000);
           return;
+        } else if (msg.includes('Name too long')) {
+          alert('Name must be 12 characters or fewer.');
+          confirmText.textContent = 'ASSIGN POINTS';
+        } else if (msg.includes('Name cannot be empty')) {
+          alert('Please enter a name for your Chad.');
+          confirmText.textContent = 'ASSIGN POINTS';
         } else if (msg.includes('Not token owner')) {
           alert('You are not the owner of this token.');
           confirmText.textContent = 'ASSIGN POINTS';
