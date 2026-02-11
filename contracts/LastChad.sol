@@ -5,25 +5,41 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract LastChad is ERC721, Ownable {
-    uint256 public constant MAX_SUPPLY = 6;
+    uint256 public constant MAX_SUPPLY = 70;
     uint256 public constant MINT_PRICE = 0.02 ether; // 0.02 AVAX
-    uint256 public constant TOTAL_STAT_POINTS = 10;
+    uint256 public constant TOTAL_STAT_POINTS = 2;
+    uint256 public constant MAX_MINT_PER_WALLET = 5;
 
     struct Stats {
-        uint8 strength;
-        uint8 intelligence;
-        uint8 dexterity;
-        uint8 charisma;
+        uint32 strength;
+        uint32 intelligence;
+        uint32 dexterity;
+        uint32 charisma;
         bool assigned;
     }
 
     uint256 public totalSupply;
     string private _baseTokenURI;
     mapping(uint256 => Stats) private _tokenStats;
+    mapping(uint256 => string) public tokenName;
+    mapping(uint256 => uint256) private _tokenExperience;
+    mapping(uint256 => uint256) private _pendingStatPoints;
+    mapping(address => bool) public authorizedGame;
+    mapping(address => uint256) public mintedPerWallet;
 
-    event StatsAssigned(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
-    event StatsUpdated(uint256 indexed tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma);
-    event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint8 amount, uint8 newValue);
+    event StatsAssigned(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
+    event StatsUpdated(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
+    event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint32 amount, uint32 newValue);
+    event NameSet(uint256 indexed tokenId, string name);
+    event ExperienceAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalExperience, uint256 newLevel);
+    event LevelUp(uint256 indexed tokenId, uint256 newLevel, uint256 statPointsAwarded);
+    event StatPointSpent(uint256 indexed tokenId, uint8 statIndex, uint32 newValue);
+    event GameContractSet(address indexed game, bool enabled);
+
+    modifier onlyGameOrOwner() {
+        require(authorizedGame[msg.sender] || msg.sender == owner(), "Not authorized");
+        _;
+    }
 
     constructor(string memory baseURI) ERC721("Last Chad", "CHAD") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
@@ -32,49 +48,105 @@ contract LastChad is ERC721, Ownable {
     function mint(uint256 quantity) external payable {
         require(quantity > 0, "Quantity must be > 0");
         require(totalSupply + quantity <= MAX_SUPPLY, "Exceeds max supply");
+        require(mintedPerWallet[msg.sender] + quantity <= MAX_MINT_PER_WALLET, "Exceeds max per wallet");
         require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
 
+        mintedPerWallet[msg.sender] += quantity;
         for (uint256 i = 0; i < quantity; i++) {
             totalSupply++;
             _safeMint(msg.sender, totalSupply);
         }
     }
 
-    function setStats(uint256 tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external {
+    function setStats(uint256 tokenId, string calldata name, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!_tokenStats[tokenId].assigned, "Stats already assigned");
         require(
             uint256(strength) + uint256(intelligence) + uint256(dexterity) + uint256(charisma) == TOTAL_STAT_POINTS,
-            "Must use exactly 10 points"
+            "Must use exactly 2 points"
         );
+        require(bytes(name).length > 0, "Name cannot be empty");
+        require(bytes(name).length <= 12, "Name too long");
 
+        tokenName[tokenId] = name;
         _tokenStats[tokenId] = Stats(strength, intelligence, dexterity, charisma, true);
+        emit NameSet(tokenId, name);
         emit StatsAssigned(tokenId, strength, intelligence, dexterity, charisma);
     }
 
-    function updateStats(uint256 tokenId, uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma) external onlyOwner {
+    function updateStats(uint256 tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma) external onlyOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         _tokenStats[tokenId] = Stats(strength, intelligence, dexterity, charisma, true);
         emit StatsUpdated(tokenId, strength, intelligence, dexterity, charisma);
     }
 
     // statIndex: 0=strength, 1=intelligence, 2=dexterity, 3=charisma
-    function addStat(uint256 tokenId, uint8 statIndex, uint8 amount) external onlyOwner {
+    function addStat(uint256 tokenId, uint8 statIndex, uint32 amount) external onlyOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         require(statIndex <= 3, "Invalid stat index");
         require(amount > 0, "Amount must be > 0");
 
         Stats storage s = _tokenStats[tokenId];
-        uint8 newValue;
-        if (statIndex == 0) { newValue = s.strength + amount; s.strength = newValue; }
-        else if (statIndex == 1) { newValue = s.intelligence + amount; s.intelligence = newValue; }
-        else if (statIndex == 2) { newValue = s.dexterity + amount; s.dexterity = newValue; }
-        else { newValue = s.charisma + amount; s.charisma = newValue; }
+        uint32 newValue;
+        if (statIndex == 0) { s.strength += amount; newValue = s.strength; }
+        else if (statIndex == 1) { s.intelligence += amount; newValue = s.intelligence; }
+        else if (statIndex == 2) { s.dexterity += amount; newValue = s.dexterity; }
+        else { s.charisma += amount; newValue = s.charisma; }
 
         emit StatIncremented(tokenId, statIndex, amount, newValue);
     }
 
-    function getStats(uint256 tokenId) external view returns (uint8 strength, uint8 intelligence, uint8 dexterity, uint8 charisma, bool assigned) {
+    function setGameContract(address game, bool enabled) external onlyOwner {
+        require(game != address(0), "Invalid address");
+        authorizedGame[game] = enabled;
+        emit GameContractSet(game, enabled);
+    }
+
+    function awardExperience(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        require(amount > 0, "Amount must be > 0");
+        uint256 oldLevel = (_tokenExperience[tokenId] / 100) + 1;
+        _tokenExperience[tokenId] += amount;
+        uint256 totalXP = _tokenExperience[tokenId];
+        uint256 newLevel = (totalXP / 100) + 1;
+        if (newLevel > oldLevel) {
+            uint256 levelsGained = newLevel - oldLevel;
+            _pendingStatPoints[tokenId] += levelsGained;
+            emit LevelUp(tokenId, newLevel, levelsGained);
+        }
+        emit ExperienceAwarded(tokenId, amount, totalXP, newLevel);
+    }
+
+    // statIndex: 0=strength, 1=intelligence, 2=dexterity, 3=charisma
+    function spendStatPoint(uint256 tokenId, uint8 statIndex) external {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(_pendingStatPoints[tokenId] > 0, "No stat points available");
+        require(statIndex <= 3, "Invalid stat index");
+
+        _pendingStatPoints[tokenId]--;
+        Stats storage s = _tokenStats[tokenId];
+        uint32 newValue;
+        if (statIndex == 0) { s.strength += 1; newValue = s.strength; }
+        else if (statIndex == 1) { s.intelligence += 1; newValue = s.intelligence; }
+        else if (statIndex == 2) { s.dexterity += 1; newValue = s.dexterity; }
+        else { s.charisma += 1; newValue = s.charisma; }
+
+        emit StatPointSpent(tokenId, statIndex, newValue);
+    }
+
+    function getPendingStatPoints(uint256 tokenId) external view returns (uint256) {
+        return _pendingStatPoints[tokenId];
+    }
+
+    function getExperience(uint256 tokenId) external view returns (uint256) {
+        return _tokenExperience[tokenId];
+    }
+
+    function getLevel(uint256 tokenId) external view returns (uint256) {
+        return (_tokenExperience[tokenId] / 100) + 1;
+    }
+
+    function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned) {
         Stats memory s = _tokenStats[tokenId];
         return (s.strength, s.intelligence, s.dexterity, s.charisma, s.assigned);
     }

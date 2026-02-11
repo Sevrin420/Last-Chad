@@ -763,13 +763,13 @@
   <main class="main">
     <div class="mint-card">
       <h1 class="card-title">Last Chad</h1>
-      <p class="card-subtitle">Mint a Last Chad NFT<br>Only 6 will ever exist</p>
+      <p class="card-subtitle">Mint a Last Chad NFT<br>Only 70 will ever exist</p>
 
       <!-- Supply -->
       <div class="supply-section">
         <div class="supply-label">
           <span>MINTED</span>
-          <span id="supplyText">0 / 6</span>
+          <span id="supplyText">0 / 70</span>
         </div>
         <div class="supply-bar">
           <div class="supply-fill" id="supplyFill"></div>
@@ -796,7 +796,7 @@
             <div class="slider-track">
               <div class="slider-fill-bar" id="sliderFill" style="width: 0%"></div>
             </div>
-            <input type="range" min="1" max="6" value="1" id="qtySlider">
+            <input type="range" min="1" max="5" value="1" id="qtySlider">
           </div>
           <button class="qty-btn" id="qtyPlus">+</button>
         </div>
@@ -848,7 +848,8 @@
   <script>
     // ========== CONFIG ==========
     const PRICE = 0.02;
-    const MAX_SUPPLY = 6;
+    const MAX_SUPPLY = 70;
+    const MAX_MINT_PER_WALLET = 5;
     const AVAX_CHAIN_ID = '0xa86a'; // 43114
     const AVAX_CHAIN = {
       chainId: AVAX_CHAIN_ID,
@@ -858,7 +859,7 @@
       blockExplorerUrls: ['https://snowtrace.io/']
     };
 
-    const CONTRACT_ADDRESS = '0xd96E719D84CC9BB919FC88172fBE2e3076c61e19';
+    const CONTRACT_ADDRESS = '0x44301Ead5A19fEe6c6C152b5B6270ab47947b327';
 
     // Contract ABI — matches LastChad.sol
     const CONTRACT_ABI = [
@@ -929,7 +930,7 @@
         supplyFill.style.width = (minted / MAX_SUPPLY * 100) + '%';
 
         // Update max quantity slider
-        maxQty = Math.min(remaining, MAX_SUPPLY);
+        maxQty = Math.min(remaining, MAX_MINT_PER_WALLET);
         if (maxQty < 1) maxQty = 0;
         slider.max = maxQty > 0 ? maxQty : 1;
         if (quantity > maxQty) {
@@ -972,7 +973,7 @@
     }
 
     // Initial pips
-    for (let i = 1; i <= MAX_SUPPLY; i++) {
+    for (let i = 1; i <= MAX_MINT_PER_WALLET; i++) {
       const pip = document.createElement('span');
       pip.textContent = i;
       if (i === 1) pip.classList.add('active');
@@ -1285,6 +1286,9 @@
           btnText.textContent = 'SOLD OUT';
           await updateSupply();
           return;
+        } else if (msg.includes('Exceeds max per wallet')) {
+          alert('You can only mint up to ' + MAX_MINT_PER_WALLET + ' NFTs per wallet.');
+          btnText.textContent = 'MINT NOW';
         } else if (msg.includes('Insufficient payment')) {
           alert('Insufficient AVAX. You need ' + (quantity * PRICE) + ' AVAX to mint.');
           btnText.textContent = 'MINT NOW';
