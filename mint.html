@@ -1253,6 +1253,9 @@
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
 
+        // Track supply before minting to determine minted token IDs
+        const supplyBefore = minted;
+
         const tx = await contract.mint(quantity, { value: totalCost });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
@@ -1260,17 +1263,18 @@
         // Refresh supply after successful mint
         await updateSupply();
 
+        // Calculate the token IDs that were just minted
+        const mintedIds = [];
+        for (let i = 1; i <= quantity; i++) {
+          mintedIds.push(supplyBefore + i);
+        }
+
         btnText.textContent = 'MINTED!';
+
+        // Redirect to stats page after a short delay
         setTimeout(() => {
-          if (minted >= MAX_SUPPLY) {
-            btnText.textContent = 'SOLD OUT';
-            mintBtn.disabled = true;
-          } else {
-            btnText.textContent = 'MINT NOW';
-            mintBtn.disabled = false;
-            mintBtn.classList.add('ready');
-          }
-        }, 3000);
+          window.location.href = 'stats.html?tokens=' + mintedIds.join(',');
+        }, 1500);
 
       } catch (err) {
         console.error('Mint failed:', err);
