@@ -265,9 +265,153 @@
       50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
     }
 
+    /* --- Dice section (from game.html) --- */
+    .dice-section { width: 100%; margin-top: 8px; }
+
+    .dice-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .dice-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dice-box {
+      width: clamp(48px, 13vw, 72px);
+      height: clamp(48px, 13vw, 72px);
+      background: rgba(20, 14, 6, 0.9);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .dice-box.rolling  { border-color: #c9a84c; box-shadow: inset 0 0 15px rgba(0,0,0,0.4), 0 0 12px rgba(201,168,76,0.3); }
+    .dice-box.kept     { border-color: #4caf50; box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 0 10px rgba(76,175,80,0.25); }
+    .dice-box.settled  { border-color: #c9a84c; }
+
+    .dice-face {
+      width: 100%; height: 100%;
+      display: grid;
+      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 15%;
+      gap: 2px;
+    }
+
+    .dice-face .dot {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #c9a84c;
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(201,168,76,0.5);
+    }
+    .dice-box.kept .dice-face .dot { background: #4caf50; box-shadow: 0 0 4px rgba(76,175,80,0.5); }
+    .dot { visibility: hidden; }
+
+    .keep-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.28rem, 1.2vw, 0.38rem);
+      padding: 6px 0;
+      width: clamp(48px, 13vw, 72px);
+      color: #8a7a5a;
+      background: rgba(61, 46, 10, 0.3);
+      border: 3px solid #3d2e0a;
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.15s;
+      touch-action: manipulation;
+      box-shadow: inset -2px -2px 0 #1a1200, inset 2px 2px 0 #5c4409, 2px 2px 0 #000;
+    }
+    .keep-btn:hover { border-color: #5c4409; color: #c9a84c; }
+    .keep-btn.active { border-color: #4caf50; color: #4caf50; background: rgba(76,175,80,0.1); box-shadow: inset -2px -2px 0 #2e7d32, inset 2px 2px 0 #66bb6a, 2px 2px 0 #000; }
+    .keep-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .roll-section { margin-top: 18px; text-align: center; }
+
+    .roll-btn {
+      padding: 14px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 20px rgba(139,105,20,0.2);
+      touch-action: manipulation;
+      animation: roll-glow 2s ease-in-out infinite;
+    }
+    .roll-btn::after { content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); pointer-events: none; }
+    .roll-btn:hover { animation: none; background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%); border-color: #f5e6c8; box-shadow: inset 0 2px 0 rgba(255,220,120,0.5), inset 0 -2px 0 rgba(0,0,0,0.3), 0 4px 0 #3d2e0a, 0 6px 20px rgba(0,0,0,0.5), 0 0 30px rgba(201,168,76,0.4); }
+    .roll-btn:hover::after { left: 120%; transition: left 0.5s ease; }
+    .roll-btn:active { transform: translateY(3px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 #3d2e0a, 0 2px 8px rgba(0,0,0,0.5); }
+    .roll-btn:disabled { opacity: 0.4; cursor: not-allowed; animation: none; }
+    .roll-btn:disabled:hover { background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%); border-color: #d4a017; transform: none; }
+
+    @keyframes roll-glow {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
+      50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
+    }
+
+    .rolls-left { margin-top: 10px; font-size: 0.4rem; color: #8a7a5a; }
+
+    .score-box {
+      display: flex;
+      margin-top: 18px;
+      padding: 16px 20px;
+      background: #0a0a0f;
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 16px rgba(0,0,0,0.5);
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .checklist { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+
+    .check-item { display: flex; align-items: center; gap: 10px; font-size: clamp(0.42rem, 1.8vw, 0.55rem); color: #e53935; transition: color 0.3s; }
+    .check-item.checked { color: #4caf50; }
+
+    .check-box { width: 20px; height: 20px; border: 3px solid #e53935; border-radius: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color 0.3s, background 0.3s; }
+    .check-item.checked .check-box { border-color: #4caf50; background: rgba(76,175,80,0.15); }
+
+    .check-mark { display: none; color: #4caf50; font-size: 1.2rem; line-height: 0; margin-top: -2px; }
+    .check-item.checked .check-mark { display: block; }
+
+    .score-right { flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70px; }
+    .score-label { font-size: clamp(0.45rem, 2vw, 0.6rem); color: #8a7a5a; margin-bottom: 8px; line-height: 2; }
+    .score-value { font-size: clamp(1.6rem, 6vw, 2.6rem); color: #c9a84c; text-shadow: 0 0 12px rgba(201,168,76,0.5); }
+
+    .score-box.no-score .score-label { color: #e53935; }
+    .score-box.no-score .score-value { color: #e53935; text-shadow: 0 0 12px rgba(229,57,53,0.4); }
+    .score-box.scored .score-label   { color: #8a7a5a; }
+    .score-box.scored .score-value   { color: #c9a84c; }
+
+    /* Continue button (shown after dice are done) */
+    .continue-wrap { margin-top: 20px; display: none; }
+    .continue-wrap.show { display: block; }
+
+    .dice-result-text { font-size: clamp(0.45rem, 1.8vw, 0.6rem); line-height: 2.2; color: #f5e6c8; margin-bottom: 16px; }
+    .dice-result-text .highlight { color: #c9a84c; }
+
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
       .quest-panel { padding: 20px 16px; }
+      .dice-row { gap: 5px; }
     }
   </style>
 </head>
@@ -334,6 +478,72 @@
         </div>
       </div>
 
+      <!-- ===== PANEL: DICE ENCOUNTER ===== -->
+      <div class="panel" id="panel-dice">
+        <div class="mission-tag">PATROL DRONE DETECTED</div>
+        <div class="narrative">
+          <p>You freeze. Twenty meters ahead, a Synthette scout drone hovers — its scanner sweeping slow arcs across the pipe walls.</p>
+          <p>You have one window. <span class="highlight">Roll to assemble your crew and slip through undetected.</span></p>
+        </div>
+
+        <div class="dice-section">
+          <div class="dice-row">
+            <div class="dice-col">
+              <div class="dice-box" id="die0"><div class="dice-face" id="face0"></div></div>
+              <button class="keep-btn" id="keep0" disabled>LOCK</button>
+            </div>
+            <div class="dice-col">
+              <div class="dice-box" id="die1"><div class="dice-face" id="face1"></div></div>
+              <button class="keep-btn" id="keep1" disabled>LOCK</button>
+            </div>
+            <div class="dice-col">
+              <div class="dice-box" id="die2"><div class="dice-face" id="face2"></div></div>
+              <button class="keep-btn" id="keep2" disabled>LOCK</button>
+            </div>
+            <div class="dice-col">
+              <div class="dice-box" id="die3"><div class="dice-face" id="face3"></div></div>
+              <button class="keep-btn" id="keep3" disabled>LOCK</button>
+            </div>
+            <div class="dice-col">
+              <div class="dice-box" id="die4"><div class="dice-face" id="face4"></div></div>
+              <button class="keep-btn" id="keep4" disabled>LOCK</button>
+            </div>
+          </div>
+
+          <div class="roll-section">
+            <button class="roll-btn" id="rollBtn">ROLL</button>
+            <div class="rolls-left" id="rollsLeft">3 ROLLS LEFT</div>
+          </div>
+
+          <div class="score-box" id="scoreBox">
+            <div class="checklist">
+              <div class="check-item" id="check6">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>6 = SHIP</span>
+              </div>
+              <div class="check-item" id="check5">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>5 = CAPTAIN</span>
+              </div>
+              <div class="check-item" id="check4">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>4 = MATE</span>
+              </div>
+            </div>
+            <div class="score-right">
+              <div class="score-label" id="scoreLabel">ROLL THE DICE</div>
+              <div class="score-value" id="scoreValue">-</div>
+            </div>
+          </div>
+
+          <!-- Result + continue (shown after rolling is done) -->
+          <div class="continue-wrap" id="continueWrap">
+            <div class="dice-result-text" id="diceResultText"></div>
+            <button class="action-btn" onclick="afterDice()">CONTINUE</button>
+          </div>
+        </div>
+      </div>
+
       <!-- More panels added in later steps -->
 
     </div><!-- /.quest-panel -->
@@ -387,14 +597,169 @@
     // ===== CHOICE 1 =====
     function makeChoice1(choice) {
       quest.choice1 = choice;
-      if (choice === 'upper') {
-        quest.crewScore += 3;
-      } else {
-        quest.crewScore += 1;
-      }
+      quest.crewScore += (choice === 'upper') ? 3 : 1;
       updateCrewDisplay();
-      // Next panel will be added in the next step
-      alert('Choice 1 done — dice panel coming next!');
+      showPanel('panel-dice');
+    }
+
+    // ===== DICE — SHIP / CAPTAIN / CREW (from game.html) =====
+    const NUM_DICE = 5;
+    let diceValues = [0, 0, 0, 0, 0];
+    let kept       = [false, false, false, false, false];
+    let rollsLeft  = 3;
+    let isRolling  = false;
+
+    const rollBtn      = document.getElementById('rollBtn');
+    const rollsLeftTxt = document.getElementById('rollsLeft');
+
+    // 3×3 dot grid layouts
+    const dotLayouts = {
+      1: [0,0,0, 0,1,0, 0,0,0],
+      2: [0,0,1, 0,0,0, 1,0,0],
+      3: [0,0,1, 0,1,0, 1,0,0],
+      4: [1,0,1, 0,0,0, 1,0,1],
+      5: [1,0,1, 0,1,0, 1,0,1],
+      6: [1,0,1, 1,0,1, 1,0,1]
+    };
+
+    function renderFace(index, value) {
+      const face = document.getElementById('face' + index);
+      face.innerHTML = '';
+      if (value === 0) return;
+      const layout = dotLayouts[value];
+      for (let i = 0; i < 9; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        if (layout[i]) dot.style.visibility = 'visible';
+        face.appendChild(dot);
+      }
+    }
+
+    // Keep buttons
+    for (let i = 0; i < NUM_DICE; i++) {
+      document.getElementById('keep' + i).addEventListener('click', () => {
+        if (isRolling || diceValues[i] === 0) return;
+        kept[i] = !kept[i];
+        document.getElementById('keep' + i).classList.toggle('active', kept[i]);
+        document.getElementById('keep' + i).textContent = kept[i] ? 'LOCKED' : 'LOCK';
+        document.getElementById('die' + i).classList.toggle('kept', kept[i]);
+        updateChecklist();
+      });
+    }
+
+    function randomValue() { return Math.floor(Math.random() * 6) + 1; }
+
+    async function rollDice() {
+      if (isRolling || rollsLeft <= 0) return;
+      isRolling = true;
+      rollsLeft--;
+      rollBtn.disabled = true;
+
+      const toRoll = [];
+      for (let i = 0; i < NUM_DICE; i++) { if (!kept[i]) toRoll.push(i); }
+
+      for (const i of toRoll) {
+        document.getElementById('die' + i).classList.add('rolling');
+        document.getElementById('die' + i).classList.remove('settled');
+      }
+
+      const cycleTimers = [];
+      for (const i of toRoll) {
+        const timer = setInterval(() => renderFace(i, randomValue()), 60);
+        cycleTimers.push({ index: i, timer });
+      }
+
+      for (let order = 0; order < toRoll.length; order++) {
+        await new Promise(r => setTimeout(r, order === 0 ? 2500 : 800));
+        const dieIndex = toRoll[order];
+        const entry = cycleTimers.find(c => c.index === dieIndex);
+        if (entry) clearInterval(entry.timer);
+
+        const finalValue = randomValue();
+        diceValues[dieIndex] = finalValue;
+        renderFace(dieIndex, finalValue);
+
+        const box = document.getElementById('die' + dieIndex);
+        box.classList.remove('rolling');
+        box.classList.add('settled');
+        document.getElementById('keep' + dieIndex).disabled = false;
+      }
+
+      rollsLeftTxt.textContent = rollsLeft + ' ROLL' + (rollsLeft !== 1 ? 'S' : '') + ' LEFT';
+
+      if (rollsLeft <= 0) {
+        rollBtn.disabled = true;
+        rollBtn.textContent = 'NO ROLLS';
+        rollsLeftTxt.textContent = 'TURN OVER';
+        for (let i = 0; i < NUM_DICE; i++) document.getElementById('keep' + i).disabled = true;
+        updateChecklist(true);
+        finaliseDice();
+      } else {
+        rollBtn.disabled = false;
+      }
+
+      isRolling = false;
+    }
+
+    function updateChecklist(includeFinal) {
+      const vals = [];
+      for (let i = 0; i < NUM_DICE; i++) {
+        if (kept[i] || includeFinal) vals.push(diceValues[i]);
+      }
+      const tmp = [...vals];
+      const has6 = tmp.indexOf(6) !== -1; if (has6) tmp.splice(tmp.indexOf(6), 1);
+      const has5 = tmp.indexOf(5) !== -1; if (has5) tmp.splice(tmp.indexOf(5), 1);
+      const has4 = tmp.indexOf(4) !== -1; if (has4) tmp.splice(tmp.indexOf(4), 1);
+      document.getElementById('check6').classList.toggle('checked', has6);
+      document.getElementById('check5').classList.toggle('checked', has5);
+      document.getElementById('check4').classList.toggle('checked', has4);
+    }
+
+    function finaliseDice() {
+      const scoreBox   = document.getElementById('scoreBox');
+      const scoreLabel = document.getElementById('scoreLabel');
+      const scoreValue = document.getElementById('scoreValue');
+      const continueWrap  = document.getElementById('continueWrap');
+      const resultText = document.getElementById('diceResultText');
+
+      const vals = [...diceValues];
+
+      const i6 = vals.indexOf(6); if (i6 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap); return; } vals.splice(i6, 1);
+      const i5 = vals.indexOf(5); if (i5 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap); return; } vals.splice(i5, 1);
+      const i4 = vals.indexOf(4); if (i4 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap); return; } vals.splice(i4, 1);
+
+      // Remaining 2 dice = crew count
+      const crew = vals[0] + vals[1];
+      quest.diceScore = crew;
+      quest.crewScore += crew;
+      updateCrewDisplay();
+
+      scoreBox.className = 'score-box scored';
+      scoreLabel.textContent = 'CREW';
+      scoreValue.textContent = crew;
+
+      resultText.innerHTML = '<span class="highlight">' + crew + ' operatives</span> slip past the drone in silence. The eastern corridor is open.';
+      continueWrap.classList.add('show');
+    }
+
+    function noCrewResult(box, label, value, resultText, continueWrap) {
+      quest.diceScore = 0;
+      box.className = 'score-box no-score';
+      label.textContent = 'NO CREW';
+      value.textContent = '0';
+      resultText.innerHTML = 'The drone catches movement. You flatten against the wall and hold your breath. <span class="highlight">You make it through — alone.</span>';
+      continueWrap.classList.add('show');
+    }
+
+    rollBtn.addEventListener('click', rollDice);
+
+    // Init empty faces
+    for (let i = 0; i < NUM_DICE; i++) renderFace(i, 0);
+
+    // ===== AFTER DICE =====
+    function afterDice() {
+      // Choice 2 panel added in next step
+      alert('Dice done — Choice 2 coming next!');
     }
   </script>
 </body>
