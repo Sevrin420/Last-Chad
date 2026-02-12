@@ -623,7 +623,8 @@
           <p>Command needs eyes on their staging area in the eastern sector. Every surface route is covered by scanner drones. The sewers are the only way in.</p>
           <p>You volunteered. <span class="highlight">Of course you did.</span></p>
         </div>
-        <button class="action-btn" onclick="startQuest()">BEGIN MISSION</button>
+        <button class="action-btn" id="beginBtn" onclick="startQuest()">BEGIN MISSION</button>
+        <div class="loading-text" id="beginStatus" style="display:none;"></div>
       </div>
 
       <!-- ===== PANEL: CHOICE 1 ===== -->
@@ -965,10 +966,13 @@
 
     // ===== QUEST STATE =====
     const quest = {
+      tokenId:   null,
+      seed:      null,   // BigInt from QuestStarted event (or simulated)
+      expiresAt: null,   // unix seconds
       crewScore: 0,
-      choice1: null,
+      choice1:   null,
       diceScore: 0,
-      choice2: null
+      choice2:   null
     };
 
     function updateCrewDisplay() {
@@ -983,9 +987,61 @@
     }
 
     // ===== INTRO -> QUEST =====
-    function startQuest() {
-      document.getElementById('crewTracker').style.display = 'flex';
-      showPanel('panel-choice1');
+    async function startQuest() {
+      // Require wallet connection
+      if (!userAddress) {
+        walletModal.classList.add('show');
+        return;
+      }
+
+      const btn    = document.getElementById('beginBtn');
+      const status = document.getElementById('beginStatus');
+
+      // No contract deployed yet — run in local demo mode
+      if (!QUEST_REWARDS_ADDRESS) {
+        quest.tokenId   = parseInt(chadId);
+        quest.seed      = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+        quest.expiresAt = Math.floor(Date.now() / 1000) + 3600;
+        document.getElementById('crewTracker').style.display = 'flex';
+        showPanel('panel-choice1');
+        return;
+      }
+
+      btn.disabled = true;
+      status.style.display = 'block';
+      status.textContent = 'SIGNING TRANSACTION...';
+
+      try {
+        const contract = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, signer);
+        const tx = await contract.startQuest(chadId, QUEST_ID);
+        status.textContent = 'WAITING FOR CONFIRMATION...';
+        const receipt = await tx.wait();
+
+        // Extract seed + expiresAt from QuestStarted event
+        const iface = new ethers.utils.Interface(QUEST_REWARDS_ABI);
+        for (const log of receipt.logs) {
+          try {
+            const parsed = iface.parseLog(log);
+            if (parsed.name === 'QuestStarted') {
+              quest.seed      = BigInt(parsed.args.seed.toString());
+              quest.expiresAt = parsed.args.expiresAt.toNumber();
+              break;
+            }
+          } catch (_) {}
+        }
+
+        quest.tokenId = parseInt(chadId);
+        document.getElementById('crewTracker').style.display = 'flex';
+        showPanel('panel-choice1');
+      } catch (err) {
+        console.error('startQuest failed:', err);
+        if (err.code !== 4001) {
+          status.textContent = 'ERROR: ' + (err.reason || err.message || 'Transaction failed');
+        } else {
+          status.style.display = 'none';
+        }
+        btn.disabled = false;
+      }
     }
 
     // ===== CHOICE 1 =====
@@ -1164,9 +1220,15 @@
     }
 
     // ===== RESULTS + DEX BONUS =====
-    const CONTRACT_ADDRESS = '0x44301Ead5A19fEe6c6C152b5B6270ab47947b327';
+    const CONTRACT_ADDRESS        = '0x44301Ead5A19fEe6c6C152b5B6270ab47947b327';
+    const QUEST_REWARDS_ADDRESS   = ''; // set after deployment
+    const QUEST_ID                = 0;
     const READ_RPC = 'https://api.avax.network/ext/bc/C/rpc';
     const STATS_ABI = ['function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)'];
+    const QUEST_REWARDS_ABI = [
+      'function startQuest(uint256 tokenId, uint256 questId) external',
+      'event QuestStarted(uint256 indexed tokenId, uint256 questId, uint256 seed, uint256 expiresAt)'
+    ];
 
     async function showResults() {
       showPanel('panel-results');
