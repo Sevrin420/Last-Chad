@@ -568,6 +568,25 @@
     }
     .modal-close:hover { color: #c9a84c; }
 
+    /* --- Countdown timer --- */
+    .countdown-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin: 14px 0 6px;
+    }
+    .countdown-label {
+      font-size: 0.38rem;
+      color: #8a7a5a;
+      letter-spacing: 0.08em;
+    }
+    .countdown-val {
+      font-size: 0.75rem;
+      color: #c9a84c;
+      letter-spacing: 0.05em;
+    }
+
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
       .quest-panel { padding: 20px 16px; }
@@ -765,7 +784,12 @@
         </div>
 
         <div class="loading-text" id="resultsLoading" style="display:none;">READING STATS FROM CHAIN...</div>
+        <div class="countdown-wrap" id="countdownWrap" style="display:none;">
+          <span class="countdown-label">SESSION EXPIRES IN</span>
+          <span class="countdown-val" id="countdownVal">60:00</span>
+        </div>
         <button class="action-btn" id="claimBtn" onclick="claimXp()" style="display:none;">CLAIM XP</button>
+        <div class="loading-text" id="claimStatus" style="display:none;"></div>
       </div>
 
     </div><!-- /.quest-panel -->
@@ -1002,7 +1026,7 @@
       // No contract deployed yet — run in local demo mode
       if (!QUEST_REWARDS_ADDRESS) {
         quest.tokenId   = parseInt(chadId);
-        quest.seed      = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+        quest.seed      = ethers.utils.hexlify(ethers.utils.randomBytes(32)); // bytes32
         quest.expiresAt = Math.floor(Date.now() / 1000) + 3600;
         document.getElementById('crewTracker').style.display = 'flex';
         saveSession(); // Step 6c
@@ -1026,7 +1050,7 @@
           try {
             const parsed = iface.parseLog(log);
             if (parsed.name === 'QuestStarted') {
-              quest.seed      = BigInt(parsed.args.seed.toString());
+              quest.seed      = parsed.args.seed; // bytes32 hex string
               quest.expiresAt = parsed.args.expiresAt.toNumber();
               break;
             }
@@ -1102,17 +1126,20 @@
       });
     }
 
-    let rollNonce = 0;
-
-    // Step 6a: splitmix64-style deterministic die face from (seed + nonce)
-    function seededValue() {
+    // Step 6a: keccak256(seed, roll, dieIndex) — identical formula to the contract
+    // quest.seed is a bytes32 hex string; roll ∈ {1,2,3}; dieIndex ∈ {0..4}
+    function seededValue(roll, dieIndex) {
       if (!quest.seed) return Math.floor(Math.random() * 6) + 1;
-      const n = rollNonce++;
-      let h = (quest.seed + BigInt(n)) & 0xffffffffffffffffn;
-      h = ((h ^ (h >> 30n)) * 0xbf58476d1ce4e5b9n) & 0xffffffffffffffffn;
-      h = ((h ^ (h >> 27n)) * 0x94d049bb133111ebn) & 0xffffffffffffffffn;
-      h = (h ^ (h >> 31n)) & 0xffffffffffffffffn;
-      return Number(h % 6n) + 1;
+      try {
+        const hash = ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint8', 'uint8'],
+          [quest.seed, roll, dieIndex]
+        );
+        return Number(BigInt(hash) % 6n) + 1;
+      } catch (e) {
+        console.error('seededValue:', e);
+        return Math.floor(Math.random() * 6) + 1;
+      }
     }
 
     // Step 6b: current kept[] array → 5-bit bitmask
@@ -1131,6 +1158,7 @@
       if (rollsLeft === 2) quest.kept1 = keptMask();
       if (rollsLeft === 1) quest.kept2 = keptMask();
       rollsLeft--;
+      const rollNumber = 3 - rollsLeft; // 1 on first roll, 2 on second, 3 on third
       rollBtn.disabled = true;
 
       const toRoll = [];
@@ -1153,7 +1181,7 @@
         const entry = cycleTimers.find(c => c.index === dieIndex);
         if (entry) clearInterval(entry.timer);
 
-        const finalValue = seededValue();   // Step 6a: deterministic
+        const finalValue = seededValue(rollNumber, dieIndex); // Step 6a: matches contract
         diceValues[dieIndex] = finalValue;
         renderFace(dieIndex, finalValue);
 
@@ -1256,8 +1284,10 @@
     const READ_RPC = 'https://api.avax.network/ext/bc/C/rpc';
     const STATS_ABI = ['function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)'];
     const QUEST_REWARDS_ABI = [
-      'function startQuest(uint256 tokenId, uint256 questId) external',
-      'event QuestStarted(uint256 indexed tokenId, uint256 questId, uint256 seed, uint256 expiresAt)'
+      'function startQuest(uint256 tokenId, uint8 questId) external',
+      'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
+      'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
+      'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded)'
     ];
 
     async function showResults() {
@@ -1293,6 +1323,44 @@
       document.getElementById('res-total').textContent = quest.crewScore;
       document.getElementById('resultsLoading').style.display = 'none';
       document.getElementById('claimBtn').style.display = 'block';
+      startCountdown();
+    }
+
+    // ===== COUNTDOWN TIMER =====
+    let countdownTimer = null;
+
+    function startCountdown() {
+      stopCountdown();
+      if (!quest.expiresAt) return;
+      const wrap = document.getElementById('countdownWrap');
+      const val  = document.getElementById('countdownVal');
+      const btn  = document.getElementById('claimBtn');
+      wrap.style.display = 'flex';
+
+      function tick() {
+        const remaining = quest.expiresAt - Math.floor(Date.now() / 1000);
+        if (remaining <= 0) {
+          val.textContent   = '00:00';
+          val.style.color   = '#e53935';
+          btn.disabled      = true;
+          btn.textContent   = 'SESSION EXPIRED';
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+          return;
+        }
+        const m = Math.floor(remaining / 60).toString().padStart(2, '0');
+        const s = (remaining % 60).toString().padStart(2, '0');
+        val.textContent = m + ':' + s;
+        val.style.color = remaining <= 300 ? '#e53935' : remaining <= 600 ? '#c9a84c' : '#f5e6c8';
+      }
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    }
+
+    function stopCountdown() {
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      const wrap = document.getElementById('countdownWrap');
+      if (wrap) wrap.style.display = 'none';
     }
 
     // ===== SESSION PERSISTENCE (localStorage) — Step 6c =====
@@ -1300,7 +1368,7 @@
       if (!chadId) return;
       const s = {
         tokenId:    quest.tokenId,
-        seed:       quest.seed ? quest.seed.toString() : null,
+        seed:       quest.seed || null,   // bytes32 hex string
         expiresAt:  quest.expiresAt,
         crewScore:  quest.crewScore,
         choice1:    quest.choice1,
@@ -1311,7 +1379,6 @@
         rollsLeft,
         diceValues: [...diceValues],
         kept:       [...kept],
-        rollNonce,
         panel:      document.querySelector('.panel.active')?.id || 'panel-intro'
       };
       localStorage.setItem('lastchad_quest_' + chadId, JSON.stringify(s));
@@ -1356,7 +1423,7 @@
           return false;
         }
         quest.tokenId   = s.tokenId;
-        quest.seed      = s.seed ? BigInt(s.seed) : null;
+        quest.seed      = s.seed || null; // bytes32 hex string
         quest.expiresAt = s.expiresAt;
         quest.crewScore = s.crewScore || 0;
         quest.choice1   = s.choice1 || null;
@@ -1364,7 +1431,6 @@
         quest.choice2   = s.choice2 || null;
         quest.kept1     = s.kept1 || 0;
         quest.kept2     = s.kept2 || 0;
-        rollNonce       = s.rollNonce || 0;
         rollsLeft       = s.rollsLeft !== undefined ? s.rollsLeft : 3;
         if (Array.isArray(s.diceValues)) diceValues = s.diceValues;
         if (Array.isArray(s.kept))       kept       = s.kept;
@@ -1384,10 +1450,64 @@
     // Attempt to resume in-progress session on page load
     loadSession();
 
-    // ===== CLAIM XP (placeholder — wired in Step 7) =====
+    // ===== CLAIM XP =====
     async function claimXp() {
-      clearSession(); // Step 6c: remove local session on successful claim
-      alert('XP award coming in next step!');
+      if (!userAddress) { walletModal.classList.add('show'); return; }
+
+      const btn    = document.getElementById('claimBtn');
+      const status = document.getElementById('claimStatus');
+
+      // Demo mode (no contract deployed)
+      if (!QUEST_REWARDS_ADDRESS) {
+        clearSession();
+        stopCountdown();
+        btn.disabled    = true;
+        btn.textContent = '+' + quest.crewScore + ' XP AWARDED';
+        return;
+      }
+
+      btn.disabled    = true;
+      btn.textContent = 'SIGNING...';
+      status.style.display = 'block';
+      status.textContent   = '';
+
+      try {
+        const contract = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, signer);
+
+        // Map frontend choice strings to contract uint8 values
+        const c1 = quest.choice1 === 'upper'  ? 1 : 0;
+        const c2 = quest.choice2 === 'backup' ? 1 : 0;
+
+        const tx = await contract.completeQuest(
+          quest.tokenId, QUEST_ID, c1, c2, quest.kept1, quest.kept2
+        );
+        btn.textContent      = 'CONFIRMING...';
+        status.textContent   = 'Waiting for confirmation...';
+        const receipt = await tx.wait();
+
+        // Extract xpAwarded from QuestCompleted event
+        const iface = new ethers.utils.Interface(QUEST_REWARDS_ABI);
+        let xpAwarded = null;
+        for (const log of receipt.logs) {
+          try {
+            const parsed = iface.parseLog(log);
+            if (parsed.name === 'QuestCompleted') { xpAwarded = parsed.args.xpAwarded.toNumber(); break; }
+          } catch (_) {}
+        }
+
+        clearSession();
+        stopCountdown();
+        status.style.display = 'none';
+        btn.textContent = xpAwarded !== null ? '+' + xpAwarded + ' XP AWARDED' : 'XP CLAIMED';
+      } catch (err) {
+        console.error('claimXp failed:', err);
+        status.textContent = err.code !== 4001
+          ? 'ERROR: ' + (err.reason || err.message || 'Transaction failed')
+          : '';
+        status.style.display = err.code !== 4001 ? 'block' : 'none';
+        btn.disabled    = false;
+        btn.textContent = 'CLAIM XP';
+      }
     }
   </script>
 </body>
