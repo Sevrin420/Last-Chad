@@ -972,7 +972,9 @@
       crewScore: 0,
       choice1:   null,
       diceScore: 0,
-      choice2:   null
+      choice2:   null,
+      kept1:     0,      // 5-bit mask of dice kept before roll 2
+      kept2:     0       // 5-bit mask of dice kept before roll 3
     };
 
     function updateCrewDisplay() {
@@ -1003,6 +1005,7 @@
         quest.seed      = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
         quest.expiresAt = Math.floor(Date.now() / 1000) + 3600;
         document.getElementById('crewTracker').style.display = 'flex';
+        saveSession(); // Step 6c
         showPanel('panel-choice1');
         return;
       }
@@ -1032,6 +1035,7 @@
 
         quest.tokenId = parseInt(chadId);
         document.getElementById('crewTracker').style.display = 'flex';
+        saveSession(); // Step 6c
         showPanel('panel-choice1');
       } catch (err) {
         console.error('startQuest failed:', err);
@@ -1050,6 +1054,7 @@
       quest.crewScore += (choice === 'upper') ? 3 : 1;
       updateCrewDisplay();
       showPanel('panel-dice');
+      saveSession(); // Step 6c
     }
 
     // ===== DICE — SHIP / CAPTAIN / CREW (from game.html) =====
@@ -1097,11 +1102,34 @@
       });
     }
 
+    let rollNonce = 0;
+
+    // Step 6a: splitmix64-style deterministic die face from (seed + nonce)
+    function seededValue() {
+      if (!quest.seed) return Math.floor(Math.random() * 6) + 1;
+      const n = rollNonce++;
+      let h = (quest.seed + BigInt(n)) & 0xffffffffffffffffn;
+      h = ((h ^ (h >> 30n)) * 0xbf58476d1ce4e5b9n) & 0xffffffffffffffffn;
+      h = ((h ^ (h >> 27n)) * 0x94d049bb133111ebn) & 0xffffffffffffffffn;
+      h = (h ^ (h >> 31n)) & 0xffffffffffffffffn;
+      return Number(h % 6n) + 1;
+    }
+
+    // Step 6b: current kept[] array → 5-bit bitmask
+    function keptMask() {
+      let m = 0;
+      for (let i = 0; i < 5; i++) if (kept[i]) m |= (1 << i);
+      return m;
+    }
+
     function randomValue() { return Math.floor(Math.random() * 6) + 1; }
 
     async function rollDice() {
       if (isRolling || rollsLeft <= 0) return;
       isRolling = true;
+      // Step 6b: snapshot kept mask before each re-roll
+      if (rollsLeft === 2) quest.kept1 = keptMask();
+      if (rollsLeft === 1) quest.kept2 = keptMask();
       rollsLeft--;
       rollBtn.disabled = true;
 
@@ -1125,7 +1153,7 @@
         const entry = cycleTimers.find(c => c.index === dieIndex);
         if (entry) clearInterval(entry.timer);
 
-        const finalValue = randomValue();
+        const finalValue = seededValue();   // Step 6a: deterministic
         diceValues[dieIndex] = finalValue;
         renderFace(dieIndex, finalValue);
 
@@ -1149,6 +1177,7 @@
       }
 
       isRolling = false;
+      saveSession(); // Step 6c
     }
 
     function updateChecklist(includeFinal) {
@@ -1216,6 +1245,7 @@
       quest.choice2 = choice;
       quest.crewScore += (choice === 'backup') ? 3 : 2;
       updateCrewDisplay();
+      saveSession(); // Step 6c
       showResults();
     }
 
@@ -1265,8 +1295,98 @@
       document.getElementById('claimBtn').style.display = 'block';
     }
 
-    // ===== CLAIM XP (Step 5) =====
-    function claimXp() {
+    // ===== SESSION PERSISTENCE (localStorage) — Step 6c =====
+    function saveSession() {
+      if (!chadId) return;
+      const s = {
+        tokenId:    quest.tokenId,
+        seed:       quest.seed ? quest.seed.toString() : null,
+        expiresAt:  quest.expiresAt,
+        crewScore:  quest.crewScore,
+        choice1:    quest.choice1,
+        diceScore:  quest.diceScore,
+        choice2:    quest.choice2,
+        kept1:      quest.kept1,
+        kept2:      quest.kept2,
+        rollsLeft,
+        diceValues: [...diceValues],
+        kept:       [...kept],
+        rollNonce,
+        panel:      document.querySelector('.panel.active')?.id || 'panel-intro'
+      };
+      localStorage.setItem('lastchad_quest_' + chadId, JSON.stringify(s));
+    }
+
+    function clearSession() {
+      if (chadId) localStorage.removeItem('lastchad_quest_' + chadId);
+    }
+
+    function restoreDiceUI() {
+      rollsLeftTxt.textContent = rollsLeft + ' ROLL' + (rollsLeft !== 1 ? 'S' : '') + ' LEFT';
+      for (let i = 0; i < NUM_DICE; i++) {
+        if (diceValues[i] !== 0) {
+          renderFace(i, diceValues[i]);
+          document.getElementById('die' + i).classList.add('settled');
+          document.getElementById('keep' + i).disabled = false;
+        }
+        if (kept[i]) {
+          document.getElementById('keep' + i).classList.add('active');
+          document.getElementById('keep' + i).textContent = 'LOCKED';
+          document.getElementById('die' + i).classList.add('kept');
+        }
+      }
+      updateChecklist(rollsLeft <= 0);
+      if (rollsLeft <= 0) {
+        rollBtn.disabled = true;
+        rollBtn.textContent = 'NO ROLLS';
+        rollsLeftTxt.textContent = 'TURN OVER';
+        for (let i = 0; i < NUM_DICE; i++) document.getElementById('keep' + i).disabled = true;
+        finaliseDice();
+      }
+    }
+
+    function loadSession() {
+      if (!chadId) return false;
+      const raw = localStorage.getItem('lastchad_quest_' + chadId);
+      if (!raw) return false;
+      try {
+        const s = JSON.parse(raw);
+        if (s.expiresAt && Math.floor(Date.now() / 1000) > s.expiresAt) {
+          localStorage.removeItem('lastchad_quest_' + chadId);
+          return false;
+        }
+        quest.tokenId   = s.tokenId;
+        quest.seed      = s.seed ? BigInt(s.seed) : null;
+        quest.expiresAt = s.expiresAt;
+        quest.crewScore = s.crewScore || 0;
+        quest.choice1   = s.choice1 || null;
+        quest.diceScore = s.diceScore || 0;
+        quest.choice2   = s.choice2 || null;
+        quest.kept1     = s.kept1 || 0;
+        quest.kept2     = s.kept2 || 0;
+        rollNonce       = s.rollNonce || 0;
+        rollsLeft       = s.rollsLeft !== undefined ? s.rollsLeft : 3;
+        if (Array.isArray(s.diceValues)) diceValues = s.diceValues;
+        if (Array.isArray(s.kept))       kept       = s.kept;
+        updateCrewDisplay();
+        const panel = s.panel || 'panel-intro';
+        if (panel !== 'panel-intro') document.getElementById('crewTracker').style.display = 'flex';
+        if (panel === 'panel-dice')    restoreDiceUI();
+        if (panel === 'panel-results') { showResults(); return true; }
+        showPanel(panel);
+        return true;
+      } catch (e) {
+        console.error('Session restore failed:', e);
+        return false;
+      }
+    }
+
+    // Attempt to resume in-progress session on page load
+    loadSession();
+
+    // ===== CLAIM XP (placeholder — wired in Step 7) =====
+    async function claimXp() {
+      clearSession(); // Step 6c: remove local session on successful claim
       alert('XP award coming in next step!');
     }
   </script>
