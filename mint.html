@@ -850,16 +850,16 @@
     const PRICE = 0.02;
     const MAX_SUPPLY = 70;
     const MAX_MINT_PER_WALLET = 5;
-    const AVAX_CHAIN_ID = '0xa86a'; // 43114
+    const AVAX_CHAIN_ID = '0xa869'; // 43113
     const AVAX_CHAIN = {
       chainId: AVAX_CHAIN_ID,
-      chainName: 'Avalanche C-Chain',
+      chainName: 'Avalanche Fuji Testnet',
       nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
-      rpcUrls: ['https://api.avax.network/ext/bc/C/rpc'],
-      blockExplorerUrls: ['https://snowtrace.io/']
+      rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'],
+      blockExplorerUrls: ['https://testnet.snowtrace.io/']
     };
 
-    const CONTRACT_ADDRESS = '0x44301Ead5A19fEe6c6C152b5B6270ab47947b327';
+    const CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
 
     // Contract ABI — matches LastChad.sol
     const CONTRACT_ABI = [
@@ -873,7 +873,7 @@
     ];
 
     // Read-only provider for fetching supply even when wallet not connected
-    const READ_RPC = 'https://api.avax.network/ext/bc/C/rpc';
+    const READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
 
     // TODO: Set your WalletConnect project ID from https://cloud.walletconnect.com
     const WALLETCONNECT_PROJECT_ID = '';
@@ -952,7 +952,7 @@
         if (CONTRACT_ADDRESS) {
           const contractLink = document.getElementById('contractLink');
           contractLink.textContent = CONTRACT_ADDRESS.slice(0, 6) + '...' + CONTRACT_ADDRESS.slice(-4);
-          contractLink.href = 'https://snowtrace.io/address/' + CONTRACT_ADDRESS;
+          contractLink.href = 'https://testnet.snowtrace.io/address/' + CONTRACT_ADDRESS;
           contractLink.target = '_blank';
         }
       } catch (err) {
@@ -1156,9 +1156,9 @@
         const { EthereumProvider } = await import('https://unpkg.com/@walletconnect/ethereum-provider@2/dist/index.es.js');
         const wcProvider = await EthereumProvider.init({
           projectId: WALLETCONNECT_PROJECT_ID,
-          chains: [43114],
+          chains: [43113],
           showQrModal: true,
-          rpcMap: { 43114: 'https://api.avax.network/ext/bc/C/rpc' }
+          rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' }
         });
 
         await wcProvider.connect();
