@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest | Last Chad</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    /* --- Background (matches game.html) --- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #3b2a14;
+      background-image:
+        linear-gradient(45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
+        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      image-rendering: pixelated;
+    }
+
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(90, 65, 30, 0.4) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(30, 20, 10, 0.3) 0%, rgba(30, 20, 10, 0.6) 100%);
+    }
+
+    /* --- Header --- */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(30, 20, 10, 0.9);
+      border-bottom: 2px solid #5c4409;
+      backdrop-filter: blur(8px);
+    }
+
+    .nav-wrapper { position: relative; }
+
+    .nav-toggle {
+      width: 44px; height: 44px;
+      background: rgba(30, 20, 10, 0.5);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .nav-toggle:hover { border-color: #c9a84c; background: rgba(30, 22, 8, 0.85); }
+    .nav-toggle span { display: block; width: 20px; height: 2px; background: #c9a84c; border-radius: 1px; transition: all 0.2s; }
+    .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-toggle.open span:nth-child(2) { opacity: 0; }
+    .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: linear-gradient(180deg, rgba(30, 22, 8, 0.95) 0%, rgba(20, 15, 5, 0.98) 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+      min-width: 160px;
+      overflow: hidden;
+      z-index: 110;
+    }
+    .nav-dropdown.show { display: block; }
+
+    .nav-link {
+      display: block;
+      padding: 14px 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      text-decoration: none;
+      transition: all 0.15s;
+      border-bottom: 1px solid #3d2e0a;
+    }
+    .nav-link:last-child { border-bottom: none; }
+    .nav-link:hover { background: rgba(92, 68, 9, 0.3); color: #c9a84c; }
+
+    .chad-name {
+      font-size: 0.55rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    /* --- Main layout --- */
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 90px 16px 60px;
+    }
+
+    /* --- Portrait --- */
+    .portrait {
+      width: clamp(100px, 25vw, 140px);
+      border: 4px solid #c9a84c;
+      border-radius: 4px;
+      background: rgba(30, 20, 10, 0.8);
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 20px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(201, 168, 76, 0.2);
+      image-rendering: pixelated;
+      margin-bottom: 20px;
+    }
+    .portrait img { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+
+    /* --- Quest panel --- */
+    .quest-panel {
+      width: 100%;
+      max-width: 560px;
+      background: rgba(10, 8, 4, 0.85);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      padding: 28px 24px;
+      box-shadow:
+        inset 0 0 30px rgba(0, 0, 0, 0.6),
+        0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* --- Narrative text --- */
+    .mission-tag {
+      font-size: 0.45rem;
+      color: #e53935;
+      letter-spacing: 0.15em;
+      margin-bottom: 16px;
+    }
+
+    .narrative {
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      line-height: 2.2;
+      color: #f5e6c8;
+      margin-bottom: 24px;
+    }
+
+    .narrative p + p { margin-top: 14px; }
+
+    .highlight { color: #c9a84c; }
+
+    /* --- Crew score tracker --- */
+    .crew-tracker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(20, 14, 6, 0.7);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 10px 16px;
+      margin-bottom: 24px;
+    }
+    .crew-tracker-label {
+      font-size: 0.4rem;
+      color: #8a7a5a;
+    }
+    .crew-tracker-value {
+      font-size: 0.8rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
+    }
+
+    /* --- Choice buttons --- */
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .choice-btn {
+      padding: 16px 20px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+      color: #f5e6c8;
+      background: rgba(30, 22, 8, 0.8);
+      border: 3px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: left;
+      line-height: 1.8;
+      transition: all 0.15s;
+      touch-action: manipulation;
+      box-shadow: inset -2px -2px 0 #1a1200, inset 2px 2px 0 #3d2e0a, 2px 2px 0 #000;
+    }
+    .choice-btn:hover {
+      border-color: #c9a84c;
+      color: #c9a84c;
+      background: rgba(50, 36, 10, 0.85);
+    }
+    .choice-btn:active {
+      transform: translateY(2px);
+      box-shadow: inset -1px -1px 0 #1a1200, inset 1px 1px 0 #3d2e0a, 1px 1px 0 #000;
+    }
+
+    .choice-label {
+      color: #c9a84c;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .choice-btn:hover .choice-label { color: #ffe082; }
+
+    /* --- Primary action button --- */
+    .action-btn {
+      width: 100%;
+      padding: 16px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 220, 120, 0.4),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s;
+      touch-action: manipulation;
+      animation: glow 2s ease-in-out infinite;
+    }
+    .action-btn:hover {
+      animation: none;
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%);
+      border-color: #f5e6c8;
+    }
+    .action-btn:active { transform: translateY(3px); }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
+      50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
+    }
+
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .quest-panel { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg"></div>
+
+  <header class="header">
+    <div class="nav-wrapper">
+      <button class="nav-toggle" id="navToggle">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-dropdown" id="navDropdown">
+        <a href="index.html" class="nav-link">HOME</a>
+        <a href="mint.html" class="nav-link">MINT</a>
+        <a href="enter.html" class="nav-link">BATTLE</a>
+        <a href="docs.html" class="nav-link">DOCS</a>
+      </div>
+    </div>
+    <span class="chad-name" id="chadName"></span>
+  </header>
+
+  <main class="main">
+
+    <div class="portrait">
+      <img id="portraitImg" src="" alt="Chad">
+    </div>
+
+    <div class="quest-panel">
+
+      <!-- Crew score tracker (hidden until quest begins) -->
+      <div class="crew-tracker" id="crewTracker" style="display:none;">
+        <span class="crew-tracker-label">CREW SCORE</span>
+        <span class="crew-tracker-value" id="crewScoreDisplay">0</span>
+      </div>
+
+      <!-- ===== PANEL: INTRO ===== -->
+      <div class="panel active" id="panel-intro">
+        <div class="mission-tag">MISSION BRIEFING — DAY 2</div>
+        <div class="narrative">
+          <p>The city reeks of ozone and ash. Last night the <span class="highlight">Synthettes</span> hit the western quarter — first wave, coordinated, surgical. Forty-seven dead. Nobody expected it.</p>
+          <p>Command needs eyes on their staging area in the eastern sector. Every surface route is covered by scanner drones. The sewers are the only way in.</p>
+          <p>You volunteered. <span class="highlight">Of course you did.</span></p>
+        </div>
+        <button class="action-btn" onclick="startQuest()">BEGIN MISSION</button>
+      </div>
+
+      <!-- ===== PANEL: CHOICE 1 ===== -->
+      <div class="panel" id="panel-choice1">
+        <div class="mission-tag">THE JUNCTION</div>
+        <div class="narrative">
+          <p>You drop through a rusted grate into the sewer network. The smell hits like a wall. Forty meters in, the tunnel splits.</p>
+          <p>Your uplink crackles: <span class="highlight">"Two routes, soldier. Your call."</span></p>
+        </div>
+        <div class="choices">
+          <button class="choice-btn" onclick="makeChoice1('upper')">
+            <span class="choice-label">[ UPPER TUNNELS ]</span>
+            Faster route. Maintenance hatches give you line-of-sight on their drone patterns. Runs close to the patrol corridor.
+          </button>
+          <button class="choice-btn" onclick="makeChoice1('lower')">
+            <span class="choice-label">[ LOWER TUNNELS ]</span>
+            Flooded knee-deep. Synthettes never scan this low. Slower — but clean.
+          </button>
+        </div>
+      </div>
+
+      <!-- More panels added in later steps -->
+
+    </div><!-- /.quest-panel -->
+  </main>
+
+  <script>
+    // ===== URL PARAMS =====
+    const params = new URLSearchParams(window.location.search);
+    const chadId = params.get('chad') || '1';
+    document.getElementById('portraitImg').src = 'assets/chads/' + chadId + '.png';
+    document.getElementById('chadName').textContent = 'CHAD #' + chadId;
+
+    // ===== NAV =====
+    const navToggle = document.getElementById('navToggle');
+    const navDropdown = document.getElementById('navDropdown');
+    navToggle.addEventListener('click', () => {
+      navToggle.classList.toggle('open');
+      navDropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.nav-wrapper')) {
+        navToggle.classList.remove('open');
+        navDropdown.classList.remove('show');
+      }
+    });
+
+    // ===== QUEST STATE =====
+    const quest = {
+      crewScore: 0,
+      choice1: null,
+      diceScore: 0
+    };
+
+    function updateCrewDisplay() {
+      document.getElementById('crewScoreDisplay').textContent = quest.crewScore;
+    }
+
+    // ===== PANEL NAVIGATION =====
+    function showPanel(id) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ===== INTRO -> QUEST =====
+    function startQuest() {
+      document.getElementById('crewTracker').style.display = 'flex';
+      showPanel('panel-choice1');
+    }
+
+    // ===== CHOICE 1 =====
+    function makeChoice1(choice) {
+      quest.choice1 = choice;
+      if (choice === 'upper') {
+        quest.crewScore += 3;
+      } else {
+        quest.crewScore += 1;
+      }
+      updateCrewDisplay();
+      // Next panel will be added in the next step
+      alert('Choice 1 done — dice panel coming next!');
+    }
+  </script>
+</body>
+</html>
