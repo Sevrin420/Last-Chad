@@ -408,12 +408,54 @@
     .dice-result-text { font-size: clamp(0.45rem, 1.8vw, 0.6rem); line-height: 2.2; color: #f5e6c8; margin-bottom: 16px; }
     .dice-result-text .highlight { color: #c9a84c; }
 
+    /* --- Score breakdown (results panel) --- */
+    .score-breakdown {
+      background: rgba(20, 14, 6, 0.8);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+
+    .breakdown-title {
+      font-size: 0.42rem;
+      color: #8a7a5a;
+      letter-spacing: 0.12em;
+      margin-bottom: 16px;
+    }
+
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(61, 46, 10, 0.4);
+    }
+    .breakdown-row:last-child { border-bottom: none; }
+
+    .breakdown-label { font-size: clamp(0.38rem, 1.5vw, 0.48rem); color: #8a7a5a; }
+    .breakdown-val   { font-size: clamp(0.5rem, 2vw, 0.65rem); color: #c9a84c; }
+    .breakdown-val.bonus { color: #4caf50; }
+
+    .breakdown-divider {
+      border: none;
+      border-top: 2px solid #5c4409;
+      margin: 12px 0 4px;
+    }
+
+    .breakdown-row.total .breakdown-label { color: #f5e6c8; font-size: clamp(0.42rem, 1.8vw, 0.55rem); }
+    .breakdown-row.total .breakdown-val   { font-size: clamp(0.8rem, 3vw, 1.1rem); color: #c9a84c; text-shadow: 0 0 10px rgba(201,168,76,0.5); }
+
+    /* Loading state */
+    .loading-text { font-size: 0.4rem; color: #8a7a5a; text-align: center; padding: 10px 0; }
+
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
       .quest-panel { padding: 20px 16px; }
       .dice-row { gap: 5px; }
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 </head>
 <body>
 
@@ -563,7 +605,42 @@
         </div>
       </div>
 
-      <!-- More panels added in later steps -->
+      <!-- ===== PANEL: RESULTS ===== -->
+      <div class="panel" id="panel-results">
+        <div class="mission-tag">MISSION COMPLETE</div>
+        <div class="narrative">
+          <p>You climb out of the maintenance hatch into cold air. The city still burns in the west.</p>
+          <p>You key your radio. <span class="highlight">"Command, intel secured. Returning to base."</span></p>
+        </div>
+
+        <div class="score-breakdown">
+          <div class="breakdown-title">AFTER ACTION REPORT</div>
+          <div class="breakdown-row">
+            <span class="breakdown-label">ROUTE CHOICE</span>
+            <span class="breakdown-val" id="res-choice1">—</span>
+          </div>
+          <div class="breakdown-row">
+            <span class="breakdown-label">PATROL ENCOUNTER</span>
+            <span class="breakdown-val" id="res-dice">—</span>
+          </div>
+          <div class="breakdown-row">
+            <span class="breakdown-label">EXIT APPROACH</span>
+            <span class="breakdown-val" id="res-choice2">—</span>
+          </div>
+          <div class="breakdown-row" id="res-dex-row" style="display:none;">
+            <span class="breakdown-label">DEX BONUS</span>
+            <span class="breakdown-val bonus" id="res-dex">—</span>
+          </div>
+          <hr class="breakdown-divider">
+          <div class="breakdown-row total">
+            <span class="breakdown-label">TOTAL XP EARNED</span>
+            <span class="breakdown-val" id="res-total">—</span>
+          </div>
+        </div>
+
+        <div class="loading-text" id="resultsLoading" style="display:none;">READING STATS FROM CHAIN...</div>
+        <button class="action-btn" id="claimBtn" onclick="claimXp()" style="display:none;">CLAIM XP</button>
+      </div>
 
     </div><!-- /.quest-panel -->
   </main>
@@ -786,8 +863,52 @@
       quest.choice2 = choice;
       quest.crewScore += (choice === 'backup') ? 3 : 2;
       updateCrewDisplay();
-      // Results panel added in next step
-      alert('Choice 2 done — results panel coming next!');
+      showResults();
+    }
+
+    // ===== RESULTS + DEX BONUS =====
+    const CONTRACT_ADDRESS = '0x44301Ead5A19fEe6c6C152b5B6270ab47947b327';
+    const READ_RPC = 'https://api.avax.network/ext/bc/C/rpc';
+    const STATS_ABI = ['function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)'];
+
+    async function showResults() {
+      showPanel('panel-results');
+
+      // Populate the known scores
+      const c1pts = (quest.choice1 === 'upper') ? 3 : 1;
+      const c2pts = (quest.choice2 === 'backup') ? 3 : 2;
+      document.getElementById('res-choice1').textContent = '+' + c1pts;
+      document.getElementById('res-dice').textContent    = '+' + quest.diceScore;
+      document.getElementById('res-choice2').textContent = '+' + c2pts;
+
+      // Try to read dex from chain (no wallet needed — read-only)
+      document.getElementById('resultsLoading').style.display = 'block';
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, STATS_ABI, readProvider);
+        const stats = await contract.getStats(chadId);
+        const dex = stats.dexterity.toNumber();
+        const dexBonus = Math.max(0, dex - 1);
+
+        if (dexBonus > 0) {
+          quest.crewScore += dexBonus;
+          updateCrewDisplay();
+          document.getElementById('res-dex-row').style.display = 'flex';
+          document.getElementById('res-dex').textContent = '+' + dexBonus + '  (DEX ' + dex + ')';
+        }
+      } catch (e) {
+        // Chain read failed — proceed without bonus
+        console.warn('Could not read stats:', e);
+      }
+
+      document.getElementById('res-total').textContent = quest.crewScore;
+      document.getElementById('resultsLoading').style.display = 'none';
+      document.getElementById('claimBtn').style.display = 'block';
+    }
+
+    // ===== CLAIM XP (Step 5) =====
+    function claimXp() {
+      alert('XP award coming in next step!');
     }
   </script>
 </body>
