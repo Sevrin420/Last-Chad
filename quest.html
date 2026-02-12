@@ -544,6 +544,25 @@
         </div>
       </div>
 
+      <!-- ===== PANEL: CHOICE 2 ===== -->
+      <div class="panel" id="panel-choice2">
+        <div class="mission-tag">BLOCKED EXIT</div>
+        <div class="narrative">
+          <p>You reach the exit shaft — a rusted ladder leading up to a maintenance hatch. It's sealed. A Synthette security lock, recently installed.</p>
+          <p>You check your uplink. <span class="highlight">One bar of signal. Your crew is three blocks out.</span></p>
+        </div>
+        <div class="choices">
+          <button class="choice-btn" onclick="makeChoice2('backup')">
+            <span class="choice-label">[ SIGNAL BACKUP ]</span>
+            Burn your last signal bar. Your crew creates a surface diversion — enough noise to pop the lock remotely.
+          </button>
+          <button class="choice-btn" onclick="makeChoice2('force')">
+            <span class="choice-label">[ FORCE IT ALONE ]</span>
+            Go dark. Pry the panel, short the lock. Loud, fast, and nobody knows you were here.
+          </button>
+        </div>
+      </div>
+
       <!-- More panels added in later steps -->
 
     </div><!-- /.quest-panel -->
@@ -574,7 +593,8 @@
     const quest = {
       crewScore: 0,
       choice1: null,
-      diceScore: 0
+      diceScore: 0,
+      choice2: null
     };
 
     function updateCrewDisplay() {
@@ -758,8 +778,16 @@
 
     // ===== AFTER DICE =====
     function afterDice() {
-      // Choice 2 panel added in next step
-      alert('Dice done — Choice 2 coming next!');
+      showPanel('panel-choice2');
+    }
+
+    // ===== CHOICE 2 =====
+    function makeChoice2(choice) {
+      quest.choice2 = choice;
+      quest.crewScore += (choice === 'backup') ? 3 : 2;
+      updateCrewDisplay();
+      // Results panel added in next step
+      alert('Choice 2 done — results panel coming next!');
     }
   </script>
 </body>
