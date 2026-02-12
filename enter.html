@@ -411,6 +411,15 @@
       }
     }
 
+    .quest-name-label {
+      text-align: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-top: 10px;
+      letter-spacing: 0.08em;
+    }
+
     /* --- Gallery --- */
     .gallery-section {
       width: 100%;
@@ -657,7 +666,8 @@
       </div>
 
       <!-- Battle button -->
-      <button class="battle-btn" id="battleBtn">BATTLE</button>
+      <button class="battle-btn" id="battleBtn">BEGIN QUEST</button>
+      <div class="quest-name-label">Day 1 - Recon</div>
 
       <!-- Gallery -->
       <div class="gallery-section">
@@ -1053,7 +1063,7 @@
 
     battleBtn.addEventListener('click', function () {
       if (!this.classList.contains('active') || !selectedTokenId) return;
-      window.location.href = 'game.html?chad=' + selectedTokenId;
+      window.location.href = 'quest.html?chad=' + selectedTokenId;
     });
 
     // ========== AUTO-RECONNECT ==========
