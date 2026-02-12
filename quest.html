@@ -449,6 +449,125 @@
     /* Loading state */
     .loading-text { font-size: 0.4rem; color: #8a7a5a; text-align: center; padding: 10px 0; }
 
+    /* --- Wallet button --- */
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: inset 0 1px 0 rgba(255,220,120,0.4), 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .wallet-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+      box-shadow: inset 0 1px 0 rgba(255,220,120,0.5), 0 2px 10px rgba(201,168,76,0.4);
+    }
+    .wallet-btn.connected {
+      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
+      border-color: #4caf50;
+      color: #a5d6a7;
+      font-size: 0.5rem;
+    }
+
+    .wallet-wrapper { position: relative; }
+
+    .disconnect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      z-index: 110;
+      min-width: 160px;
+    }
+    .disconnect-dropdown.show { display: block; }
+
+    .disconnect-btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #e53935;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s;
+    }
+    .disconnect-btn:hover { background: rgba(229,57,53,0.15); }
+
+    /* --- Wallet modal --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 28px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(139,105,20,0.15);
+    }
+    .modal-title {
+      font-size: 0.7rem;
+      color: #c9a84c;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .wallet-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      background: rgba(61,46,10,0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .wallet-option:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); box-shadow: 0 0 10px rgba(139,105,20,0.2); }
+    .wallet-option:active { transform: scale(0.97); }
+    .wallet-icon {
+      width: 32px; height: 32px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .modal-close {
+      display: block;
+      margin: 16px auto 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #5c4409;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .modal-close:hover { color: #c9a84c; }
+
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
       .quest-panel { padding: 20px 16px; }
@@ -474,6 +593,12 @@
       </div>
     </div>
     <span class="chad-name" id="chadName"></span>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
   </header>
 
   <main class="main">
@@ -645,6 +770,30 @@
     </div><!-- /.quest-panel -->
   </main>
 
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
+        Rabby
+      </button>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9889;</span>
+        Core
+      </button>
+      <button class="wallet-option" data-wallet="metamask">
+        <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>
+        MetaMask
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
+        WalletConnect
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
+
   <script>
     // ===== URL PARAMS =====
     const params = new URLSearchParams(window.location.search);
@@ -664,6 +813,154 @@
         navToggle.classList.remove('open');
         navDropdown.classList.remove('show');
       }
+    });
+
+    // ===== WALLET =====
+    const AVAX_CHAIN_ID = '0xa86a';
+    const AVAX_CHAIN = {
+      chainId: AVAX_CHAIN_ID,
+      chainName: 'Avalanche C-Chain',
+      nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+      rpcUrls: ['https://api.avax.network/ext/bc/C/rpc'],
+      blockExplorerUrls: ['https://snowtrace.io/']
+    };
+    const WALLETCONNECT_PROJECT_ID = '';
+
+    let provider    = null;
+    let signer      = null;
+    let userAddress = null;
+
+    const walletBtn          = document.getElementById('walletBtn');
+    const walletModal        = document.getElementById('walletModal');
+    const modalClose         = document.getElementById('modalClose');
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+    const disconnectBtn      = document.getElementById('disconnectBtn');
+
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+    }
+    function getDappUrl()  { return window.location.href; }
+    function getDappHost() { return window.location.host + window.location.pathname; }
+    function truncateAddress(addr) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
+
+    async function switchToAvalanche(raw) {
+      try {
+        await raw.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
+      } catch (err) {
+        if (err.code === 4902) {
+          await raw.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
+        } else { throw err; }
+      }
+    }
+
+    function onConnected(addr) {
+      userAddress = addr;
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      walletModal.classList.remove('show');
+    }
+
+    function onDisconnected() {
+      provider = signer = userAddress = null;
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+      disconnectDropdown.classList.remove('show');
+    }
+
+    function getMobileDeepLink(name) {
+      const url = getDappHost(), full = getDappUrl();
+      if (name === 'metamask') return 'https://metamask.app.link/dapp/' + url;
+      if (name === 'core')     return 'https://core.app/browser?url=' + encodeURIComponent(full);
+      return null;
+    }
+
+    async function connectWallet(name) {
+      const hasInjected = window.ethereum || window.avalanche;
+      if (!hasInjected && isMobile() && name !== 'walletconnect') {
+        const link = getMobileDeepLink(name);
+        if (link) { window.location.href = link; return; }
+      }
+      if (name === 'walletconnect') { await connectWalletConnect(); return; }
+      await connectInjected(name);
+    }
+
+    async function connectInjected(name) {
+      let raw = null;
+      if (name === 'core' && window.avalanche) {
+        raw = window.avalanche;
+      } else if (window.ethereum) {
+        if (window.ethereum.providers && window.ethereum.providers.length) {
+          for (const p of window.ethereum.providers) {
+            if (name === 'rabby'    && p.isRabby)                          { raw = p; break; }
+            if (name === 'metamask' && p.isMetaMask && !p.isRabby)        { raw = p; break; }
+            if (name === 'core'     && (p.isAvalanche || p.isCoreWallet)) { raw = p; break; }
+          }
+        }
+        if (!raw) {
+          if      (name === 'rabby'    && window.ethereum.isRabby)    raw = window.ethereum;
+          else if (name === 'metamask' && window.ethereum.isMetaMask) raw = window.ethereum;
+          else if (name === 'core'     && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet)) raw = window.ethereum;
+          else raw = window.ethereum;
+        }
+      }
+      if (!raw) {
+        if (isMobile()) { const l = getMobileDeepLink(name); if (l) { window.location.href = l; return; } }
+        const urls = { rabby: 'https://rabby.io', core: 'https://core.app', metamask: 'https://metamask.io' };
+        alert(name.charAt(0).toUpperCase() + name.slice(1) + ' wallet not detected.\n\nOn mobile: install the app and open this site in its built-in browser.\n\nOn desktop: install the browser extension from ' + (urls[name] || ''));
+        return;
+      }
+      try {
+        const accounts = await raw.request({ method: 'eth_requestAccounts' });
+        if (!accounts || accounts.length === 0) throw new Error('No accounts returned');
+        await switchToAvalanche(raw);
+        provider = new ethers.providers.Web3Provider(raw);
+        signer   = provider.getSigner();
+        onConnected(accounts[0]);
+        raw.on('accountsChanged', accs => accs.length === 0 ? onDisconnected() : onConnected(accs[0]));
+        raw.on('chainChanged', () => window.location.reload());
+      } catch (err) {
+        console.error('Connection failed:', err);
+        if (err.code !== 4001) alert('Failed to connect: ' + (err.message || err));
+      }
+    }
+
+    async function connectWalletConnect() {
+      if (!WALLETCONNECT_PROJECT_ID) {
+        alert('WalletConnect project ID not configured.\n\nGet one free at:\nhttps://cloud.walletconnect.com\n\nThen set WALLETCONNECT_PROJECT_ID in quest.html');
+        return;
+      }
+      try {
+        const { EthereumProvider } = await import('https://unpkg.com/@walletconnect/ethereum-provider@2/dist/index.es.js');
+        const wc = await EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43114], showQrModal: true, rpcMap: { 43114: 'https://api.avax.network/ext/bc/C/rpc' } });
+        await wc.connect();
+        provider = new ethers.providers.Web3Provider(wc);
+        signer   = provider.getSigner();
+        onConnected(await signer.getAddress());
+        wc.on('accountsChanged', accs => accs.length === 0 ? onDisconnected() : onConnected(accs[0]));
+        wc.on('disconnect', onDisconnected);
+      } catch (err) {
+        console.error('WalletConnect failed:', err);
+        if (err.message && !err.message.includes('User closed')) alert('WalletConnect failed: ' + err.message);
+      }
+    }
+
+    // Wallet button click: open modal or show disconnect dropdown
+    walletBtn.addEventListener('click', () => {
+      if (userAddress) {
+        disconnectDropdown.classList.toggle('show');
+      } else {
+        walletModal.classList.add('show');
+      }
+    });
+    // Wallet option buttons
+    document.querySelectorAll('.wallet-option').forEach(btn => {
+      btn.addEventListener('click', () => connectWallet(btn.dataset.wallet));
+    });
+    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
+    walletModal.addEventListener('click', e => { if (e.target === walletModal) walletModal.classList.remove('show'); });
+    disconnectBtn.addEventListener('click', onDisconnected);
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
     });
 
     // ===== QUEST STATE =====
