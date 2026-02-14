@@ -1,0 +1,51 @@
+.nav-wrapper { position: relative; }
+
+.nav-toggle {
+  width: 44px;
+  height: 44px;
+  background: rgba(10, 10, 15, 0.5);
+  border: 2px solid #5c4409;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.2s;
+  touch-action: manipulation;
+}
+.nav-toggle:hover { border-color: #c9a84c; background: rgba(30, 22, 8, 0.85); }
+.nav-toggle span { display: block; width: 20px; height: 2px; background: #c9a84c; border-radius: 1px; transition: all 0.2s; }
+.nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle.open span:nth-child(2) { opacity: 0; }
+.nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.nav-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: linear-gradient(180deg, rgba(30, 22, 8, 0.95) 0%, rgba(20, 15, 5, 0.98) 100%);
+  border: 2px solid #5c4409;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  min-width: 160px;
+  overflow: hidden;
+  z-index: 110;
+}
+.nav-dropdown.show { display: block; }
+
+.nav-link {
+  display: block;
+  padding: 14px 18px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.65rem;
+  color: #f5e6c8;
+  text-decoration: none;
+  transition: all 0.15s;
+  border-bottom: 1px solid #3d2e0a;
+}
+.nav-link:last-child { border-bottom: none; }
+.nav-link:hover { background: rgba(92, 68, 9, 0.3); color: #c9a84c; }
+.nav-link.active { color: #c9a84c; background: rgba(92, 68, 9, 0.15); }
