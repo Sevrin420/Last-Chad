@@ -272,13 +272,13 @@
     /* --- Battle button --- */
     .battle-btn {
       margin-top: 20px;
-      padding: 16px 48px;
+      padding: 18px 52px;
       font-family: 'Press Start 2P', monospace;
       font-size: clamp(0.9rem, 3vw, 1.1rem);
       color: #fff;
       background: linear-gradient(180deg, #555 0%, #333 50%, #222 100%);
-      border: 3px solid #555;
-      border-radius: 6px;
+      border: 4px solid #555;
+      border-radius: 0;
       cursor: not-allowed;
       opacity: 0.4;
       position: relative;
@@ -289,7 +289,8 @@
         inset 0 2px 0 rgba(255,255,255,0.1),
         inset 0 -2px 0 rgba(0,0,0,0.4),
         0 4px 0 #111,
-        0 6px 15px rgba(0,0,0,0.5);
+        0 6px 0 #000,
+        0 8px 15px rgba(0,0,0,0.6);
       touch-action: manipulation;
     }
 
@@ -302,7 +303,8 @@
         inset 0 2px 0 rgba(255,150,150,0.4),
         inset 0 -2px 0 rgba(0,0,0,0.4),
         0 4px 0 #5d0000,
-        0 6px 15px rgba(0,0,0,0.5),
+        0 6px 0 #3a0000,
+        0 8px 15px rgba(0,0,0,0.6),
         0 0 20px rgba(229, 57, 53, 0.3);
       animation: battle-glow 2s ease-in-out infinite;
     }
@@ -326,7 +328,8 @@
         inset 0 2px 0 rgba(255,150,150,0.5),
         inset 0 -2px 0 rgba(0,0,0,0.3),
         0 4px 0 #5d0000,
-        0 6px 20px rgba(0,0,0,0.5),
+        0 6px 0 #3a0000,
+        0 8px 20px rgba(0,0,0,0.6),
         0 0 30px rgba(229, 57, 53, 0.5);
     }
 
@@ -336,11 +339,11 @@
     }
 
     .battle-btn.active:active {
-      transform: translateY(3px);
+      transform: translateY(4px);
       box-shadow:
         inset 0 2px 4px rgba(0,0,0,0.5),
         0 1px 0 #5d0000,
-        0 2px 8px rgba(0,0,0,0.5),
+        0 2px 8px rgba(0,0,0,0.6),
         0 0 25px rgba(255, 80, 80, 0.6);
     }
 
@@ -349,14 +352,16 @@
         inset 0 2px 0 rgba(255,150,150,0.4),
         inset 0 -2px 0 rgba(0,0,0,0.4),
         0 4px 0 #5d0000,
-        0 6px 15px rgba(0,0,0,0.5),
+        0 6px 0 #3a0000,
+        0 8px 15px rgba(0,0,0,0.6),
         0 0 15px rgba(229, 57, 53, 0.2);
       }
       50% { box-shadow:
         inset 0 2px 0 rgba(255,150,150,0.4),
         inset 0 -2px 0 rgba(0,0,0,0.4),
         0 4px 0 #5d0000,
-        0 6px 15px rgba(0,0,0,0.5),
+        0 6px 0 #3a0000,
+        0 8px 15px rgba(0,0,0,0.6),
         0 0 30px rgba(229, 57, 53, 0.5);
       }
     }
@@ -606,7 +611,7 @@
       </div>
 
       <!-- Battle button -->
-      <button class="battle-btn" id="battleBtn">BEGIN QUEST</button>
+      <button class="battle-btn" id="battleBtn">EPISODE 1</button>
       <div class="quest-name-label">Day 1 - Recon</div>
 
       <!-- Gallery -->
