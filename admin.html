@@ -172,6 +172,30 @@
       cursor: pointer;
     }
     .copy-btn:hover { background: #245e24; }
+    .field textarea {
+      width: 100%;
+      padding: 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.35rem;
+      background: #1a1005;
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      color: #f5e6c8;
+      outline: none;
+      resize: vertical;
+      min-height: 80px;
+      line-height: 1.6;
+    }
+    .field textarea:focus { border-color: #8b6914; }
+    #itemsDeployStatus {
+      margin-top: 14px;
+      font-size: 0.4rem;
+      line-height: 2;
+      text-align: center;
+      word-break: break-all;
+    }
+    #itemsDeployStatus.success { color: #4caf50; }
+    #itemsDeployStatus.error { color: #e53935; }
   </style>
 </head>
 <body>
@@ -224,6 +248,40 @@
       <br><br>
       <div class="rlabel" style="font-size:0.35rem; line-height:1.6; color:#5c4409;">
         Update CONTRACT_ADDRESS in<br>mint.html, stats.html, enter.html
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <h2>Deploy Items Contract (Testnet)</h2>
+
+    <div class="field">
+      <label>BASE URI (items metadata URL)</label>
+      <input type="text" id="itemsBaseUri" value="https://lastchad.xyz/items/" placeholder="https://lastchad.xyz/items/">
+    </div>
+
+    <div class="field">
+      <label>BYTECODE</label>
+      <textarea id="itemsBytecode" placeholder="Paste bytecode here after running: npx hardhat compile&#10;&#10;Find it in:&#10;artifacts/contracts/LastChadItems.sol/LastChadItems.json&#10;→ copy the &quot;bytecode&quot; field"></textarea>
+    </div>
+
+    <div class="info-box">
+      <span>Contract:</span> LastChadItems (ERC-1155)<br>
+      <span>Network:</span> Avalanche Fuji Testnet<br>
+      <span>Item #1:</span> Cindy's Code &bull; 500 supply &bull; Free<br>
+      <span>Note:</span> Run npx hardhat compile first, then paste bytecode above
+    </div>
+
+    <button class="deploy-btn" id="itemsDeployBtn">DEPLOY ITEMS ON TESTNET</button>
+    <div id="itemsDeployStatus"></div>
+
+    <div class="result-box" id="itemsResultBox">
+      <div class="rlabel">ITEMS CONTRACT ADDRESS</div>
+      <div class="addr" id="itemsContractAddr"></div>
+      <button class="copy-btn" id="itemsCopyBtn">COPY ADDRESS</button>
+      <br><br>
+      <div class="rlabel" style="font-size:0.35rem; line-height:1.6; color:#5c4409;">
+        Save this address — players call mint() on it
       </div>
     </div>
 
@@ -400,6 +458,99 @@
         }
         deployBtn.disabled = false;
         deployBtn.textContent = 'DEPLOY NEW CONTRACT';
+      }
+    });
+
+    // --- Deploy Items Contract (Testnet) ---
+    const ITEMS_ABI = [
+      {"inputs":[{"internalType":"string","name":"baseURI","type":"string"}],"stateMutability":"nonpayable","type":"constructor"},
+      {"inputs":[{"internalType":"string","name":"name","type":"string"},{"internalType":"uint256","name":"maxSupply","type":"uint256"},{"internalType":"uint256","name":"price","type":"uint256"},{"internalType":"bool","name":"stackable","type":"bool"}],"name":"createItem","outputs":[{"internalType":"uint256","name":"itemId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"itemId","type":"uint256"},{"internalType":"bool","name":"active","type":"bool"}],"name":"setItemActive","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"itemId","type":"uint256"},{"internalType":"uint256","name":"price","type":"uint256"}],"name":"setItemPrice","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"itemId","type":"uint256"},{"internalType":"uint256","name":"quantity","type":"uint256"}],"name":"airdrop","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"string","name":"newURI","type":"string"}],"name":"setBaseURI","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"itemId","type":"uint256"},{"internalType":"uint256","name":"quantity","type":"uint256"}],"name":"mint","outputs":[],"stateMutability":"payable","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"itemId","type":"uint256"}],"name":"getItem","outputs":[{"internalType":"string","name":"name","type":"string"},{"internalType":"uint256","name":"maxSupply","type":"uint256"},{"internalType":"uint256","name":"minted","type":"uint256"},{"internalType":"uint256","name":"price","type":"uint256"},{"internalType":"bool","name":"stackable","type":"bool"},{"internalType":"bool","name":"active","type":"bool"}],"stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"totalItems","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"itemId","type":"uint256"}],"name":"uri","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"nextItemId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"account","type":"address"},{"internalType":"uint256","name":"id","type":"uint256"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+      {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"itemId","type":"uint256"},{"indexed":false,"internalType":"string","name":"name","type":"string"},{"indexed":false,"internalType":"uint256","name":"maxSupply","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"price","type":"uint256"},{"indexed":false,"internalType":"bool","name":"stackable","type":"bool"}],"name":"ItemCreated","type":"event"},
+      {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"itemId","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"quantity","type":"uint256"}],"name":"ItemMinted","type":"event"},
+      {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}
+    ];
+
+    const itemsDeployBtn = document.getElementById('itemsDeployBtn');
+    const itemsDeployStatus = document.getElementById('itemsDeployStatus');
+    const itemsResultBox = document.getElementById('itemsResultBox');
+    const itemsContractAddr = document.getElementById('itemsContractAddr');
+    const itemsCopyBtn = document.getElementById('itemsCopyBtn');
+    const itemsBaseUriInput = document.getElementById('itemsBaseUri');
+    const itemsBytecodeInput = document.getElementById('itemsBytecode');
+
+    function setItemsDeployStatus(msg, type) {
+      itemsDeployStatus.textContent = msg;
+      itemsDeployStatus.className = type || '';
+    }
+
+    itemsDeployBtn.addEventListener('click', async () => {
+      try {
+        const bytecode = itemsBytecodeInput.value.trim();
+        if (!bytecode) {
+          setItemsDeployStatus('Paste bytecode first. Run: npx hardhat compile', 'error');
+          return;
+        }
+
+        itemsDeployBtn.disabled = true;
+        itemsDeployBtn.textContent = 'CONNECTING...';
+
+        const signer = await connectWallet();
+        const baseUri = itemsBaseUriInput.value.trim() || 'https://lastchad.xyz/items/';
+
+        setItemsDeployStatus('Deploying... Confirm in wallet.', '');
+        itemsDeployBtn.textContent = 'DEPLOYING...';
+
+        const factory = new ethers.ContractFactory(ITEMS_ABI, bytecode, signer);
+        const contract = await factory.deploy(baseUri);
+
+        setItemsDeployStatus('Waiting for confirmation...', '');
+        itemsDeployBtn.textContent = 'CONFIRMING...';
+        await contract.deployed();
+
+        const addr = contract.address;
+        setItemsDeployStatus('Items contract deployed!', 'success');
+        itemsDeployBtn.textContent = 'DEPLOYED!';
+        itemsContractAddr.textContent = addr;
+        itemsResultBox.style.display = 'block';
+
+        itemsCopyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(addr).then(() => {
+            itemsCopyBtn.textContent = 'COPIED!';
+            setTimeout(() => { itemsCopyBtn.textContent = 'COPY ADDRESS'; }, 2000);
+          }).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = addr;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            itemsCopyBtn.textContent = 'COPIED!';
+            setTimeout(() => { itemsCopyBtn.textContent = 'COPY ADDRESS'; }, 2000);
+          });
+        });
+
+      } catch (err) {
+        console.error('Items deploy failed:', err);
+        if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+          setItemsDeployStatus('Cancelled.', 'error');
+        } else {
+          setItemsDeployStatus('Failed: ' + (err.reason || err.message || err), 'error');
+        }
+        itemsDeployBtn.disabled = false;
+        itemsDeployBtn.textContent = 'DEPLOY ITEMS ON TESTNET';
       }
     });
   </script>
