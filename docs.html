@@ -209,7 +209,7 @@
 
     <div class="doc-section">
       <h2 style="color: #e8c060; font-size: 0.975rem;">CELO TECH</h2>
-      <img src="assets/docs_lobby/celotech.jpg" alt="Celo Tech" style="display:block; width:100%; max-width:420px; margin:16px auto 0;">
+      <img id="celotech-img" src="assets/docs_lobby/celotech.jpg" alt="Celo Tech" style="display:block; width:100%; max-width:420px; margin:16px auto 0;">
       <button class="lobby-btn" id="enterLobbyBtn">Enter the Lobby</button>
       <div id="lobby-scene" style="display:none;">
         <img id="lobby1-img" src="assets/docs_lobby/lobby1.jpg" alt="Celo Tech Lobby">
@@ -422,6 +422,7 @@
 
     document.getElementById('enterLobbyBtn').addEventListener('click', function () {
       this.style.display = 'none';
+      document.getElementById('celotech-img').style.display = 'none';
 
       const scene = document.getElementById('lobby-scene');
       scene.style.display = 'block';
