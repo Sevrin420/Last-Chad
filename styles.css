@@ -85,6 +85,35 @@ body {
 
 .doc-section p:last-child { margin-bottom: 0; }
 
+.doc-section span {
+  color: inherit;
+}
+
+.doc-section .stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.doc-section .info-card {
+  background: rgba(10, 10, 15, 0.45);
+  border: 1px solid #2e4a1e;
+  border-radius: 5px;
+  padding: 12px 14px;
+}
+
+.doc-section .info-card p {
+  margin-bottom: 0;
+}
+
+.doc-section .yield-card {
+  background: rgba(10, 10, 15, 0.45);
+  border: 1px solid #3d2e0a;
+  border-radius: 5px;
+  padding: 14px 18px;
+}
+
 .doc-section ul {
   list-style: none;
   padding: 0;
