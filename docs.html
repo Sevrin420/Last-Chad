@@ -284,6 +284,7 @@
     const lineEl = document.getElementById('lobby-line');
     const choicesEl = document.getElementById('lobby-choices');
     const nftWrap = document.getElementById('lobby-nft-wrap');
+    let diceCompleteCallback = null;
 
     // Type lines one by one, each disappearing before the next.
     // After the last line, call onDone().
@@ -331,6 +332,18 @@
           setTimeout(() => typeSequence(lines, () => {
             setTimeout(() => { nftWrap.style.opacity = '1'; }, 700);
           }), 800);
+        };
+      }, 700);
+    }
+
+    function swapImage(src, onReady) {
+      lineEl.style.opacity = '0';
+      img.style.opacity = '0';
+      setTimeout(() => {
+        img.src = 'assets/docs_lobby/' + src;
+        img.onload = () => {
+          img.style.opacity = '1';
+          setTimeout(onReady, 400);
         };
       }, 700);
     }
@@ -482,15 +495,18 @@
         const i6 = vals.indexOf(6); if (i6 === -1) { noScore(scoreBox, scoreLabel, scoreValue); return; } vals.splice(i6, 1);
         const i5 = vals.indexOf(5); if (i5 === -1) { noScore(scoreBox, scoreLabel, scoreValue); return; } vals.splice(i5, 1);
         const i4 = vals.indexOf(4); if (i4 === -1) { noScore(scoreBox, scoreLabel, scoreValue); return; } vals.splice(i4, 1);
+        const crew = vals[0] + vals[1];
         scoreBox.className = 'score-box scored';
         scoreLabel.textContent = 'CREW';
-        scoreValue.textContent = vals[0] + vals[1];
+        scoreValue.textContent = crew;
+        setTimeout(() => diceCompleteCallback && diceCompleteCallback(crew), 2000);
       }
 
       function noScore(box, label, value) {
         box.className = 'score-box no-score';
         label.textContent = 'NO SCORE';
         value.textContent = '0';
+        setTimeout(() => diceCompleteCallback && diceCompleteCallback(0), 2000);
       }
 
       rollBtn.addEventListener('click', rollDice);
@@ -530,6 +546,54 @@
                     ci++;
                     if (ci >= challenge.length) {
                       clearInterval(cInterval);
+                      // Set story callback for when dice game ends
+                      diceCompleteCallback = function(score) {
+                        const dfw = document.getElementById('dice-frame-wrap');
+                        dfw.style.opacity = '0';
+                        setTimeout(() => {
+                          dfw.style.display = 'none';
+                          lineEl.style.color = '#c9a84c';
+                          if (score >= 8) {
+                            swapImage('lobby1.jpg', () => {
+                              typeSequence([
+                                "You Do seem like a good person underneath That's rare these days",
+                                "Alright, don't tell anyone but im going to give you a secret code.",
+                                "One second..."
+                              ], () => {
+                                swapImage('lobbybutt.jpg', () => {
+                                  typeSequence([
+                                    "it's just down here somewhere...",
+                                    "......"
+                                  ], () => {
+                                    swapImage('lobbybrochure.jpg', () => {
+                                      typeSequence([
+                                        "Keep this in your wallet",
+                                        "You can only use the code once",
+                                        "Use it only under the most dire circumstances"
+                                      ], () => {
+                                        swapImage('lobbywave.jpg', () => {
+                                          typeSequence([
+                                            "That's all for now. I will send you a message when it's time to travel to the island.",
+                                            "Take care"
+                                          ], null);
+                                        });
+                                      });
+                                    });
+                                  });
+                                });
+                              });
+                            });
+                          } else {
+                            swapImage('lobby1.jpg', () => {
+                              typeSequence([
+                                "You seem nice but I better stick to the protocol",
+                                "I will send you a message when it's time to travel to the island",
+                                "Take care"
+                              ], null);
+                            });
+                          }
+                        }, 700);
+                      };
                       // Reveal dice game
                       setTimeout(() => {
                         const dfw = document.getElementById('dice-frame-wrap');
