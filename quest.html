@@ -839,8 +839,8 @@
 
     async function connectInjected(name) {
       let raw = null;
-      if (name === 'core' && window.avalanche) {
-        raw = window.avalanche;
+      if (name === 'core' && (window.avalanche || (window.core && window.core.ethereum))) {
+        raw = window.avalanche || window.core.ethereum;
       } else if (window.ethereum) {
         if (window.ethereum.providers && window.ethereum.providers.length) {
           for (const p of window.ethereum.providers) {
@@ -883,7 +883,7 @@
         return;
       }
       try {
-        const { EthereumProvider } = await import('https://unpkg.com/@walletconnect/ethereum-provider@2/dist/index.es.js');
+        const { EthereumProvider } = await import('https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.17.0/+esm');
         const wc = await EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' } });
         await wc.connect();
         provider = new ethers.providers.Web3Provider(wc);
@@ -893,6 +893,7 @@
         wc.on('disconnect', onDisconnected);
       } catch (err) {
         console.error('WalletConnect failed:', err);
+        alert('WalletConnect failed to connect. Please try again or use a different wallet.');
         if (err.message && !err.message.includes('User closed')) alert('WalletConnect failed: ' + err.message);
       }
     }
@@ -907,7 +908,10 @@
     });
     // Wallet option buttons
     document.querySelectorAll('.wallet-option').forEach(btn => {
-      btn.addEventListener('click', () => connectWallet(btn.dataset.wallet));
+      btn.addEventListener('click', () => {
+        walletModal.classList.remove('show');
+        connectWallet(btn.dataset.wallet);
+      });
     });
     modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
     walletModal.addEventListener('click', e => { if (e.target === walletModal) walletModal.classList.remove('show'); });
