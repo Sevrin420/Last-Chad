@@ -45,7 +45,7 @@
     #lobby-text-box {
       margin-top: 12px;
       text-align: center;
-      min-height: 6rem;
+      min-height: 4rem;
     }
     #lobby-line {
       font-family: 'Press Start 2P', monospace;
@@ -62,6 +62,7 @@
       align-items: center;
       margin-top: 12px;
       opacity: 0;
+      pointer-events: none;
       transition: opacity 0.5s ease;
     }
     .lobby-choice-btn {
@@ -348,7 +349,7 @@
           <button class="lobby-choice-btn" id="choiceYes">Yes, I'm very excited</button>
           <button class="lobby-choice-btn" id="choiceFlirt">Actually, I'm here for you baby</button>
         </div>
-        <div id="lobby-nft-wrap" style="text-align:center; margin-top:12px; opacity:0; transition: opacity 0.5s ease;">
+        <div id="lobby-nft-wrap" style="text-align:center; margin-top:12px; opacity:0; pointer-events:none; transition: opacity 0.5s ease;">
           <button class="lobby-choice-btn" id="nftBtn">Ask for avatar nft</button>
         </div>
         <div id="lobby-cindycode-choices" style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:12px; opacity:0; transition: opacity 0.5s ease; pointer-events:none;">
@@ -424,16 +425,16 @@
 
       <div class="stat-grid">
         <div class="info-card">
-          <p style="color: #4caf50 !important;">&#9876; <span style="font-weight: bold; color: #4caf50 !important;">Strength</span><br><span style="color: #81c784 !important; font-style: italic;">kick ass and smash</span></p>
+          <p style="color: #4caf50 !important;">&#9876; <span style="font-weight: bold; color: #4caf50 !important;">Strength</span></p>
         </div>
         <div class="info-card">
-          <p style="color: #4caf50 !important;">&#10026; <span style="font-weight: bold; color: #4caf50 !important;">Dexterity</span><br><span style="color: #81c784 !important; font-style: italic;">jungle beanbags while doing a backflip</span></p>
+          <p style="color: #4caf50 !important;">&#10026; <span style="font-weight: bold; color: #4caf50 !important;">Dexterity</span></p>
         </div>
         <div class="info-card">
-          <p style="color: #4caf50 !important;">&#9733; <span style="font-weight: bold; color: #4caf50 !important;">Intelligence</span><br><span style="color: #81c784 !important; font-style: italic;">debate Einstein and win</span></p>
+          <p style="color: #4caf50 !important;">&#9733; <span style="font-weight: bold; color: #4caf50 !important;">Intelligence</span></p>
         </div>
         <div class="info-card">
-          <p style="color: #4caf50 !important;">&#9829; <span style="font-weight: bold; color: #4caf50 !important;">Charisma</span><br><span style="color: #81c784 !important; font-style: italic;">woo Joan of Arc</span></p>
+          <p style="color: #4caf50 !important;">&#9829; <span style="font-weight: bold; color: #4caf50 !important;">Charisma</span></p>
         </div>
       </div>
 
@@ -742,7 +743,7 @@
         img.onload = () => {
           img.style.opacity = '1';
           setTimeout(() => typeSequence(lines, () => {
-            setTimeout(() => { nftWrap.style.opacity = '1'; }, 700);
+            setTimeout(() => { nftWrap.style.opacity = '1'; nftWrap.style.pointerEvents = 'auto'; }, 300);
           }), 800);
         };
       }, 700);
@@ -774,7 +775,7 @@
       ];
 
       setTimeout(() => typeSequence(introLines, () => {
-        setTimeout(() => { choicesEl.style.opacity = '1'; }, 700);
+        setTimeout(() => { choicesEl.style.opacity = '1'; choicesEl.style.pointerEvents = 'auto'; }, 300);
       }), 1300);
     });
 
@@ -988,7 +989,7 @@
                                           const ccChoices = document.getElementById('lobby-cindycode-choices');
                                           ccChoices.style.opacity = '1';
                                           ccChoices.style.pointerEvents = 'auto';
-                                        }, 700);
+                                        }, 300);
                                       });
                                     });
                                   });
