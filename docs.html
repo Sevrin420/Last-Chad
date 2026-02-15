@@ -112,6 +112,9 @@
           <button class="lobby-choice-btn" id="choiceYes">Yes, I'm very excited</button>
           <button class="lobby-choice-btn" id="choiceFlirt">Actually, I'm here for you baby</button>
         </div>
+        <div id="lobby-nft-wrap" style="text-align:center; margin-top:22px; opacity:0; transition: opacity 0.5s ease;">
+          <button class="lobby-choice-btn" id="nftBtn">Ask for your NFT</button>
+        </div>
       </div>
     </div>
 
@@ -204,23 +207,16 @@
 
   <script src="nav.js"></script>
   <script>
-    document.getElementById('enterLobbyBtn').addEventListener('click', function () {
-      this.style.display = 'none';
+    const img = document.getElementById('lobby1-img');
+    const lineEl = document.getElementById('lobby-line');
+    const choicesEl = document.getElementById('lobby-choices');
+    const nftWrap = document.getElementById('lobby-nft-wrap');
 
-      const scene = document.getElementById('lobby-scene');
-      const img = document.getElementById('lobby1-img');
-      const lineEl = document.getElementById('lobby-line');
-
-      scene.style.display = 'block';
-      setTimeout(() => { img.style.opacity = '1'; }, 30);
-
-      const lines = [
-        'Hi, welcome to Celo Tech.',
-        'Are you here for the competition?'
-      ];
-
+    // Type lines one by one, each disappearing before the next.
+    // After the last line, call onDone().
+    function typeSequence(lines, onDone) {
       function typeLine(index) {
-        if (index >= lines.length) return;
+        if (index >= lines.length) { onDone && onDone(); return; }
         const text = lines[index];
         const isLast = index === lines.length - 1;
 
@@ -233,21 +229,68 @@
           i++;
           if (i >= text.length) {
             clearInterval(interval);
-            if (!isLast) {
-              setTimeout(() => {
+            setTimeout(() => {
+              if (!isLast) {
                 lineEl.style.opacity = '0';
                 setTimeout(() => typeLine(index + 1), 500);
-              }, 1800);
-            } else {
-              setTimeout(() => {
-                document.getElementById('lobby-choices').style.opacity = '1';
-              }, 700);
-            }
+              } else {
+                onDone && onDone();
+              }
+            }, 1800);
           }
         }, 55);
       }
+      typeLine(0);
+    }
 
-      setTimeout(() => typeLine(0), 1300);
+    // Swap the lobby image, then run dialogue, then show NFT button.
+    function runChoice(imageSrc, lines) {
+      // Hide choice buttons
+      choicesEl.style.opacity = '0';
+      choicesEl.style.pointerEvents = 'none';
+
+      // Crossfade image
+      img.style.opacity = '0';
+      setTimeout(() => {
+        img.src = imageSrc;
+        img.onload = () => {
+          img.style.opacity = '1';
+          setTimeout(() => typeSequence(lines, () => {
+            setTimeout(() => { nftWrap.style.opacity = '1'; }, 700);
+          }), 800);
+        };
+      }, 700);
+    }
+
+    document.getElementById('enterLobbyBtn').addEventListener('click', function () {
+      this.style.display = 'none';
+
+      const scene = document.getElementById('lobby-scene');
+      scene.style.display = 'block';
+      setTimeout(() => { img.style.opacity = '1'; }, 30);
+
+      const introLines = [
+        'Hi, welcome to Celo Tech.',
+        'Are you here for the competition?'
+      ];
+
+      setTimeout(() => typeSequence(introLines, () => {
+        setTimeout(() => { choicesEl.style.opacity = '1'; }, 700);
+      }), 1300);
+    });
+
+    document.getElementById('choiceYes').addEventListener('click', () => {
+      runChoice('assets/docs_lobby/lobbythrilled.jpg', [
+        'Omg you Chads have the most infectious energy.',
+        "I'm gonna be rooting especially for YOU!"
+      ]);
+    });
+
+    document.getElementById('choiceFlirt').addEventListener('click', () => {
+      runChoice('assets/docs_lobby/lobbyangry.jpg', [
+        "Where are you're manners you block headed pig!",
+        "If it were up to me I'd have you ejected this instant!"
+      ]);
     });
   </script>
 </body>
