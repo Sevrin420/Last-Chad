@@ -586,10 +586,15 @@
                           } else {
                             swapImage('lobby1.jpg', () => {
                               typeSequence([
-                                "You seem nice but I better stick to the protocol",
-                                "I will send you a message when it's time to travel to the island",
-                                "Take care"
-                              ], null);
+                                "You seem nice but I better stick to the protocol"
+                              ], () => {
+                                swapImage('lobbywave.jpg', () => {
+                                  typeSequence([
+                                    "I will send you a message when it's time to travel to the island",
+                                    "Take care"
+                                  ], null);
+                                });
+                              });
                             });
                           }
                         }, 700);
