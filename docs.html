@@ -53,6 +53,39 @@
       opacity: 0;
       transition: opacity 0.45s ease;
     }
+    #lobby-choices {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+      margin-top: 22px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .lobby-choice-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      color: #0a0a0f;
+      background: #c9a84c;
+      border: none;
+      border-bottom: 5px solid #7a6020;
+      border-right: 5px solid #7a6020;
+      padding: 14px 20px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    .lobby-choice-btn:hover {
+      background: #e8c060;
+      border-color: #5c4409;
+    }
+    .lobby-choice-btn:active {
+      border-bottom-width: 2px;
+      border-right-width: 2px;
+      transform: translate(3px, 3px);
+    }
   </style>
 </head>
 <body>
@@ -74,6 +107,10 @@
         <img id="lobby1-img" src="assets/docs_lobby/lobby1.jpg" alt="Celo Tech Lobby">
         <div id="lobby-text-box">
           <span id="lobby-line"></span>
+        </div>
+        <div id="lobby-choices">
+          <button class="lobby-choice-btn" id="choiceYes">Yes, I'm very excited</button>
+          <button class="lobby-choice-btn" id="choiceFlirt">Actually, I'm here for you baby</button>
         </div>
       </div>
     </div>
@@ -201,6 +238,10 @@
                 lineEl.style.opacity = '0';
                 setTimeout(() => typeLine(index + 1), 500);
               }, 1800);
+            } else {
+              setTimeout(() => {
+                document.getElementById('lobby-choices').style.opacity = '1';
+              }, 700);
             }
           }
         }, 55);
