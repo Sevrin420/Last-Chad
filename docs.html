@@ -255,15 +255,15 @@
               <div class="checklist">
                 <div class="check-item" id="check6">
                   <div class="check-box"><span class="check-mark">✓</span></div>
-                  <span>6 = Weapons</span>
+                  <span>6 = Ship</span>
                 </div>
                 <div class="check-item" id="check5">
                   <div class="check-box"><span class="check-mark">✓</span></div>
-                  <span>5 = Armor</span>
+                  <span>5 = Captain</span>
                 </div>
                 <div class="check-item" id="check4">
                   <div class="check-box"><span class="check-mark">✓</span></div>
-                  <span>4 = Comms</span>
+                  <span>4 = Mate</span>
                 </div>
               </div>
               <div class="score-right">
@@ -308,12 +308,12 @@
         <li>Locked dice are not re-rolled on your next roll</li>
         <li>You need to roll a <span class="highlight">6</span>, <span class="highlight">5</span>, and <span class="highlight">4</span> to assemble your team</li>
       </ul>
-      <p><span class="highlight">6 = Weapons</span> — arms your Chad for battle</p>
-      <p><span class="highlight">5 = Armor</span> — protects your Chad from damage</p>
-      <p><span class="highlight">4 = Comms</span> — connects your Chad to the squad</p>
-      <p>Once you have all three (6, 5, 4), the remaining <span class="highlight">2 dice</span> are added together to determine your <span class="highlight">Team Members</span> score.</p>
-      <p>If you fail to roll a 6, 5, and 4 by the end of your 3 rolls, <span class="highlight">no team is assembled</span> and your score is 0.</p>
-      <p>The higher your Team Members score, the stronger your squad.</p>
+      <p><span class="highlight">6 = Ship</span> — your vessel, the foundation of the mission</p>
+      <p><span class="highlight">5 = Captain</span> — leads the crew into battle</p>
+      <p><span class="highlight">4 = Mate</span> — keeps the ship running</p>
+      <p>Once you have all three (6, 5, 4), the remaining <span class="highlight">2 dice</span> are added together to determine your <span class="highlight">Crew</span> score.</p>
+      <p>If you fail to roll a 6, 5, and 4 by the end of your 3 rolls, <span class="highlight">no crew is assembled</span> and your score is 0.</p>
+      <p>The higher your Crew score, the stronger your squad.</p>
     </div>
 
     <div class="doc-section">
@@ -567,13 +567,13 @@
         const i5 = vals.indexOf(5); if (i5 === -1) { noScore(scoreBox, scoreLabel, scoreValue); return; } vals.splice(i5, 1);
         const i4 = vals.indexOf(4); if (i4 === -1) { noScore(scoreBox, scoreLabel, scoreValue); return; } vals.splice(i4, 1);
         scoreBox.className = 'score-box scored';
-        scoreLabel.textContent = 'TEAM MEMBERS';
+        scoreLabel.textContent = 'CREW';
         scoreValue.textContent = vals[0] + vals[1];
       }
 
       function noScore(box, label, value) {
         box.className = 'score-box no-score';
-        label.textContent = 'NO TEAM ASSEMBLED';
+        label.textContent = 'NO CREW ASSEMBLED';
         value.textContent = '0';
       }
 
