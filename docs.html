@@ -563,8 +563,8 @@
     async function connectInjected(walletName) {
       let rawProvider = null;
 
-      if (walletName === 'core' && window.avalanche) {
-        rawProvider = window.avalanche;
+      if (walletName === 'core' && (window.avalanche || (window.core && window.core.ethereum))) {
+        rawProvider = window.avalanche || window.core.ethereum;
       } else if (window.ethereum) {
         if (window.ethereum.providers && window.ethereum.providers.length) {
           for (const p of window.ethereum.providers) {
@@ -617,7 +617,7 @@
         return;
       }
       try {
-        const { EthereumProvider } = await import('https://unpkg.com/@walletconnect/ethereum-provider@2/dist/index.es.js');
+        const { EthereumProvider } = await import('https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.17.0/+esm');
         const wcProvider = await EthereumProvider.init({
           projectId: WALLETCONNECT_PROJECT_ID,
           chains: [43113],
@@ -636,6 +636,7 @@
         wcProvider.on('disconnect', onDisconnected);
       } catch (err) {
         console.error('WalletConnect failed:', err);
+        alert('WalletConnect failed to connect. Please try again or use a different wallet.');
         if (err.message && !err.message.includes('User closed')) {
           alert('WalletConnect failed: ' + err.message);
         }
@@ -673,7 +674,10 @@
     });
 
     document.querySelectorAll('.wallet-option').forEach(opt => {
-      opt.addEventListener('click', async () => { await connectWallet(opt.dataset.wallet); });
+      opt.addEventListener('click', () => {
+        walletModal.classList.remove('show');
+        connectWallet(opt.dataset.wallet);
+      });
     });
 
     // ========== AUTO-RECONNECT ==========
