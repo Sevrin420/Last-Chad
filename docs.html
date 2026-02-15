@@ -451,7 +451,8 @@
     // ========== LAST CHAD ITEMS CONTRACT ==========
     const ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
     const ITEMS_ABI = [
-      'function mint(uint256 itemId, uint256 quantity) external payable'
+      'function mint(uint256 itemId, uint256 quantity) external payable',
+      'function balanceOf(address account, uint256 id) view returns (uint256)'
     ];
     const CINDYCODE_ITEM_ID = 1;
 
@@ -1009,8 +1010,11 @@
 
       try {
         const itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, signer);
-        const tx = await itemsContract.mint(CINDYCODE_ITEM_ID, 1);
-        await tx.wait();
+        const bal = await itemsContract.balanceOf(userAddress, CINDYCODE_ITEM_ID);
+        if (bal.eq(0)) {
+          const tx = await itemsContract.mint(CINDYCODE_ITEM_ID, 1);
+          await tx.wait();
+        }
       } catch (err) {
         console.error('Cindycode mint failed or declined:', err);
       }
