@@ -221,7 +221,7 @@
           <button class="lobby-choice-btn" id="choiceFlirt">Actually, I'm here for you baby</button>
         </div>
         <div id="lobby-nft-wrap" style="text-align:center; margin-top:12px; opacity:0; transition: opacity 0.5s ease;">
-          <button class="lobby-choice-btn" id="nftBtn">Ask for your NFT</button>
+          <button class="lobby-choice-btn" id="nftBtn">Ask for your Avatar NFT</button>
         </div>
         <div id="dice-frame-wrap" style="width:100%; margin-top:24px; display:none; opacity:0; transition: opacity 0.6s ease;">
           <div id="lobby-dice-section">
@@ -428,7 +428,7 @@
       setTimeout(() => { img.style.opacity = '1'; }, 30);
 
       const introLines = [
-        'Hi, welcome to Celo Tech.',
+        'Hi, welcome to Celo Tech. I\'m Cindy',
         'Are you here for the competition?'
       ];
 
@@ -439,8 +439,8 @@
 
     document.getElementById('choiceYes').addEventListener('click', () => {
       runChoice('assets/docs_lobby/lobbythrilled.jpg', [
-        'Omg you Chads have the most infectious energy.',
-        "I'm gonna be rooting especially for YOU!"
+        'Omg you Chads have the most infectious energy!',
+        "I'm gonna be rooting especially for YOU!!"
       ]);
     });
 
@@ -597,6 +597,7 @@
             typeSequence([
               "Well I can't get you your Avatar NFT yet...That will come after your upload is complete.",
               "Remember everything you do in Last Chad saves to your Avatar NFT, so make smart decisions!",
+              "Dice scores and stat modifiers add to your experience. If you do well in the games you will level up fast!",
               "Hmm let me see, I want to help you but I'm not sure you deserve it."
             ], () => {
               // Last sad line still showing — fade it out, then type red challenge text
