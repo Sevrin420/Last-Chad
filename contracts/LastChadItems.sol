@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
  * @title LastChadItems
@@ -13,6 +14,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *      Item effects (stat modifiers etc.) are resolved client-side.
  */
 contract LastChadItems is ERC1155, Ownable {
+    using Strings for uint256;
 
     struct ItemDef {
         string  name;
@@ -33,7 +35,32 @@ contract LastChadItems is ERC1155, Ownable {
     event ItemActiveSet(uint256 indexed itemId, bool active);
     event ItemPriceSet(uint256 indexed itemId, uint256 price);
 
-    constructor(string memory baseURI) ERC1155(baseURI) Ownable(msg.sender) {}
+    string private _baseTokenURI;
+
+    constructor(string memory baseURI) ERC1155("") Ownable(msg.sender) {
+        _baseTokenURI = baseURI;
+
+        // Item #1 — Cindy's Code
+        uint256 itemId = nextItemId++;
+        _items[itemId] = ItemDef({
+            name:      "Cindy's Code",
+            maxSupply: 500,
+            minted:    0,
+            price:     0,
+            stackable: false,
+            active:    true
+        });
+        emit ItemCreated(itemId, "Cindy's Code", 500, 0, false);
+    }
+
+    /**
+     * @notice Returns the metadata URI for a given item ID.
+     *         Resolves to {baseURI}{itemId}
+     */
+    function uri(uint256 itemId) public view override returns (string memory) {
+        require(_exists(itemId), "Item does not exist");
+        return string(abi.encodePacked(_baseTokenURI, itemId.toString()));
+    }
 
     // ─────────────────────────────────────────────
     //  Owner: item management
@@ -97,7 +124,7 @@ contract LastChadItems is ERC1155, Ownable {
      * @notice Update base metadata URI.
      */
     function setBaseURI(string calldata newURI) external onlyOwner {
-        _setURI(newURI);
+        _baseTokenURI = newURI;
     }
 
     /**
