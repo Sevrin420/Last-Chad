@@ -966,6 +966,9 @@
                         setTimeout(() => {
                           dfw.style.display = 'none';
                           img.style.display = 'block';
+                          choicesEl.style.display = '';
+                          nftWrap.style.display = '';
+                          document.getElementById('lobby-cindycode-choices').style.display = '';
                           lineEl.style.color = '#c9a84c';
                           if (score >= 8) {
                             swapImage('lobby1.jpg', () => {
@@ -1013,9 +1016,12 @@
                           }
                         }, 700);
                       };
-                      // Reveal dice game
+                      // Reveal dice game — collapse everything except text + dice
                       setTimeout(() => {
                         img.style.display = 'none';
+                        choicesEl.style.display = 'none';
+                        nftWrap.style.display = 'none';
+                        document.getElementById('lobby-cindycode-choices').style.display = 'none';
                         const dfw = document.getElementById('dice-frame-wrap');
                         dfw.style.display = 'block';
                         setTimeout(() => {
