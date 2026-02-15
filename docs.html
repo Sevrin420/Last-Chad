@@ -965,6 +965,7 @@
                         dfw.style.opacity = '0';
                         setTimeout(() => {
                           dfw.style.display = 'none';
+                          img.style.display = 'block';
                           lineEl.style.color = '#c9a84c';
                           if (score >= 8) {
                             swapImage('lobby1.jpg', () => {
@@ -1014,6 +1015,7 @@
                       };
                       // Reveal dice game
                       setTimeout(() => {
+                        img.style.display = 'none';
                         const dfw = document.getElementById('dice-frame-wrap');
                         dfw.style.display = 'block';
                         setTimeout(() => {
