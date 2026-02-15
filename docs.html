@@ -1008,10 +1008,13 @@
         return;
       }
 
+      let alreadyOwned = false;
       try {
         const itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, signer);
         const bal = await itemsContract.balanceOf(userAddress, CINDYCODE_ITEM_ID);
-        if (bal.eq(0)) {
+        if (bal.gt(0)) {
+          alreadyOwned = true;
+        } else {
           const tx = await itemsContract.mint(CINDYCODE_ITEM_ID, 1);
           await tx.wait();
         }
@@ -1019,8 +1022,9 @@
         console.error('Cindycode mint failed or declined:', err);
       }
 
+      const msg = alreadyOwned ? 'You already have one? How did you get that?' : 'Keep it safe';
       setTimeout(() => {
-        lineEl.textContent = 'Keep it safe';
+        lineEl.textContent = msg;
         lineEl.style.opacity = '1';
         setTimeout(continueToWave, 2500);
       }, 500);
