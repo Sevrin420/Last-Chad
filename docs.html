@@ -351,6 +351,10 @@
         <div id="lobby-nft-wrap" style="text-align:center; margin-top:12px; opacity:0; transition: opacity 0.5s ease;">
           <button class="lobby-choice-btn" id="nftBtn">Ask for your Avatar NFT</button>
         </div>
+        <div id="lobby-cindycode-choices" style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:12px; opacity:0; transition: opacity 0.5s ease; pointer-events:none;">
+          <button class="lobby-choice-btn" id="cindycodeBtn">Put code in your wallet</button>
+          <button class="lobby-choice-btn" id="forgotWalletBtn">I forgot my wallet</button>
+        </div>
         <div id="dice-frame-wrap" style="width:100%; margin-top:24px; display:none; opacity:0; transition: opacity 0.6s ease;">
           <div id="lobby-dice-section">
             <div class="dice-row">
@@ -443,6 +447,13 @@
       blockExplorerUrls: ['https://testnet.snowtrace.io/']
     };
     const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
+
+    // ========== LAST CHAD ITEMS CONTRACT ==========
+    const ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
+    const ITEMS_ABI = [
+      'function mint(uint256 itemId, uint256 quantity) external payable'
+    ];
+    const CINDYCODE_ITEM_ID = 1;
 
     const walletBtn = document.getElementById('walletBtn');
     const walletModal = document.getElementById('walletModal');
@@ -924,12 +935,12 @@
                                         "You can only use the code once",
                                         "Use it only under the most dire circumstances"
                                       ], () => {
-                                        swapImage('lobbywave.jpg', () => {
-                                          typeSequence([
-                                            "That's all for now. I will send you a message when it's time to travel to the island.",
-                                            "Take care"
-                                          ], null);
-                                        });
+                                        // Show the cindycode choice buttons
+                                        setTimeout(() => {
+                                          const ccChoices = document.getElementById('lobby-cindycode-choices');
+                                          ccChoices.style.opacity = '1';
+                                          ccChoices.style.pointerEvents = 'auto';
+                                        }, 700);
                                       });
                                     });
                                   });
@@ -969,6 +980,59 @@
           }, 800);
         };
       }, 700);
+    });
+
+    // ========== CINDYCODE CHOICE BUTTONS ==========
+    function continueToWave() {
+      swapImage('lobbywave.jpg', () => {
+        typeSequence([
+          "That's all for now. I will send you a message when it's time to travel to the island.",
+          "Take care"
+        ], null);
+      });
+    }
+
+    document.getElementById('cindycodeBtn').addEventListener('click', async () => {
+      const ccChoices = document.getElementById('lobby-cindycode-choices');
+      ccChoices.style.opacity = '0';
+      ccChoices.style.pointerEvents = 'none';
+      lineEl.style.opacity = '0';
+
+      if (!signer) {
+        setTimeout(() => {
+          lineEl.textContent = 'Keep it safe';
+          lineEl.style.opacity = '1';
+          setTimeout(continueToWave, 2500);
+        }, 500);
+        return;
+      }
+
+      try {
+        const itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, signer);
+        const tx = await itemsContract.mint(CINDYCODE_ITEM_ID, 1);
+        await tx.wait();
+      } catch (err) {
+        console.error('Cindycode mint failed or declined:', err);
+      }
+
+      setTimeout(() => {
+        lineEl.textContent = 'Keep it safe';
+        lineEl.style.opacity = '1';
+        setTimeout(continueToWave, 2500);
+      }, 500);
+    });
+
+    document.getElementById('forgotWalletBtn').addEventListener('click', () => {
+      const ccChoices = document.getElementById('lobby-cindycode-choices');
+      ccChoices.style.opacity = '0';
+      ccChoices.style.pointerEvents = 'none';
+      lineEl.style.opacity = '0';
+
+      setTimeout(() => {
+        lineEl.textContent = "Humpf, you're not gonna get far in life";
+        lineEl.style.opacity = '1';
+        setTimeout(continueToWave, 2500);
+      }, 500);
     });
   </script>
 </body>
