@@ -966,9 +966,6 @@
                         setTimeout(() => {
                           dfw.style.display = 'none';
                           img.style.display = 'block';
-                          choicesEl.style.display = '';
-                          nftWrap.style.display = '';
-                          document.getElementById('lobby-cindycode-choices').style.display = '';
                           lineEl.style.color = '#c9a84c';
                           if (score >= 8) {
                             swapImage('lobby1.jpg', () => {
@@ -991,6 +988,7 @@
                                         // Show the cindycode choice buttons
                                         setTimeout(() => {
                                           const ccChoices = document.getElementById('lobby-cindycode-choices');
+                                          ccChoices.style.display = 'flex';
                                           ccChoices.style.opacity = '1';
                                           ccChoices.style.pointerEvents = 'auto';
                                         }, 300);
