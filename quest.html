@@ -878,10 +878,10 @@
     }
 
     function loadWcScript() {
-      if (window['@walletconnect/ethereum-provider']) return Promise.resolve();
+      if (window.WalletConnectEthereumProvider) return Promise.resolve();
       return new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.17.0/dist/index.umd.js';
+        s.src = 'assets/walletconnect-provider.js';
         s.onload = resolve;
         s.onerror = () => reject(new Error('Failed to load WalletConnect SDK'));
         document.head.appendChild(s);
@@ -895,7 +895,7 @@
       }
       try {
         await loadWcScript();
-        const EthereumProvider = window['@walletconnect/ethereum-provider'].EthereumProvider;
+        const EthereumProvider = window.WalletConnectEthereumProvider.EthereumProvider;
         const wc = await EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' } });
         await wc.connect();
         provider = new ethers.providers.Web3Provider(wc);
