@@ -1009,19 +1009,14 @@
     async function connectWallet(walletName) {
       const hasInjected = window.ethereum || window.avalanche;
 
-      if (!hasInjected && isMobile() && walletName !== 'walletconnect') {
-        const deepLink = getMobileDeepLink(walletName);
-        if (deepLink) {
-          window.location.href = deepLink;
-          return;
-        }
-      }
-
-      if (walletName === 'walletconnect' || (walletName === 'core' && isMobile())) {
+      if (walletName === 'walletconnect' || (walletName === 'core' && isMobile() && !window.avalanche && !(window.core && window.core.ethereum))) {
         await connectWalletConnect();
         return;
       }
-
+      if (!hasInjected && isMobile() && walletName !== 'walletconnect') {
+        const deepLink = getMobileDeepLink(walletName);
+        if (deepLink) { window.location.href = deepLink; return; }
+      }
       await connectInjected(walletName);
     }
 
