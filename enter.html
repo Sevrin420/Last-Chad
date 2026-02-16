@@ -897,7 +897,7 @@
         const deepLink = getMobileDeepLink(walletName);
         if (deepLink) { window.location.href = deepLink; return; }
       }
-      if (walletName === 'walletconnect') { await connectWalletConnect(); return; }
+      if (walletName === 'walletconnect' || (walletName === 'core' && isMobile())) { await connectWalletConnect(); return; }
       await connectInjected(walletName);
     }
 

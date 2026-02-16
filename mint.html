@@ -1017,7 +1017,7 @@
         }
       }
 
-      if (walletName === 'walletconnect') {
+      if (walletName === 'walletconnect' || (walletName === 'core' && isMobile())) {
         await connectWalletConnect();
         return;
       }
