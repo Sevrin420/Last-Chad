@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quest Builder - Last Chad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0f;
+            color: #c9a84c;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        h1 {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #ffd700;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .panel {
+            background: rgba(59, 42, 20, 0.8);
+            border: 3px solid #c9a84c;
+            padding: 1.5rem;
+            border-radius: 4px;
+        }
+
+        .panel h2 {
+            color: #ffd700;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #8b7355;
+            padding-bottom: 0.5rem;
+        }
+
+        /* EDITOR PANEL */
+        .editor-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-section {
+            background: rgba(20, 15, 10, 0.9);
+            border: 2px solid #8b7355;
+            padding: 1rem;
+            border-radius: 3px;
+        }
+
+        .form-section h3 {
+            color: #c9a84c;
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #e8d4b8;
+            font-size: 0.75rem;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.6rem;
+            background: rgba(10, 10, 15, 0.9);
+            border: 2px solid #8b7355;
+            color: #c9a84c;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.7rem;
+            margin-bottom: 0.5rem;
+            border-radius: 2px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            max-height: 150px;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+        }
+
+        .button {
+            background: linear-gradient(135deg, #8b7355 0%, #5a4a3a 100%);
+            border: 2px solid #c9a84c;
+            color: #ffd700;
+            padding: 0.8rem 1.5rem;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+            margin-top: 0.5rem;
+        }
+
+        .button:hover {
+            background: linear-gradient(135deg, #a08060 0%, #6b5a4a 100%);
+            box-shadow: 0 0 15px rgba(201, 168, 76, 0.5);
+        }
+
+        .button:active {
+            transform: translateY(1px);
+        }
+
+        .button.danger {
+            background: linear-gradient(135deg, #8b3a3a 0%, #5a2a2a 100%);
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .button.danger:hover {
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+        }
+
+        .section-editor {
+            background: rgba(30, 20, 15, 0.8);
+            border-left: 4px solid #c9a84c;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-id {
+            color: #ffd700;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .image-preview {
+            max-width: 150px;
+            max-height: 150px;
+            border: 2px solid #8b7355;
+            margin-top: 0.5rem;
+            border-radius: 2px;
+        }
+
+        .button-inputs {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .button-inputs input {
+            flex: 1;
+        }
+
+        /* PREVIEW PANEL */
+        .preview-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .preview-content {
+            background: linear-gradient(135deg, #2a1810 0%, #3b2a14 50%, #1a1410 100%);
+            border: 3px solid #c9a84c;
+            padding: 2rem;
+            border-radius: 4px;
+            min-height: 400px;
+        }
+
+        .quest-title {
+            font-size: 1.3rem;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .section-number {
+            text-align: center;
+            color: #8b7355;
+            font-size: 0.7rem;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .dialogue-box {
+            background: rgba(20, 15, 10, 0.9);
+            border: 2px solid #8b7355;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .dialogue-text {
+            color: #e8d4b8;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 200px;
+            margin: 0.5rem 0;
+            border-radius: 2px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .preview-button {
+            background: linear-gradient(135deg, #8b7355 0%, #5a4a3a 100%);
+            border: 2px solid #c9a84c;
+            color: #ffd700;
+            padding: 0.6rem 1.2rem;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            border-radius: 2px;
+            cursor: default;
+        }
+
+        .dice-preview {
+            display: flex;
+            justify-content: center;
+            gap: 0.3rem;
+            margin: 1rem 0;
+        }
+
+        .die {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #d4af37 0%, #8b7355 100%);
+            border: 2px solid #c9a84c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #3b2a14;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        /* ACTIONS */
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .action-buttons {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(20, 15, 10, 0.9);
+            border: 2px solid #8b7355;
+            border-radius: 3px;
+        }
+
+        .action-buttons .button {
+            flex: 1;
+            margin: 0;
+        }
+
+        .info-box {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px solid #66bb6a;
+            color: #66bb6a;
+            padding: 1rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            line-height: 1.5;
+            grid-column: 1 / -1;
+        }
+
+        .warning-box {
+            background: rgba(255, 152, 0, 0.1);
+            border: 2px solid #ff9800;
+            color: #ffb74d;
+            padding: 1rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            line-height: 1.5;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #8b7355;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            color: #8b7355;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: #ffd700;
+            border-bottom-color: #ffd700;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .stats-display {
+            background: rgba(20, 15, 10, 0.9);
+            border: 2px solid #8b7355;
+            padding: 0.8rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            margin-top: 1rem;
+        }
+
+        .stats-display div {
+            margin: 0.3rem 0;
+            color: #e8d4b8;
+        }
+
+        .stat-label {
+            color: #c9a84c;
+            font-weight: bold;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(20, 15, 10, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #8b7355;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #c9a84c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚔️ Quest Builder ⚔️</h1>
+
+        <!-- LEFT PANEL: EDITOR -->
+        <div class="panel editor-panel">
+            <h2>📝 Quest Editor</h2>
+
+            <div class="form-section">
+                <h3>Quest Info</h3>
+                <label>Quest Name:</label>
+                <input type="text" id="questName" placeholder="e.g., Episode One" value="">
+
+                <label>Quest Structure (paste from your notation):</label>
+                <textarea id="questStructure" placeholder="1, a,b&#10;2a, d&#10;2b, a&#10;3p, a&#10;3f, a&#10;4, a"></textarea>
+
+                <button class="button" onclick="parseStructure()">Parse Structure</button>
+                <div class="stats-display">
+                    <div><span class="stat-label">Sections:</span> <span id="sectionCount">0</span></div>
+                    <div><span class="stat-label">Total Endpoints:</span> <span id="endpointCount">0</span></div>
+                </div>
+            </div>
+
+            <div id="sections-container"></div>
+
+        </div>
+
+        <!-- RIGHT PANEL: PREVIEW -->
+        <div class="panel preview-panel">
+            <h2>👁️ Live Preview</h2>
+
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('preview')">Preview</button>
+                <button class="tab-button" onclick="switchTab('export')">Export</button>
+            </div>
+
+            <div id="preview-tab" class="preview-content">
+                <div class="quest-title" id="previewTitle">Your Quest Title</div>
+                <div id="previewSection">
+                    <div class="dialogue-box">
+                        <div class="dialogue-text">No sections yet. Add them above!</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="export-tab" class="hidden">
+                <div class="warning-box">
+                    ✅ After you finalize your content above, click "Generate Files" to create your quest!
+                </div>
+                <textarea id="exportCode" readonly style="min-height: 400px; margin-top: 1rem;"></textarea>
+                <button class="button" onclick="copyToClipboard()" style="width: 100%; margin-top: 0.5rem;">
+                    📋 Copy Code
+                </button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="button" onclick="updatePreview()" style="flex: 1;">🔄 Update Preview</button>
+                <button class="button" onclick="generateHTML()" style="flex: 1; background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); border-color: #66bb6a; color: #66bb6a;">
+                    ✨ Generate Files
+                </button>
+            </div>
+
+            <div class="info-box">
+                📖 <strong>Next Steps:</strong><br>
+                1. Fill in dialogue and images above<br>
+                2. Click "Update Preview" to see how it looks<br>
+                3. Click "Generate Files" when ready<br>
+                4. Run: <code>node save-quest.js</code>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let questData = {
+            name: '',
+            structure: {},
+            sections: {}
+        };
+
+        function parseStructure() {
+            const name = document.getElementById('questName').value.trim();
+            const structureText = document.getElementById('questStructure').value.trim();
+
+            if (!name) {
+                alert('Please enter a quest name');
+                return;
+            }
+
+            if (!structureText) {
+                alert('Please enter quest structure');
+                return;
+            }
+
+            questData.name = name;
+            questData.sections = {};
+
+            const lines = structureText.split('\n').filter(l => l.trim());
+            const structure = {};
+
+            lines.forEach(line => {
+                const match = line.match(/^(\d+[a-z]*)\s*,\s*([a-z,d]+)/);
+                if (match) {
+                    const [, sectionId, endpoints] = match;
+                    const endpointList = endpoints.split(',').map(e => e.trim());
+                    structure[sectionId] = endpointList;
+                    questData.sections[sectionId] = {
+                        id: sectionId,
+                        dialogue: '',
+                        image: '',
+                        imageFile: null,
+                        endpoints: endpointList,
+                        buttonLabels: {}
+                    };
+
+                    // Initialize button labels
+                    endpointList.forEach((ep, idx) => {
+                        if (ep !== 'd') {
+                            questData.sections[sectionId].buttonLabels[ep] = `Option ${ep.toUpperCase()}`;
+                        }
+                    });
+                }
+            });
+
+            questData.structure = structure;
+
+            // Update UI
+            document.getElementById('sectionCount').textContent = Object.keys(structure).length;
+            document.getElementById('endpointCount').textContent = lines.length;
+
+            renderSectionEditors();
+            updatePreview();
+        }
+
+        function renderSectionEditors() {
+            const container = document.getElementById('sections-container');
+            container.innerHTML = '';
+
+            Object.values(questData.sections).forEach((section, idx) => {
+                const div = document.createElement('div');
+                div.className = 'section-editor';
+                div.id = `editor-${section.id}`;
+
+                const hasButtons = section.endpoints.some(e => e !== 'd');
+                const hasDice = section.endpoints.includes('d');
+
+                let html = `
+                    <div class="section-id">📍 Section ${section.id}</div>
+
+                    <label>Dialogue:</label>
+                    <textarea onchange="updateSectionDialogue('${section.id}', this.value)"
+                              placeholder="Write your dialogue here..."></textarea>
+
+                    <label>Image (optional):</label>
+                    <input type="file" accept="image/*" onchange="handleImageUpload('${section.id}', this)">
+                    <div id="image-preview-${section.id}"></div>
+                `;
+
+                if (hasButtons) {
+                    html += `<div class="button-inputs">`;
+                    section.endpoints.filter(e => e !== 'd').forEach(ep => {
+                        html += `
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.65rem;">Button ${ep.toUpperCase()}:</label>
+                                <input type="text" value="${section.buttonLabels[ep]}"
+                                       onchange="updateButtonLabel('${section.id}', '${ep}', this.value)"
+                                       placeholder="Button text">
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+
+                if (hasDice) {
+                    html += `<div style="color: #ffd700; margin-top: 0.5rem; font-size: 0.7rem;">🎲 Dice Roll Encounter</div>`;
+                }
+
+                div.innerHTML = html;
+                container.appendChild(div);
+            });
+        }
+
+        function updateSectionDialogue(sectionId, text) {
+            questData.sections[sectionId].dialogue = text;
+        }
+
+        function updateButtonLabel(sectionId, ep, text) {
+            questData.sections[sectionId].buttonLabels[ep] = text;
+        }
+
+        function handleImageUpload(sectionId, input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    questData.sections[sectionId].imageFile = file;
+                    questData.sections[sectionId].image = file.name;
+
+                    const preview = document.getElementById(`image-preview-${sectionId}`);
+                    preview.innerHTML = `<img src="${e.target.result}" class="image-preview" alt="preview">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function updatePreview() {
+            const title = document.getElementById('previewTitle');
+            const section = document.getElementById('previewSection');
+
+            title.textContent = questData.name || 'Your Quest Title';
+
+            // Get first section
+            const firstSectionId = Object.keys(questData.sections)[0];
+            if (firstSectionId) {
+                const sec = questData.sections[firstSectionId];
+                let html = `<div class="section-number">Section ${sec.id}</div>`;
+                html += `<div class="dialogue-box">`;
+
+                if (sec.image) {
+                    html += `<div style="color: #8b7355; font-size: 0.65rem;">📷 [Image: ${sec.image}]</div>`;
+                }
+
+                html += `<div class="dialogue-text">${sec.dialogue || 'Add dialogue...'}</div></div>`;
+
+                if (sec.endpoints.includes('d')) {
+                    html += `<div class="dice-preview">
+                        <div class="die">6</div>
+                        <div class="die">5</div>
+                        <div class="die">4</div>
+                        <div class="die">2</div>
+                        <div class="die">1</div>
+                    </div>`;
+                } else {
+                    html += `<div class="button-group">`;
+                    sec.endpoints.forEach(ep => {
+                        if (ep !== 'd') {
+                            html += `<div class="preview-button">${sec.buttonLabels[ep]}</div>`;
+                        }
+                    });
+                    html += `</div>`;
+                }
+
+                section.innerHTML = html;
+            }
+        }
+
+        function generateHTML() {
+            if (!questData.name || Object.keys(questData.sections).length === 0) {
+                alert('Please complete the quest info and parse the structure first!');
+                return;
+            }
+
+            // Generate the full HTML
+            const html = generateQuestHTML(questData);
+            document.getElementById('exportCode').value = html;
+            switchTab('export');
+            alert('✅ HTML generated! Check the Export tab.');
+        }
+
+        function generateQuestHTML(data) {
+            const slug = data.name.toLowerCase().replace(/\s+/g, '-');
+
+            let sectionsHTML = '';
+
+            Object.values(data.sections).forEach(sec => {
+                const isButton = !sec.endpoints.includes('d');
+                const isDice = sec.endpoints.includes('d');
+
+                sectionsHTML += `            <div id="section-${sec.id}" class="section">
+                <div class="section-number">Section ${sec.id}</div>
+                <div class="dialogue-box">`;
+
+                if (sec.image) {
+                    sectionsHTML += `
+                    <img src="images/${sec.image}" style="max-width: 250px; margin-bottom: 1rem;">`;
+                }
+
+                sectionsHTML += `
+                    <div class="dialogue-text">${sec.dialogue}</div>
+                </div>`;
+
+                if (isButton) {
+                    sectionsHTML += `
+                <div class="button-group">`;
+                    sec.endpoints.forEach(ep => {
+                        const nextSection = getNextSectionForButton(data.structure, sec.id, ep);
+                        sectionsHTML += `
+                    <button class="quest-button" onclick="goToSection('${nextSection}')">${sec.buttonLabels[ep]}</button>`;
+                    });
+                    sectionsHTML += `
+                </div>`;
+                }
+
+                if (isDice) {
+                    sectionsHTML += `
+                <div class="dice-container" id="dice-${sec.id}"></div>
+                <div class="dice-info">Click dice to lock. Roll button appears after 3 attempts.</div>
+                <button class="roll-button" id="roll-btn-${sec.id}" style="display:none" onclick="submitRoll('${sec.id}')">Submit Roll</button>
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        initDiceRoller('${sec.id}', 5);
+                    });
+                </script>`;
+                }
+
+                sectionsHTML += `
+            </div>
+
+`;
+            });
+
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${data.name} - Last Chad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../nav.css">
+    <link rel="stylesheet" href="../../styles.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #2a1810 0%, #3b2a14 50%, #1a1410 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Press Start 2P', monospace;
+            color: #c9a84c;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 15, 0.95);
+            z-index: 1000;
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #c9a84c;
+        }
+
+        main {
+            flex: 1;
+            padding: 80px 2rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .quest-container {
+            background: rgba(59, 42, 20, 0.8);
+            border: 3px solid #c9a84c;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .quest-title {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 215, 0, 0.3);
+            margin-bottom: 2rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .dialogue-box {
+            background: rgba(20, 15, 10, 0.9);
+            border: 2px solid #8b7355;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .dialogue-text {
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            line-height: 1.6;
+            color: #e8d4b8;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .quest-button {
+            background: linear-gradient(135deg, #8b7355 0%, #5a4a3a 100%);
+            border: 2px solid #c9a84c;
+            color: #ffd700;
+            padding: 1rem 2rem;
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(0.6rem, 1.5vw, 0.9rem);
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+            border-radius: 3px;
+        }
+
+        .quest-button:hover {
+            background: linear-gradient(135deg, #a08060 0%, #6b5a4a 100%);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7), 0 0 15px rgba(201, 168, 76, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .quest-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .dice-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .die {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #d4af37 0%, #8b7355 100%);
+            border: 2px solid #c9a84c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #3b2a14;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .die:hover {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #ffd700 0%, #a08060 100%);
+        }
+
+        .die.locked {
+            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+            border-color: #66bb6a;
+            color: #fff;
+        }
+
+        .dice-info {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: clamp(0.6rem, 1vw, 0.8rem);
+        }
+
+        .roll-button {
+            background: linear-gradient(135deg, #c9a84c 0%, #8b7355 100%);
+            border: 2px solid #ffd700;
+            color: #1a1410;
+            padding: 1rem 2rem;
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            border-radius: 3px;
+        }
+
+        .roll-button:hover {
+            background: linear-gradient(135deg, #ffd700 0%, #a08060 100%);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+        }
+
+        .section-number {
+            text-align: center;
+            color: #8b7355;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .xp-display {
+            background: rgba(76, 175, 80, 0.2);
+            border: 2px solid #66bb6a;
+            color: #66bb6a;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 2rem;
+            font-size: clamp(0.8rem, 1.5vw, 1rem);
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            main {
+                padding: 80px 1rem 1rem;
+            }
+
+            .quest-container {
+                padding: 1.5rem;
+            }
+
+            .button-group {
+                gap: 0.5rem;
+            }
+
+            .die {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header id="nav-container"></header>
+
+    <main>
+        <div class="quest-container">
+            <h1 class="quest-title">${data.name}</h1>
+
+${sectionsHTML}
+
+        </div>
+    </main>
+
+    <script src="../../walletconnect-provider.js"></script>
+    <script src="../../nav.js"></script>
+    <script>
+        // Initialize navigation
+        const navContainer = document.getElementById('nav-container');
+        navContainer.innerHTML = getNavigation();
+
+        // Quest state
+        const questState = {
+            currentSection: '1',
+            xpTotal: 0,
+            stats: {
+                strength: 5,
+                intelligence: 5,
+                dexterity: 5,
+                charisma: 5
+            }
+        };
+
+        function goToSection(sectionId) {
+            const current = document.getElementById(\`section-\${questState.currentSection}\`);
+            const next = document.getElementById(\`section-\${sectionId}\`);
+
+            if (current) current.classList.remove('active');
+            if (next) {
+                next.classList.add('active');
+                questState.currentSection = sectionId;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function rollDice(count = 5) {
+            const dice = [];
+            for (let i = 0; i < count; i++) {
+                dice.push(Math.floor(Math.random() * 6) + 1);
+            }
+            return dice;
+        }
+
+        function initDiceRoller(sectionId, numDice = 5) {
+            const container = document.getElementById(\`dice-\${sectionId}\`);
+            if (!container) return;
+
+            let rolls = 0;
+            const maxRolls = 3;
+            let currentDice = [];
+            let lockedDice = new Set();
+
+            function renderDice() {
+                container.innerHTML = '';
+                currentDice.forEach((value, index) => {
+                    const die = document.createElement('div');
+                    die.className = \`die \${lockedDice.has(index) ? 'locked' : ''}\`;
+                    die.textContent = value;
+                    die.onclick = () => toggleLock(index);
+                    container.appendChild(die);
+                });
+            }
+
+            function toggleLock(index) {
+                if (rolls < maxRolls) {
+                    if (lockedDice.has(index)) {
+                        lockedDice.delete(index);
+                    } else {
+                        lockedDice.add(index);
+                    }
+                    renderDice();
+                }
+            }
+
+            function roll() {
+                if (rolls < maxRolls) {
+                    rolls++;
+                    currentDice = currentDice.map((val, idx) =>
+                        lockedDice.has(idx) ? val : (Math.floor(Math.random() * 6) + 1)
+                    );
+                    renderDice();
+
+                    if (rolls >= maxRolls) {
+                        document.getElementById(\`roll-btn-\${sectionId}\`).style.display = 'block';
+                    }
+                }
+            }
+
+            window[\`roll_\${sectionId}\`] = roll;
+            currentDice = rollDice(numDice);
+            renderDice();
+
+            const rollBtn = document.getElementById(\`roll-btn-\${sectionId}\`);
+            if (rollBtn) {
+                rollBtn.onclick = () => roll();
+                rollBtn.textContent = 'Roll Dice';
+            }
+        }
+
+        function submitRoll(sectionId) {
+            const dice = Array.from(document.querySelectorAll(\`#dice-\${sectionId} .die\`))
+                .map(el => parseInt(el.textContent));
+
+            const hasWinning = dice.includes(6) && dice.includes(5) && dice.includes(4);
+
+            if (hasWinning) {
+                const remaining = dice.filter(d => d !== 6 && d !== 5 && d !== 4);
+                const baseXP = remaining.reduce((a, b) => a + b, 0);
+                const dexBonus = Math.max(0, questState.stats.dexterity - 1);
+                const totalXP = baseXP + dexBonus;
+
+                questState.xpTotal += totalXP;
+                goToSection(\`\${parseInt(sectionId[0]) + 1}p\`);
+            } else {
+                goToSection(\`\${parseInt(sectionId[0]) + 1}f\`);
+            }
+
+            updateXPDisplay();
+        }
+
+        function updateXPDisplay() {
+            const xpDisplay = document.querySelector('.xp-display');
+            if (xpDisplay) {
+                xpDisplay.innerHTML = \`⭐ XP Earned: <strong>\${questState.xpTotal}</strong> ⭐\`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            goToSection('1');
+            updateXPDisplay();
+        });
+    </script>
+</body>
+</html>`;
+        }
+
+        function getNextSectionForButton(structure, currentId, buttonId) {
+            // For now, just suggest the next logical section
+            const num = parseInt(currentId[0]);
+            return \`\${num + 1}\${buttonId}\`;
+        }
+
+        function switchTab(tab) {
+            document.getElementById('preview-tab').classList.toggle('hidden', tab !== 'preview');
+            document.getElementById('export-tab').classList.toggle('hidden', tab !== 'export');
+
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function copyToClipboard() {
+            const code = document.getElementById('exportCode').value;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('✅ HTML copied to clipboard!');
+            });
+        }
+
+        // Initialize
+        updatePreview();
+    </script>
+</body>
+</html>`;

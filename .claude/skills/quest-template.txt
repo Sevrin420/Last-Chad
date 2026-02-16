@@ -1,0 +1,46 @@
+# Quest Structure Template
+#
+# Format: SECTION_ID, ENDPOINTS [description]
+#
+# SECTION_ID: Number + optional letters (1, 2a, 2b, 3a, 4aa, etc.)
+# ENDPOINTS: Comma-separated list of:
+#   - a, b, c, etc. = Button options
+#   - d = Dice roll
+#
+# Example quests:
+#
+# Simple Linear Quest (Single Path):
+# 1, a
+# 2, a
+# 3, a
+# 4, a (end)
+#
+# Branching Quest (Multiple Paths):
+# 1, a,b
+# 2a, a
+# 2b, a
+# 3, a (both paths converge)
+#
+# Dice Roll Quest:
+# 1, a,b
+# 2a, d
+# 3p, a (pass path)
+# 3f, a (fail path)
+# 4, a (both paths converge)
+#
+# Complex Nested Quest:
+# 1, a,b,c
+# 2a, d
+# 2b, a,b
+# 2c, a
+# 3p, a (from dice pass)
+# 3f, a (from dice fail)
+# 3ba, a
+# 3bb, a,b
+# 4, a (final convergence)
+
+# EDIT BELOW: Define your quest structure
+1, a,b
+2a, a
+2b, a
+3, a
