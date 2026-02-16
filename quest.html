@@ -833,7 +833,7 @@
         const link = getMobileDeepLink(name);
         if (link) { window.location.href = link; return; }
       }
-      if (name === 'walletconnect') { await connectWalletConnect(); return; }
+      if (name === 'walletconnect' || (name === 'core' && isMobile())) { await connectWalletConnect(); return; }
       await connectInjected(name);
     }
 
