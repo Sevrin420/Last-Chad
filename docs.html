@@ -611,13 +611,25 @@
       }
     }
 
+    function loadWcScript() {
+      if (window['@walletconnect/ethereum-provider']) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.17.0/dist/index.umd.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Failed to load WalletConnect SDK'));
+        document.head.appendChild(s);
+      });
+    }
+
     async function connectWalletConnect() {
       if (!WALLETCONNECT_PROJECT_ID) {
         alert('WalletConnect project ID not configured.');
         return;
       }
       try {
-        const { EthereumProvider } = await import('https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.17.0/+esm');
+        await loadWcScript();
+        const EthereumProvider = window['@walletconnect/ethereum-provider'].EthereumProvider;
         const wcProvider = await EthereumProvider.init({
           projectId: WALLETCONNECT_PROJECT_ID,
           chains: [43113],
@@ -637,9 +649,6 @@
       } catch (err) {
         console.error('WalletConnect failed:', err);
         alert('WalletConnect failed to connect. Please try again or use a different wallet.');
-        if (err.message && !err.message.includes('User closed')) {
-          alert('WalletConnect failed: ' + err.message);
-        }
       }
     }
 
