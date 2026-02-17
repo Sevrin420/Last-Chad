@@ -615,6 +615,188 @@
       background: rgba(20, 15, 10, 0.5);
     }
 
+    /* Quest Published Modal */
+    .quest-published-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 400;
+      backdrop-filter: blur(4px);
+    }
+
+    .quest-published-modal.open {
+      display: flex;
+      animation: scaleIn 0.3s ease;
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .quest-published-content {
+      background: rgba(10, 10, 15, 0.95);
+      border: 2px solid #7ee8d4;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 0 40px rgba(126, 232, 212, 0.4);
+      overflow: hidden;
+    }
+
+    .published-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px;
+      border-bottom: 2px solid #7ee8d4;
+      background: linear-gradient(135deg, rgba(126, 232, 212, 0.1) 0%, rgba(126, 232, 212, 0.05) 100%);
+    }
+
+    .published-header h2 {
+      font-size: 0.55rem;
+      color: #7ee8d4;
+      text-shadow: 0 0 8px rgba(126, 232, 212, 0.3);
+      margin: 0;
+    }
+
+    .published-close {
+      background: rgba(126, 232, 212, 0.2);
+      border: 1px solid #7ee8d4;
+      color: #7ee8d4;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', monospace;
+    }
+
+    .published-close:hover {
+      background: rgba(126, 232, 212, 0.3);
+      box-shadow: 0 0 12px rgba(126, 232, 212, 0.3);
+    }
+
+    .published-body {
+      padding: 24px;
+      background: rgba(20, 15, 10, 0.5);
+    }
+
+    .published-message {
+      font-size: 0.35rem;
+      color: #f5e6c8;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .published-link-box {
+      background: rgba(126, 232, 212, 0.05);
+      border: 1px solid rgba(126, 232, 212, 0.3);
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .published-label {
+      font-size: 0.3rem;
+      color: #7ee8d4;
+      margin-bottom: 12px;
+      text-shadow: 0 0 4px rgba(126, 232, 212, 0.2);
+    }
+
+    .link-container {
+      display: flex;
+      gap: 8px;
+    }
+
+    .quest-link-input {
+      flex: 1;
+      background: rgba(20, 15, 5, 0.9);
+      border: 1px solid #c9a84c;
+      color: #c9a84c;
+      padding: 10px 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.25rem;
+      border-radius: 2px;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      background: linear-gradient(135deg, rgba(126, 232, 212, 0.2) 0%, rgba(126, 232, 212, 0.1) 100%);
+      border: 1px solid #7ee8d4;
+      color: #7ee8d4;
+      padding: 10px 12px;
+      font-size: 0.3rem;
+      font-family: 'Press Start 2P', monospace;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+
+    .copy-btn:hover {
+      background: linear-gradient(135deg, rgba(126, 232, 212, 0.3) 0%, rgba(126, 232, 212, 0.2) 100%);
+      box-shadow: 0 0 8px rgba(126, 232, 212, 0.3);
+    }
+
+    .published-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .published-btn-primary {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
+      border: 2px solid #c9a84c;
+      color: #c9a84c;
+      padding: 12px 16px;
+      font-size: 0.3rem;
+      font-family: 'Press Start 2P', monospace;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.3s;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    .published-btn-primary:hover {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.4) 0%, rgba(201, 168, 76, 0.2) 100%);
+      box-shadow: 0 0 16px rgba(201, 168, 76, 0.3);
+    }
+
+    .published-btn-secondary {
+      background: linear-gradient(135deg, rgba(126, 232, 212, 0.2) 0%, rgba(126, 232, 212, 0.1) 100%);
+      border: 2px solid #7ee8d4;
+      color: #7ee8d4;
+      padding: 12px 16px;
+      font-size: 0.3rem;
+      font-family: 'Press Start 2P', monospace;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.3s;
+      text-shadow: 0 0 8px rgba(126, 232, 212, 0.3);
+    }
+
+    .published-btn-secondary:hover {
+      background: linear-gradient(135deg, rgba(126, 232, 212, 0.3) 0%, rgba(126, 232, 212, 0.2) 100%);
+      box-shadow: 0 0 16px rgba(126, 232, 212, 0.3);
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .main {
@@ -683,6 +865,30 @@
     <div class="action-buttons">
       <button class="secondary-btn" id="exportBtn">📥 Export JSON</button>
       <button class="primary-btn" id="saveBtn">💾 Save Quest</button>
+    </div>
+  </div>
+
+  <!-- Quest Published Modal -->
+  <div class="quest-published-modal" id="questPublishedModal">
+    <div class="quest-published-content">
+      <div class="published-header">
+        <h2>✅ Quest Published!</h2>
+        <button class="published-close" id="publishedClose">✕</button>
+      </div>
+      <div class="published-body">
+        <p class="published-message" id="publishedMessage"></p>
+        <div class="published-link-box">
+          <p class="published-label">🎮 Test your quest on Vercel:</p>
+          <div class="link-container">
+            <input type="text" id="questLinkInput" class="quest-link-input" readonly>
+            <button class="copy-btn" id="copyLinkBtn">📋 Copy</button>
+          </div>
+        </div>
+        <div class="published-actions">
+          <button class="published-btn-primary" id="openQuestBtn">🚀 Open Quest</button>
+          <button class="published-btn-secondary" id="closePublishedBtn">Close</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1123,7 +1329,7 @@
 
       // Show loading dialog
       const questName = state.questName || 'Untitled Quest';
-      const confirmed = confirm(`🚀 Publish "${questName}" to GitHub?\n\nThis will create a new quest folder and make it playable!`);
+      const confirmed = confirm(`🚀 Publish "${questName}" to Vercel?\n\nThis will create a new quest folder and make it playable!`);
 
       if (!confirmed) return;
 
@@ -1144,7 +1350,7 @@
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          alert(`✅ Quest published!\n\n📍 Visit: ${data.questUrl}`);
+          showQuestPublishedModal(questName, data.questUrl);
           saveBtn.disabled = false;
           saveBtn.textContent = '💾 Save Quest';
         } else {
@@ -1156,6 +1362,39 @@
         alert(`❌ Failed to publish quest:\n${error.message}`);
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Save Quest';
+      });
+    }
+
+    function showQuestPublishedModal(questName, questUrl) {
+      const modal = document.getElementById('questPublishedModal');
+      const messageEl = document.getElementById('publishedMessage');
+      const linkInput = document.getElementById('questLinkInput');
+      const openBtn = document.getElementById('openQuestBtn');
+      const copyBtn = document.getElementById('copyLinkBtn');
+      const closeBtn = document.getElementById('closePublishedBtn');
+      const closeIcon = document.getElementById('publishedClose');
+
+      messageEl.textContent = `"${questName}" has been published to Vercel! Your quest is now live and ready to play.`;
+      linkInput.value = questUrl;
+
+      modal.classList.add('open');
+
+      openBtn.onclick = () => window.open(questUrl, '_blank');
+      copyBtn.onclick = () => {
+        linkInput.select();
+        document.execCommand('copy');
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = '✓ Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = originalText;
+        }, 2000);
+      };
+      closeBtn.onclick = () => modal.classList.remove('open');
+      closeIcon.onclick = () => modal.classList.remove('open');
+
+      // Close on background click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('open');
       });
     }
 

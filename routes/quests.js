@@ -10,6 +10,9 @@ const octokit = new Octokit({
 
 const REPO_OWNER = process.env.GITHUB_OWNER || 'Sevrin420';
 const REPO_NAME = process.env.GITHUB_REPO || 'Last-Chad';
+const VERCEL_REPO_OWNER = process.env.VERCEL_REPO_OWNER || 'Sevrin420';
+const VERCEL_REPO_NAME = process.env.VERCEL_REPO_NAME || 'vercel-last-chad';
+const VERCEL_URL = process.env.VERCEL_URL || 'https://vercel-last-chad-kovy4fnjn-sevs-projects-74385fd9.vercel.app';
 const BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 /**
@@ -402,8 +405,8 @@ router.post('/publish-quest', async (req, res) => {
 
     // Get current repo to find the latest commit
     const branchData = await octokit.repos.getBranch({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
+      owner: VERCEL_REPO_OWNER,
+      repo: VERCEL_REPO_NAME,
       branch: BRANCH
     });
 
@@ -411,8 +414,8 @@ router.post('/publish-quest', async (req, res) => {
 
     // Get the tree of the latest commit
     const treeData = await octokit.git.getTree({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
+      owner: VERCEL_REPO_OWNER,
+      repo: VERCEL_REPO_NAME,
       tree_sha: latestCommitSha,
       recursive: true
     });
@@ -428,8 +431,8 @@ router.post('/publish-quest', async (req, res) => {
     // Add new files to tree
     for (const file of files) {
       const blob = await octokit.git.createBlob({
-        owner: REPO_OWNER,
-        repo: REPO_NAME,
+        owner: VERCEL_REPO_OWNER,
+        repo: VERCEL_REPO_NAME,
         content: file.content,
         encoding: file.isBase64 ? 'base64' : 'utf-8'
       });
@@ -444,16 +447,16 @@ router.post('/publish-quest', async (req, res) => {
 
     // Create new tree
     const newTree = await octokit.git.createTree({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
+      owner: VERCEL_REPO_OWNER,
+      repo: VERCEL_REPO_NAME,
       tree: treeItems,
       base_tree: latestCommitSha
     });
 
     // Create commit
     const commit = await octokit.git.createCommit({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
+      owner: VERCEL_REPO_OWNER,
+      repo: VERCEL_REPO_NAME,
       message: `Add quest: ${questName}\n\nPublished from Quest Builder`,
       tree: newTree.data.sha,
       parents: [latestCommitSha]
@@ -461,13 +464,13 @@ router.post('/publish-quest', async (req, res) => {
 
     // Update branch reference
     await octokit.git.updateRef({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
+      owner: VERCEL_REPO_OWNER,
+      repo: VERCEL_REPO_NAME,
       ref: `heads/${BRANCH}`,
       sha: commit.data.sha
     });
 
-    const questUrl = `https://lastchad.xyz/quests/${sanitized}/`;
+    const questUrl = `${VERCEL_URL}/quests/${sanitized}/`;
 
     console.log(`✅ Quest published successfully!`);
 
