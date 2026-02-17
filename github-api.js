@@ -32,21 +32,31 @@ class GitHubAPI {
       options.body = JSON.stringify(data);
     }
 
-    const response = await fetch(url, options);
+    try {
+      const response = await fetch(url, options);
 
-    if (!response.ok) {
-      let error;
-      try {
-        error = await response.json();
-      } catch (e) {
-        error = { message: response.statusText };
+      if (!response.ok) {
+        let error;
+        try {
+          error = await response.json();
+        } catch (e) {
+          error = { message: response.statusText };
+        }
+        const errorMsg = error.message || error.error || `GitHub API error: ${response.status}`;
+        console.error(`❌ API Error ${response.status} (${method} ${path}):`, errorMsg);
+        throw new Error(errorMsg);
       }
-      const errorMsg = error.message || error.error || `GitHub API error: ${response.status}`;
-      console.error(`❌ API Error (${method} ${path}):`, errorMsg);
-      throw new Error(errorMsg);
-    }
 
-    return response.json();
+      return response.json();
+    } catch (err) {
+      // If it's already a GitHub API error, rethrow it
+      if (err.message.includes('API Error') || err.message.includes('Not Found')) {
+        throw err;
+      }
+      // Otherwise, it's a network error
+      console.error(`❌ Network Error (${method} ${path}):`, err.message);
+      throw new Error(`Network error: ${err.message}`);
+    }
   }
 
   async getBranchRef() {
@@ -103,14 +113,20 @@ class GitHubAPI {
       const imagesPath = `${questPath}/images`;
 
       console.log(`📝 Publishing quest: ${questName}`);
+      console.log(`🔗 Repository: ${this.owner}/${this.repo}`);
+      console.log(`🌿 Branch: ${this.branch}`);
 
       // Get current branch reference
+      console.log(`⏳ Fetching branch reference...`);
       const branchRef = await this.getBranchRef();
       const latestCommitSha = branchRef.data.object.sha;
+      console.log(`✓ Branch reference found, commit: ${latestCommitSha.substring(0, 7)}`);
 
       // Get the commit tree
+      console.log(`⏳ Fetching commit tree...`);
       const commit = await this.getCommit(latestCommitSha);
       const treeData = await this.getTree(commit.data.tree.sha, true);
+      console.log(`✓ Tree fetched with ${treeData.data.tree.length} existing items`);
 
       // Prepare tree items
       const treeItems = treeData.data.tree.map(item => ({
@@ -121,8 +137,10 @@ class GitHubAPI {
       }));
 
       // Generate quest HTML
+      console.log(`⏳ Generating quest HTML...`);
       const questHTML = generateQuestHTML(questName, sections);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
+      console.log(`✓ Quest HTML blob created`);
       treeItems.push({
         path: `${questPath}/index.html`,
         mode: '100644',
@@ -143,6 +161,8 @@ class GitHubAPI {
       });
 
       // Process and add images
+      console.log(`⏳ Processing ${sections.length} sections for images...`);
+      let imageCount = 0;
       for (const section of sections) {
         if (section.photo) {
           const imageParts = section.photo.split(',');
@@ -158,6 +178,7 @@ class GitHubAPI {
             type: 'blob',
             sha: imageBlob.data.sha
           });
+          imageCount++;
         }
 
         if (section.diceImage) {
@@ -174,21 +195,29 @@ class GitHubAPI {
             type: 'blob',
             sha: diceBlob.data.sha
           });
+          imageCount++;
         }
       }
+      console.log(`✓ Processed ${imageCount} images`);
 
       // Create new tree
+      console.log(`⏳ Creating new tree with ${treeItems.length} items...`);
       const newTree = await this.createTree(treeItems, commit.data.tree.sha);
+      console.log(`✓ Tree created: ${newTree.data.sha.substring(0, 7)}`);
 
       // Create commit
+      console.log(`⏳ Creating commit...`);
       const newCommit = await this.createCommit(
         `Add quest: ${questName}\n\nPublished from Quest Builder`,
         newTree.data.sha,
         [latestCommitSha]
       );
+      console.log(`✓ Commit created: ${newCommit.data.sha.substring(0, 7)}`);
 
       // Update branch reference
+      console.log(`⏳ Updating branch reference...`);
       await this.updateRef(newCommit.data.sha);
+      console.log(`✓ Branch reference updated`);
 
       console.log(`✅ Quest published successfully!`);
 
@@ -199,7 +228,14 @@ class GitHubAPI {
         questPath: `quests/${sanitized}`
       };
     } catch (error) {
-      console.error('Error publishing quest:', error);
+      console.error('❌ Error publishing quest:', error);
+      // Add more context to the error
+      if (error.message.includes('Not Found')) {
+        console.error('📍 Not Found (404) - Check if:');
+        console.error('   - Repository exists at https://github.com/' + this.owner + '/' + this.repo);
+        console.error('   - Branch "' + this.branch + '" exists');
+        console.error('   - GitHub token has valid "repo" scope');
+      }
       throw error;
     }
   }
