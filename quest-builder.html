@@ -1120,7 +1120,43 @@
 
     function saveQuest() {
       saveQuestAuto();
-      alert('✅ Quest saved to browser!');
+
+      // Show loading dialog
+      const questName = state.questName || 'Untitled Quest';
+      const confirmed = confirm(`🚀 Publish "${questName}" to GitHub?\n\nThis will create a new quest folder and make it playable!`);
+
+      if (!confirmed) return;
+
+      // Disable button during publish
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = '⏳ Publishing...';
+
+      // Send to backend
+      fetch('/api/publish-quest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questName: state.questName,
+          sections: state.sections
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(`✅ Quest published!\n\n📍 Visit: ${data.questUrl}`);
+          saveBtn.disabled = false;
+          saveBtn.textContent = '💾 Save Quest';
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      })
+      .catch(error => {
+        console.error('Publish error:', error);
+        alert(`❌ Failed to publish quest:\n${error.message}`);
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Save Quest';
+      });
     }
 
     function exportQuest() {
