@@ -1,1103 +1,981 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quest Builder - Last Chad</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest Builder | Last Chad</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="nav.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-        body {
-            background: #0a0a0f;
-            color: #c9a84c;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            overflow-x: hidden;
-        }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 2rem;
-            min-height: 100vh;
-        }
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
 
-        @media (max-width: 1200px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-        }
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #0a0a0f;
+      background-image: radial-gradient(ellipse at 50% 0%, rgba(92, 68, 9, 0.15) 0%, transparent 60%);
+    }
 
-        h1 {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: #ffd700;
-            margin-bottom: 1rem;
-            font-size: 1.8rem;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-        }
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(10, 10, 15, 0.9);
+      border-bottom: 2px solid #3d2e0a;
+      backdrop-filter: blur(8px);
+    }
 
-        .panel {
-            background: rgba(59, 42, 20, 0.8);
-            border: 3px solid #c9a84c;
-            padding: 1.5rem;
-            border-radius: 4px;
-        }
+    .header-title {
+      font-size: 0.9rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
 
-        .panel h2 {
-            color: #ffd700;
-            margin-bottom: 1rem;
-            font-size: 1.2rem;
-            border-bottom: 2px solid #8b7355;
-            padding-bottom: 0.5rem;
-        }
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 90px 16px 60px;
+    }
 
-        /* EDITOR PANEL */
-        .editor-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
+    .container {
+      width: 100%;
+      max-width: 800px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 40px;
+    }
 
-        .form-section {
-            background: rgba(20, 15, 10, 0.9);
-            border: 2px solid #8b7355;
-            padding: 1rem;
-            border-radius: 3px;
-        }
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
 
-        .form-section h3 {
-            color: #c9a84c;
-            margin-bottom: 0.8rem;
-            font-size: 0.9rem;
-        }
+    .form-section {
+      background: rgba(10, 8, 4, 0.85);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      padding: 24px;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 30px rgba(201, 168, 76, 0.1);
+    }
 
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #e8d4b8;
-            font-size: 0.75rem;
-        }
+    .form-section h2 {
+      font-size: 0.65rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      margin-bottom: 16px;
+      border-bottom: 2px solid #5c4409;
+      padding-bottom: 8px;
+    }
 
-        input[type="text"],
-        input[type="file"],
-        textarea,
-        select {
-            width: 100%;
-            padding: 0.6rem;
-            background: rgba(10, 10, 15, 0.9);
-            border: 2px solid #8b7355;
-            color: #c9a84c;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 0.7rem;
-            margin-bottom: 0.5rem;
-            border-radius: 2px;
-        }
+    .form-group {
+      margin-bottom: 16px;
+    }
 
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-            max-height: 150px;
-        }
+    .form-group label {
+      display: block;
+      font-size: 0.45rem;
+      color: #a0963d;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
 
-        input[type="text"]:focus,
-        textarea:focus,
-        select:focus {
-            outline: none;
-            border-color: #ffd700;
-            box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
-        }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.35rem;
+      background: rgba(30, 20, 10, 0.8);
+      color: #f5e6c8;
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+    }
 
-        .button {
-            background: linear-gradient(135deg, #8b7355 0%, #5a4a3a 100%);
-            border: 2px solid #c9a84c;
-            color: #ffd700;
-            padding: 0.8rem 1.5rem;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 0.75rem;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-            border-radius: 2px;
-            margin-top: 0.5rem;
-        }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      outline: none;
+      border-color: #c9a84c;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5), 0 0 12px rgba(201, 168, 76, 0.2);
+    }
 
-        .button:hover {
-            background: linear-gradient(135deg, #a08060 0%, #6b5a4a 100%);
-            box-shadow: 0 0 15px rgba(201, 168, 76, 0.5);
-        }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
 
-        .button:active {
-            transform: translateY(1px);
-        }
+    .choice-group {
+      background: rgba(30, 20, 10, 0.5);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
 
-        .button.danger {
-            background: linear-gradient(135deg, #8b3a3a 0%, #5a2a2a 100%);
-            border-color: #ff6b6b;
-            color: #ff6b6b;
-        }
+    .choice-group h3 {
+      font-size: 0.4rem;
+      color: #c9a84c;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
 
-        .button.danger:hover {
-            box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
-        }
+    .choice-option {
+      display: grid;
+      grid-template-columns: 1fr 80px;
+      gap: 10px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
 
-        .section-editor {
-            background: rgba(30, 20, 15, 0.8);
-            border-left: 4px solid #c9a84c;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
+    .choice-option label {
+      margin: 0;
+      font-size: 0.35rem;
+    }
 
-        .section-id {
-            color: #ffd700;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
+    .choice-option input[type="number"] {
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 0.35rem;
+    }
 
-        .image-preview {
-            max-width: 150px;
-            max-height: 150px;
-            border: 2px solid #8b7355;
-            margin-top: 0.5rem;
-            border-radius: 2px;
-        }
+    .preview-section {
+      background: rgba(10, 8, 4, 0.85);
+      border: 3px solid #c9a84c;
+      border-radius: 6px;
+      padding: 24px;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 30px rgba(201, 168, 76, 0.2);
+      position: sticky;
+      top: 100px;
+      height: fit-content;
+    }
 
-        .button-inputs {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
+    .preview-section h2 {
+      font-size: 0.65rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      margin-bottom: 16px;
+      border-bottom: 2px solid #c9a84c;
+      padding-bottom: 8px;
+    }
 
-        .button-inputs input {
-            flex: 1;
-        }
+    .preview-content {
+      font-size: 0.4rem;
+      line-height: 1.6;
+      color: #f5e6c8;
+    }
 
-        /* PREVIEW PANEL */
-        .preview-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
+    .preview-item {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #5c4409;
+    }
 
-        .preview-content {
-            background: linear-gradient(135deg, #2a1810 0%, #3b2a14 50%, #1a1410 100%);
-            border: 3px solid #c9a84c;
-            padding: 2rem;
-            border-radius: 4px;
-            min-height: 400px;
-        }
+    .preview-item:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
 
-        .quest-title {
-            font-size: 1.3rem;
-            color: #ffd700;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-            margin-bottom: 1.5rem;
-            text-align: center;
-            text-transform: uppercase;
-        }
+    .preview-label {
+      color: #a0963d;
+      text-transform: uppercase;
+      font-size: 0.35rem;
+      margin-bottom: 4px;
+    }
 
-        .section-number {
-            text-align: center;
-            color: #8b7355;
-            font-size: 0.7rem;
-            margin-bottom: 0.8rem;
-            text-transform: uppercase;
-        }
+    .preview-value {
+      color: #c9a84c;
+      font-size: 0.45rem;
+      word-break: break-word;
+    }
 
-        .dialogue-box {
-            background: rgba(20, 15, 10, 0.9);
-            border: 2px solid #8b7355;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            text-align: center;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
+    .xp-calc {
+      background: rgba(30, 20, 10, 0.6);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 12px;
+      margin-top: 16px;
+    }
 
-        .dialogue-text {
-            color: #e8d4b8;
-            font-size: 0.8rem;
-            line-height: 1.4;
-        }
+    .xp-calc-title {
+      color: #c9a84c;
+      font-size: 0.35rem;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
 
-        .preview-image {
-            max-width: 100%;
-            max-height: 200px;
-            margin: 0.5rem 0;
-            border-radius: 2px;
-        }
+    .xp-calc-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.35rem;
+      color: #f5e6c8;
+      margin-bottom: 4px;
+    }
 
-        .button-group {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 1rem;
-        }
+    .xp-calc-row.total {
+      border-top: 1px solid #5c4409;
+      padding-top: 6px;
+      margin-top: 6px;
+      color: #c9a84c;
+      font-weight: bold;
+    }
 
-        .preview-button {
-            background: linear-gradient(135deg, #8b7355 0%, #5a4a3a 100%);
-            border: 2px solid #c9a84c;
-            color: #ffd700;
-            padding: 0.6rem 1.2rem;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            border-radius: 2px;
-            cursor: default;
-        }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: center;
+    }
 
-        .dice-preview {
-            display: flex;
-            justify-content: center;
-            gap: 0.3rem;
-            margin: 1rem 0;
-        }
+    button {
+      padding: 10px 20px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem;
+      color: #f5e6c8;
+      background: rgba(201, 168, 76, 0.15);
+      border: 2px solid #c9a84c;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+      position: relative;
+      top: 0;
+    }
 
-        .die {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #d4af37 0%, #8b7355 100%);
-            border: 2px solid #c9a84c;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            color: #3b2a14;
-            border-radius: 2px;
-            font-weight: bold;
-        }
+    button:hover {
+      background: rgba(201, 168, 76, 0.25);
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+      transform: translateY(-2px);
+    }
 
-        /* ACTIONS */
-        .actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
+    button:active {
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+      transform: translateY(2px);
+    }
 
-        .action-buttons {
-            grid-column: 1 / -1;
-            display: flex;
-            gap: 1rem;
-            padding: 1rem;
-            background: rgba(20, 15, 10, 0.9);
-            border: 2px solid #8b7355;
-            border-radius: 3px;
-        }
+    button.secondary {
+      background: rgba(150, 130, 80, 0.1);
+      border-color: #a0963d;
+      color: #a0963d;
+    }
 
-        .action-buttons .button {
-            flex: 1;
-            margin: 0;
-        }
+    button.secondary:hover {
+      background: rgba(150, 130, 80, 0.2);
+    }
 
-        .info-box {
-            background: rgba(76, 175, 80, 0.1);
-            border: 2px solid #66bb6a;
-            color: #66bb6a;
-            padding: 1rem;
-            border-radius: 2px;
-            font-size: 0.7rem;
-            line-height: 1.5;
-            grid-column: 1 / -1;
-        }
+    .json-export {
+      background: rgba(30, 20, 10, 0.6);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 12px;
+      margin-top: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
 
-        .warning-box {
-            background: rgba(255, 152, 0, 0.1);
-            border: 2px solid #ff9800;
-            color: #ffb74d;
-            padding: 1rem;
-            border-radius: 2px;
-            font-size: 0.7rem;
-            line-height: 1.5;
-        }
+    .json-export code {
+      font-size: 0.3rem;
+      color: #7ee8d4;
+      line-height: 1.4;
+      word-break: break-all;
+    }
 
-        .tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            border-bottom: 2px solid #8b7355;
-        }
+    .success-message {
+      color: #7ee8d4;
+      font-size: 0.35rem;
+      text-align: center;
+      margin-top: 12px;
+    }
 
-        .tab-button {
-            background: transparent;
-            border: none;
-            color: #8b7355;
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s ease;
-        }
+    /* --- Quest Type Selector --- */
+    .quest-type-selector {
+      width: 100%;
+      max-width: 800px;
+      background: rgba(10, 8, 4, 0.85);
+      border: 3px solid #c9a84c;
+      border-radius: 6px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 30px rgba(201, 168, 76, 0.2);
+    }
 
-        .tab-button.active {
-            color: #ffd700;
-            border-bottom-color: #ffd700;
-        }
+    .quest-type-selector h2 {
+      font-size: 0.65rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      margin-bottom: 20px;
+      text-align: center;
+    }
 
-        .hidden {
-            display: none;
-        }
+    .size-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+    }
 
-        .stats-display {
-            background: rgba(20, 15, 10, 0.9);
-            border: 2px solid #8b7355;
-            padding: 0.8rem;
-            border-radius: 2px;
-            font-size: 0.7rem;
-            margin-top: 1rem;
-        }
+    .size-btn {
+      padding: 16px 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.35rem;
+      color: #a0963d;
+      background: rgba(30, 20, 10, 0.6);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
 
-        .stats-display div {
-            margin: 0.3rem 0;
-            color: #e8d4b8;
-        }
+    .size-btn:hover {
+      background: rgba(30, 20, 10, 0.8);
+      border-color: #c9a84c;
+    }
 
-        .stat-label {
-            color: #c9a84c;
-            font-weight: bold;
-        }
+    .size-btn.active {
+      background: rgba(201, 168, 76, 0.2);
+      border-color: #c9a84c;
+      color: #c9a84c;
+      box-shadow: 0 0 15px rgba(201, 168, 76, 0.3);
+    }
 
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
+    .size-title {
+      font-size: 0.4rem;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
 
-        ::-webkit-scrollbar-track {
-            background: rgba(20, 15, 10, 0.5);
-        }
+    .size-desc {
+      font-size: 0.3rem;
+      color: #7ee8d4;
+      opacity: 0.9;
+    }
 
-        ::-webkit-scrollbar-thumb {
-            background: #8b7355;
-            border-radius: 4px;
-        }
+    /* --- Choice Template --- */
+    .choice-template {
+      background: rgba(30, 20, 10, 0.5);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #c9a84c;
-        }
-    </style>
+    .choice-template-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #5c4409;
+      padding-bottom: 8px;
+    }
+
+    .choice-template-title {
+      color: #c9a84c;
+      font-size: 0.4rem;
+      text-transform: uppercase;
+    }
+
+    .choice-template-delete {
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      padding: 4px 8px;
+      font-size: 0.3rem;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .choice-template-delete:hover {
+      background: rgba(255, 107, 107, 0.3);
+    }
+
+    /* --- Solidity Code Display --- */
+    .solidity-code {
+      background: rgba(30, 20, 10, 0.9);
+      border: 2px solid #7ee8d4;
+      border-radius: 4px;
+      padding: 16px;
+      margin-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .solidity-code code {
+      font-size: 0.3rem;
+      color: #7ee8d4;
+      line-height: 1.5;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+
+    .solidity-code.visible {
+      display: block;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>⚔️ Quest Builder ⚔️</h1>
+  <div class="bg"></div>
 
-        <!-- LEFT PANEL: EDITOR -->
-        <div class="panel editor-panel">
-            <h2>📝 Quest Editor</h2>
+  <div class="header">
+    <div class="header-title">⚔️ QUEST BUILDER</div>
+    <div class="nav-menu" id="navMenu"></div>
+  </div>
 
-            <div class="form-section">
-                <h3>Quest Info</h3>
-                <label>Quest Name:</label>
-                <input type="text" id="questName" placeholder="e.g., Episode One" value="">
-
-                <label>Quest Structure (paste from your notation):</label>
-                <textarea id="questStructure" placeholder="1, a,b&#10;2a, d&#10;2b, a&#10;3p, a&#10;3f, a&#10;4, a"></textarea>
-
-                <button class="button" onclick="parseStructure()">Parse Structure</button>
-                <div class="stats-display">
-                    <div><span class="stat-label">Sections:</span> <span id="sectionCount">0</span></div>
-                    <div><span class="stat-label">Total Endpoints:</span> <span id="endpointCount">0</span></div>
-                </div>
-            </div>
-
-            <div id="sections-container"></div>
-
-        </div>
-
-        <!-- RIGHT PANEL: PREVIEW -->
-        <div class="panel preview-panel">
-            <h2>👁️ Live Preview</h2>
-
-            <div class="tabs">
-                <button class="tab-button active" onclick="switchTab('preview')">Preview</button>
-                <button class="tab-button" onclick="switchTab('export')">Export</button>
-            </div>
-
-            <div id="preview-tab" class="preview-content">
-                <div class="quest-title" id="previewTitle">Your Quest Title</div>
-                <div id="previewSection">
-                    <div class="dialogue-box">
-                        <div class="dialogue-text">No sections yet. Add them above!</div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="export-tab" class="hidden">
-                <div class="warning-box">
-                    ✅ After you finalize your content above, click "Generate Files" to create your quest!
-                </div>
-                <textarea id="exportCode" readonly style="min-height: 400px; margin-top: 1rem;"></textarea>
-                <button class="button" onclick="copyToClipboard()" style="width: 100%; margin-top: 0.5rem;">
-                    📋 Copy Code
-                </button>
-            </div>
-
-            <div class="action-buttons">
-                <button class="button" onclick="updatePreview()" style="flex: 1;">🔄 Update Preview</button>
-                <button class="button" onclick="generateHTML()" style="flex: 1; background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); border-color: #66bb6a; color: #66bb6a;">
-                    ✨ Generate Files
-                </button>
-            </div>
-
-            <div class="info-box">
-                📖 <strong>Next Steps:</strong><br>
-                1. Fill in dialogue and images above<br>
-                2. Click "Update Preview" to see how it looks<br>
-                3. Click "Generate Files" when ready<br>
-                4. Run: <code>node save-quest.js</code>
-            </div>
-        </div>
+  <div class="main">
+    <!-- Quest Type Selector -->
+    <div class="quest-type-selector">
+      <h2>🎮 Quest Size Selector</h2>
+      <div class="size-buttons">
+        <button class="size-btn active" data-size="simple">
+          <div class="size-title">SIMPLE</div>
+          <div class="size-desc">2 choices</div>
+        </button>
+        <button class="size-btn" data-size="medium">
+          <div class="size-title">MEDIUM</div>
+          <div class="size-desc">3-4 choices</div>
+        </button>
+        <button class="size-btn" data-size="complex">
+          <div class="size-title">COMPLEX</div>
+          <div class="size-desc">Branching</div>
+        </button>
+        <button class="size-btn" data-size="epic">
+          <div class="size-title">EPIC</div>
+          <div class="size-desc">5+ choices</div>
+        </button>
+      </div>
     </div>
 
-    <script>
-        let questData = {
-            name: '',
-            structure: {},
-            sections: {}
-        };
+    <div class="container">
+      <div class="form-section">
+        <h2>📋 Quest Details</h2>
 
-        function parseStructure() {
-            const name = document.getElementById('questName').value.trim();
-            const structureText = document.getElementById('questStructure').value.trim();
+        <div class="form-group">
+          <label for="questName">Quest Name</label>
+          <input type="text" id="questName" placeholder="e.g., Rescue the Dragon Slayer" maxlength="50">
+        </div>
 
-            if (!name) {
-                alert('Please enter a quest name');
-                return;
-            }
+        <div class="form-group">
+          <label for="questDescription">Description</label>
+          <textarea id="questDescription" placeholder="Describe the quest objective and setting..."></textarea>
+        </div>
 
-            if (!structureText) {
-                alert('Please enter quest structure');
-                return;
-            }
+        <!-- Quest Type Selection -->
+        <div class="form-group" style="margin-top: 20px;">
+          <label for="questType">Quest Type</label>
+          <select id="questType">
+            <option value="simple">Simple (Binary choices)</option>
+            <option value="medium">Medium (Multi-choice)</option>
+            <option value="complex">Complex (Branching)</option>
+            <option value="epic">Epic (Full narrative)</option>
+          </select>
+        </div>
 
-            questData.name = name;
-            questData.sections = {};
+        <!-- Difficulty/Scaling -->
+        <div class="form-group">
+          <label for="difficultyLevel">Difficulty Level</label>
+          <select id="difficultyLevel">
+            <option value="easy">Easy (2-3 XP)</option>
+            <option value="normal">Normal (4-6 XP)</option>
+            <option value="hard">Hard (7-10 XP)</option>
+            <option value="legendary">Legendary (11+ XP)</option>
+          </select>
+        </div>
 
-            const lines = structureText.split('\n').filter(l => l.trim());
-            const structure = {};
+        <h2 style="margin-top: 20px;">🎯 Quest Flow - Choice Segments</h2>
 
-            lines.forEach(line => {
-                const match = line.match(/^(\d+[a-z]*)\s*,\s*([a-z,d]+)/);
-                if (match) {
-                    const [, sectionId, endpoints] = match;
-                    const endpointList = endpoints.split(',').map(e => e.trim());
-                    structure[sectionId] = endpointList;
-                    questData.sections[sectionId] = {
-                        id: sectionId,
-                        dialogue: '',
-                        image: '',
-                        imageFile: null,
-                        endpoints: endpointList,
-                        buttonLabels: {}
-                    };
+        <div id="choicesContainer"></div>
 
-                    // Initialize button labels
-                    endpointList.forEach((ep, idx) => {
-                        if (ep !== 'd') {
-                            questData.sections[sectionId].buttonLabels[ep] = `Option ${ep.toUpperCase()}`;
-                        }
-                    });
-                }
-            });
+        <div style="margin-top: 20px;">
+          <button id="addChoiceBtn" class="secondary">➕ Add Choice</button>
+        </div>
 
-            questData.structure = structure;
+        <h2 style="margin-top: 20px;">⚙️ Quest Logic</h2>
+        <div class="form-group">
+          <label for="questFlow">Quest Flow Logic</label>
+          <textarea id="questFlow" placeholder="Define the narrative flow (optional):&#10;E.g., Intro → Choice 1 → Choice 2 → Ending" style="min-height: 60px;"></textarea>
+        </div>
 
-            // Update UI
-            document.getElementById('sectionCount').textContent = Object.keys(structure).length;
-            document.getElementById('endpointCount').textContent = lines.length;
+        <div class="form-group">
+          <label for="successCondition">Success Condition</label>
+          <input type="text" id="successCondition" placeholder="e.g., Defeat the boss, Gather 3 items, Survive" maxlength="50">
+        </div>
 
-            renderSectionEditors();
-            updatePreview();
-        }
+        <div class="form-group">
+          <label for="failureCondition">Failure Condition (Optional)</label>
+          <input type="text" id="failureCondition" placeholder="e.g., Get caught, Run out of time" maxlength="50">
+        </div>
 
-        function renderSectionEditors() {
-            const container = document.getElementById('sections-container');
-            container.innerHTML = '';
+        <div class="btn-group">
+          <button id="saveBtn">💾 Save Quest</button>
+          <button class="secondary" id="resetBtn">⟲ Reset</button>
+          <button class="secondary" id="solidityBtn">📄 Solidity Code</button>
+        </div>
+      </div>
 
-            Object.values(questData.sections).forEach((section, idx) => {
-                const div = document.createElement('div');
-                div.className = 'section-editor';
-                div.id = `editor-${section.id}`;
+      <div class="preview-section">
+        <h2>👁️ Quest Preview</h2>
 
-                const hasButtons = section.endpoints.some(e => e !== 'd');
-                const hasDice = section.endpoints.includes('d');
+        <div class="preview-content">
+          <div class="preview-item">
+            <div class="preview-label">Quest Name</div>
+            <div class="preview-value" id="previewName">Untitled Quest</div>
+          </div>
 
-                let html = `
-                    <div class="section-id">📍 Section ${section.id}</div>
+          <div class="preview-item">
+            <div class="preview-label">Type</div>
+            <div class="preview-value" id="previewType">Simple</div>
+          </div>
 
-                    <label>Dialogue:</label>
-                    <textarea onchange="updateSectionDialogue('${section.id}', this.value)"
-                              placeholder="Write your dialogue here..."></textarea>
+          <div class="preview-item">
+            <div class="preview-label">Difficulty</div>
+            <div class="preview-value" id="previewDifficulty">Normal</div>
+          </div>
 
-                    <label>Image (optional):</label>
-                    <input type="file" accept="image/*" onchange="handleImageUpload('${section.id}', this)">
-                    <div id="image-preview-${section.id}"></div>
-                `;
+          <div class="preview-item">
+            <div class="preview-label">Description</div>
+            <div class="preview-value" id="previewDesc">No description provided.</div>
+          </div>
 
-                if (hasButtons) {
-                    html += `<div class="button-inputs">`;
-                    section.endpoints.filter(e => e !== 'd').forEach(ep => {
-                        html += `
-                            <div style="flex: 1;">
-                                <label style="font-size: 0.65rem;">Button ${ep.toUpperCase()}:</label>
-                                <input type="text" value="${section.buttonLabels[ep]}"
-                                       onchange="updateButtonLabel('${section.id}', '${ep}', this.value)"
-                                       placeholder="Button text">
-                            </div>
-                        `;
-                    });
-                    html += `</div>`;
-                }
+          <div class="preview-item">
+            <div class="preview-label">Flow</div>
+            <div class="preview-value" id="previewFlow" style="font-size: 0.4rem;">Not defined</div>
+          </div>
 
-                if (hasDice) {
-                    html += `<div style="color: #ffd700; margin-top: 0.5rem; font-size: 0.7rem;">🎲 Dice Roll Encounter</div>`;
-                }
+          <div class="preview-item">
+            <div class="preview-label">Success Condition</div>
+            <div class="preview-value" id="previewSuccess" style="font-size: 0.4rem;">Not defined</div>
+          </div>
 
-                div.innerHTML = html;
-                container.appendChild(div);
-            });
-        }
+          <div class="preview-item" id="choicesList">
+            <div class="preview-label">Choices</div>
+            <div id="previewChoicesContent" style="margin-top: 6px; font-size: 0.35rem;">
+              <div style="color: #a0963d;">No choices added yet</div>
+            </div>
+          </div>
 
-        function updateSectionDialogue(sectionId, text) {
-            questData.sections[sectionId].dialogue = text;
-        }
+          <div class="xp-calc">
+            <div class="xp-calc-title">📊 XP Calculation Examples</div>
 
-        function updateButtonLabel(sectionId, ep, text) {
-            questData.sections[sectionId].buttonLabels[ep] = text;
-        }
-
-        function handleImageUpload(sectionId, input) {
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    questData.sections[sectionId].imageFile = file;
-                    questData.sections[sectionId].image = file.name;
-
-                    const preview = document.getElementById(`image-preview-${sectionId}`);
-                    preview.innerHTML = `<img src="${e.target.result}" class="image-preview" alt="preview">`;
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function updatePreview() {
-            const title = document.getElementById('previewTitle');
-            const section = document.getElementById('previewSection');
-
-            title.textContent = questData.name || 'Your Quest Title';
-
-            // Get first section
-            const firstSectionId = Object.keys(questData.sections)[0];
-            if (firstSectionId) {
-                const sec = questData.sections[firstSectionId];
-                let html = `<div class="section-number">Section ${sec.id}</div>`;
-                html += `<div class="dialogue-box">`;
-
-                if (sec.image) {
-                    html += `<div style="color: #8b7355; font-size: 0.65rem;">📷 [Image: ${sec.image}]</div>`;
-                }
-
-                html += `<div class="dialogue-text">${sec.dialogue || 'Add dialogue...'}</div></div>`;
-
-                if (sec.endpoints.includes('d')) {
-                    html += `<div class="dice-preview">
-                        <div class="die">6</div>
-                        <div class="die">5</div>
-                        <div class="die">4</div>
-                        <div class="die">2</div>
-                        <div class="die">1</div>
-                    </div>`;
-                } else {
-                    html += `<div class="button-group">`;
-                    sec.endpoints.forEach(ep => {
-                        if (ep !== 'd') {
-                            html += `<div class="preview-button">${sec.buttonLabels[ep]}</div>`;
-                        }
-                    });
-                    html += `</div>`;
-                }
-
-                section.innerHTML = html;
-            }
-        }
-
-        function generateHTML() {
-            if (!questData.name || Object.keys(questData.sections).length === 0) {
-                alert('Please complete the quest info and parse the structure first!');
-                return;
-            }
-
-            // Generate the full HTML
-            const html = generateQuestHTML(questData);
-            document.getElementById('exportCode').value = html;
-            switchTab('export');
-            alert('✅ HTML generated! Check the Export tab.');
-        }
-
-        function generateQuestHTML(data) {
-            const slug = data.name.toLowerCase().replace(/\s+/g, '-');
-
-            let sectionsHTML = '';
-
-            Object.values(data.sections).forEach(sec => {
-                const isButton = !sec.endpoints.includes('d');
-                const isDice = sec.endpoints.includes('d');
-
-                sectionsHTML += `            <div id="section-${sec.id}" class="section">
-                <div class="section-number">Section ${sec.id}</div>
-                <div class="dialogue-box">`;
-
-                if (sec.image) {
-                    sectionsHTML += `
-                    <img src="images/${sec.image}" style="max-width: 250px; margin-bottom: 1rem;">`;
-                }
-
-                sectionsHTML += `
-                    <div class="dialogue-text">${sec.dialogue}</div>
-                </div>`;
-
-                if (isButton) {
-                    sectionsHTML += `
-                <div class="button-group">`;
-                    sec.endpoints.forEach(ep => {
-                        const nextSection = getNextSectionForButton(data.structure, sec.id, ep);
-                        sectionsHTML += `
-                    <button class="quest-button" onclick="goToSection('${nextSection}')">${sec.buttonLabels[ep]}</button>`;
-                    });
-                    sectionsHTML += `
-                </div>`;
-                }
-
-                if (isDice) {
-                    sectionsHTML += `
-                <div class="dice-container" id="dice-${sec.id}"></div>
-                <div class="dice-info">Click dice to lock. Roll button appears after 3 attempts.</div>
-                <button class="roll-button" id="roll-btn-${sec.id}" style="display:none" onclick="submitRoll('${sec.id}')">Submit Roll</button>
-                <script>
-                    document.addEventListener('DOMContentLoaded', () => {
-                        initDiceRoller('${sec.id}', 5);
-                    });
-                </script>`;
-                }
-
-                sectionsHTML += `
+            <div style="margin-bottom: 16px;">
+              <div style="color: #a0963d; font-size: 0.35rem; margin-bottom: 6px; text-transform: uppercase;">Best Case Scenario (All bonuses + Dice)</div>
+              <div class="xp-calc-row">
+                <span>Choice 1 (Best):</span>
+                <span id="calcChoice1Best">3</span>
+              </div>
+              <div class="xp-calc-row">
+                <span>Choice 2 (Best):</span>
+                <span id="calcChoice2Best">3</span>
+              </div>
+              <div class="xp-calc-row">
+                <span>Dice Score (max):</span>
+                <span>12</span>
+              </div>
+              <div class="xp-calc-row">
+                <span>Dex Bonus (avg):</span>
+                <span>+2</span>
+              </div>
+              <div class="xp-calc-row total">
+                <span>Total XP:</span>
+                <span id="calcBest">20</span>
+              </div>
             </div>
 
-`;
-            });
+            <div>
+              <div style="color: #a0963d; font-size: 0.35rem; margin-bottom: 6px; text-transform: uppercase;">Minimum (Failed Dice)</div>
+              <div class="xp-calc-row">
+                <span>Choice 1 (min):</span>
+                <span id="calcChoice1Min">1</span>
+              </div>
+              <div class="xp-calc-row">
+                <span>Choice 2 (min):</span>
+                <span id="calcChoice2Min">2</span>
+              </div>
+              <div class="xp-calc-row">
+                <span>Dice Score:</span>
+                <span>0</span>
+              </div>
+              <div class="xp-calc-row total">
+                <span>Total XP:</span>
+                <span id="calcMin">3</span>
+              </div>
+            </div>
+          </div>
 
-            return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${data.name} - Last Chad</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../../nav.css">
-    <link rel="stylesheet" href="../../styles.css">
-    <style>
-        body {
-            background: linear-gradient(135deg, #2a1810 0%, #3b2a14 50%, #1a1410 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            font-family: 'Press Start 2P', monospace;
-            color: #c9a84c;
-        }
+          <div class="json-export" id="jsonExport" style="display: none;">
+            <code id="jsonContent"></code>
+          </div>
 
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(10, 10, 15, 0.95);
-            z-index: 1000;
-            padding: 1rem 2rem;
-            border-bottom: 2px solid #c9a84c;
-        }
-
-        main {
-            flex: 1;
-            padding: 80px 2rem 2rem;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .quest-container {
-            background: rgba(59, 42, 20, 0.8);
-            border: 3px solid #c9a84c;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .quest-title {
-            font-size: clamp(1.5rem, 4vw, 2.5rem);
-            color: #ffd700;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 215, 0, 0.3);
-            margin-bottom: 2rem;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .dialogue-box {
-            background: rgba(20, 15, 10, 0.9);
-            border: 2px solid #8b7355;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            min-height: 100px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .dialogue-text {
-            font-size: clamp(0.8rem, 2vw, 1rem);
-            line-height: 1.6;
-            color: #e8d4b8;
-        }
-
-        .section {
-            display: none;
-            animation: fadeIn 0.3s ease-in;
-        }
-
-        .section.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .button-group {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 2rem;
-        }
-
-        .quest-button {
-            background: linear-gradient(135deg, #8b7355 0%, #5a4a3a 100%);
-            border: 2px solid #c9a84c;
-            color: #ffd700;
-            padding: 1rem 2rem;
-            font-family: 'Press Start 2P', monospace;
-            font-size: clamp(0.6rem, 1.5vw, 0.9rem);
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            position: relative;
-            overflow: hidden;
-            border-radius: 3px;
-        }
-
-        .quest-button:hover {
-            background: linear-gradient(135deg, #a08060 0%, #6b5a4a 100%);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7), 0 0 15px rgba(201, 168, 76, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .quest-button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .dice-container {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin: 2rem 0;
-            flex-wrap: wrap;
-        }
-
-        .die {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #d4af37 0%, #8b7355 100%);
-            border: 2px solid #c9a84c;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            color: #3b2a14;
-            border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: bold;
-            user-select: none;
-        }
-
-        .die:hover {
-            transform: scale(1.05);
-            background: linear-gradient(135deg, #ffd700 0%, #a08060 100%);
-        }
-
-        .die.locked {
-            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
-            border-color: #66bb6a;
-            color: #fff;
-        }
-
-        .dice-info {
-            text-align: center;
-            margin-top: 1rem;
-            font-size: clamp(0.6rem, 1vw, 0.8rem);
-        }
-
-        .roll-button {
-            background: linear-gradient(135deg, #c9a84c 0%, #8b7355 100%);
-            border: 2px solid #ffd700;
-            color: #1a1410;
-            padding: 1rem 2rem;
-            font-family: 'Press Start 2P', monospace;
-            font-size: clamp(0.7rem, 1.5vw, 0.9rem);
-            cursor: pointer;
-            text-transform: uppercase;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
-            border-radius: 3px;
-        }
-
-        .roll-button:hover {
-            background: linear-gradient(135deg, #ffd700 0%, #a08060 100%);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-        }
-
-        .section-number {
-            text-align: center;
-            color: #8b7355;
-            font-size: 0.8rem;
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .xp-display {
-            background: rgba(76, 175, 80, 0.2);
-            border: 2px solid #66bb6a;
-            color: #66bb6a;
-            padding: 1rem;
-            text-align: center;
-            margin-top: 2rem;
-            font-size: clamp(0.8rem, 1.5vw, 1rem);
-            border-radius: 3px;
-        }
-
-        @media (max-width: 768px) {
-            main {
-                padding: 80px 1rem 1rem;
-            }
-
-            .quest-container {
-                padding: 1.5rem;
-            }
-
-            .button-group {
-                gap: 0.5rem;
-            }
-
-            .die {
-                width: 60px;
-                height: 60px;
-                font-size: 2rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <header id="nav-container"></header>
-
-    <main>
-        <div class="quest-container">
-            <h1 class="quest-title">${data.name}</h1>
-
-${sectionsHTML}
-
+          <div id="statusMessage"></div>
         </div>
-    </main>
+      </div>
+    </div>
+  </div>
 
-    <script src="../../walletconnect-provider.js"></script>
-    <script src="../../nav.js"></script>
-    <script>
-        // Initialize navigation
-        const navContainer = document.getElementById('nav-container');
-        navContainer.innerHTML = getNavigation();
+  <script src="nav.js"></script>
+  <script>
+    if (typeof injectNav === 'function') {
+      injectNav();
+    }
 
-        // Quest state
-        const questState = {
-            currentSection: '1',
-            xpTotal: 0,
-            stats: {
-                strength: 5,
-                intelligence: 5,
-                dexterity: 5,
-                charisma: 5
-            }
-        };
+    // State management
+    const state = {
+      questSize: 'simple',
+      choices: [],
+      questData: {
+        name: '',
+        description: '',
+        type: 'simple',
+        difficulty: 'normal',
+        flow: '',
+        successCondition: '',
+        failureCondition: ''
+      }
+    };
 
-        function goToSection(sectionId) {
-            const current = document.getElementById(\`section-\${questState.currentSection}\`);
-            const next = document.getElementById(\`section-\${sectionId}\`);
+    // Quest size presets
+    const sizePresets = {
+      simple: { count: 2, min: 2, max: 2 },
+      medium: { count: 3, min: 3, max: 4 },
+      complex: { count: 4, min: 3, max: 5 },
+      epic: { count: 5, min: 4, max: 6 }
+    };
 
-            if (current) current.classList.remove('active');
-            if (next) {
-                next.classList.add('active');
-                questState.currentSection = sectionId;
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+    // XP ranges by difficulty
+    const difficultyRanges = {
+      easy: { min: 2, max: 3 },
+      normal: { min: 4, max: 6 },
+      hard: { min: 7, max: 10 },
+      legendary: { min: 11, max: 15 }
+    };
 
-        function rollDice(count = 5) {
-            const dice = [];
-            for (let i = 0; i < count; i++) {
-                dice.push(Math.floor(Math.random() * 6) + 1);
-            }
-            return dice;
-        }
-
-        function initDiceRoller(sectionId, numDice = 5) {
-            const container = document.getElementById(\`dice-\${sectionId}\`);
-            if (!container) return;
-
-            let rolls = 0;
-            const maxRolls = 3;
-            let currentDice = [];
-            let lockedDice = new Set();
-
-            function renderDice() {
-                container.innerHTML = '';
-                currentDice.forEach((value, index) => {
-                    const die = document.createElement('div');
-                    die.className = \`die \${lockedDice.has(index) ? 'locked' : ''}\`;
-                    die.textContent = value;
-                    die.onclick = () => toggleLock(index);
-                    container.appendChild(die);
-                });
-            }
-
-            function toggleLock(index) {
-                if (rolls < maxRolls) {
-                    if (lockedDice.has(index)) {
-                        lockedDice.delete(index);
-                    } else {
-                        lockedDice.add(index);
-                    }
-                    renderDice();
-                }
-            }
-
-            function roll() {
-                if (rolls < maxRolls) {
-                    rolls++;
-                    currentDice = currentDice.map((val, idx) =>
-                        lockedDice.has(idx) ? val : (Math.floor(Math.random() * 6) + 1)
-                    );
-                    renderDice();
-
-                    if (rolls >= maxRolls) {
-                        document.getElementById(\`roll-btn-\${sectionId}\`).style.display = 'block';
-                    }
-                }
-            }
-
-            window[\`roll_\${sectionId}\`] = roll;
-            currentDice = rollDice(numDice);
-            renderDice();
-
-            const rollBtn = document.getElementById(\`roll-btn-\${sectionId}\`);
-            if (rollBtn) {
-                rollBtn.onclick = () => roll();
-                rollBtn.textContent = 'Roll Dice';
-            }
-        }
-
-        function submitRoll(sectionId) {
-            const dice = Array.from(document.querySelectorAll(\`#dice-\${sectionId} .die\`))
-                .map(el => parseInt(el.textContent));
-
-            const hasWinning = dice.includes(6) && dice.includes(5) && dice.includes(4);
-
-            if (hasWinning) {
-                const remaining = dice.filter(d => d !== 6 && d !== 5 && d !== 4);
-                const baseXP = remaining.reduce((a, b) => a + b, 0);
-                const dexBonus = Math.max(0, questState.stats.dexterity - 1);
-                const totalXP = baseXP + dexBonus;
-
-                questState.xpTotal += totalXP;
-                goToSection(\`\${parseInt(sectionId[0]) + 1}p\`);
-            } else {
-                goToSection(\`\${parseInt(sectionId[0]) + 1}f\`);
-            }
-
-            updateXPDisplay();
-        }
-
-        function updateXPDisplay() {
-            const xpDisplay = document.querySelector('.xp-display');
-            if (xpDisplay) {
-                xpDisplay.innerHTML = \`⭐ XP Earned: <strong>\${questState.xpTotal}</strong> ⭐\`;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            goToSection('1');
-            updateXPDisplay();
-        });
-    </script>
-</body>
-</html>`;
-        }
-
-        function getNextSectionForButton(structure, currentId, buttonId) {
-            // For now, just suggest the next logical section
-            const num = parseInt(currentId[0]);
-            return \`\${num + 1}\${buttonId}\`;
-        }
-
-        function switchTab(tab) {
-            document.getElementById('preview-tab').classList.toggle('hidden', tab !== 'preview');
-            document.getElementById('export-tab').classList.toggle('hidden', tab !== 'export');
-
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-        }
-
-        function copyToClipboard() {
-            const code = document.getElementById('exportCode').value;
-            navigator.clipboard.writeText(code).then(() => {
-                alert('✅ HTML copied to clipboard!');
-            });
-        }
-
-        // Initialize
+    // Initialize quest type buttons
+    document.querySelectorAll('.size-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        state.questSize = this.dataset.size;
+        document.getElementById('questType').value = state.questSize;
+        initializeChoices();
         updatePreview();
-    </script>
+      });
+    });
+
+    // Quest Type Selector
+    document.getElementById('questType').addEventListener('change', function() {
+      state.questData.type = this.value;
+      state.questSize = this.value;
+      document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`[data-size="${this.value}"]`).classList.add('active');
+      initializeChoices();
+      updatePreview();
+    });
+
+    // Difficulty selector
+    document.getElementById('difficultyLevel').addEventListener('change', function() {
+      state.questData.difficulty = this.value;
+      updatePreview();
+    });
+
+    // Initialize choices for selected quest type
+    function initializeChoices() {
+      const count = sizePresets[state.questSize].count;
+      state.choices = [];
+      for (let i = 0; i < count; i++) {
+        state.choices.push({
+          id: i,
+          question: '',
+          options: [
+            { text: 'Option A', xp: 1 },
+            { text: 'Option B', xp: 2 }
+          ]
+        });
+      }
+      renderChoices();
+    }
+
+    // Render choice segments
+    function renderChoices() {
+      const container = document.getElementById('choicesContainer');
+      container.innerHTML = '';
+      state.choices.forEach((choice, idx) => {
+        const segment = document.createElement('div');
+        segment.className = 'choice-template';
+        segment.innerHTML = `
+          <div class="choice-template-header">
+            <div class="choice-template-title">Decision ${idx + 1}</div>
+            <button class="choice-template-delete" onclick="deleteChoice(${idx})">✕ Delete</button>
+          </div>
+          <div class="form-group">
+            <label>Question/Scenario</label>
+            <input type="text" placeholder="What do you do?" class="choice-question" value="${choice.question}" data-id="${idx}">
+          </div>
+          <div id="options-${idx}"></div>
+        `;
+        container.appendChild(segment);
+        renderOptions(idx);
+      });
+    }
+
+    // Render options for a choice
+    function renderOptions(choiceIdx) {
+      const optionsContainer = document.getElementById(`options-${choiceIdx}`);
+      optionsContainer.innerHTML = '';
+      state.choices[choiceIdx].options.forEach((option, optIdx) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'choice-group';
+        optionDiv.innerHTML = `
+          <h3>Option ${String.fromCharCode(65 + optIdx)}</h3>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" placeholder="Choose wisely..." class="option-text" value="${option.text}" data-choice="${choiceIdx}" data-option="${optIdx}">
+          </div>
+          <div class="choice-option">
+            <label>XP Bonus</label>
+            <input type="number" class="option-xp" value="${option.xp}" min="0" max="15" data-choice="${choiceIdx}" data-option="${optIdx}">
+          </div>
+        `;
+        optionsContainer.appendChild(optionDiv);
+      });
+
+      // Add event listeners
+      optionsContainer.querySelectorAll('.option-text, .option-xp').forEach(input => {
+        input.addEventListener('input', function() {
+          const choiceIdx = parseInt(this.dataset.choice);
+          const optIdx = parseInt(this.dataset.option);
+          if (this.classList.contains('option-text')) {
+            state.choices[choiceIdx].options[optIdx].text = this.value;
+          } else {
+            state.choices[choiceIdx].options[optIdx].xp = parseInt(this.value) || 0;
+          }
+          updatePreview();
+          saveQuestDraft();
+        });
+      });
+    }
+
+    function deleteChoice(idx) {
+      if (state.choices.length > 2) {
+        state.choices.splice(idx, 1);
+        renderChoices();
+        updatePreview();
+        saveQuestDraft();
+      }
+    }
+
+    // Add choice
+    document.getElementById('addChoiceBtn').addEventListener('click', function() {
+      const max = sizePresets[state.questSize].max;
+      if (state.choices.length < max) {
+        state.choices.push({
+          id: state.choices.length,
+          question: '',
+          options: [
+            { text: 'Option A', xp: 1 },
+            { text: 'Option B', xp: 2 }
+          ]
+        });
+        renderChoices();
+        updatePreview();
+      }
+    });
+
+    // Update quest flow and success/failure conditions
+    ['questName', 'questDescription', 'questFlow', 'successCondition', 'failureCondition'].forEach(id => {
+      document.getElementById(id).addEventListener('input', function() {
+        state.questData.name = document.getElementById('questName').value;
+        state.questData.description = document.getElementById('questDescription').value;
+        state.questData.flow = document.getElementById('questFlow').value;
+        state.questData.successCondition = document.getElementById('successCondition').value;
+        state.questData.failureCondition = document.getElementById('failureCondition').value;
+        updatePreview();
+        saveQuestDraft();
+      });
+    });
+
+    // Update choice questions
+    document.addEventListener('input', function(e) {
+      if (e.target.classList.contains('choice-question')) {
+        const idx = parseInt(e.target.dataset.id);
+        state.choices[idx].question = e.target.value;
+        updatePreview();
+        saveQuestDraft();
+      }
+    });
+
+    function updatePreview() {
+      document.getElementById('previewName').textContent = state.questData.name || 'Untitled Quest';
+      document.getElementById('previewType').textContent = state.questData.type.charAt(0).toUpperCase() + state.questData.type.slice(1);
+      document.getElementById('previewDifficulty').textContent = state.questData.difficulty.charAt(0).toUpperCase() + state.questData.difficulty.slice(1);
+      document.getElementById('previewDesc').textContent = state.questData.description || 'No description provided.';
+      document.getElementById('previewFlow').textContent = state.questData.flow || 'Not defined';
+      document.getElementById('previewSuccess').textContent = state.questData.successCondition || 'Not defined';
+
+      // Show choices
+      let choicesHTML = '';
+      state.choices.forEach((choice, idx) => {
+        choicesHTML += `<div style="margin-bottom: 8px;">
+          <div style="color: #c9a84c; font-size: 0.35rem; font-weight: bold;">Choice ${idx + 1}: ${choice.question || 'Untitled'}</div>
+          <div style="margin-left: 8px; margin-top: 4px;">`;
+        choice.options.forEach((opt, optIdx) => {
+          choicesHTML += `<div style="color: #f5e6c8; font-size: 0.35rem; margin-bottom: 2px;">
+            ${String.fromCharCode(65 + optIdx)}) ${opt.text} <span style="color: #7ee8d4;">(+${opt.xp} XP)</span>
+          </div>`;
+        });
+        choicesHTML += '</div></div>';
+      });
+
+      document.getElementById('previewChoicesContent').innerHTML = choicesHTML || '<div style="color: #a0963d;">No choices added yet</div>';
+
+      // Calculate XP ranges
+      const minXps = state.choices.map(c => Math.min(...c.options.map(o => o.xp)));
+      const maxXps = state.choices.map(c => Math.max(...c.options.map(o => o.xp)));
+      const minTotal = minXps.reduce((a, b) => a + b, 0);
+      const maxTotal = maxXps.reduce((a, b) => a + b, 0) + 12 + 2; // +dice +dex
+
+      document.getElementById('calcChoice1Best').textContent = maxXps[0] || 0;
+      document.getElementById('calcChoice2Best').textContent = maxXps[1] || 0;
+      document.getElementById('calcChoice1Min').textContent = minXps[0] || 0;
+      document.getElementById('calcChoice2Min').textContent = minXps[1] || 0;
+      document.getElementById('calcBest').textContent = maxTotal;
+      document.getElementById('calcMin').textContent = minTotal;
+    }
+
+    function saveQuestDraft() {
+      localStorage.setItem('questBuilderDraft', JSON.stringify({
+        questData: state.questData,
+        choices: state.choices,
+        questSize: state.questSize
+      }));
+    }
+
+    function exportQuestJSON() {
+      return {
+        name: state.questData.name || 'Untitled Quest',
+        description: state.questData.description || '',
+        type: state.questData.type,
+        difficulty: state.questData.difficulty,
+        flow: state.questData.flow,
+        successCondition: state.questData.successCondition,
+        failureCondition: state.questData.failureCondition,
+        choices: state.choices,
+        mechanics: {
+          minXPs: state.choices.map(c => Math.min(...c.options.map(o => o.xp))),
+          maxXPs: state.choices.map(c => Math.max(...c.options.map(o => o.xp))),
+          diceRequired: '6, 5, 4',
+          dexBonusScaling: '1 dex point = 1 XP'
+        }
+      };
+    }
+
+    function generateSolidityCode() {
+      const questName = state.questData.name.replace(/\s+/g, '').substring(0, 20);
+      const choices = state.choices;
+
+      let code = `// Quest: ${state.questData.name}\\n`;
+      code += `// ${state.questData.description}\\n\\n`;
+      code += `struct Quest${questName} {\\n`;
+      code += `    uint8 questId;\\n`;
+      code += `    string name;\\n`;
+      code += `    string description;\\n`;
+      code += `    string difficulty; // ${state.questData.difficulty}\\n`;
+      code += `    uint8 numChoices; // ${choices.length}\\n`;
+      code += `}\\n\\n`;
+
+      code += `// Choice Rewards (XP Bonuses)\\n`;
+      choices.forEach((choice, idx) => {
+        code += `// Choice ${idx + 1}: ${choice.question}\\n`;
+        choice.options.forEach((opt, optIdx) => {
+          code += `uint8 choice${idx + 1}Option${optIdx} = ${opt.xp}; // "${opt.text}"\\n`;
+        });
+      });
+
+      code += `\\n// XP Range: ${state.choices.reduce((a, b) => a + Math.min(...b.options.map(o => o.xp)), 0)} - ${state.choices.reduce((a, b) => a + Math.max(...b.options.map(o => o.xp)), 0) + 14} XP\\n`;
+
+      return code;
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', function() {
+      const jsonData = exportQuestJSON();
+      document.getElementById('jsonExport').style.display = 'block';
+      document.getElementById('jsonContent').textContent = JSON.stringify(jsonData, null, 2);
+      const statusMsg = document.getElementById('statusMessage');
+      statusMsg.innerHTML = '<div class="success-message">✓ Quest saved! Copy the JSON.</div>';
+      setTimeout(() => statusMsg.innerHTML = '', 3000);
+    });
+
+    document.getElementById('solidityBtn').addEventListener('click', function() {
+      const solidityCode = document.createElement('div');
+      solidityCode.className = 'solidity-code visible';
+      solidityCode.innerHTML = `<code>${generateSolidityCode()}</code>`;
+      const existingCode = document.querySelector('.solidity-code');
+      if (existingCode) existingCode.remove();
+      document.getElementById('statusMessage').parentNode.appendChild(solidityCode);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', function() {
+      if (confirm('Reset all quest data?')) {
+        state.questData = { name: '', description: '', type: 'simple', difficulty: 'normal', flow: '', successCondition: '', failureCondition: '' };
+        document.getElementById('questName').value = '';
+        document.getElementById('questDescription').value = '';
+        document.getElementById('questFlow').value = '';
+        document.getElementById('successCondition').value = '';
+        document.getElementById('failureCondition').value = '';
+        localStorage.removeItem('questBuilderDraft');
+        state.questSize = 'simple';
+        initializeChoices();
+        updatePreview();
+      }
+    });
+
+    function loadQuestData() {
+      const saved = localStorage.getItem('questBuilderDraft');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          state.questData = data.questData;
+          state.choices = data.choices;
+          state.questSize = data.questSize;
+          document.getElementById('questName').value = state.questData.name;
+          document.getElementById('questDescription').value = state.questData.description;
+          document.getElementById('questType').value = state.questData.type;
+          document.getElementById('difficultyLevel').value = state.questData.difficulty;
+          document.getElementById('questFlow').value = state.questData.flow;
+          document.getElementById('successCondition').value = state.questData.successCondition;
+          document.getElementById('failureCondition').value = state.questData.failureCondition;
+          renderChoices();
+        } catch (e) {
+          console.error('Error loading saved data:', e);
+          initializeChoices();
+        }
+      } else {
+        initializeChoices();
+      }
+    }
+
+    loadQuestData();
+    updatePreview();
+  </script>
 </body>
-</html>`;
+</html>
