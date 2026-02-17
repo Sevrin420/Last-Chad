@@ -244,6 +244,17 @@ class GitHubAPI {
 /**
  * Generate quest player HTML
  */
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 function generateQuestHTML(questName, sections) {
   const sanitized = questName
     .toLowerCase()
@@ -256,7 +267,7 @@ function generateQuestHTML(questName, sections) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${questName} | Last Chad</title>
+  <title>${escapeHtml(questName)} | Last Chad</title>
   <link rel="stylesheet" href="../../styles.css">
   <link rel="stylesheet" href="../../nav.css">
   <style>
@@ -428,13 +439,13 @@ function generateQuestHTML(questName, sections) {
   <div class="bg"></div>
 
   <div class="header">
-    <div class="header-title">⚔️ ${questName}</div>
+    <div class="header-title">⚔️ ${escapeHtml(questName)}</div>
     <div class="nav-menu" id="navMenu"></div>
   </div>
 
   <div class="main">
     <button class="back-btn" onclick="window.history.back()">← Back</button>
-    <h1 class="quest-title">${questName}</h1>
+    <h1 class="quest-title">${escapeHtml(questName)}</h1>
     <div id="questContainer" class="loading">Loading quest...</div>
   </div>
 
@@ -480,15 +491,15 @@ function generateQuestHTML(questName, sections) {
 
       let html = \`
         <div class="section-container">
-          <div class="section-name">\${section.name}</div>
+          <div class="section-name">\${escapeHtml(section.name)}</div>
       \`;
 
       if (section.photo) {
-        html += \`<img src="images/\${section.id}.png" alt="\${section.name}" class="section-image visible">\`;
+        html += \`<img src="images/\${section.id}.png" alt="\${escapeHtml(section.name)}" class="section-image visible">\`;
       }
 
       html += \`
-          <div class="dialogue">\${section.dialogue || 'No dialogue...'}</div>
+          <div class="dialogue">\${escapeHtml(section.dialogue || 'No dialogue...')}</div>
       \`;
 
       if (section.selectedChoice === 'single') {
@@ -496,7 +507,7 @@ function generateQuestHTML(questName, sections) {
         html += \`
           <div class="choices">
             <button class="choice-btn" onclick="displaySection(\${nextSection ? nextSection.id : 'null'})">
-              \${section.buttonName || 'Continue'}
+              \${escapeHtml(section.buttonName || 'Continue')}
             </button>
           </div>
         \`;
@@ -506,10 +517,10 @@ function generateQuestHTML(questName, sections) {
         html += \`
           <div class="choices double-choices">
             <button class="choice-btn" onclick="displaySection(\${next1 ? next1.id : 'null'})">
-              \${section.button1Name || 'Choice A'}
+              \${escapeHtml(section.button1Name || 'Choice A')}
             </button>
             <button class="choice-btn" onclick="displaySection(\${next2 ? next2.id : 'null'})">
-              \${section.button2Name || 'Choice B'}
+              \${escapeHtml(section.button2Name || 'Choice B')}
             </button>
           </div>
         \`;
