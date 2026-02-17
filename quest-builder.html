@@ -267,6 +267,149 @@
       opacity: 0.7;
     }
 
+    /* Choice Configuration */
+    .choice-config {
+      background: rgba(126, 232, 212, 0.1);
+      border: 1px solid rgba(126, 232, 212, 0.3);
+      border-radius: 4px;
+      padding: 16px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .choice-config.visible {
+      display: block;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .choice-config label {
+      display: block;
+      font-size: 0.4rem;
+      color: #7ee8d4;
+      margin-bottom: 8px;
+      text-shadow: 0 0 4px rgba(126, 232, 212, 0.2);
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .button-row input {
+      background: rgba(20, 15, 5, 0.9);
+      border: 1px solid #7ee8d4;
+      color: #f5e6c8;
+      padding: 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.35rem;
+      border-radius: 2px;
+    }
+
+    .button-row input:focus {
+      outline: none;
+      border-color: #c9a84c;
+      box-shadow: 0 0 12px rgba(126, 232, 212, 0.4);
+    }
+
+    .dice-placeholder {
+      background: rgba(20, 15, 5, 0.9);
+      border: 2px dashed #7ee8d4;
+      border-radius: 4px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .dice-placeholder:hover {
+      background: rgba(126, 232, 212, 0.05);
+      border-color: #c9a84c;
+    }
+
+    .dice-placeholder input[type="file"] {
+      display: none;
+    }
+
+    .dice-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.6;
+    }
+
+    .dice-text {
+      color: #a0963d;
+      font-size: 0.3rem;
+      line-height: 1.4;
+    }
+
+    /* Button Preview */
+    .button-preview {
+      margin-top: 20px;
+      padding: 16px;
+      background: rgba(126, 232, 212, 0.05);
+      border: 1px solid rgba(126, 232, 212, 0.3);
+      border-radius: 4px;
+    }
+
+    .button-preview-label {
+      font-size: 0.3rem;
+      color: #7ee8d4;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+
+    .single-button-preview {
+      display: inline-block;
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
+      border: 2px solid #c9a84c;
+      color: #c9a84c;
+      padding: 12px 24px;
+      font-size: 0.35rem;
+      border-radius: 4px;
+      font-family: 'Press Start 2P', monospace;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      min-width: 150px;
+      text-align: center;
+    }
+
+    .double-buttons-preview {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .double-button-preview {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
+      border: 2px solid #c9a84c;
+      color: #c9a84c;
+      padding: 12px 16px;
+      font-size: 0.3rem;
+      border-radius: 4px;
+      font-family: 'Press Start 2P', monospace;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      text-align: center;
+      word-break: break-word;
+    }
+
     /* Add Section Button */
     .add-section-btn {
       background: linear-gradient(135deg, rgba(126, 232, 212, 0.2) 0%, rgba(126, 232, 212, 0.1) 100%);
@@ -402,7 +545,17 @@
         try {
           const data = JSON.parse(saved);
           state.questName = data.questName || '';
-          state.sections = data.sections || [];
+          state.sections = (data.sections || []).map(section => ({
+            id: section.id,
+            name: section.name || '',
+            photo: section.photo || null,
+            dialogue: section.dialogue || '',
+            selectedChoice: section.selectedChoice || null,
+            buttonName: section.buttonName || 'Continue',
+            button1Name: section.button1Name || 'Choice A',
+            button2Name: section.button2Name || 'Choice B',
+            diceImage: section.diceImage || null
+          }));
           document.getElementById('questName').value = state.questName;
         } catch (e) {
           console.error('Error loading quest data:', e);
@@ -427,7 +580,14 @@
         name: `Section ${state.sections.length + 1}`,
         photo: null,
         dialogue: '',
-        selectedChoice: null // 'single', 'double', or 'dice'
+        selectedChoice: null, // 'single', 'double', or 'dice'
+        // Single button config
+        buttonName: 'Continue',
+        // Double button config
+        button1Name: 'Choice A',
+        button2Name: 'Choice B',
+        // Dice config
+        diceImage: null
       };
       state.sections.push(newSection);
       renderSections();
@@ -499,6 +659,56 @@
               </div>
             </div>
           </div>
+
+          <!-- Single Button Config -->
+          <div class="choice-config ${section.selectedChoice === 'single' ? 'visible' : ''}" data-config="single" data-section-id="${section.id}">
+            <label>Button Text</label>
+            <input type="text" class="button-name-input" placeholder="e.g., Continue, Accept Quest" value="${section.buttonName || 'Continue'}" data-section-id="${section.id}">
+          </div>
+
+          <!-- Double Button Config -->
+          <div class="choice-config ${section.selectedChoice === 'double' ? 'visible' : ''}" data-config="double" data-section-id="${section.id}">
+            <label>First Choice Button</label>
+            <input type="text" class="button1-name-input" placeholder="e.g., Accept" value="${section.button1Name || 'Choice A'}" data-section-id="${section.id}" style="margin-bottom: 16px;">
+            <label>Second Choice Button</label>
+            <input type="text" class="button2-name-input" placeholder="e.g., Decline" value="${section.button2Name || 'Choice B'}" data-section-id="${section.id}">
+          </div>
+
+          <!-- Dice Config -->
+          <div class="choice-config ${section.selectedChoice === 'dice' ? 'visible' : ''}" data-config="dice" data-section-id="${section.id}">
+            <label>Dice Placeholder Image</label>
+            <div class="dice-placeholder" data-section-id="${section.id}">
+              <input type="file" accept="image/*" data-section-id="${section.id}" class="dice-image-input">
+              <div class="dice-icon">🎲</div>
+              <div class="dice-text">Click to upload dice visual<br>(or use placeholder)</div>
+            </div>
+            ${section.diceImage ? `<img src="${section.diceImage}" style="width: 100%; max-width: 200px; margin-top: 16px; border: 1px solid #7ee8d4; border-radius: 2px;">` : ''}
+          </div>
+
+          <!-- Button Preview -->
+          ${section.selectedChoice === 'single' ? `
+            <div class="button-preview">
+              <div class="button-preview-label">📦 Button Preview</div>
+              <div class="single-button-preview">${section.buttonName || 'Continue'}</div>
+            </div>
+          ` : ''}
+
+          ${section.selectedChoice === 'double' ? `
+            <div class="button-preview">
+              <div class="button-preview-label">📦 Button Preview</div>
+              <div class="double-buttons-preview">
+                <div class="double-button-preview">${section.button1Name || 'Choice A'}</div>
+                <div class="double-button-preview">${section.button2Name || 'Choice B'}</div>
+              </div>
+            </div>
+          ` : ''}
+
+          ${section.selectedChoice === 'dice' ? `
+            <div class="button-preview">
+              <div class="button-preview-label">🎲 Dice Roll Preview</div>
+              <div style="text-align: center; color: #a0963d; font-size: 0.3rem;">Player will roll dice and calculate XP</div>
+            </div>
+          ` : ''}
         `;
 
         container.appendChild(sectionEl);
@@ -561,16 +771,79 @@
         });
       });
 
-      // Choice selection
-      document.querySelectorAll('.choice-option').forEach(option => {
-        option.addEventListener('click', (e) => {
-          const sectionId = parseInt(option.dataset.sectionId);
-          const choice = option.dataset.choice;
+      // Choice selection (using event delegation for reliability)
+      const container = document.getElementById('sectionsContainer');
+      container.addEventListener('click', (e) => {
+        const choiceOption = e.target.closest('.choice-option');
+        if (choiceOption) {
+          const sectionId = parseInt(choiceOption.dataset.sectionId);
+          const choice = choiceOption.dataset.choice;
           const section = state.sections.find(s => s.id === sectionId);
           if (section) {
             section.selectedChoice = choice;
             renderSections();
             saveQuestAuto();
+          }
+        }
+      });
+
+      // Single button name input
+      document.querySelectorAll('.button-name-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.buttonName = e.target.value;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      // Double button name inputs
+      document.querySelectorAll('.button1-name-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.button1Name = e.target.value;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      document.querySelectorAll('.button2-name-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.button2Name = e.target.value;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      // Dice image upload
+      document.querySelectorAll('.dice-placeholder').forEach(placeholder => {
+        placeholder.addEventListener('click', (e) => {
+          const input = placeholder.querySelector('input[type="file"]');
+          input.click();
+        });
+
+        const fileInput = placeholder.querySelector('input[type="file"]');
+        fileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const sectionId = parseInt(e.target.dataset.sectionId);
+              const section = state.sections.find(s => s.id === sectionId);
+              if (section) {
+                section.diceImage = event.target.result;
+                renderSections();
+                saveQuestAuto();
+              }
+            };
+            reader.readAsDataURL(file);
           }
         });
       });
