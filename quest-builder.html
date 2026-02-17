@@ -1362,18 +1362,50 @@
             console.error('Publish error:', error);
             // Extract error message safely
             const errorMsg = error?.message || String(error) || 'Unknown error';
-            // If it's an auth error, clear the stored token
-            if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
+
+            // Build detailed error message
+            let detailedMsg = `${errorMsg}\n\n🔍 DEBUG INFO:\n`;
+            detailedMsg += `Repository: Sevrin420/Last-Chad\n`;
+            detailedMsg += `Branch: main\n`;
+            detailedMsg += `Token: ${token ? '✓ Provided' : '✗ Missing'}\n`;
+
+            // Add specific troubleshooting based on error
+            if (errorMsg.includes('Not Found')) {
+              detailedMsg += `\n⚠️ LIKELY CAUSES:\n`;
+              detailedMsg += `• Repository may not exist\n`;
+              detailedMsg += `• Branch 'main' doesn't exist\n`;
+              detailedMsg += `• Token lacks 'repo' scope\n`;
+              detailedMsg += `\n📖 See browser console (F12) for detailed logs`;
+            } else if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
+              detailedMsg += `\n⚠️ TOKEN ISSUE:\n`;
+              detailedMsg += `• Token is invalid or expired\n`;
+              detailedMsg += `• Token missing 'repo' scope\n`;
+              detailedMsg += `• Get new token: https://github.com/settings/tokens`;
               localStorage.removeItem('githubToken');
+            } else if (errorMsg.includes('403')) {
+              detailedMsg += `\n⚠️ PERMISSION DENIED:\n`;
+              detailedMsg += `• You don't have push access to this repo\n`;
+              detailedMsg += `• Token needs 'repo' scope`;
             }
-            alert(`❌ Failed to publish quest:\n${errorMsg}`);
+
+            detailedMsg += `\n\n💡 Next step:\n`;
+            detailedMsg += `1. Open browser console (F12)\n`;
+            detailedMsg += `2. Look for detailed step-by-step logs\n`;
+            detailedMsg += `3. Share the logs for support`;
+
+            alert(detailedMsg);
             saveBtn.disabled = false;
             saveBtn.textContent = '💾 Save Quest';
           });
       } catch (error) {
         console.error('Publish error:', error);
         const errorMsg = error?.message || String(error) || 'Unknown error';
-        alert(`❌ Failed to publish quest:\n${errorMsg}`);
+        let detailedMsg = `${errorMsg}\n\n🔍 DEBUG INFO:\n`;
+        detailedMsg += `Repository: Sevrin420/Last-Chad\n`;
+        detailedMsg += `Branch: main\n`;
+        detailedMsg += `Token: ${token ? '✓ Provided' : '✗ Missing'}\n`;
+        detailedMsg += `\n📖 See browser console (F12) for detailed logs`;
+        alert(detailedMsg);
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Save Quest';
       }
