@@ -145,7 +145,12 @@ class GitHubAPI {
       // Process and add images
       for (const section of sections) {
         if (section.photo) {
-          const imageData = section.photo.split(',')[1]; // Get base64 part
+          const imageParts = section.photo.split(',');
+          const imageData = imageParts.length > 1 ? imageParts[1] : imageParts[0];
+          if (!imageData) {
+            console.warn(`⚠️ Invalid photo data for section ${section.id}`);
+            continue;
+          }
           const imageBlob = await this.createBlob(imageData, 'base64');
           treeItems.push({
             path: `${imagesPath}/${section.id}.png`,
@@ -156,7 +161,12 @@ class GitHubAPI {
         }
 
         if (section.diceImage) {
-          const diceData = section.diceImage.split(',')[1]; // Get base64 part
+          const diceParts = section.diceImage.split(',');
+          const diceData = diceParts.length > 1 ? diceParts[1] : diceParts[0];
+          if (!diceData) {
+            console.warn(`⚠️ Invalid dice image data for section ${section.id}`);
+            continue;
+          }
           const diceBlob = await this.createBlob(diceData, 'base64');
           treeItems.push({
             path: `${imagesPath}/dice-${section.id}.png`,

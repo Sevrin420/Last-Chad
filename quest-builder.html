@@ -1360,17 +1360,20 @@
           })
           .catch(error => {
             console.error('Publish error:', error);
+            // Extract error message safely
+            const errorMsg = error?.message || String(error) || 'Unknown error';
             // If it's an auth error, clear the stored token
-            if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+            if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
               localStorage.removeItem('githubToken');
             }
-            alert(`❌ Failed to publish quest:\n${error.message}`);
+            alert(`❌ Failed to publish quest:\n${errorMsg}`);
             saveBtn.disabled = false;
             saveBtn.textContent = '💾 Save Quest';
           });
       } catch (error) {
         console.error('Publish error:', error);
-        alert(`❌ Failed to publish quest:\n${error.message}`);
+        const errorMsg = error?.message || String(error) || 'Unknown error';
+        alert(`❌ Failed to publish quest:\n${errorMsg}`);
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Save Quest';
       }
