@@ -301,6 +301,29 @@
       text-shadow: 0 0 4px rgba(126, 232, 212, 0.2);
     }
 
+    .choice-config select {
+      width: 100%;
+      background: rgba(20, 15, 5, 0.9);
+      border: 1px solid #7ee8d4;
+      color: #f5e6c8;
+      padding: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.3rem;
+      border-radius: 2px;
+      margin-bottom: 16px;
+    }
+
+    .choice-config select:focus {
+      outline: none;
+      border-color: #c9a84c;
+      box-shadow: 0 0 12px rgba(126, 232, 212, 0.4);
+    }
+
+    .choice-config select option {
+      background: #0a0a0f;
+      color: #f5e6c8;
+    }
+
     .button-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -476,6 +499,122 @@
       box-shadow: 0 0 16px rgba(126, 232, 212, 0.3);
     }
 
+    /* Tree View Button */
+    .tree-view-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 200;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
+      border: 2px solid #c9a84c;
+      color: #c9a84c;
+      font-size: 1.5rem;
+      font-family: 'Press Start 2P', monospace;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+    }
+
+    .tree-view-btn:hover {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.4) 0%, rgba(201, 168, 76, 0.2) 100%);
+      box-shadow: 0 0 20px rgba(201, 168, 76, 0.4);
+      transform: scale(1.05);
+    }
+
+    .tree-view-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Tree View Modal */
+    .tree-view-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      backdrop-filter: blur(4px);
+    }
+
+    .tree-view-modal.open {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .tree-view-content {
+      background: rgba(10, 10, 15, 0.95);
+      border: 2px solid #c9a84c;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 900px;
+      height: 80vh;
+      max-height: 700px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 30px rgba(201, 168, 76, 0.3);
+    }
+
+    .tree-view-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 2px solid #c9a84c;
+    }
+
+    .tree-view-header h2 {
+      font-size: 0.5rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    .tree-view-close {
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', monospace;
+    }
+
+    .tree-view-close:hover {
+      background: rgba(255, 107, 107, 0.3);
+    }
+
+    .tree-view-body {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      background: rgba(20, 15, 10, 0.5);
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .main {
@@ -489,11 +628,38 @@
       .header-title {
         font-size: 0.6rem;
       }
+
+      .tree-view-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+      }
+
+      .tree-view-content {
+        width: 95%;
+        height: 90vh;
+      }
     }
   </style>
 </head>
 <body>
   <div class="bg"></div>
+
+  <!-- Tree View Button -->
+  <button class="tree-view-btn" id="treeViewBtn" title="View Quest Tree Logic">!</button>
+
+  <!-- Tree View Modal -->
+  <div class="tree-view-modal" id="treeViewModal">
+    <div class="tree-view-content">
+      <div class="tree-view-header">
+        <h2>Quest Logic Tree</h2>
+        <button class="tree-view-close" id="treeViewClose">✕</button>
+      </div>
+      <div class="tree-view-body" id="treeViewBody">
+        <svg id="treeViewSvg" style="width: 100%; height: 100%; min-height: 400px;"></svg>
+      </div>
+    </div>
+  </div>
 
   <div class="header">
     <div class="header-title">⚔️ QUEST BUILDER</div>
@@ -535,6 +701,11 @@
       document.getElementById('addSectionBtn').addEventListener('click', addSection);
       document.getElementById('saveBtn').addEventListener('click', saveQuest);
       document.getElementById('exportBtn').addEventListener('click', exportQuest);
+      document.getElementById('treeViewBtn').addEventListener('click', openTreeView);
+      document.getElementById('treeViewClose').addEventListener('click', closeTreeView);
+      document.getElementById('treeViewModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('treeViewModal')) closeTreeView();
+      });
       renderSections();
     }
 
@@ -554,7 +725,12 @@
             buttonName: section.buttonName || 'Continue',
             button1Name: section.button1Name || 'Choice A',
             button2Name: section.button2Name || 'Choice B',
-            diceImage: section.diceImage || null
+            diceImage: section.diceImage || null,
+            nextSectionId: section.nextSectionId || null,
+            choice1NextSectionId: section.choice1NextSectionId || null,
+            choice2NextSectionId: section.choice2NextSectionId || null,
+            passNextSectionId: section.passNextSectionId || null,
+            failNextSectionId: section.failNextSectionId || null
           }));
           document.getElementById('questName').value = state.questName;
         } catch (e) {
@@ -583,11 +759,16 @@
         selectedChoice: null, // 'single', 'double', or 'dice'
         // Single button config
         buttonName: 'Continue',
+        nextSectionId: null,
         // Double button config
         button1Name: 'Choice A',
         button2Name: 'Choice B',
+        choice1NextSectionId: null,
+        choice2NextSectionId: null,
         // Dice config
-        diceImage: null
+        diceImage: null,
+        passNextSectionId: null,
+        failNextSectionId: null
       };
       state.sections.push(newSection);
       renderSections();
@@ -664,14 +845,30 @@
           <div class="choice-config ${section.selectedChoice === 'single' ? 'visible' : ''}" data-config="single" data-section-id="${section.id}">
             <label>Button Text</label>
             <input type="text" class="button-name-input" placeholder="e.g., Continue, Accept Quest" value="${section.buttonName || 'Continue'}" data-section-id="${section.id}">
+            <label style="margin-top: 16px;">Leads To Section</label>
+            <select class="next-section-select" data-section-id="${section.id}" data-choice-type="single">
+              <option value="">-- No next section --</option>
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.nextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+            </select>
           </div>
 
           <!-- Double Button Config -->
           <div class="choice-config ${section.selectedChoice === 'double' ? 'visible' : ''}" data-config="double" data-section-id="${section.id}">
             <label>First Choice Button</label>
-            <input type="text" class="button1-name-input" placeholder="e.g., Accept" value="${section.button1Name || 'Choice A'}" data-section-id="${section.id}" style="margin-bottom: 16px;">
-            <label>Second Choice Button</label>
-            <input type="text" class="button2-name-input" placeholder="e.g., Decline" value="${section.button2Name || 'Choice B'}" data-section-id="${section.id}">
+            <input type="text" class="button1-name-input" placeholder="e.g., Accept" value="${section.button1Name || 'Choice A'}" data-section-id="${section.id}" style="margin-bottom: 12px;">
+            <label style="margin-bottom: 8px;">Leads To Section</label>
+            <select class="choice1-next-section-select" data-section-id="${section.id}">
+              <option value="">-- No next section --</option>
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.choice1NextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+            </select>
+
+            <label style="margin-top: 16px;">Second Choice Button</label>
+            <input type="text" class="button2-name-input" placeholder="e.g., Decline" value="${section.button2Name || 'Choice B'}" data-section-id="${section.id}" style="margin-bottom: 12px;">
+            <label style="margin-bottom: 8px;">Leads To Section</label>
+            <select class="choice2-next-section-select" data-section-id="${section.id}">
+              <option value="">-- No next section --</option>
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.choice2NextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+            </select>
           </div>
 
           <!-- Dice Config -->
@@ -683,6 +880,18 @@
               <div class="dice-text">Click to upload dice visual<br>(or use placeholder)</div>
             </div>
             ${section.diceImage ? `<img src="${section.diceImage}" style="width: 100%; max-width: 200px; margin-top: 16px; border: 1px solid #7ee8d4; border-radius: 2px;">` : ''}
+
+            <label style="margin-top: 20px;">On Pass</label>
+            <select class="pass-next-section-select" data-section-id="${section.id}">
+              <option value="">-- No next section --</option>
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.passNextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+            </select>
+
+            <label style="margin-top: 16px;">On Fail</label>
+            <select class="fail-next-section-select" data-section-id="${section.id}">
+              <option value="">-- No next section --</option>
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.failNextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+            </select>
           </div>
 
           <!-- Button Preview -->
@@ -847,6 +1056,62 @@
           }
         });
       });
+
+      // Next section selectors
+      document.querySelectorAll('.next-section-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.nextSectionId = e.target.value ? parseInt(e.target.value) : null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      document.querySelectorAll('.choice1-next-section-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.choice1NextSectionId = e.target.value ? parseInt(e.target.value) : null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      document.querySelectorAll('.choice2-next-section-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.choice2NextSectionId = e.target.value ? parseInt(e.target.value) : null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      document.querySelectorAll('.pass-next-section-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.passNextSectionId = e.target.value ? parseInt(e.target.value) : null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      document.querySelectorAll('.fail-next-section-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.failNextSectionId = e.target.value ? parseInt(e.target.value) : null;
+            saveQuestAuto();
+          }
+        });
+      });
     }
 
     function saveQuestAuto() {
@@ -872,6 +1137,239 @@
       a.download = `${state.questName || 'quest'}.json`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // Tree View Functions
+    function openTreeView() {
+      renderTreeView();
+      document.getElementById('treeViewModal').classList.add('open');
+    }
+
+    function closeTreeView() {
+      document.getElementById('treeViewModal').classList.remove('open');
+    }
+
+    function buildTreeStructure() {
+      // Build a map of section ids to their indices
+      const sectionMap = {};
+      state.sections.forEach((section, idx) => {
+        sectionMap[section.id] = idx;
+      });
+
+      // Build tree nodes with parent-child relationships
+      const nodes = state.sections.map((section, idx) => {
+        const node = {
+          id: section.id,
+          name: section.name,
+          selectedChoice: section.selectedChoice,
+          index: idx,
+          children: []
+        };
+
+        // Add children based on choice type
+        if (section.selectedChoice === 'single' && section.nextSectionId) {
+          node.children.push({
+            type: 'single',
+            targetId: section.nextSectionId,
+            label: section.buttonName || 'Continue'
+          });
+        } else if (section.selectedChoice === 'double') {
+          if (section.choice1NextSectionId) {
+            node.children.push({
+              type: 'choice1',
+              targetId: section.choice1NextSectionId,
+              label: section.button1Name || 'Choice A'
+            });
+          }
+          if (section.choice2NextSectionId) {
+            node.children.push({
+              type: 'choice2',
+              targetId: section.choice2NextSectionId,
+              label: section.button2Name || 'Choice B'
+            });
+          }
+        } else if (section.selectedChoice === 'dice') {
+          if (section.passNextSectionId) {
+            node.children.push({
+              type: 'pass',
+              targetId: section.passNextSectionId,
+              label: 'Pass'
+            });
+          }
+          if (section.failNextSectionId) {
+            node.children.push({
+              type: 'fail',
+              targetId: section.failNextSectionId,
+              label: 'Fail'
+            });
+          }
+        }
+
+        return node;
+      });
+
+      return { nodes, sectionMap };
+    }
+
+    function getChoiceColor(choiceType) {
+      if (choiceType === 'single') return '#7ee8d4'; // green/teal
+      if (choiceType === 'double') return '#5ba3ff'; // blue
+      if (choiceType === 'dice') return '#8b7355'; // brown
+      return '#f5e6c8'; // default
+    }
+
+    function renderTreeView() {
+      const { nodes, sectionMap } = buildTreeStructure();
+      const svg = document.getElementById('treeViewSvg');
+      svg.innerHTML = '';
+
+      if (nodes.length === 0) {
+        svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#a0963d" font-size="16">No sections yet</text>';
+        return;
+      }
+
+      // Calculate positions for nodes
+      const nodePositions = {};
+      const levelWidths = {};
+      const levelCounts = {};
+
+      // First pass: determine levels
+      const levels = {};
+      function assignLevel(nodeId, level = 0) {
+        const node = nodes.find(n => n.id === nodeId);
+        if (!node) return;
+        if (levels[nodeId] !== undefined) return;
+        levels[nodeId] = level;
+
+        if (!levelCounts[level]) levelCounts[level] = 0;
+        levelCounts[level]++;
+
+        node.children.forEach(child => {
+          assignLevel(child.targetId, level + 1);
+        });
+      }
+
+      assignLevel(nodes[0].id);
+
+      // Calculate positions
+      const nodeWidth = 140;
+      const nodeHeight = 80;
+      const xSpacing = nodeWidth + 60;
+      const ySpacing = nodeHeight + 60;
+
+      const maxLevel = Math.max(...Object.values(levels));
+      const svgWidth = Math.max(900, (maxLevel + 1) * xSpacing + 40);
+      const svgHeight = Math.max(700, (Object.keys(levelCounts).length) * ySpacing + 40);
+
+      svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+      svg.setAttribute('width', svgWidth);
+      svg.setAttribute('height', svgHeight);
+
+      // Position nodes within their levels
+      const levelPositions = {};
+      nodes.forEach(node => {
+        const level = levels[node.id] || 0;
+        if (!levelPositions[level]) levelPositions[level] = 0;
+        const xPos = level * xSpacing + 50;
+        const yPos = levelPositions[level] * ySpacing + 50;
+        nodePositions[node.id] = { x: xPos, y: yPos };
+        levelPositions[level]++;
+      });
+
+      // Draw edges first (so they appear behind nodes)
+      nodes.forEach(node => {
+        if (!nodePositions[node.id]) return;
+        const fromPos = nodePositions[node.id];
+
+        node.children.forEach(child => {
+          if (!nodePositions[child.targetId]) return;
+          const toPos = nodePositions[child.targetId];
+
+          // Determine edge color based on child type
+          let edgeColor = '#7ee8d4';
+          if (child.type === 'choice1' || child.type === 'choice2') edgeColor = '#5ba3ff';
+          if (child.type === 'pass' || child.type === 'fail') edgeColor = '#8b7355';
+
+          // Draw line
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', fromPos.x + nodeWidth / 2);
+          line.setAttribute('y1', fromPos.y + nodeHeight);
+          line.setAttribute('x2', toPos.x + nodeWidth / 2);
+          line.setAttribute('y2', toPos.y);
+          line.setAttribute('stroke', edgeColor);
+          line.setAttribute('stroke-width', '2');
+          line.setAttribute('opacity', '0.6');
+          svg.appendChild(line);
+
+          // Add edge label
+          const midX = (fromPos.x + toPos.x) / 2 + nodeWidth / 2;
+          const midY = (fromPos.y + toPos.y) / 2;
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', midX);
+          label.setAttribute('y', midY);
+          label.setAttribute('text-anchor', 'middle');
+          label.setAttribute('fill', edgeColor);
+          label.setAttribute('font-size', '12');
+          label.setAttribute('font-family', 'monospace');
+          label.textContent = child.label;
+          svg.appendChild(label);
+        });
+      });
+
+      // Draw nodes
+      nodes.forEach(node => {
+        if (!nodePositions[node.id]) return;
+        const pos = nodePositions[node.id];
+        const color = getChoiceColor(node.selectedChoice);
+
+        // Draw box
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', pos.x);
+        rect.setAttribute('y', pos.y);
+        rect.setAttribute('width', nodeWidth);
+        rect.setAttribute('height', nodeHeight);
+        rect.setAttribute('fill', 'rgba(20, 15, 10, 0.8)');
+        rect.setAttribute('stroke', color);
+        rect.setAttribute('stroke-width', '2');
+        rect.setAttribute('rx', '4');
+        svg.appendChild(rect);
+
+        // Draw section name
+        const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        nameText.setAttribute('x', pos.x + nodeWidth / 2);
+        nameText.setAttribute('y', pos.y + 25);
+        nameText.setAttribute('text-anchor', 'middle');
+        nameText.setAttribute('fill', color);
+        nameText.setAttribute('font-size', '14');
+        nameText.setAttribute('font-weight', 'bold');
+        nameText.setAttribute('font-family', 'monospace');
+        nameText.textContent = node.name.substring(0, 12);
+        svg.appendChild(nameText);
+
+        // Draw choice type icon
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        icon.setAttribute('x', pos.x + nodeWidth / 2);
+        icon.setAttribute('y', pos.y + 50);
+        icon.setAttribute('text-anchor', 'middle');
+        icon.setAttribute('font-size', '18');
+        if (node.selectedChoice === 'single') icon.textContent = '🔘';
+        else if (node.selectedChoice === 'double') icon.textContent = '⚖️';
+        else if (node.selectedChoice === 'dice') icon.textContent = '🎲';
+        svg.appendChild(icon);
+
+        // Draw choice type label
+        const typeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        typeText.setAttribute('x', pos.x + nodeWidth / 2);
+        typeText.setAttribute('y', pos.y + 70);
+        typeText.setAttribute('text-anchor', 'middle');
+        typeText.setAttribute('fill', '#a0963d');
+        typeText.setAttribute('font-size', '10');
+        typeText.setAttribute('font-family', 'monospace');
+        if (node.selectedChoice === 'single') typeText.textContent = 'Single';
+        else if (node.selectedChoice === 'double') typeText.textContent = 'Double';
+        else if (node.selectedChoice === 'dice') typeText.textContent = 'Dice';
+        svg.appendChild(typeText);
+      });
     }
 
     // Initialize on load
