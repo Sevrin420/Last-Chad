@@ -1349,7 +1349,7 @@
 
       try {
         // Initialize GitHub API
-        const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'main');
+        const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/quest-main-8NRvy');
 
         // Publish quest
         github.publishQuest(questName, state.sections)
@@ -1366,14 +1366,14 @@
             // Build detailed error message
             let detailedMsg = `${errorMsg}\n\n🔍 DEBUG INFO:\n`;
             detailedMsg += `Repository: Sevrin420/Last-Chad\n`;
-            detailedMsg += `Branch: main\n`;
+            detailedMsg += `Branch: claude/quest-main-8NRvy\n`;
             detailedMsg += `Token: ${token ? '✓ Provided' : '✗ Missing'}\n`;
 
             // Add specific troubleshooting based on error
             if (errorMsg.includes('Not Found')) {
               detailedMsg += `\n⚠️ LIKELY CAUSES:\n`;
               detailedMsg += `• Repository may not exist\n`;
-              detailedMsg += `• Branch 'main' doesn't exist\n`;
+              detailedMsg += `• Branch 'claude/quest-main-8NRvy' doesn't exist\n`;
               detailedMsg += `• Token lacks 'repo' scope\n`;
               detailedMsg += `\n📖 See browser console (F12) for detailed logs`;
             } else if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
@@ -1402,7 +1402,7 @@
         const errorMsg = error?.message || String(error) || 'Unknown error';
         let detailedMsg = `${errorMsg}\n\n🔍 DEBUG INFO:\n`;
         detailedMsg += `Repository: Sevrin420/Last-Chad\n`;
-        detailedMsg += `Branch: main\n`;
+        detailedMsg += `Branch: claude/quest-main-8NRvy\n`;
         detailedMsg += `Token: ${token ? '✓ Provided' : '✗ Missing'}\n`;
         detailedMsg += `\n📖 See browser console (F12) for detailed logs`;
         alert(detailedMsg);
