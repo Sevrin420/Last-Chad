@@ -183,7 +183,7 @@ node save-quest.js
    ```bash
    git add quests/the-dragons-hoard/
    git commit -m "Add The Dragon's Hoard quest"
-   git push
+   git push origin claude/create-landing-page-1qjhB
    ```
 
 ---
@@ -583,7 +583,7 @@ Add info about your quest:
 git add quests/the-dragons-hoard/
 git add enter.html docs.html
 git commit -m "Add The Dragon's Hoard quest"
-git push origin main
+git push origin claude/create-landing-page-1qjhB
 ```
 
 ---
