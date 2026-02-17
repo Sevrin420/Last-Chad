@@ -474,7 +474,7 @@ Update documentation with your new quest:
 ```bash
 git add quests/episode-one/
 git commit -m "Add Episode One quest"
-git push origin main
+git push origin claude/create-landing-page-1qjhB
 ```
 
 ---
