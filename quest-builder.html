@@ -823,6 +823,7 @@
       }
     }
   </style>
+  <script src="github-api.js"></script>
 </head>
 <body>
   <div class="bg"></div>
@@ -1333,36 +1334,46 @@
 
       if (!confirmed) return;
 
+      // Get GitHub token from localStorage or prompt user
+      let token = localStorage.getItem('githubToken');
+      if (!token) {
+        token = prompt('Enter your GitHub Personal Access Token (stored in browser):\n\nGet one at: https://github.com/settings/tokens?type=beta');
+        if (!token) return;
+        localStorage.setItem('githubToken', token);
+      }
+
       // Disable button during publish
       const saveBtn = document.getElementById('saveBtn');
       saveBtn.disabled = true;
       saveBtn.textContent = '⏳ Publishing...';
 
-      // Send to backend
-      fetch('/api/publish-quest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          questName: state.questName,
-          sections: state.sections
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          showQuestPublishedModal(questName, data.questUrl);
-          saveBtn.disabled = false;
-          saveBtn.textContent = '💾 Save Quest';
-        } else {
-          throw new Error(data.error || 'Unknown error');
-        }
-      })
-      .catch(error => {
+      try {
+        // Initialize GitHub API
+        const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'main');
+
+        // Publish quest
+        github.publishQuest(questName, state.sections)
+          .then(data => {
+            showQuestPublishedModal(questName, data.questUrl);
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 Save Quest';
+          })
+          .catch(error => {
+            console.error('Publish error:', error);
+            // If it's an auth error, clear the stored token
+            if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+              localStorage.removeItem('githubToken');
+            }
+            alert(`❌ Failed to publish quest:\n${error.message}`);
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 Save Quest';
+          });
+      } catch (error) {
         console.error('Publish error:', error);
         alert(`❌ Failed to publish quest:\n${error.message}`);
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Save Quest';
-      });
+      }
     }
 
     function showQuestPublishedModal(questName, questUrl) {
