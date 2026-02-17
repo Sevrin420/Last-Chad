@@ -1170,6 +1170,16 @@
         fileInput.addEventListener('change', (e) => {
           const file = e.target.files[0];
           if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+              alert('⚠️ Please select an image file (PNG, JPG, GIF, etc.)');
+              return;
+            }
+            // Validate file size (max 1MB)
+            if (file.size > 1024 * 1024) {
+              alert('⚠️ Image is too large! Max size is 1MB.');
+              return;
+            }
             const reader = new FileReader();
             reader.onload = (event) => {
               const sectionId = parseInt(e.target.dataset.sectionId);
@@ -1249,6 +1259,16 @@
         fileInput.addEventListener('change', (e) => {
           const file = e.target.files[0];
           if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+              alert('⚠️ Please select an image file (PNG, JPG, GIF, etc.)');
+              return;
+            }
+            // Validate file size (max 1MB)
+            if (file.size > 1024 * 1024) {
+              alert('⚠️ Image is too large! Max size is 1MB.');
+              return;
+            }
             const reader = new FileReader();
             reader.onload = (event) => {
               const sectionId = parseInt(e.target.dataset.sectionId);
