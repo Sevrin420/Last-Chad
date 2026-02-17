@@ -119,17 +119,17 @@ class GitHubAPI {
       // Get current branch reference
       console.log(`⏳ Fetching branch reference...`);
       const branchRef = await this.getBranchRef();
-      const latestCommitSha = branchRef.data.object.sha;
+      const latestCommitSha = branchRef.object.sha;
       console.log(`✓ Branch reference found, commit: ${latestCommitSha.substring(0, 7)}`);
 
       // Get the commit tree
       console.log(`⏳ Fetching commit tree...`);
       const commit = await this.getCommit(latestCommitSha);
-      const treeData = await this.getTree(commit.data.tree.sha, true);
-      console.log(`✓ Tree fetched with ${treeData.data.tree.length} existing items`);
+      const treeData = await this.getTree(commit.tree.sha, true);
+      console.log(`✓ Tree fetched with ${treeData.tree.length} existing items`);
 
       // Prepare tree items
-      const treeItems = treeData.data.tree.map(item => ({
+      const treeItems = treeData.tree.map(item => ({
         path: item.path,
         mode: item.mode,
         type: item.type,
@@ -145,7 +145,7 @@ class GitHubAPI {
         path: `${questPath}/index.html`,
         mode: '100644',
         type: 'blob',
-        sha: htmlBlob.data.sha
+        sha: htmlBlob.sha
       });
 
       // Add quest data JSON
@@ -157,7 +157,7 @@ class GitHubAPI {
         path: `${questPath}/data.json`,
         mode: '100644',
         type: 'blob',
-        sha: questDataBlob.data.sha
+        sha: questDataBlob.sha
       });
 
       // Process and add images
@@ -176,7 +176,7 @@ class GitHubAPI {
             path: `${imagesPath}/${section.id}.png`,
             mode: '100644',
             type: 'blob',
-            sha: imageBlob.data.sha
+            sha: imageBlob.sha
           });
           imageCount++;
         }
@@ -193,7 +193,7 @@ class GitHubAPI {
             path: `${imagesPath}/dice-${section.id}.png`,
             mode: '100644',
             type: 'blob',
-            sha: diceBlob.data.sha
+            sha: diceBlob.sha
           });
           imageCount++;
         }
@@ -202,21 +202,21 @@ class GitHubAPI {
 
       // Create new tree
       console.log(`⏳ Creating new tree with ${treeItems.length} items...`);
-      const newTree = await this.createTree(treeItems, commit.data.tree.sha);
-      console.log(`✓ Tree created: ${newTree.data.sha.substring(0, 7)}`);
+      const newTree = await this.createTree(treeItems, commit.tree.sha);
+      console.log(`✓ Tree created: ${newTree.sha.substring(0, 7)}`);
 
       // Create commit
       console.log(`⏳ Creating commit...`);
       const newCommit = await this.createCommit(
         `Add quest: ${questName}\n\nPublished from Quest Builder`,
-        newTree.data.sha,
+        newTree.sha,
         [latestCommitSha]
       );
-      console.log(`✓ Commit created: ${newCommit.data.sha.substring(0, 7)}`);
+      console.log(`✓ Commit created: ${newCommit.sha.substring(0, 7)}`);
 
       // Update branch reference
       console.log(`⏳ Updating branch reference...`);
-      await this.updateRef(newCommit.data.sha);
+      await this.updateRef(newCommit.sha);
       console.log(`✓ Branch reference updated`);
 
       console.log(`✅ Quest published successfully!`);
@@ -244,6 +244,17 @@ class GitHubAPI {
 /**
  * Generate quest player HTML
  */
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 function generateQuestHTML(questName, sections) {
   const sanitized = questName
     .toLowerCase()
@@ -256,7 +267,7 @@ function generateQuestHTML(questName, sections) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${questName} | Last Chad</title>
+  <title>${escapeHtml(questName)} | Last Chad</title>
   <link rel="stylesheet" href="../../styles.css">
   <link rel="stylesheet" href="../../nav.css">
   <style>
@@ -428,13 +439,13 @@ function generateQuestHTML(questName, sections) {
   <div class="bg"></div>
 
   <div class="header">
-    <div class="header-title">⚔️ ${questName}</div>
+    <div class="header-title">⚔️ ${escapeHtml(questName)}</div>
     <div class="nav-menu" id="navMenu"></div>
   </div>
 
   <div class="main">
     <button class="back-btn" onclick="window.history.back()">← Back</button>
-    <h1 class="quest-title">${questName}</h1>
+    <h1 class="quest-title">${escapeHtml(questName)}</h1>
     <div id="questContainer" class="loading">Loading quest...</div>
   </div>
 
@@ -480,15 +491,15 @@ function generateQuestHTML(questName, sections) {
 
       let html = \`
         <div class="section-container">
-          <div class="section-name">\${section.name}</div>
+          <div class="section-name">\${escapeHtml(section.name)}</div>
       \`;
 
       if (section.photo) {
-        html += \`<img src="images/\${section.id}.png" alt="\${section.name}" class="section-image visible">\`;
+        html += \`<img src="images/\${section.id}.png" alt="\${escapeHtml(section.name)}" class="section-image visible">\`;
       }
 
       html += \`
-          <div class="dialogue">\${section.dialogue || 'No dialogue...'}</div>
+          <div class="dialogue">\${escapeHtml(section.dialogue || 'No dialogue...')}</div>
       \`;
 
       if (section.selectedChoice === 'single') {
@@ -496,7 +507,7 @@ function generateQuestHTML(questName, sections) {
         html += \`
           <div class="choices">
             <button class="choice-btn" onclick="displaySection(\${nextSection ? nextSection.id : 'null'})">
-              \${section.buttonName || 'Continue'}
+              \${escapeHtml(section.buttonName || 'Continue')}
             </button>
           </div>
         \`;
@@ -506,10 +517,10 @@ function generateQuestHTML(questName, sections) {
         html += \`
           <div class="choices double-choices">
             <button class="choice-btn" onclick="displaySection(\${next1 ? next1.id : 'null'})">
-              \${section.button1Name || 'Choice A'}
+              \${escapeHtml(section.button1Name || 'Choice A')}
             </button>
             <button class="choice-btn" onclick="displaySection(\${next2 ? next2.id : 'null'})">
-              \${section.button2Name || 'Choice B'}
+              \${escapeHtml(section.button2Name || 'Choice B')}
             </button>
           </div>
         \`;
