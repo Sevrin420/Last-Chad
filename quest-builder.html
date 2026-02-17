@@ -450,19 +450,19 @@
       <div class="size-buttons">
         <button class="size-btn active" data-size="simple">
           <div class="size-title">SIMPLE</div>
-          <div class="size-desc">2 choices</div>
+          <div class="size-desc">2 rolls</div>
         </button>
         <button class="size-btn" data-size="medium">
           <div class="size-title">MEDIUM</div>
-          <div class="size-desc">3-4 choices</div>
+          <div class="size-desc">3-4 rolls</div>
         </button>
         <button class="size-btn" data-size="complex">
           <div class="size-title">COMPLEX</div>
-          <div class="size-desc">Branching</div>
+          <div class="size-desc">3-5 rolls</div>
         </button>
         <button class="size-btn" data-size="epic">
           <div class="size-title">EPIC</div>
-          <div class="size-desc">5+ choices</div>
+          <div class="size-desc">4-6 rolls</div>
         </button>
       </div>
     </div>
@@ -496,25 +496,28 @@
         <div class="form-group">
           <label for="difficultyLevel">Difficulty Level</label>
           <select id="difficultyLevel">
-            <option value="easy">Easy (2-3 XP)</option>
-            <option value="normal">Normal (4-6 XP)</option>
-            <option value="hard">Hard (7-10 XP)</option>
-            <option value="legendary">Legendary (11+ XP)</option>
+            <option value="easy">Easy (2 rolls = 0-24 XP max)</option>
+            <option value="normal">Normal (3 rolls = 0-36 XP max)</option>
+            <option value="hard">Hard (4 rolls = 0-48 XP max)</option>
+            <option value="legendary">Legendary (5+ rolls = 0-60+ XP max)</option>
           </select>
         </div>
 
-        <h2 style="margin-top: 20px;">🎯 Quest Flow - Choice Segments</h2>
+        <h2 style="margin-top: 20px;">🎯 Quest Flow - Dice Roll Segments</h2>
+        <div style="background: rgba(126, 232, 212, 0.1); border: 1px solid #7ee8d4; border-radius: 4px; padding: 12px; margin-bottom: 16px; font-size: 0.35rem; color: #7ee8d4;">
+          <strong>💡 XP System:</strong> Each segment requires a dice roll. Player rolls 5 dice, must get 6+5+4. Remaining 2 dice = XP score (2-12 per segment). Total XP = sum of all segments' dice scores.
+        </div>
 
         <div id="choicesContainer"></div>
 
         <div style="margin-top: 20px;">
-          <button id="addChoiceBtn" class="secondary">➕ Add Choice</button>
+          <button id="addChoiceBtn" class="secondary">➕ Add Dice Roll Segment</button>
         </div>
 
         <h2 style="margin-top: 20px;">⚙️ Quest Logic</h2>
         <div class="form-group">
-          <label for="questFlow">Quest Flow Logic</label>
-          <textarea id="questFlow" placeholder="Define the narrative flow (optional):&#10;E.g., Intro → Choice 1 → Choice 2 → Ending" style="min-height: 60px;"></textarea>
+          <label for="questFlow">Quest Flow Description</label>
+          <textarea id="questFlow" placeholder="Define the narrative flow (optional):&#10;E.g., Intro → Roll 1 → Roll 2 → Boss Battle → Ending" style="min-height: 60px;"></textarea>
         </div>
 
         <div class="form-group">
@@ -568,10 +571,27 @@
             <div class="preview-value" id="previewSuccess" style="font-size: 0.4rem;">Not defined</div>
           </div>
 
-          <div class="preview-item" id="choicesList">
-            <div class="preview-label">Choices</div>
-            <div id="previewChoicesContent" style="margin-top: 6px; font-size: 0.35rem;">
-              <div style="color: #a0963d;">No choices added yet</div>
+          <div class="preview-item" id="diceSegmentsList">
+            <div class="preview-label">🎲 Dice Roll Segments</div>
+            <div id="previewDiceSegments" style="margin-top: 6px; font-size: 0.35rem;">
+              <div style="color: #a0963d;">No segments added yet</div>
+            </div>
+          </div>
+
+          <div class="preview-item" style="background: rgba(126, 232, 212, 0.15); border: 1px solid #7ee8d4; border-radius: 4px; padding: 12px; margin-top: 12px;">
+            <div class="preview-label" style="color: #7ee8d4;">💰 Expected XP Totals</div>
+            <div style="margin-top: 8px; font-size: 0.4rem; color: #c9a84c;">
+              <div style="margin-bottom: 4px;">
+                <strong>Best Case:</strong> <span id="previewBestXP" style="color: #7ee8d4;">0</span> XP
+                <span style="font-size: 0.3rem; color: #a0963d;">(All rolls succeed with max dice)</span>
+              </div>
+              <div>
+                <strong>Worst Case:</strong> <span id="previewWorstXP" style="color: #ff6b6b;">0</span> XP
+                <span style="font-size: 0.3rem; color: #a0963d;">(All rolls fail)</span>
+              </div>
+              <div style="margin-top: 6px; font-size: 0.35rem; color: #f5e6c8;">
+                <strong>Per Segment:</strong> 0-12 XP (5 dice - 6, 5, 4 = 2 remaining dice)
+              </div>
             </div>
           </div>
 
@@ -654,12 +674,12 @@
       }
     };
 
-    // Quest size presets
+    // Quest size presets - number of dice rolls per quest
     const sizePresets = {
-      simple: { count: 2, min: 2, max: 2 },
-      medium: { count: 3, min: 3, max: 4 },
-      complex: { count: 4, min: 3, max: 5 },
-      epic: { count: 5, min: 4, max: 6 }
+      simple: { count: 2, min: 2, max: 2, desc: '2 dice rolls' },
+      medium: { count: 3, min: 3, max: 4, desc: '3-4 dice rolls' },
+      complex: { count: 4, min: 3, max: 5, desc: '3-5 dice rolls' },
+      epic: { count: 5, min: 4, max: 6, desc: '4-6 dice rolls' }
     };
 
     // XP ranges by difficulty
@@ -706,10 +726,8 @@
         state.choices.push({
           id: i,
           question: '',
-          options: [
-            { text: 'Option A', xp: 1 },
-            { text: 'Option B', xp: 2 }
-          ]
+          successText: '',
+          failureText: ''
         });
       }
       renderChoices();
@@ -724,50 +742,39 @@
         segment.className = 'choice-template';
         segment.innerHTML = `
           <div class="choice-template-header">
-            <div class="choice-template-title">Decision ${idx + 1}</div>
+            <div class="choice-template-title">🎲 Dice Roll ${idx + 1}</div>
             <button class="choice-template-delete" onclick="deleteChoice(${idx})">✕ Delete</button>
           </div>
           <div class="form-group">
-            <label>Question/Scenario</label>
-            <input type="text" placeholder="What do you do?" class="choice-question" value="${choice.question}" data-id="${idx}">
+            <label>Scenario/Challenge</label>
+            <input type="text" placeholder="e.g., Navigate through the trapped corridor" class="choice-question" value="${choice.question}" data-id="${idx}">
           </div>
-          <div id="options-${idx}"></div>
+          <div style="background: rgba(30, 20, 10, 0.5); border-left: 2px solid #7ee8d4; padding: 8px 12px; margin: 12px 0; font-size: 0.32rem; color: #a0963d;">
+            <strong style="color: #7ee8d4;">Roll 5 Dice</strong><br>
+            Need: <span style="color: #c9a84c;">6 (SHIP)</span> + <span style="color: #c9a84c;">5 (CAPTAIN)</span> + <span style="color: #c9a84c;">4 (MATE)</span><br>
+            <span style="color: #f5e6c8;">Remaining 2 dice = XP for this roll (2-12 XP)</span><br>
+            <span style="color: #ff6b6b;">Missing any required die = 0 XP for this roll</span>
+          </div>
+          <div class="form-group">
+            <label>Success Description (what happens when dice succeed)</label>
+            <input type="text" placeholder="e.g., You safely disarm the trap and move forward" class="choice-success" value="${choice.successText || ''}" data-id="${idx}" style="background: rgba(126, 232, 212, 0.1); border-color: #7ee8d4;">
+          </div>
+          <div class="form-group">
+            <label>Failure Description (what happens on failed roll - 0 XP)</label>
+            <input type="text" placeholder="e.g., You trigger a pressure plate" class="choice-failure" value="${choice.failureText || ''}" data-id="${idx}" style="background: rgba(255, 107, 107, 0.1); border-color: #ff6b6b;">
+          </div>
         `;
         container.appendChild(segment);
-        renderOptions(idx);
-      });
-    }
-
-    // Render options for a choice
-    function renderOptions(choiceIdx) {
-      const optionsContainer = document.getElementById(`options-${choiceIdx}`);
-      optionsContainer.innerHTML = '';
-      state.choices[choiceIdx].options.forEach((option, optIdx) => {
-        const optionDiv = document.createElement('div');
-        optionDiv.className = 'choice-group';
-        optionDiv.innerHTML = `
-          <h3>Option ${String.fromCharCode(65 + optIdx)}</h3>
-          <div class="form-group">
-            <label>Description</label>
-            <input type="text" placeholder="Choose wisely..." class="option-text" value="${option.text}" data-choice="${choiceIdx}" data-option="${optIdx}">
-          </div>
-          <div class="choice-option">
-            <label>XP Bonus</label>
-            <input type="number" class="option-xp" value="${option.xp}" min="0" max="15" data-choice="${choiceIdx}" data-option="${optIdx}">
-          </div>
-        `;
-        optionsContainer.appendChild(optionDiv);
       });
 
-      // Add event listeners
-      optionsContainer.querySelectorAll('.option-text, .option-xp').forEach(input => {
+      // Add event listeners for success/failure text
+      container.querySelectorAll('.choice-success, .choice-failure').forEach(input => {
         input.addEventListener('input', function() {
-          const choiceIdx = parseInt(this.dataset.choice);
-          const optIdx = parseInt(this.dataset.option);
-          if (this.classList.contains('option-text')) {
-            state.choices[choiceIdx].options[optIdx].text = this.value;
+          const idx = parseInt(this.dataset.id);
+          if (this.classList.contains('choice-success')) {
+            state.choices[idx].successText = this.value;
           } else {
-            state.choices[choiceIdx].options[optIdx].xp = parseInt(this.value) || 0;
+            state.choices[idx].failureText = this.value;
           }
           updatePreview();
           saveQuestDraft();
@@ -832,34 +839,43 @@
       document.getElementById('previewFlow').textContent = state.questData.flow || 'Not defined';
       document.getElementById('previewSuccess').textContent = state.questData.successCondition || 'Not defined';
 
-      // Show choices
-      let choicesHTML = '';
+      // Show dice segments with running XP tally
+      let segmentsHTML = '';
+      let runningXPMin = 0;
+      let runningXPMax = 0;
+
       state.choices.forEach((choice, idx) => {
-        choicesHTML += `<div style="margin-bottom: 8px;">
-          <div style="color: #c9a84c; font-size: 0.35rem; font-weight: bold;">Choice ${idx + 1}: ${choice.question || 'Untitled'}</div>
-          <div style="margin-left: 8px; margin-top: 4px;">`;
-        choice.options.forEach((opt, optIdx) => {
-          choicesHTML += `<div style="color: #f5e6c8; font-size: 0.35rem; margin-bottom: 2px;">
-            ${String.fromCharCode(65 + optIdx)}) ${opt.text} <span style="color: #7ee8d4;">(+${opt.xp} XP)</span>
-          </div>`;
-        });
-        choicesHTML += '</div></div>';
+        const minPerSegment = 0; // Failed roll
+        const maxPerSegment = 12; // Best case: 12 + 1 = 13, but max dice sum after 6,5,4 is 6+6=12
+
+        runningXPMin += minPerSegment;
+        runningXPMax += maxPerSegment;
+
+        segmentsHTML += `
+          <div style="background: rgba(30, 20, 10, 0.4); border-left: 3px solid #7ee8d4; padding: 8px; margin-bottom: 6px; border-radius: 2px;">
+            <div style="color: #c9a84c; font-weight: bold; margin-bottom: 4px;">🎲 Roll ${idx + 1}: ${choice.question || '(No scenario yet)'}</div>
+            <div style="color: #f5e6c8; font-size: 0.32rem; margin-bottom: 2px;">
+              ✓ Success: <span style="color: #7ee8d4;">${choice.successText || '(Not set)'}</span>
+            </div>
+            <div style="color: #ff6b6b; font-size: 0.32rem; margin-bottom: 4px;">
+              ✗ Fail: <span style="color: #ff9999;">${choice.failureText || '(Not set)'}</span>
+            </div>
+            <div style="color: #a0963d; font-size: 0.32rem; background: rgba(10, 10, 10, 0.5); padding: 4px; border-radius: 2px;">
+              Running Total: <span style="color: #7ee8d4;">${runningXPMin}-${runningXPMax} XP</span>
+            </div>
+          </div>
+        `;
       });
 
-      document.getElementById('previewChoicesContent').innerHTML = choicesHTML || '<div style="color: #a0963d;">No choices added yet</div>';
+      document.getElementById('previewDiceSegments').innerHTML = segmentsHTML || '<div style="color: #a0963d;">No segments added yet</div>';
 
-      // Calculate XP ranges
-      const minXps = state.choices.map(c => Math.min(...c.options.map(o => o.xp)));
-      const maxXps = state.choices.map(c => Math.max(...c.options.map(o => o.xp)));
-      const minTotal = minXps.reduce((a, b) => a + b, 0);
-      const maxTotal = maxXps.reduce((a, b) => a + b, 0) + 12 + 2; // +dice +dex
+      // Show final XP totals
+      const totalNumSegments = state.choices.length;
+      const bestCaseXP = totalNumSegments * 12; // All rolls succeed with max dice
+      const worstCaseXP = 0; // All rolls fail
 
-      document.getElementById('calcChoice1Best').textContent = maxXps[0] || 0;
-      document.getElementById('calcChoice2Best').textContent = maxXps[1] || 0;
-      document.getElementById('calcChoice1Min').textContent = minXps[0] || 0;
-      document.getElementById('calcChoice2Min').textContent = minXps[1] || 0;
-      document.getElementById('calcBest').textContent = maxTotal;
-      document.getElementById('calcMin').textContent = minTotal;
+      document.getElementById('previewBestXP').textContent = bestCaseXP;
+      document.getElementById('previewWorstXP').textContent = worstCaseXP;
     }
 
     function saveQuestDraft() {
@@ -871,6 +887,7 @@
     }
 
     function exportQuestJSON() {
+      const numSegments = state.choices.length;
       return {
         name: state.questData.name || 'Untitled Quest',
         description: state.questData.description || '',
@@ -879,39 +896,49 @@
         flow: state.questData.flow,
         successCondition: state.questData.successCondition,
         failureCondition: state.questData.failureCondition,
-        choices: state.choices,
+        diceSegments: state.choices,
         mechanics: {
-          minXPs: state.choices.map(c => Math.min(...c.options.map(o => o.xp))),
-          maxXPs: state.choices.map(c => Math.max(...c.options.map(o => o.xp))),
-          diceRequired: '6, 5, 4',
-          dexBonusScaling: '1 dex point = 1 XP'
+          system: 'Dice Roll XP',
+          segmentsPerQuest: numSegments,
+          xpPerSegment: '0-12 XP (based on remaining dice after 6+5+4)',
+          totalXPRange: `0-${numSegments * 12} XP`,
+          diceRequired: '6 (SHIP), 5 (CAPTAIN), 4 (MATE)',
+          remainingDice: '2 dice = XP score per segment (min 1, max 6 each = 2-12 XP)',
+          failedRoll: '0 XP (missing any required die)'
         }
       };
     }
 
     function generateSolidityCode() {
       const questName = state.questData.name.replace(/\s+/g, '').substring(0, 20);
-      const choices = state.choices;
+      const numSegments = state.choices.length;
 
       let code = `// Quest: ${state.questData.name}\\n`;
-      code += `// ${state.questData.description}\\n\\n`;
+      code += `// Type: ${state.questData.type.toUpperCase()} | Difficulty: ${state.questData.difficulty}\\n`;
+      code += `// Description: ${state.questData.description}\\n\\n`;
       code += `struct Quest${questName} {\\n`;
       code += `    uint8 questId;\\n`;
       code += `    string name;\\n`;
       code += `    string description;\\n`;
-      code += `    string difficulty; // ${state.questData.difficulty}\\n`;
-      code += `    uint8 numChoices; // ${choices.length}\\n`;
+      code += `    uint8 numDiceSegments; // ${numSegments} dice rolls required\\n`;
+      code += `    uint16 minXP; // ${0} (all rolls fail)\\n`;
+      code += `    uint16 maxXP; // ${numSegments * 12} (all rolls succeed with max dice)\\n`;
       code += `}\\n\\n`;
 
-      code += `// Choice Rewards (XP Bonuses)\\n`;
-      choices.forEach((choice, idx) => {
-        code += `// Choice ${idx + 1}: ${choice.question}\\n`;
-        choice.options.forEach((opt, optIdx) => {
-          code += `uint8 choice${idx + 1}Option${optIdx} = ${opt.xp}; // "${opt.text}"\\n`;
-        });
+      code += `// Dice Roll Segments\\n`;
+      state.choices.forEach((choice, idx) => {
+        code += `\\n// Segment ${idx + 1}: ${choice.question}\\n`;
+        code += `// On Success: ${choice.successText}\\n`;
+        code += `// On Failure: ${choice.failureText}\\n`;
+        code += `// XP: 0-12 (based on remaining 2 dice after getting 6, 5, 4)\\n`;
       });
 
-      code += `\\n// XP Range: ${state.choices.reduce((a, b) => a + Math.min(...b.options.map(o => o.xp)), 0)} - ${state.choices.reduce((a, b) => a + Math.max(...b.options.map(o => o.xp)), 0) + 14} XP\\n`;
+      code += `\\n// ===== XP CALCULATION =====\\n`;
+      code += `// For each segment, player rolls 5 dice\\n`;
+      code += `// Must get 6 (SHIP) + 5 (CAPTAIN) + 4 (MATE)\\n`;
+      code += `// Remaining 2 dice sum = XP for that segment\\n`;
+      code += `// Total Quest XP = sum of all segment dice scores\\n`;
+      code += `// Missing any required die in a segment = 0 XP for that segment\\n`;
 
       return code;
     }
@@ -954,17 +981,30 @@
       if (saved) {
         try {
           const data = JSON.parse(saved);
-          state.questData = data.questData;
-          state.choices = data.choices;
-          state.questSize = data.questSize;
-          document.getElementById('questName').value = state.questData.name;
-          document.getElementById('questDescription').value = state.questData.description;
-          document.getElementById('questType').value = state.questData.type;
-          document.getElementById('difficultyLevel').value = state.questData.difficulty;
-          document.getElementById('questFlow').value = state.questData.flow;
-          document.getElementById('successCondition').value = state.questData.successCondition;
-          document.getElementById('failureCondition').value = state.questData.failureCondition;
-          renderChoices();
+          state.questData = data.questData || state.questData;
+          state.choices = data.choices || [];
+          state.questSize = data.questSize || 'simple';
+          document.getElementById('questName').value = state.questData.name || '';
+          document.getElementById('questDescription').value = state.questData.description || '';
+          document.getElementById('questType').value = state.questData.type || 'simple';
+          document.getElementById('difficultyLevel').value = state.questData.difficulty || 'normal';
+          document.getElementById('questFlow').value = state.questData.flow || '';
+          document.getElementById('successCondition').value = state.questData.successCondition || '';
+          document.getElementById('failureCondition').value = state.questData.failureCondition || '';
+
+          // Ensure choices have the new structure
+          state.choices = state.choices.map(c => ({
+            id: c.id !== undefined ? c.id : Math.random(),
+            question: c.question || '',
+            successText: c.successText || '',
+            failureText: c.failureText || ''
+          }));
+
+          if (state.choices.length > 0) {
+            renderChoices();
+          } else {
+            initializeChoices();
+          }
         } catch (e) {
           console.error('Error loading saved data:', e);
           initializeChoices();
