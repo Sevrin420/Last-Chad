@@ -545,7 +545,17 @@
         try {
           const data = JSON.parse(saved);
           state.questName = data.questName || '';
-          state.sections = data.sections || [];
+          state.sections = (data.sections || []).map(section => ({
+            id: section.id,
+            name: section.name || '',
+            photo: section.photo || null,
+            dialogue: section.dialogue || '',
+            selectedChoice: section.selectedChoice || null,
+            buttonName: section.buttonName || 'Continue',
+            button1Name: section.button1Name || 'Choice A',
+            button2Name: section.button2Name || 'Choice B',
+            diceImage: section.diceImage || null
+          }));
           document.getElementById('questName').value = state.questName;
         } catch (e) {
           console.error('Error loading quest data:', e);
@@ -761,18 +771,20 @@
         });
       });
 
-      // Choice selection
-      document.querySelectorAll('.choice-option').forEach(option => {
-        option.addEventListener('click', (e) => {
-          const sectionId = parseInt(option.dataset.sectionId);
-          const choice = option.dataset.choice;
+      // Choice selection (using event delegation for reliability)
+      const container = document.getElementById('sectionsContainer');
+      container.addEventListener('click', (e) => {
+        const choiceOption = e.target.closest('.choice-option');
+        if (choiceOption) {
+          const sectionId = parseInt(choiceOption.dataset.sectionId);
+          const choice = choiceOption.dataset.choice;
           const section = state.sections.find(s => s.id === sectionId);
           if (section) {
             section.selectedChoice = choice;
             renderSections();
             saveQuestAuto();
           }
-        });
+        }
       });
 
       // Single button name input
