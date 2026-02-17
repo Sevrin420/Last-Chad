@@ -1328,8 +1328,62 @@
     function saveQuest() {
       saveQuestAuto();
 
+      // Validate quest before publishing
+      if (!state.questName || state.questName.trim() === '') {
+        alert('⚠️ Please enter a quest name!');
+        return;
+      }
+
+      if (!state.sections || state.sections.length === 0) {
+        alert('⚠️ Please add at least one section!');
+        return;
+      }
+
+      // Validate each section has required fields
+      const sectionIds = new Set(state.sections.map(s => s.id));
+      for (const section of state.sections) {
+        if (!section.name || section.name.trim() === '') {
+          alert(`⚠️ Section ${section.id} is missing a name!`);
+          return;
+        }
+        if (!section.dialogue || section.dialogue.trim() === '') {
+          alert(`⚠️ Section "${section.name}" is missing dialogue!`);
+          return;
+        }
+        if (!section.selectedChoice) {
+          alert(`⚠️ Section "${section.name}" is missing a choice type!`);
+          return;
+        }
+
+        // Validate next section references
+        if (section.selectedChoice === 'single' && section.nextSectionId) {
+          if (!sectionIds.has(parseInt(section.nextSectionId))) {
+            alert(`⚠️ Section "${section.name}" references a non-existent next section!`);
+            return;
+          }
+        } else if (section.selectedChoice === 'double') {
+          if (section.choice1NextSectionId && !sectionIds.has(parseInt(section.choice1NextSectionId))) {
+            alert(`⚠️ Section "${section.name}" has invalid Choice 1 next section!`);
+            return;
+          }
+          if (section.choice2NextSectionId && !sectionIds.has(parseInt(section.choice2NextSectionId))) {
+            alert(`⚠️ Section "${section.name}" has invalid Choice 2 next section!`);
+            return;
+          }
+        } else if (section.selectedChoice === 'dice') {
+          if (section.passNextSectionId && !sectionIds.has(parseInt(section.passNextSectionId))) {
+            alert(`⚠️ Section "${section.name}" has invalid pass outcome section!`);
+            return;
+          }
+          if (section.failNextSectionId && !sectionIds.has(parseInt(section.failNextSectionId))) {
+            alert(`⚠️ Section "${section.name}" has invalid fail outcome section!`);
+            return;
+          }
+        }
+      }
+
       // Show loading dialog
-      const questName = state.questName || 'Untitled Quest';
+      const questName = state.questName;
       const confirmed = confirm(`🚀 Publish "${questName}" to lastchad.xyz?\n\nThis will create a new quest folder and make it playable!`);
 
       if (!confirmed) return;
