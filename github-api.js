@@ -119,17 +119,17 @@ class GitHubAPI {
       // Get current branch reference
       console.log(`⏳ Fetching branch reference...`);
       const branchRef = await this.getBranchRef();
-      const latestCommitSha = branchRef.data.object.sha;
+      const latestCommitSha = branchRef.object.sha;
       console.log(`✓ Branch reference found, commit: ${latestCommitSha.substring(0, 7)}`);
 
       // Get the commit tree
       console.log(`⏳ Fetching commit tree...`);
       const commit = await this.getCommit(latestCommitSha);
-      const treeData = await this.getTree(commit.data.tree.sha, true);
-      console.log(`✓ Tree fetched with ${treeData.data.tree.length} existing items`);
+      const treeData = await this.getTree(commit.tree.sha, true);
+      console.log(`✓ Tree fetched with ${treeData.tree.length} existing items`);
 
       // Prepare tree items
-      const treeItems = treeData.data.tree.map(item => ({
+      const treeItems = treeData.tree.map(item => ({
         path: item.path,
         mode: item.mode,
         type: item.type,
@@ -145,7 +145,7 @@ class GitHubAPI {
         path: `${questPath}/index.html`,
         mode: '100644',
         type: 'blob',
-        sha: htmlBlob.data.sha
+        sha: htmlBlob.sha
       });
 
       // Add quest data JSON
@@ -157,7 +157,7 @@ class GitHubAPI {
         path: `${questPath}/data.json`,
         mode: '100644',
         type: 'blob',
-        sha: questDataBlob.data.sha
+        sha: questDataBlob.sha
       });
 
       // Process and add images
@@ -176,7 +176,7 @@ class GitHubAPI {
             path: `${imagesPath}/${section.id}.png`,
             mode: '100644',
             type: 'blob',
-            sha: imageBlob.data.sha
+            sha: imageBlob.sha
           });
           imageCount++;
         }
@@ -193,7 +193,7 @@ class GitHubAPI {
             path: `${imagesPath}/dice-${section.id}.png`,
             mode: '100644',
             type: 'blob',
-            sha: diceBlob.data.sha
+            sha: diceBlob.sha
           });
           imageCount++;
         }
@@ -202,21 +202,21 @@ class GitHubAPI {
 
       // Create new tree
       console.log(`⏳ Creating new tree with ${treeItems.length} items...`);
-      const newTree = await this.createTree(treeItems, commit.data.tree.sha);
-      console.log(`✓ Tree created: ${newTree.data.sha.substring(0, 7)}`);
+      const newTree = await this.createTree(treeItems, commit.tree.sha);
+      console.log(`✓ Tree created: ${newTree.sha.substring(0, 7)}`);
 
       // Create commit
       console.log(`⏳ Creating commit...`);
       const newCommit = await this.createCommit(
         `Add quest: ${questName}\n\nPublished from Quest Builder`,
-        newTree.data.sha,
+        newTree.sha,
         [latestCommitSha]
       );
-      console.log(`✓ Commit created: ${newCommit.data.sha.substring(0, 7)}`);
+      console.log(`✓ Commit created: ${newCommit.sha.substring(0, 7)}`);
 
       // Update branch reference
       console.log(`⏳ Updating branch reference...`);
-      await this.updateRef(newCommit.data.sha);
+      await this.updateRef(newCommit.sha);
       console.log(`✓ Branch reference updated`);
 
       console.log(`✅ Quest published successfully!`);
