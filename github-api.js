@@ -10,6 +10,11 @@ class GitHubAPI {
     this.repo = repo;
     this.branch = branch;
     this.baseUrl = 'https://api.github.com';
+
+    // Validate token format
+    if (!token || !token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+      console.warn('⚠️ GitHub token format may be invalid');
+    }
   }
 
   async request(method, path, data = null) {
@@ -30,8 +35,15 @@ class GitHubAPI {
     const response = await fetch(url, options);
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || `GitHub API error: ${response.status}`);
+      let error;
+      try {
+        error = await response.json();
+      } catch (e) {
+        error = { message: response.statusText };
+      }
+      const errorMsg = error.message || error.error || `GitHub API error: ${response.status}`;
+      console.error(`❌ API Error (${method} ${path}):`, errorMsg);
+      throw new Error(errorMsg);
     }
 
     return response.json();
