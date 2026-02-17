@@ -303,6 +303,136 @@
       text-align: center;
       margin-top: 12px;
     }
+
+    /* --- Quest Type Selector --- */
+    .quest-type-selector {
+      width: 100%;
+      max-width: 800px;
+      background: rgba(10, 8, 4, 0.85);
+      border: 3px solid #c9a84c;
+      border-radius: 6px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 30px rgba(201, 168, 76, 0.2);
+    }
+
+    .quest-type-selector h2 {
+      font-size: 0.65rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .size-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .size-btn {
+      padding: 16px 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.35rem;
+      color: #a0963d;
+      background: rgba(30, 20, 10, 0.6);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .size-btn:hover {
+      background: rgba(30, 20, 10, 0.8);
+      border-color: #c9a84c;
+    }
+
+    .size-btn.active {
+      background: rgba(201, 168, 76, 0.2);
+      border-color: #c9a84c;
+      color: #c9a84c;
+      box-shadow: 0 0 15px rgba(201, 168, 76, 0.3);
+    }
+
+    .size-title {
+      font-size: 0.4rem;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .size-desc {
+      font-size: 0.3rem;
+      color: #7ee8d4;
+      opacity: 0.9;
+    }
+
+    /* --- Choice Template --- */
+    .choice-template {
+      background: rgba(30, 20, 10, 0.5);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .choice-template-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #5c4409;
+      padding-bottom: 8px;
+    }
+
+    .choice-template-title {
+      color: #c9a84c;
+      font-size: 0.4rem;
+      text-transform: uppercase;
+    }
+
+    .choice-template-delete {
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      padding: 4px 8px;
+      font-size: 0.3rem;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .choice-template-delete:hover {
+      background: rgba(255, 107, 107, 0.3);
+    }
+
+    /* --- Solidity Code Display --- */
+    .solidity-code {
+      background: rgba(30, 20, 10, 0.9);
+      border: 2px solid #7ee8d4;
+      border-radius: 4px;
+      padding: 16px;
+      margin-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .solidity-code code {
+      font-size: 0.3rem;
+      color: #7ee8d4;
+      line-height: 1.5;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+
+    .solidity-code.visible {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -314,6 +444,29 @@
   </div>
 
   <div class="main">
+    <!-- Quest Type Selector -->
+    <div class="quest-type-selector">
+      <h2>🎮 Quest Size Selector</h2>
+      <div class="size-buttons">
+        <button class="size-btn active" data-size="simple">
+          <div class="size-title">SIMPLE</div>
+          <div class="size-desc">2 choices</div>
+        </button>
+        <button class="size-btn" data-size="medium">
+          <div class="size-title">MEDIUM</div>
+          <div class="size-desc">3-4 choices</div>
+        </button>
+        <button class="size-btn" data-size="complex">
+          <div class="size-title">COMPLEX</div>
+          <div class="size-desc">Branching</div>
+        </button>
+        <button class="size-btn" data-size="epic">
+          <div class="size-title">EPIC</div>
+          <div class="size-desc">5+ choices</div>
+        </button>
+      </div>
+    </div>
+
     <div class="container">
       <div class="form-section">
         <h2>📋 Quest Details</h2>
@@ -328,64 +481,61 @@
           <textarea id="questDescription" placeholder="Describe the quest objective and setting..."></textarea>
         </div>
 
-        <h2 style="margin-top: 20px;">🎯 Choice 1 - The First Decision</h2>
-        <div class="choice-group">
-          <h3>Option A</h3>
-          <div class="form-group">
-            <label for="choice1A">Description</label>
-            <input type="text" id="choice1A" placeholder="e.g., Take the lower tunnels" maxlength="40">
-          </div>
-          <div class="choice-option">
-            <label for="choice1AXP">XP Bonus</label>
-            <input type="number" id="choice1AXP" value="1" min="0" max="10">
-          </div>
+        <!-- Quest Type Selection -->
+        <div class="form-group" style="margin-top: 20px;">
+          <label for="questType">Quest Type</label>
+          <select id="questType">
+            <option value="simple">Simple (Binary choices)</option>
+            <option value="medium">Medium (Multi-choice)</option>
+            <option value="complex">Complex (Branching)</option>
+            <option value="epic">Epic (Full narrative)</option>
+          </select>
         </div>
 
-        <div class="choice-group">
-          <h3>Option B</h3>
-          <div class="form-group">
-            <label for="choice1B">Description</label>
-            <input type="text" id="choice1B" placeholder="e.g., Take the upper tunnels" maxlength="40">
-          </div>
-          <div class="choice-option">
-            <label for="choice1BXP">XP Bonus</label>
-            <input type="number" id="choice1BXP" value="3" min="0" max="10">
-          </div>
+        <!-- Difficulty/Scaling -->
+        <div class="form-group">
+          <label for="difficultyLevel">Difficulty Level</label>
+          <select id="difficultyLevel">
+            <option value="easy">Easy (2-3 XP)</option>
+            <option value="normal">Normal (4-6 XP)</option>
+            <option value="hard">Hard (7-10 XP)</option>
+            <option value="legendary">Legendary (11+ XP)</option>
+          </select>
         </div>
 
-        <h2 style="margin-top: 20px;">🎯 Choice 2 - The Second Decision</h2>
-        <div class="choice-group">
-          <h3>Option A</h3>
-          <div class="form-group">
-            <label for="choice2A">Description</label>
-            <input type="text" id="choice2A" placeholder="e.g., Face it alone" maxlength="40">
-          </div>
-          <div class="choice-option">
-            <label for="choice2AXP">XP Bonus</label>
-            <input type="number" id="choice2AXP" value="2" min="0" max="10">
-          </div>
+        <h2 style="margin-top: 20px;">🎯 Quest Flow - Choice Segments</h2>
+
+        <div id="choicesContainer"></div>
+
+        <div style="margin-top: 20px;">
+          <button id="addChoiceBtn" class="secondary">➕ Add Choice</button>
         </div>
 
-        <div class="choice-group">
-          <h3>Option B</h3>
-          <div class="form-group">
-            <label for="choice2B">Description</label>
-            <input type="text" id="choice2B" placeholder="e.g., Call for backup" maxlength="40">
-          </div>
-          <div class="choice-option">
-            <label for="choice2BXP">XP Bonus</label>
-            <input type="number" id="choice2BXP" value="3" min="0" max="10">
-          </div>
+        <h2 style="margin-top: 20px;">⚙️ Quest Logic</h2>
+        <div class="form-group">
+          <label for="questFlow">Quest Flow Logic</label>
+          <textarea id="questFlow" placeholder="Define the narrative flow (optional):&#10;E.g., Intro → Choice 1 → Choice 2 → Ending" style="min-height: 60px;"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="successCondition">Success Condition</label>
+          <input type="text" id="successCondition" placeholder="e.g., Defeat the boss, Gather 3 items, Survive" maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label for="failureCondition">Failure Condition (Optional)</label>
+          <input type="text" id="failureCondition" placeholder="e.g., Get caught, Run out of time" maxlength="50">
         </div>
 
         <div class="btn-group">
           <button id="saveBtn">💾 Save Quest</button>
           <button class="secondary" id="resetBtn">⟲ Reset</button>
+          <button class="secondary" id="solidityBtn">📄 Solidity Code</button>
         </div>
       </div>
 
       <div class="preview-section">
-        <h2>👁️ Preview</h2>
+        <h2>👁️ Quest Preview</h2>
 
         <div class="preview-content">
           <div class="preview-item">
@@ -394,39 +544,34 @@
           </div>
 
           <div class="preview-item">
+            <div class="preview-label">Type</div>
+            <div class="preview-value" id="previewType">Simple</div>
+          </div>
+
+          <div class="preview-item">
+            <div class="preview-label">Difficulty</div>
+            <div class="preview-value" id="previewDifficulty">Normal</div>
+          </div>
+
+          <div class="preview-item">
             <div class="preview-label">Description</div>
             <div class="preview-value" id="previewDesc">No description provided.</div>
           </div>
 
           <div class="preview-item">
-            <div class="preview-label">Choice 1</div>
-            <div style="margin-top: 6px;">
-              <div style="margin-bottom: 4px;">
-                <span style="color: #a0963d;">A)</span>
-                <span id="previewChoice1A" style="color: #f5e6c8; font-size: 0.35rem;">Take the lower tunnels</span>
-                <span style="color: #7ee8d4; font-size: 0.35rem;">(+<span id="previewChoice1AXP">1</span> XP)</span>
-              </div>
-              <div>
-                <span style="color: #a0963d;">B)</span>
-                <span id="previewChoice1B" style="color: #f5e6c8; font-size: 0.35rem;">Take the upper tunnels</span>
-                <span style="color: #7ee8d4; font-size: 0.35rem;">(+<span id="previewChoice1BXP">3</span> XP)</span>
-              </div>
-            </div>
+            <div class="preview-label">Flow</div>
+            <div class="preview-value" id="previewFlow" style="font-size: 0.4rem;">Not defined</div>
           </div>
 
           <div class="preview-item">
-            <div class="preview-label">Choice 2</div>
-            <div style="margin-top: 6px;">
-              <div style="margin-bottom: 4px;">
-                <span style="color: #a0963d;">A)</span>
-                <span id="previewChoice2A" style="color: #f5e6c8; font-size: 0.35rem;">Face it alone</span>
-                <span style="color: #7ee8d4; font-size: 0.35rem;">(+<span id="previewChoice2AXP">2</span> XP)</span>
-              </div>
-              <div>
-                <span style="color: #a0963d;">B)</span>
-                <span id="previewChoice2B" style="color: #f5e6c8; font-size: 0.35rem;">Call for backup</span>
-                <span style="color: #7ee8d4; font-size: 0.35rem;">(+<span id="previewChoice2BXP">3</span> XP)</span>
-              </div>
+            <div class="preview-label">Success Condition</div>
+            <div class="preview-value" id="previewSuccess" style="font-size: 0.4rem;">Not defined</div>
+          </div>
+
+          <div class="preview-item" id="choicesList">
+            <div class="preview-label">Choices</div>
+            <div id="previewChoicesContent" style="margin-top: 6px; font-size: 0.35rem;">
+              <div style="color: #a0963d;">No choices added yet</div>
             </div>
           </div>
 
@@ -494,155 +639,340 @@
       injectNav();
     }
 
-    const questName = document.getElementById('questName');
-    const questDesc = document.getElementById('questDescription');
-    const choice1A = document.getElementById('choice1A');
-    const choice1AXP = document.getElementById('choice1AXP');
-    const choice1B = document.getElementById('choice1B');
-    const choice1BXP = document.getElementById('choice1BXP');
-    const choice2A = document.getElementById('choice2A');
-    const choice2AXP = document.getElementById('choice2AXP');
-    const choice2B = document.getElementById('choice2B');
-    const choice2BXP = document.getElementById('choice2BXP');
+    // State management
+    const state = {
+      questSize: 'simple',
+      choices: [],
+      questData: {
+        name: '',
+        description: '',
+        type: 'simple',
+        difficulty: 'normal',
+        flow: '',
+        successCondition: '',
+        failureCondition: ''
+      }
+    };
+
+    // Quest size presets
+    const sizePresets = {
+      simple: { count: 2, min: 2, max: 2 },
+      medium: { count: 3, min: 3, max: 4 },
+      complex: { count: 4, min: 3, max: 5 },
+      epic: { count: 5, min: 4, max: 6 }
+    };
+
+    // XP ranges by difficulty
+    const difficultyRanges = {
+      easy: { min: 2, max: 3 },
+      normal: { min: 4, max: 6 },
+      hard: { min: 7, max: 10 },
+      legendary: { min: 11, max: 15 }
+    };
+
+    // Initialize quest type buttons
+    document.querySelectorAll('.size-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        state.questSize = this.dataset.size;
+        document.getElementById('questType').value = state.questSize;
+        initializeChoices();
+        updatePreview();
+      });
+    });
+
+    // Quest Type Selector
+    document.getElementById('questType').addEventListener('change', function() {
+      state.questData.type = this.value;
+      state.questSize = this.value;
+      document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`[data-size="${this.value}"]`).classList.add('active');
+      initializeChoices();
+      updatePreview();
+    });
+
+    // Difficulty selector
+    document.getElementById('difficultyLevel').addEventListener('change', function() {
+      state.questData.difficulty = this.value;
+      updatePreview();
+    });
+
+    // Initialize choices for selected quest type
+    function initializeChoices() {
+      const count = sizePresets[state.questSize].count;
+      state.choices = [];
+      for (let i = 0; i < count; i++) {
+        state.choices.push({
+          id: i,
+          question: '',
+          options: [
+            { text: 'Option A', xp: 1 },
+            { text: 'Option B', xp: 2 }
+          ]
+        });
+      }
+      renderChoices();
+    }
+
+    // Render choice segments
+    function renderChoices() {
+      const container = document.getElementById('choicesContainer');
+      container.innerHTML = '';
+      state.choices.forEach((choice, idx) => {
+        const segment = document.createElement('div');
+        segment.className = 'choice-template';
+        segment.innerHTML = `
+          <div class="choice-template-header">
+            <div class="choice-template-title">Decision ${idx + 1}</div>
+            <button class="choice-template-delete" onclick="deleteChoice(${idx})">✕ Delete</button>
+          </div>
+          <div class="form-group">
+            <label>Question/Scenario</label>
+            <input type="text" placeholder="What do you do?" class="choice-question" value="${choice.question}" data-id="${idx}">
+          </div>
+          <div id="options-${idx}"></div>
+        `;
+        container.appendChild(segment);
+        renderOptions(idx);
+      });
+    }
+
+    // Render options for a choice
+    function renderOptions(choiceIdx) {
+      const optionsContainer = document.getElementById(`options-${choiceIdx}`);
+      optionsContainer.innerHTML = '';
+      state.choices[choiceIdx].options.forEach((option, optIdx) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'choice-group';
+        optionDiv.innerHTML = `
+          <h3>Option ${String.fromCharCode(65 + optIdx)}</h3>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" placeholder="Choose wisely..." class="option-text" value="${option.text}" data-choice="${choiceIdx}" data-option="${optIdx}">
+          </div>
+          <div class="choice-option">
+            <label>XP Bonus</label>
+            <input type="number" class="option-xp" value="${option.xp}" min="0" max="15" data-choice="${choiceIdx}" data-option="${optIdx}">
+          </div>
+        `;
+        optionsContainer.appendChild(optionDiv);
+      });
+
+      // Add event listeners
+      optionsContainer.querySelectorAll('.option-text, .option-xp').forEach(input => {
+        input.addEventListener('input', function() {
+          const choiceIdx = parseInt(this.dataset.choice);
+          const optIdx = parseInt(this.dataset.option);
+          if (this.classList.contains('option-text')) {
+            state.choices[choiceIdx].options[optIdx].text = this.value;
+          } else {
+            state.choices[choiceIdx].options[optIdx].xp = parseInt(this.value) || 0;
+          }
+          updatePreview();
+          saveQuestDraft();
+        });
+      });
+    }
+
+    function deleteChoice(idx) {
+      if (state.choices.length > 2) {
+        state.choices.splice(idx, 1);
+        renderChoices();
+        updatePreview();
+        saveQuestDraft();
+      }
+    }
+
+    // Add choice
+    document.getElementById('addChoiceBtn').addEventListener('click', function() {
+      const max = sizePresets[state.questSize].max;
+      if (state.choices.length < max) {
+        state.choices.push({
+          id: state.choices.length,
+          question: '',
+          options: [
+            { text: 'Option A', xp: 1 },
+            { text: 'Option B', xp: 2 }
+          ]
+        });
+        renderChoices();
+        updatePreview();
+      }
+    });
+
+    // Update quest flow and success/failure conditions
+    ['questName', 'questDescription', 'questFlow', 'successCondition', 'failureCondition'].forEach(id => {
+      document.getElementById(id).addEventListener('input', function() {
+        state.questData.name = document.getElementById('questName').value;
+        state.questData.description = document.getElementById('questDescription').value;
+        state.questData.flow = document.getElementById('questFlow').value;
+        state.questData.successCondition = document.getElementById('successCondition').value;
+        state.questData.failureCondition = document.getElementById('failureCondition').value;
+        updatePreview();
+        saveQuestDraft();
+      });
+    });
+
+    // Update choice questions
+    document.addEventListener('input', function(e) {
+      if (e.target.classList.contains('choice-question')) {
+        const idx = parseInt(e.target.dataset.id);
+        state.choices[idx].question = e.target.value;
+        updatePreview();
+        saveQuestDraft();
+      }
+    });
+
+    function updatePreview() {
+      document.getElementById('previewName').textContent = state.questData.name || 'Untitled Quest';
+      document.getElementById('previewType').textContent = state.questData.type.charAt(0).toUpperCase() + state.questData.type.slice(1);
+      document.getElementById('previewDifficulty').textContent = state.questData.difficulty.charAt(0).toUpperCase() + state.questData.difficulty.slice(1);
+      document.getElementById('previewDesc').textContent = state.questData.description || 'No description provided.';
+      document.getElementById('previewFlow').textContent = state.questData.flow || 'Not defined';
+      document.getElementById('previewSuccess').textContent = state.questData.successCondition || 'Not defined';
+
+      // Show choices
+      let choicesHTML = '';
+      state.choices.forEach((choice, idx) => {
+        choicesHTML += `<div style="margin-bottom: 8px;">
+          <div style="color: #c9a84c; font-size: 0.35rem; font-weight: bold;">Choice ${idx + 1}: ${choice.question || 'Untitled'}</div>
+          <div style="margin-left: 8px; margin-top: 4px;">`;
+        choice.options.forEach((opt, optIdx) => {
+          choicesHTML += `<div style="color: #f5e6c8; font-size: 0.35rem; margin-bottom: 2px;">
+            ${String.fromCharCode(65 + optIdx)}) ${opt.text} <span style="color: #7ee8d4;">(+${opt.xp} XP)</span>
+          </div>`;
+        });
+        choicesHTML += '</div></div>';
+      });
+
+      document.getElementById('previewChoicesContent').innerHTML = choicesHTML || '<div style="color: #a0963d;">No choices added yet</div>';
+
+      // Calculate XP ranges
+      const minXps = state.choices.map(c => Math.min(...c.options.map(o => o.xp)));
+      const maxXps = state.choices.map(c => Math.max(...c.options.map(o => o.xp)));
+      const minTotal = minXps.reduce((a, b) => a + b, 0);
+      const maxTotal = maxXps.reduce((a, b) => a + b, 0) + 12 + 2; // +dice +dex
+
+      document.getElementById('calcChoice1Best').textContent = maxXps[0] || 0;
+      document.getElementById('calcChoice2Best').textContent = maxXps[1] || 0;
+      document.getElementById('calcChoice1Min').textContent = minXps[0] || 0;
+      document.getElementById('calcChoice2Min').textContent = minXps[1] || 0;
+      document.getElementById('calcBest').textContent = maxTotal;
+      document.getElementById('calcMin').textContent = minTotal;
+    }
+
+    function saveQuestDraft() {
+      localStorage.setItem('questBuilderDraft', JSON.stringify({
+        questData: state.questData,
+        choices: state.choices,
+        questSize: state.questSize
+      }));
+    }
+
+    function exportQuestJSON() {
+      return {
+        name: state.questData.name || 'Untitled Quest',
+        description: state.questData.description || '',
+        type: state.questData.type,
+        difficulty: state.questData.difficulty,
+        flow: state.questData.flow,
+        successCondition: state.questData.successCondition,
+        failureCondition: state.questData.failureCondition,
+        choices: state.choices,
+        mechanics: {
+          minXPs: state.choices.map(c => Math.min(...c.options.map(o => o.xp))),
+          maxXPs: state.choices.map(c => Math.max(...c.options.map(o => o.xp))),
+          diceRequired: '6, 5, 4',
+          dexBonusScaling: '1 dex point = 1 XP'
+        }
+      };
+    }
+
+    function generateSolidityCode() {
+      const questName = state.questData.name.replace(/\s+/g, '').substring(0, 20);
+      const choices = state.choices;
+
+      let code = `// Quest: ${state.questData.name}\\n`;
+      code += `// ${state.questData.description}\\n\\n`;
+      code += `struct Quest${questName} {\\n`;
+      code += `    uint8 questId;\\n`;
+      code += `    string name;\\n`;
+      code += `    string description;\\n`;
+      code += `    string difficulty; // ${state.questData.difficulty}\\n`;
+      code += `    uint8 numChoices; // ${choices.length}\\n`;
+      code += `}\\n\\n`;
+
+      code += `// Choice Rewards (XP Bonuses)\\n`;
+      choices.forEach((choice, idx) => {
+        code += `// Choice ${idx + 1}: ${choice.question}\\n`;
+        choice.options.forEach((opt, optIdx) => {
+          code += `uint8 choice${idx + 1}Option${optIdx} = ${opt.xp}; // "${opt.text}"\\n`;
+        });
+      });
+
+      code += `\\n// XP Range: ${state.choices.reduce((a, b) => a + Math.min(...b.options.map(o => o.xp)), 0)} - ${state.choices.reduce((a, b) => a + Math.max(...b.options.map(o => o.xp)), 0) + 14} XP\\n`;
+
+      return code;
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', function() {
+      const jsonData = exportQuestJSON();
+      document.getElementById('jsonExport').style.display = 'block';
+      document.getElementById('jsonContent').textContent = JSON.stringify(jsonData, null, 2);
+      const statusMsg = document.getElementById('statusMessage');
+      statusMsg.innerHTML = '<div class="success-message">✓ Quest saved! Copy the JSON.</div>';
+      setTimeout(() => statusMsg.innerHTML = '', 3000);
+    });
+
+    document.getElementById('solidityBtn').addEventListener('click', function() {
+      const solidityCode = document.createElement('div');
+      solidityCode.className = 'solidity-code visible';
+      solidityCode.innerHTML = `<code>${generateSolidityCode()}</code>`;
+      const existingCode = document.querySelector('.solidity-code');
+      if (existingCode) existingCode.remove();
+      document.getElementById('statusMessage').parentNode.appendChild(solidityCode);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', function() {
+      if (confirm('Reset all quest data?')) {
+        state.questData = { name: '', description: '', type: 'simple', difficulty: 'normal', flow: '', successCondition: '', failureCondition: '' };
+        document.getElementById('questName').value = '';
+        document.getElementById('questDescription').value = '';
+        document.getElementById('questFlow').value = '';
+        document.getElementById('successCondition').value = '';
+        document.getElementById('failureCondition').value = '';
+        localStorage.removeItem('questBuilderDraft');
+        state.questSize = 'simple';
+        initializeChoices();
+        updatePreview();
+      }
+    });
 
     function loadQuestData() {
       const saved = localStorage.getItem('questBuilderDraft');
       if (saved) {
         try {
           const data = JSON.parse(saved);
-          questName.value = data.questName || '';
-          questDesc.value = data.questDescription || '';
-          choice1A.value = data.choice1A || 'Take the lower tunnels';
-          choice1AXP.value = data.choice1AXP || 1;
-          choice1B.value = data.choice1B || 'Take the upper tunnels';
-          choice1BXP.value = data.choice1BXP || 3;
-          choice2A.value = data.choice2A || 'Face it alone';
-          choice2AXP.value = data.choice2AXP || 2;
-          choice2B.value = data.choice2B || 'Call for backup';
-          choice2BXP.value = data.choice2BXP || 3;
+          state.questData = data.questData;
+          state.choices = data.choices;
+          state.questSize = data.questSize;
+          document.getElementById('questName').value = state.questData.name;
+          document.getElementById('questDescription').value = state.questData.description;
+          document.getElementById('questType').value = state.questData.type;
+          document.getElementById('difficultyLevel').value = state.questData.difficulty;
+          document.getElementById('questFlow').value = state.questData.flow;
+          document.getElementById('successCondition').value = state.questData.successCondition;
+          document.getElementById('failureCondition').value = state.questData.failureCondition;
+          renderChoices();
         } catch (e) {
           console.error('Error loading saved data:', e);
+          initializeChoices();
         }
+      } else {
+        initializeChoices();
       }
     }
-
-    function updatePreview() {
-      document.getElementById('previewName').textContent = questName.value || 'Untitled Quest';
-      document.getElementById('previewDesc').textContent = questDesc.value || 'No description provided.';
-      document.getElementById('previewChoice1A').textContent = choice1A.value || 'Take the lower tunnels';
-      document.getElementById('previewChoice1AXP').textContent = choice1AXP.value;
-      document.getElementById('previewChoice1B').textContent = choice1B.value || 'Take the upper tunnels';
-      document.getElementById('previewChoice1BXP').textContent = choice1BXP.value;
-      document.getElementById('previewChoice2A').textContent = choice2A.value || 'Face it alone';
-      document.getElementById('previewChoice2AXP').textContent = choice2AXP.value;
-      document.getElementById('previewChoice2B').textContent = choice2B.value || 'Call for backup';
-      document.getElementById('previewChoice2BXP').textContent = choice2BXP.value;
-
-      const c1Min = parseInt(choice1AXP.value) || 0;
-      const c1Max = parseInt(choice1BXP.value) || 0;
-      const c2Min = parseInt(choice2AXP.value) || 0;
-      const c2Max = parseInt(choice2BXP.value) || 0;
-
-      document.getElementById('calcChoice1Best').textContent = c1Max;
-      document.getElementById('calcChoice2Best').textContent = c2Max;
-      document.getElementById('calcChoice1Min').textContent = c1Min;
-      document.getElementById('calcChoice2Min').textContent = c2Min;
-
-      const bestTotal = c1Max + c2Max + 12 + 2;
-      document.getElementById('calcBest').textContent = bestTotal;
-
-      const minTotal = c1Min + c2Min;
-      document.getElementById('calcMin').textContent = minTotal;
-    }
-
-    function saveQuestDraft() {
-      const questData = {
-        questName: questName.value,
-        questDescription: questDesc.value,
-        choice1A: choice1A.value,
-        choice1AXP: choice1AXP.value,
-        choice1B: choice1B.value,
-        choice1BXP: choice1BXP.value,
-        choice2A: choice2A.value,
-        choice2AXP: choice2AXP.value,
-        choice2B: choice2B.value,
-        choice2BXP: choice2BXP.value,
-      };
-      localStorage.setItem('questBuilderDraft', JSON.stringify(questData));
-      return questData;
-    }
-
-    function exportQuestJSON() {
-      const questData = {
-        name: questName.value || 'Untitled Quest',
-        description: questDesc.value || '',
-        choices: {
-          choice1: {
-            optionA: {
-              text: choice1A.value || 'Option A',
-              xpBonus: parseInt(choice1AXP.value) || 0
-            },
-            optionB: {
-              text: choice1B.value || 'Option B',
-              xpBonus: parseInt(choice1BXP.value) || 0
-            }
-          },
-          choice2: {
-            optionA: {
-              text: choice2A.value || 'Option A',
-              xpBonus: parseInt(choice2AXP.value) || 0
-            },
-            optionB: {
-              text: choice2B.value || 'Option B',
-              xpBonus: parseInt(choice2BXP.value) || 0
-            }
-          }
-        },
-        mechanics: {
-          minXP: Math.min(parseInt(choice1AXP.value) || 0, parseInt(choice1BXP.value) || 0) + Math.min(parseInt(choice2AXP.value) || 0, parseInt(choice2BXP.value) || 0),
-          maxXP: Math.max(parseInt(choice1AXP.value) || 0, parseInt(choice1BXP.value) || 0) + Math.max(parseInt(choice2AXP.value) || 0, parseInt(choice2BXP.value) || 0) + 12 + 2,
-          diceRequired: '6, 5, 4',
-          dexBonusScaling: '1 dex point = 1 XP'
-        }
-      };
-      return questData;
-    }
-
-    document.getElementById('saveBtn').addEventListener('click', function() {
-      const questData = saveQuestDraft();
-      const jsonData = exportQuestJSON();
-
-      document.getElementById('jsonExport').style.display = 'block';
-      document.getElementById('jsonContent').textContent = JSON.stringify(jsonData, null, 2);
-
-      const statusMsg = document.getElementById('statusMessage');
-      statusMsg.innerHTML = '<div class="success-message">✓ Quest saved to browser! Copy the JSON to preserve it.</div>';
-      setTimeout(() => {
-        statusMsg.innerHTML = '';
-      }, 3000);
-    });
-
-    document.getElementById('resetBtn').addEventListener('click', function() {
-      if (confirm('Reset all quest data? This cannot be undone.')) {
-        questName.value = '';
-        questDesc.value = '';
-        choice1A.value = 'Take the lower tunnels';
-        choice1AXP.value = 1;
-        choice1B.value = 'Take the upper tunnels';
-        choice1BXP.value = 3;
-        choice2A.value = 'Face it alone';
-        choice2AXP.value = 2;
-        choice2B.value = 'Call for backup';
-        choice2BXP.value = 3;
-        localStorage.removeItem('questBuilderDraft');
-        updatePreview();
-      }
-    });
-
-    [questName, questDesc, choice1A, choice1AXP, choice1B, choice1BXP, choice2A, choice2AXP, choice2B, choice2BXP].forEach(el => {
-      el.addEventListener('input', updatePreview);
-      el.addEventListener('change', () => saveQuestDraft());
-    });
 
     loadQuestData();
     updatePreview();
