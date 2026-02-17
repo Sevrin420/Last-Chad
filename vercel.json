@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/quest-builder.html",
+      "dest": "quest-builder.html"
+    },
+    {
+      "src": "/styles.css",
+      "dest": "styles.css"
+    },
+    {
+      "src": "/nav.js",
+      "dest": "nav.js"
+    },
+    {
+      "src": "/nav.css",
+      "dest": "nav.css"
+    }
+  ]
+}
