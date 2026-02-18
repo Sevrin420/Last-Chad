@@ -473,7 +473,7 @@ function generateQuestHTML(questName, sections) {
     // Strip image data from sections — images are served as files in /images/
     const questData = ${JSON.stringify({
       name: questName,
-      sections: sections.map(({ photo, diceImage, ...rest }) => rest)
+      sections: sections.map(({ photo, diceImage, ...rest }) => ({ ...rest, hasPhoto: !!photo, hasDiceImage: !!diceImage }))
     })};
     const sectionMap = {};
     let currentSectionId = null;
@@ -524,7 +524,7 @@ function generateQuestHTML(questName, sections) {
           <div class="section-name">\${escapeHtml(section.name)}</div>
       \`;
 
-      if (section.photo) {
+      if (section.hasPhoto) {
         html += \`<img src="images/\${section.id}.png" alt="\${escapeHtml(section.name)}" class="section-image visible">\`;
       }
 
