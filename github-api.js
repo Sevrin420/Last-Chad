@@ -290,7 +290,9 @@ function generateQuestHTML(questName, sections) {
     if (s.selectedChoice === 'dice') {
       diceOutcomes[s.id] = {
         passNextId: s.passNextSectionId || null,
-        failNextId: s.failNextSectionId || null
+        failNextId: s.failNextSectionId || null,
+        statBonus: s.statBonus || null,
+        difficulty: s.difficulty !== undefined ? s.difficulty : 8
       };
     }
   });
@@ -340,6 +342,13 @@ function generateQuestHTML(questName, sections) {
 
     } else if (section.selectedChoice === 'dice') {
       // Full Ship-Captain-Crew dice section (matching quest.html)
+      const statLabelMap = {
+        strength: 'STRENGTH', intelligence: 'INTELLIGENCE',
+        dexterity: 'DEXTERITY', charisma: 'CHARISMA'
+      };
+      const statLabel = statLabelMap[section.statBonus] || 'STAT';
+      const difficulty = section.difficulty !== undefined ? section.difficulty : 8;
+
       const diceColsHtml = [0,1,2,3,4].map(i => `
               <div class="dice-col">
                 <div class="dice-box" id="die${i}_${sid}"><div class="dice-face" id="face${i}_${sid}"></div></div>
@@ -348,6 +357,7 @@ function generateQuestHTML(questName, sections) {
 
       actionHtml = `
         <div class="dice-section">
+          <div class="dice-meta-tag">${statLabel} BONUS +0 &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
           <div class="dice-row">${diceColsHtml}
           </div>
           <div class="roll-section">
@@ -594,6 +604,16 @@ function generateQuestHTML(questName, sections) {
     @keyframes glow {
       0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
       50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
+    }
+
+    /* Dice stat/difficulty header */
+    .dice-meta-tag {
+      font-size: 0.42rem;
+      color: #e53935;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+      text-align: center;
+      line-height: 2;
     }
 
     /* Dice system */
@@ -925,35 +945,48 @@ ${completePanelHtml}
       var resultText  = document.getElementById('diceResultText_' + sid);
       var actionBtn   = document.getElementById('diceActionBtn_' + sid);
       var outcome     = diceOutcomes[sid] || {};
+      var difficulty  = outcome.difficulty !== undefined ? outcome.difficulty : 8;
 
       var vals = state.values.slice();
       var i6 = vals.indexOf(6);
-      if (i6 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId); return; }
+      if (i6 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i6, 1);
       var i5 = vals.indexOf(5);
-      if (i5 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId); return; }
+      if (i5 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i5, 1);
       var i4 = vals.indexOf(4);
-      if (i4 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId); return; }
+      if (i4 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i4, 1);
 
       var crew = vals[0] + vals[1];
+      // Stat bonus: +0 for custom quests (no on-chain read)
+      var statBonusVal = 0;
+      var total = crew + statBonusVal;
+
       crewScore += crew;
       updateCrewDisplay();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'CREW';
       if (scoreValue) scoreValue.textContent = crew;
-      if (resultText) resultText.innerHTML = '<span class="highlight">' + crew + ' crew assembled.</span> You press forward.';
-      if (continueWrap) continueWrap.classList.add('show');
-      if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.passNextId);
+
+      if (total >= difficulty) {
+        if (resultText) resultText.innerHTML = '<span class="highlight">' + crew + ' crew assembled.</span> Difficulty ' + difficulty + ' cleared. Press forward.';
+        if (continueWrap) continueWrap.classList.add('show');
+        if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.passNextId);
+      } else {
+        if (scoreBox) scoreBox.className = 'score-box no-score';
+        if (resultText) resultText.innerHTML = 'Only <span class="highlight">' + crew + ' crew</span> — needed ' + difficulty + '. You fall short.';
+        if (continueWrap) continueWrap.classList.add('show');
+        if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.failNextId);
+      }
     }
 
-    function noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId) {
+    function noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
       if (scoreBox) scoreBox.className = 'score-box no-score';
       if (scoreLabel) scoreLabel.textContent = 'NO CREW';
       if (scoreValue) scoreValue.textContent = '0';
-      if (resultText) resultText.innerHTML = 'The dice forsake you. <span class="highlight">You push on alone.</span>';
+      if (resultText) resultText.innerHTML = 'The dice forsake you. Needed ' + (difficulty || 8) + '. <span class="highlight">You push on alone.</span>';
       if (continueWrap) continueWrap.classList.add('show');
       if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
     }
