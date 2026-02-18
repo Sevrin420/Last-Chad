@@ -797,6 +797,74 @@
       box-shadow: 0 0 16px rgba(126, 232, 212, 0.3);
     }
 
+    /* Publish Progress Modal */
+    .publish-progress-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      backdrop-filter: blur(4px);
+    }
+
+    .publish-progress-modal.open {
+      display: flex;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .publish-progress-content {
+      background: rgba(10, 10, 15, 0.97);
+      border: 2px solid #c9a84c;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 520px;
+      padding: 28px;
+      box-shadow: 0 0 40px rgba(201, 168, 76, 0.3);
+    }
+
+    .publish-progress-title {
+      font-size: 0.5rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .progress-bar-track {
+      background: rgba(201, 168, 76, 0.15);
+      border: 1px solid rgba(201, 168, 76, 0.4);
+      border-radius: 4px;
+      height: 18px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #c9a84c, #f5e6c8);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.4s ease;
+      box-shadow: 0 0 8px rgba(201, 168, 76, 0.5);
+    }
+
+    .progress-step-label {
+      font-size: 0.28rem;
+      color: #7ee8d4;
+      text-align: center;
+      margin-bottom: 8px;
+      min-height: 1.4em;
+      line-height: 1.4;
+    }
+
+    .progress-counter {
+      font-size: 0.25rem;
+      color: #a0963d;
+      text-align: center;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .main {
@@ -866,6 +934,18 @@
     <div class="action-buttons">
       <button class="secondary-btn" id="exportBtn">📥 Export JSON</button>
       <button class="primary-btn" id="saveBtn">💾 Save Quest</button>
+    </div>
+  </div>
+
+  <!-- Publish Progress Modal -->
+  <div class="publish-progress-modal" id="publishProgressModal">
+    <div class="publish-progress-content">
+      <div class="publish-progress-title">🚀 Publishing Quest...</div>
+      <div class="progress-step-label" id="progressStepLabel">Preparing...</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+      </div>
+      <div class="progress-counter" id="progressCounter">0 / 0</div>
     </div>
   </div>
 
@@ -1416,18 +1496,27 @@
         localStorage.setItem('githubToken', token);
       }
 
-      // Disable button during publish
+      // Disable button and show progress modal during publish
       const saveBtn = document.getElementById('saveBtn');
       saveBtn.disabled = true;
       saveBtn.textContent = '⏳ Publishing...';
+      showPublishProgress(true);
+
+      function onPublishProgress(step, total, message) {
+        const pct = Math.round((step / total) * 100);
+        document.getElementById('progressBarFill').style.width = pct + '%';
+        document.getElementById('progressStepLabel').textContent = message;
+        document.getElementById('progressCounter').textContent = `Step ${step} of ${total}`;
+      }
 
       try {
         // Initialize GitHub API (publish to landing page branch so GitHub Pages can serve the quests)
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/create-landing-page-1qjhB');
 
         // Publish quest
-        github.publishQuest(questName, state.sections)
+        github.publishQuest(questName, state.sections, onPublishProgress)
           .then(data => {
+            showPublishProgress(false);
             showQuestPublishedModal(questName, data.questUrl);
             saveBtn.disabled = false;
             saveBtn.textContent = '💾 Save Quest';
@@ -1467,12 +1556,14 @@
             detailedMsg += `2. Look for detailed step-by-step logs\n`;
             detailedMsg += `3. Share the logs for support`;
 
+            showPublishProgress(false);
             alert(detailedMsg);
             saveBtn.disabled = false;
             saveBtn.textContent = '💾 Save Quest';
           });
       } catch (error) {
         console.error('Publish error:', error);
+        showPublishProgress(false);
         const errorMsg = error?.message || String(error) || 'Unknown error';
         let detailedMsg = `${errorMsg}\n\n🔍 DEBUG INFO:\n`;
         detailedMsg += `Repository: Sevrin420/Last-Chad\n`;
@@ -1482,6 +1573,18 @@
         alert(detailedMsg);
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Save Quest';
+      }
+    }
+
+    function showPublishProgress(visible) {
+      const modal = document.getElementById('publishProgressModal');
+      if (visible) {
+        document.getElementById('progressBarFill').style.width = '0%';
+        document.getElementById('progressStepLabel').textContent = 'Preparing...';
+        document.getElementById('progressCounter').textContent = 'Step 0 of ?';
+        modal.classList.add('open');
+      } else {
+        modal.classList.remove('open');
       }
     }
 
