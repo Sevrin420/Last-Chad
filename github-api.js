@@ -261,7 +261,7 @@ class GitHubAPI {
 }
 
 /**
- * Generate quest player HTML
+ * Generate quest player HTML — matches quest.html visual format
  */
 function escapeHtml(text) {
   const map = {
@@ -280,6 +280,145 @@ function generateQuestHTML(questName, sections) {
     .replace(/[^a-z0-9]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
+
+  // Detect if any section uses dice
+  const hasDice = sections.some(s => s.selectedChoice === 'dice');
+
+  // Build dice outcome map for embedded JS
+  const diceOutcomes = {};
+  sections.forEach(s => {
+    if (s.selectedChoice === 'dice') {
+      diceOutcomes[s.id] = {
+        passNextId: s.passNextSectionId || null,
+        failNextId: s.failNextSectionId || null
+      };
+    }
+  });
+  const diceSectionIds = sections.filter(s => s.selectedChoice === 'dice').map(s => s.id);
+
+  // Format dialogue text: split on newlines into <p> tags
+  function formatDialogue(text) {
+    if (!text) return '<p>...</p>';
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length === 0) return '<p>...</p>';
+    return lines.map(l => `<p>${escapeHtml(l)}</p>`).join('\n          ');
+  }
+
+  // Generate HTML for all panels (one per section)
+  const panelsHtml = sections.map((section, idx) => {
+    const sid = section.id;
+    const isFirst = idx === 0;
+    const sectionName = escapeHtml(section.name || `Section ${idx + 1}`);
+    const dialogueHtml = formatDialogue(section.dialogue);
+    const imageHtml = section.photo
+      ? `<img src="images/${sid}.png" alt="${sectionName}" class="section-img">`
+      : '';
+
+    let actionHtml = '';
+
+    if (section.selectedChoice === 'single') {
+      const nextId = section.nextSectionId || null;
+      actionHtml = `
+        <button class="action-btn" onclick="goToSection(${nextId})">
+          ${escapeHtml(section.buttonName || 'CONTINUE')}
+        </button>`;
+
+    } else if (section.selectedChoice === 'double') {
+      const next1 = section.choice1NextSectionId || null;
+      const next2 = section.choice2NextSectionId || null;
+      const btn1 = escapeHtml(section.button1Name || 'Choice A');
+      const btn2 = escapeHtml(section.button2Name || 'Choice B');
+      actionHtml = `
+        <div class="choices">
+          <button class="choice-btn" onclick="goToSection(${next1})">
+            <span class="choice-label">[ ${btn1} ]</span>
+          </button>
+          <button class="choice-btn" onclick="goToSection(${next2})">
+            <span class="choice-label">[ ${btn2} ]</span>
+          </button>
+        </div>`;
+
+    } else if (section.selectedChoice === 'dice') {
+      // Full Ship-Captain-Crew dice section (matching quest.html)
+      const diceColsHtml = [0,1,2,3,4].map(i => `
+              <div class="dice-col">
+                <div class="dice-box" id="die${i}_${sid}"><div class="dice-face" id="face${i}_${sid}"></div></div>
+                <button class="keep-btn" id="keep${i}_${sid}" disabled>LOCK</button>
+              </div>`).join('');
+
+      actionHtml = `
+        <div class="dice-section">
+          <div class="dice-row">${diceColsHtml}
+          </div>
+          <div class="roll-section">
+            <button class="roll-btn" id="rollBtn_${sid}" onclick="rollDice(${sid})">ROLL</button>
+            <div class="rolls-left" id="rollsLeft_${sid}">3 ROLLS LEFT</div>
+          </div>
+          <div class="score-box" id="scoreBox_${sid}">
+            <div class="checklist">
+              <div class="check-item" id="check6_${sid}">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>6 = SHIP</span>
+              </div>
+              <div class="check-item" id="check5_${sid}">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>5 = CAPTAIN</span>
+              </div>
+              <div class="check-item" id="check4_${sid}">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>4 = MATE</span>
+              </div>
+            </div>
+            <div class="score-right">
+              <div class="score-label" id="scoreLabel_${sid}">ROLL THE DICE</div>
+              <div class="score-value" id="scoreValue_${sid}">-</div>
+            </div>
+          </div>
+          <div class="continue-wrap" id="continueWrap_${sid}">
+            <div class="dice-result-text" id="diceResultText_${sid}"></div>
+            <button class="action-btn" id="diceActionBtn_${sid}">CONTINUE</button>
+          </div>
+        </div>`;
+
+    } else {
+      // Fallback: terminal section
+      actionHtml = `<button class="action-btn" onclick="goToSection(null)">CONTINUE</button>`;
+    }
+
+    return `
+      <!-- ${sectionName} -->
+      <div class="panel${isFirst ? ' active' : ''}" id="panel-${sid}">
+        <div class="mission-tag">${sectionName}</div>
+        ${imageHtml}
+        <div class="narrative">
+          ${dialogueHtml}
+        </div>
+        ${actionHtml}
+      </div>`;
+  }).join('\n');
+
+  // Quest complete panel
+  const completePanelHtml = `
+      <!-- Quest Complete -->
+      <div class="panel" id="panel-complete">
+        <div class="mission-tag">QUEST COMPLETE</div>
+        <div class="narrative">
+          <p>You have reached the end of <span class="highlight">${escapeHtml(questName)}</span>.</p>
+          ${hasDice ? '<p>Your crew held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
+        </div>
+        ${hasDice ? `
+        <div class="score-breakdown">
+          <div class="breakdown-title">AFTER ACTION REPORT</div>
+          <div class="breakdown-row total">
+            <span class="breakdown-label">TOTAL CREW SCORE</span>
+            <span class="breakdown-val" id="finalScore">0</span>
+          </div>
+        </div>` : ''}
+        <button class="action-btn" onclick="window.history.back()">RETURN</button>
+      </div>`;
+
+  const diceOutcomesJson = JSON.stringify(diceOutcomes);
+  const diceInitJs = diceSectionIds.map(id => `    getDiceState(${id});`).join('\n');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -301,12 +440,28 @@ function generateQuestHTML(questName, sections) {
       overflow-x: hidden;
     }
 
+    /* Background — checkerboard wood texture matching quest.html */
     .bg {
       position: fixed;
       inset: 0;
       z-index: 0;
-      background-color: #0a0a0f;
-      background-image: radial-gradient(ellipse at 50% 0%, rgba(92, 68, 9, 0.15) 0%, transparent 60%);
+      background-color: #3b2a14;
+      background-image:
+        linear-gradient(45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
+        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      image-rendering: pixelated;
+    }
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(90, 65, 30, 0.4) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(30, 20, 10, 0.3) 0%, rgba(30, 20, 10, 0.6) 100%);
     }
 
     .header {
@@ -317,13 +472,12 @@ function generateQuestHTML(questName, sections) {
       align-items: center;
       justify-content: space-between;
       padding: 16px 24px;
-      background: rgba(10, 10, 15, 0.9);
-      border-bottom: 2px solid #3d2e0a;
+      background: rgba(30, 20, 10, 0.9);
+      border-bottom: 2px solid #5c4409;
       backdrop-filter: blur(8px);
     }
-
-    .header-title {
-      font-size: 0.9rem;
+    .chad-name {
+      font-size: 0.55rem;
       color: #c9a84c;
       text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
     }
@@ -331,265 +485,481 @@ function generateQuestHTML(questName, sections) {
     .main {
       position: relative;
       z-index: 1;
-      margin-top: 80px;
-      padding: 24px;
-      max-width: 900px;
-      margin-left: auto;
-      margin-right: auto;
-      margin-bottom: 40px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 90px 16px 60px;
     }
 
-    .quest-title {
-      font-size: 0.7rem;
-      color: #7ee8d4;
-      margin-bottom: 20px;
-      text-shadow: 0 0 8px rgba(126, 232, 212, 0.3);
-      text-align: center;
-    }
-
-    .section-container {
-      background: rgba(30, 20, 10, 0.8);
-      border: 2px solid #7ee8d4;
-      border-radius: 4px;
-      padding: 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 0 12px rgba(126, 232, 212, 0.15);
-    }
-
-    .section-name {
-      font-size: 0.55rem;
-      color: #c9a84c;
-      margin-bottom: 16px;
-      text-shadow: 0 0 4px rgba(201, 168, 76, 0.2);
-    }
-
-    .section-image {
+    .section-img {
       width: 100%;
       max-width: 500px;
       height: auto;
-      border: 1px solid #7ee8d4;
+      border: 2px solid #5c4409;
       border-radius: 4px;
-      margin-bottom: 16px;
-      display: none;
-    }
-
-    .section-image.visible {
+      margin-bottom: 20px;
       display: block;
     }
 
-    .dialogue {
-      font-size: 0.35rem;
-      color: #f5e6c8;
-      line-height: 1.6;
+    /* Crew score tracker */
+    .crew-tracker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(20, 14, 6, 0.7);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 10px 16px;
       margin-bottom: 20px;
-      text-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 560px;
+    }
+    .crew-tracker-label { font-size: 0.4rem; color: #8a7a5a; }
+    .crew-tracker-value { font-size: 0.8rem; color: #c9a84c; text-shadow: 0 0 8px rgba(201, 168, 76, 0.4); }
+
+    /* Quest panel */
+    .quest-panel {
+      width: 100%;
+      max-width: 560px;
+      background: rgba(10, 8, 4, 0.85);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      padding: 28px 24px;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6), 0 4px 20px rgba(0, 0, 0, 0.5);
     }
 
-    .choices {
-      display: grid;
-      gap: 12px;
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .mission-tag {
+      font-size: 0.45rem;
+      color: #e53935;
+      letter-spacing: 0.15em;
+      margin-bottom: 16px;
     }
+
+    .narrative {
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      line-height: 2.2;
+      color: #f5e6c8;
+      margin-bottom: 24px;
+    }
+    .narrative p + p { margin-top: 14px; }
+    .highlight { color: #c9a84c; }
+
+    /* Choice buttons */
+    .choices { display: flex; flex-direction: column; gap: 12px; }
 
     .choice-btn {
-      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
-      border: 2px solid #c9a84c;
-      color: #c9a84c;
-      padding: 16px;
-      font-size: 0.35rem;
+      padding: 16px 20px;
       font-family: 'Press Start 2P', monospace;
-      cursor: pointer;
+      font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+      color: #f5e6c8;
+      background: rgba(30, 22, 8, 0.8);
+      border: 3px solid #5c4409;
       border-radius: 4px;
-      transition: all 0.3s;
-      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      cursor: pointer;
+      text-align: left;
+      line-height: 1.8;
+      transition: all 0.15s;
+      touch-action: manipulation;
+      box-shadow: inset -2px -2px 0 #1a1200, inset 2px 2px 0 #3d2e0a, 2px 2px 0 #000;
+    }
+    .choice-btn:hover { border-color: #c9a84c; color: #c9a84c; background: rgba(50, 36, 10, 0.85); }
+    .choice-btn:active { transform: translateY(2px); box-shadow: inset -1px -1px 0 #1a1200, inset 1px 1px 0 #3d2e0a, 1px 1px 0 #000; }
+    .choice-label { color: #c9a84c; display: block; margin-bottom: 6px; }
+    .choice-btn:hover .choice-label { color: #ffe082; }
+
+    /* Primary action button */
+    .action-btn {
+      width: 100%;
+      padding: 16px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255, 220, 120, 0.4), inset 0 -2px 0 rgba(0, 0, 0, 0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s;
+      touch-action: manipulation;
+      animation: glow 2s ease-in-out infinite;
+    }
+    .action-btn:hover { animation: none; background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%); border-color: #f5e6c8; }
+    .action-btn:active { transform: translateY(3px); }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
+      50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
     }
 
-    .choice-btn:hover {
-      background: linear-gradient(135deg, rgba(201, 168, 76, 0.4) 0%, rgba(201, 168, 76, 0.2) 100%);
-      box-shadow: 0 0 16px rgba(201, 168, 76, 0.3);
-      transform: translateY(-2px);
-    }
+    /* Dice system */
+    .dice-section { width: 100%; margin-top: 8px; }
+    .dice-row { display: flex; justify-content: center; gap: 8px; }
+    .dice-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
-    .choice-btn:active {
-      transform: translateY(0);
+    .dice-box {
+      width: clamp(48px, 13vw, 72px);
+      height: clamp(48px, 13vw, 72px);
+      background: rgba(20, 14, 6, 0.9);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
     }
+    .dice-box.rolling { border-color: #c9a84c; box-shadow: inset 0 0 15px rgba(0,0,0,0.4), 0 0 12px rgba(201,168,76,0.3); }
+    .dice-box.kept    { border-color: #4caf50; box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 0 10px rgba(76,175,80,0.25); }
+    .dice-box.settled { border-color: #c9a84c; }
 
-    .double-choices {
+    .dice-face {
+      width: 100%; height: 100%;
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 15%;
+      gap: 2px;
     }
-
-    .loading {
-      text-align: center;
-      font-size: 0.35rem;
-      color: #7ee8d4;
-      padding: 40px;
+    .dice-face .dot {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #c9a84c;
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(201,168,76,0.5);
     }
+    .dice-box.kept .dice-face .dot { background: #4caf50; box-shadow: 0 0 4px rgba(76,175,80,0.5); }
+    .dot { visibility: hidden; }
 
-    .back-btn {
-      background: rgba(126, 232, 212, 0.2);
-      border: 2px solid #7ee8d4;
-      color: #7ee8d4;
-      padding: 12px 24px;
-      font-size: 0.3rem;
+    .keep-btn {
       font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.28rem, 1.2vw, 0.38rem);
+      padding: 6px 0;
+      width: clamp(48px, 13vw, 72px);
+      color: #8a7a5a;
+      background: rgba(61, 46, 10, 0.3);
+      border: 3px solid #3d2e0a;
+      border-radius: 0;
       cursor: pointer;
+      transition: all 0.15s;
+      touch-action: manipulation;
+      box-shadow: inset -2px -2px 0 #1a1200, inset 2px 2px 0 #5c4409, 2px 2px 0 #000;
+    }
+    .keep-btn:hover { border-color: #5c4409; color: #c9a84c; }
+    .keep-btn.active { border-color: #4caf50; color: #4caf50; background: rgba(76,175,80,0.1); box-shadow: inset -2px -2px 0 #2e7d32, inset 2px 2px 0 #66bb6a, 2px 2px 0 #000; }
+    .keep-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .roll-section { margin-top: 18px; text-align: center; }
+
+    .roll-btn {
+      padding: 14px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5);
+      touch-action: manipulation;
+      animation: roll-glow 2s ease-in-out infinite;
+    }
+    .roll-btn:hover { animation: none; background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%); border-color: #f5e6c8; }
+    .roll-btn:active { transform: translateY(3px); }
+    .roll-btn:disabled { opacity: 0.4; cursor: not-allowed; animation: none; }
+
+    @keyframes roll-glow {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
+      50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
+    }
+
+    .rolls-left { margin-top: 10px; font-size: 0.4rem; color: #8a7a5a; }
+
+    .score-box {
+      display: flex;
+      margin-top: 18px;
+      padding: 16px 20px;
+      background: #0a0a0f;
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 16px rgba(0,0,0,0.5);
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .checklist { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+    .check-item { display: flex; align-items: center; gap: 10px; font-size: clamp(0.42rem, 1.8vw, 0.55rem); color: #e53935; transition: color 0.3s; }
+    .check-item.checked { color: #4caf50; }
+    .check-box { width: 20px; height: 20px; border: 3px solid #e53935; border-radius: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color 0.3s, background 0.3s; }
+    .check-item.checked .check-box { border-color: #4caf50; background: rgba(76,175,80,0.15); }
+    .check-mark { display: none; color: #4caf50; font-size: 1.2rem; line-height: 0; margin-top: -2px; }
+    .check-item.checked .check-mark { display: block; }
+    .score-right { flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70px; }
+    .score-label { font-size: clamp(0.45rem, 2vw, 0.6rem); color: #8a7a5a; margin-bottom: 8px; line-height: 2; }
+    .score-value { font-size: clamp(1.6rem, 6vw, 2.6rem); color: #c9a84c; text-shadow: 0 0 12px rgba(201,168,76,0.5); }
+    .score-box.no-score .score-label { color: #e53935; }
+    .score-box.no-score .score-value { color: #e53935; text-shadow: 0 0 12px rgba(229,57,53,0.4); }
+    .score-box.scored .score-label { color: #8a7a5a; }
+    .score-box.scored .score-value { color: #c9a84c; }
+
+    .continue-wrap { margin-top: 20px; display: none; }
+    .continue-wrap.show { display: block; }
+    .dice-result-text { font-size: clamp(0.45rem, 1.8vw, 0.6rem); line-height: 2.2; color: #f5e6c8; margin-bottom: 16px; }
+    .dice-result-text .highlight { color: #c9a84c; }
+
+    /* Score breakdown (quest complete panel) */
+    .score-breakdown {
+      background: rgba(20, 14, 6, 0.8);
+      border: 2px solid #3d2e0a;
       border-radius: 4px;
-      margin-bottom: 20px;
-      transition: all 0.3s;
+      padding: 18px 20px;
+      margin-bottom: 24px;
     }
+    .breakdown-title { font-size: 0.42rem; color: #8a7a5a; letter-spacing: 0.12em; margin-bottom: 16px; }
+    .breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(61, 46, 10, 0.4); }
+    .breakdown-row:last-child { border-bottom: none; }
+    .breakdown-label { font-size: clamp(0.38rem, 1.5vw, 0.48rem); color: #8a7a5a; }
+    .breakdown-val { font-size: clamp(0.5rem, 2vw, 0.65rem); color: #c9a84c; }
+    .breakdown-row.total .breakdown-label { color: #f5e6c8; font-size: clamp(0.42rem, 1.8vw, 0.55rem); }
+    .breakdown-row.total .breakdown-val { font-size: clamp(0.8rem, 3vw, 1.1rem); color: #c9a84c; text-shadow: 0 0 10px rgba(201,168,76,0.5); }
 
-    .back-btn:hover {
-      background: rgba(126, 232, 212, 0.3);
-      box-shadow: 0 0 12px rgba(126, 232, 212, 0.3);
-    }
-
-    @media (max-width: 768px) {
-      .double-choices {
-        grid-template-columns: 1fr;
-      }
-      .main {
-        padding: 16px;
-      }
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .quest-panel { padding: 20px 16px; }
+      .dice-row { gap: 5px; }
     }
   </style>
 </head>
 <body>
   <div class="bg"></div>
 
-  <div class="header">
-    <div class="header-title">⚔️ ${escapeHtml(questName)}</div>
-    <div class="nav-menu" id="navMenu"></div>
-  </div>
+  <header class="header">
+    <div id="nav-placeholder"></div>
+    <span class="chad-name">${escapeHtml(questName)}</span>
+  </header>
 
-  <div class="main">
-    <button class="back-btn" onclick="window.history.back()">← Back</button>
-    <h1 class="quest-title">${escapeHtml(questName)}</h1>
-    <div id="questContainer" class="loading">Loading quest...</div>
-  </div>
+  <main class="main">
+    ${hasDice ? `
+    <div class="crew-tracker" id="crewTracker">
+      <span class="crew-tracker-label">CREW SCORE</span>
+      <span class="crew-tracker-value" id="crewScoreDisplay">0</span>
+    </div>` : ''}
+
+    <div class="quest-panel">
+${panelsHtml}
+${completePanelHtml}
+    </div>
+  </main>
 
   <script src="../../nav.js"><\/script>
   <script>
-    // Strip image data from sections — images are served as files in /images/
-    const questData = ${JSON.stringify({
-      name: questName,
-      sections: sections.map(({ photo, diceImage, ...rest }) => rest)
-    })};
-    const sectionMap = {};
-    let currentSectionId = null;
+    var crewScore = 0;
+    var diceOutcomes = ${diceOutcomesJson};
 
-    function escapeHtml(text) {
-      if (!text) return '';
-      return String(text).replace(/[&<>"']/g, function(m) {
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
-      });
+    var dotLayouts = {
+      1: [0,0,0, 0,1,0, 0,0,0],
+      2: [0,0,1, 0,0,0, 1,0,0],
+      3: [0,0,1, 0,1,0, 1,0,0],
+      4: [1,0,1, 0,0,0, 1,0,1],
+      5: [1,0,1, 0,1,0, 1,0,1],
+      6: [1,0,1, 1,0,1, 1,0,1]
+    };
+
+    function updateCrewDisplay() {
+      var el = document.getElementById('crewScoreDisplay');
+      if (el) el.textContent = crewScore;
     }
 
-    // Build section map
-    questData.sections.forEach(section => {
-      sectionMap[section.id] = section;
-    });
-
-    function findNextSection(section, choiceType = null) {
-      if (!section) return null;
-
-      if (section.selectedChoice === 'single') {
-        return sectionMap[section.nextSectionId] || null;
-      } else if (section.selectedChoice === 'double' && choiceType) {
-        const nextId = choiceType === 1 ? section.choice1NextSectionId : section.choice2NextSectionId;
-        return sectionMap[nextId] || null;
-      } else if (section.selectedChoice === 'dice' && choiceType) {
-        const nextId = choiceType === 'pass' ? section.passNextSectionId : section.failNextSectionId;
-        return sectionMap[nextId] || null;
-      }
-
-      return null;
-    }
-
-    function displaySection(sectionId = null) {
-      if (!sectionId && questData.sections.length > 0) {
-        sectionId = questData.sections[0].id;
-      }
-
-      const section = sectionMap[sectionId];
-      if (!section) {
-        document.getElementById('questContainer').innerHTML = '<div class="loading">Quest ended. Thanks for playing!</div>';
-        return;
-      }
-
-      currentSectionId = sectionId;
-
-      let html = \`
-        <div class="section-container">
-          <div class="section-name">\${escapeHtml(section.name)}</div>
-      \`;
-
-      if (section.photo) {
-        html += \`<img src="images/\${section.id}.png" alt="\${escapeHtml(section.name)}" class="section-image visible">\`;
-      }
-
-      html += \`
-          <div class="dialogue">\${escapeHtml(section.dialogue || 'No dialogue...')}</div>
-      \`;
-
-      if (section.selectedChoice === 'single') {
-        const nextSection = findNextSection(section);
-        html += \`
-          <div class="choices">
-            <button class="choice-btn" onclick="displaySection(\${nextSection ? nextSection.id : 'null'})">
-              \${escapeHtml(section.buttonName || 'Continue')}
-            </button>
-          </div>
-        \`;
-      } else if (section.selectedChoice === 'double') {
-        const next1 = findNextSection(section, 1);
-        const next2 = findNextSection(section, 2);
-        html += \`
-          <div class="choices double-choices">
-            <button class="choice-btn" onclick="displaySection(\${next1 ? next1.id : 'null'})">
-              \${escapeHtml(section.button1Name || 'Choice A')}
-            </button>
-            <button class="choice-btn" onclick="displaySection(\${next2 ? next2.id : 'null'})">
-              \${escapeHtml(section.button2Name || 'Choice B')}
-            </button>
-          </div>
-        \`;
-      } else if (section.selectedChoice === 'dice') {
-        html += \`
-          <div class="choices">
-            <button class="choice-btn" onclick="handleDiceRoll('pass')" style="margin-bottom: 12px;">
-              🎲 Roll Dice
-            </button>
-            <p style="text-align: center; font-size: 0.25rem; color: #a0963d; margin-top: 16px;">
-              Need 6 + 5 + 4 to pass!
-            </p>
-          </div>
-        \`;
-      }
-
-      html += '</div>';
-      document.getElementById('questContainer').innerHTML = html;
-    }
-
-    function handleDiceRoll(outcome) {
-      const section = sectionMap[currentSectionId];
-      const nextSection = findNextSection(section, outcome);
-
-      // Simple dice roll animation
-      let rolls = 0;
-      const interval = setInterval(() => {
-        const dice = Math.floor(Math.random() * 6) + 1;
-        document.querySelector('.choice-btn').textContent = '🎲 ' + dice;
-        rolls++;
-        if (rolls > 10) {
-          clearInterval(interval);
-          displaySection(nextSection ? nextSection.id : null);
+    function showPanel(id) {
+      document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+      var panel = id ? document.getElementById('panel-' + id) : null;
+      if (panel) {
+        panel.classList.add('active');
+      } else {
+        var cp = document.getElementById('panel-complete');
+        if (cp) {
+          cp.classList.add('active');
+          var fs = document.getElementById('finalScore');
+          if (fs) fs.textContent = crewScore;
         }
-      }, 100);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // Load first section
-    displaySection();
+    function goToSection(id) {
+      showPanel(id || null);
+    }
+
+    /* ===== DICE SYSTEM ===== */
+    var diceState = {};
+
+    function getDiceState(sid) {
+      if (!diceState[sid]) {
+        diceState[sid] = {
+          values: [0, 0, 0, 0, 0],
+          kept: [false, false, false, false, false],
+          rollsLeft: 3,
+          isRolling: false
+        };
+        for (var i = 0; i < 5; i++) {
+          (function(idx, sectionId) {
+            var keepBtn = document.getElementById('keep' + idx + '_' + sectionId);
+            if (keepBtn) {
+              keepBtn.addEventListener('click', function() {
+                var state = diceState[sectionId];
+                if (state.isRolling || state.values[idx] === 0) return;
+                state.kept[idx] = !state.kept[idx];
+                keepBtn.classList.toggle('active', state.kept[idx]);
+                keepBtn.textContent = state.kept[idx] ? 'LOCKED' : 'LOCK';
+                document.getElementById('die' + idx + '_' + sectionId).classList.toggle('kept', state.kept[idx]);
+                updateChecklist(sectionId, false);
+              });
+            }
+          })(i, sid);
+          renderFace(i, 0, sid);
+        }
+      }
+      return diceState[sid];
+    }
+
+    function renderFace(index, value, sid) {
+      var face = document.getElementById('face' + index + '_' + sid);
+      if (!face) return;
+      face.innerHTML = '';
+      if (value === 0) return;
+      var layout = dotLayouts[value];
+      for (var i = 0; i < 9; i++) {
+        var dot = document.createElement('div');
+        dot.className = 'dot';
+        if (layout[i]) dot.style.visibility = 'visible';
+        face.appendChild(dot);
+      }
+    }
+
+    function updateChecklist(sid, includeFinal) {
+      var state = diceState[sid];
+      if (!state) return;
+      var vals = [];
+      for (var i = 0; i < 5; i++) {
+        if (state.kept[i] || includeFinal) vals.push(state.values[i]);
+      }
+      var tmp = vals.slice();
+      var i6 = tmp.indexOf(6); var has6 = i6 !== -1; if (has6) tmp.splice(i6, 1);
+      var i5 = tmp.indexOf(5); var has5 = i5 !== -1; if (has5) tmp.splice(i5, 1);
+      var i4 = tmp.indexOf(4); var has4 = i4 !== -1; if (has4) tmp.splice(i4, 1);
+      var c6 = document.getElementById('check6_' + sid); if (c6) c6.classList.toggle('checked', has6);
+      var c5 = document.getElementById('check5_' + sid); if (c5) c5.classList.toggle('checked', has5);
+      var c4 = document.getElementById('check4_' + sid); if (c4) c4.classList.toggle('checked', has4);
+    }
+
+    async function rollDice(sid) {
+      var state = getDiceState(sid);
+      if (state.isRolling || state.rollsLeft <= 0) return;
+      state.isRolling = true;
+      state.rollsLeft--;
+
+      var rollBtn = document.getElementById('rollBtn_' + sid);
+      var rollsLeftTxt = document.getElementById('rollsLeft_' + sid);
+      if (rollBtn) rollBtn.disabled = true;
+
+      var toRoll = [];
+      for (var i = 0; i < 5; i++) { if (!state.kept[i]) toRoll.push(i); }
+
+      toRoll.forEach(function(i) {
+        var box = document.getElementById('die' + i + '_' + sid);
+        if (box) { box.classList.add('rolling'); box.classList.remove('settled'); }
+      });
+
+      var cycleTimers = {};
+      toRoll.forEach(function(i) {
+        cycleTimers[i] = setInterval(function() {
+          renderFace(i, Math.floor(Math.random() * 6) + 1, sid);
+        }, 60);
+      });
+
+      for (var order = 0; order < toRoll.length; order++) {
+        await new Promise(function(resolve) { setTimeout(resolve, order === 0 ? 2500 : 800); });
+        var dieIndex = toRoll[order];
+        clearInterval(cycleTimers[dieIndex]);
+        var finalValue = Math.floor(Math.random() * 6) + 1;
+        state.values[dieIndex] = finalValue;
+        renderFace(dieIndex, finalValue, sid);
+        var box = document.getElementById('die' + dieIndex + '_' + sid);
+        if (box) { box.classList.remove('rolling'); box.classList.add('settled'); }
+        var kb = document.getElementById('keep' + dieIndex + '_' + sid);
+        if (kb) kb.disabled = false;
+      }
+
+      var rl = state.rollsLeft;
+      if (rollsLeftTxt) rollsLeftTxt.textContent = rl + ' ROLL' + (rl !== 1 ? 'S' : '') + ' LEFT';
+
+      if (rl <= 0) {
+        if (rollBtn) { rollBtn.disabled = true; rollBtn.textContent = 'NO ROLLS'; }
+        if (rollsLeftTxt) rollsLeftTxt.textContent = 'TURN OVER';
+        for (var j = 0; j < 5; j++) {
+          var keepBtn = document.getElementById('keep' + j + '_' + sid);
+          if (keepBtn) keepBtn.disabled = true;
+        }
+        updateChecklist(sid, true);
+        finaliseDice(sid);
+      } else {
+        if (rollBtn) rollBtn.disabled = false;
+      }
+
+      state.isRolling = false;
+    }
+
+    function finaliseDice(sid) {
+      var state = diceState[sid];
+      var scoreBox    = document.getElementById('scoreBox_'      + sid);
+      var scoreLabel  = document.getElementById('scoreLabel_'    + sid);
+      var scoreValue  = document.getElementById('scoreValue_'    + sid);
+      var continueWrap = document.getElementById('continueWrap_' + sid);
+      var resultText  = document.getElementById('diceResultText_' + sid);
+      var actionBtn   = document.getElementById('diceActionBtn_' + sid);
+      var outcome     = diceOutcomes[sid] || {};
+
+      var vals = state.values.slice();
+      var i6 = vals.indexOf(6);
+      if (i6 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId); return; }
+      vals.splice(i6, 1);
+      var i5 = vals.indexOf(5);
+      if (i5 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId); return; }
+      vals.splice(i5, 1);
+      var i4 = vals.indexOf(4);
+      if (i4 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId); return; }
+      vals.splice(i4, 1);
+
+      var crew = vals[0] + vals[1];
+      crewScore += crew;
+      updateCrewDisplay();
+
+      if (scoreBox) scoreBox.className = 'score-box scored';
+      if (scoreLabel) scoreLabel.textContent = 'CREW';
+      if (scoreValue) scoreValue.textContent = crew;
+      if (resultText) resultText.innerHTML = '<span class="highlight">' + crew + ' crew assembled.</span> You press forward.';
+      if (continueWrap) continueWrap.classList.add('show');
+      if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.passNextId);
+    }
+
+    function noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId) {
+      if (scoreBox) scoreBox.className = 'score-box no-score';
+      if (scoreLabel) scoreLabel.textContent = 'NO CREW';
+      if (scoreValue) scoreValue.textContent = '0';
+      if (resultText) resultText.innerHTML = 'The dice forsake you. <span class="highlight">You push on alone.</span>';
+      if (continueWrap) continueWrap.classList.add('show');
+      if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
+    }
+
+    // Initialise dice state + event listeners for each dice section
+${diceInitJs}
   <\/script>
 </body>
 </html>`;
