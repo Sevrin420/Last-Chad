@@ -797,10 +797,12 @@ ${completePanelHtml}
       6: [1,0,1, 1,0,1, 1,0,1]
     };
     // Strip image data from sections — images are served as files in /images/
-    const questData = ${JSON.stringify({
-      name: questName,
-      sections: sections.map(({ photo, diceImage, ...rest }) => ({ ...rest, hasPhoto: !!photo, hasDiceImage: !!diceImage }))
-    })};
+    const questData = ${
+      JSON.stringify({
+        name: questName,
+        sections: sections.map(({ photo, diceImage, ...rest }) => ({ ...rest, hasPhoto: !!photo, hasDiceImage: !!diceImage }))
+      }).replace(/<\//g, '<\\/')
+    };
     const sectionMap = {};
     let currentSectionId = null;
 

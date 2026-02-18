@@ -1896,6 +1896,16 @@
 
       assignLevel(nodes[0].id);
 
+      // Place any orphaned sections (not reachable from section 1) at their own levels
+      let orphanLevel = Object.keys(levelCounts).length;
+      nodes.forEach(node => {
+        if (levels[node.id] === undefined) {
+          levels[node.id] = orphanLevel;
+          levelCounts[orphanLevel] = (levelCounts[orphanLevel] || 0) + 1;
+          orphanLevel++;
+        }
+      });
+
       // Calculate positions
       const nodeWidth = 140;
       const nodeHeight = 80;
@@ -1903,8 +1913,10 @@
       const ySpacing = nodeHeight + 60;
 
       const maxLevel = Math.max(...Object.values(levels));
+      // Width based on max depth; height based on tallest column of nodes
+      const maxNodesInLevel = Math.max(...Object.values(levelCounts));
       const svgWidth = Math.max(900, (maxLevel + 1) * xSpacing + 40);
-      const svgHeight = Math.max(700, (Object.keys(levelCounts).length) * ySpacing + 40);
+      const svgHeight = Math.max(700, maxNodesInLevel * ySpacing + 40);
 
       svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
       svg.setAttribute('width', svgWidth);
