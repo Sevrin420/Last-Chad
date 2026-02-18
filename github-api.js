@@ -100,7 +100,23 @@ class GitHubAPI {
     });
   }
 
-  async publishQuest(questName, sections) {
+  async publishQuest(questName, sections, onProgress = null) {
+    // Count images up-front so we can report accurate progress
+    let imageCount = 0;
+    for (const section of sections) {
+      if (section.photo) imageCount++;
+      if (section.diceImage) imageCount++;
+    }
+    // Steps: branch ref, commit tree, html blob, data blob, [images...], tree, commit, update ref
+    const totalSteps = 4 + imageCount + 3;
+    let step = 0;
+
+    const progress = (msg) => {
+      step++;
+      if (onProgress) onProgress(step, totalSteps, msg);
+      console.log(`[${step}/${totalSteps}] ${msg}`);
+    };
+
     try {
       // Sanitize quest name for path
       const sanitized = questName
@@ -117,13 +133,13 @@ class GitHubAPI {
       console.log(`🌿 Branch: ${this.branch}`);
 
       // Get current branch reference
-      console.log(`⏳ Fetching branch reference...`);
+      progress('Fetching branch reference...');
       const branchRef = await this.getBranchRef();
       const latestCommitSha = branchRef.object.sha;
       console.log(`✓ Branch reference found, commit: ${latestCommitSha.substring(0, 7)}`);
 
       // Get the commit tree
-      console.log(`⏳ Fetching commit tree...`);
+      progress('Fetching commit tree...');
       const commit = await this.getCommit(latestCommitSha);
       const treeData = await this.getTree(commit.tree.sha, true);
       console.log(`✓ Tree fetched with ${treeData.tree.length} existing items`);
@@ -137,7 +153,7 @@ class GitHubAPI {
       }));
 
       // Generate quest HTML
-      console.log(`⏳ Generating quest HTML...`);
+      progress('Generating quest HTML...');
       const questHTML = generateQuestHTML(questName, sections);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
       console.log(`✓ Quest HTML blob created`);
@@ -148,9 +164,11 @@ class GitHubAPI {
         sha: htmlBlob.sha
       });
 
-      // Add quest data JSON
+      // Add quest data JSON (strip image data to keep it lean)
+      progress('Saving quest data...');
+      const cleanSections = sections.map(({ photo, diceImage, ...rest }) => rest);
       const questDataBlob = await this.createBlob(
-        JSON.stringify({ name: questName, sections }, null, 2),
+        JSON.stringify({ name: questName, sections: cleanSections }, null, 2),
         'utf-8'
       );
       treeItems.push({
@@ -161,24 +179,24 @@ class GitHubAPI {
       });
 
       // Process and add images
-      console.log(`⏳ Processing ${sections.length} sections for images...`);
-      let imageCount = 0;
+      let uploadedImages = 0;
       for (const section of sections) {
         if (section.photo) {
           const imageParts = section.photo.split(',');
           const imageData = imageParts.length > 1 ? imageParts[1] : imageParts[0];
           if (!imageData) {
             console.warn(`⚠️ Invalid photo data for section ${section.id}`);
-            continue;
+          } else {
+            progress(`Uploading image for section "${section.name}"...`);
+            const imageBlob = await this.createBlob(imageData, 'base64');
+            treeItems.push({
+              path: `${imagesPath}/${section.id}.png`,
+              mode: '100644',
+              type: 'blob',
+              sha: imageBlob.sha
+            });
+            uploadedImages++;
           }
-          const imageBlob = await this.createBlob(imageData, 'base64');
-          treeItems.push({
-            path: `${imagesPath}/${section.id}.png`,
-            mode: '100644',
-            type: 'blob',
-            sha: imageBlob.sha
-          });
-          imageCount++;
         }
 
         if (section.diceImage) {
@@ -186,27 +204,28 @@ class GitHubAPI {
           const diceData = diceParts.length > 1 ? diceParts[1] : diceParts[0];
           if (!diceData) {
             console.warn(`⚠️ Invalid dice image data for section ${section.id}`);
-            continue;
+          } else {
+            progress(`Uploading dice image for section "${section.name}"...`);
+            const diceBlob = await this.createBlob(diceData, 'base64');
+            treeItems.push({
+              path: `${imagesPath}/dice-${section.id}.png`,
+              mode: '100644',
+              type: 'blob',
+              sha: diceBlob.sha
+            });
+            uploadedImages++;
           }
-          const diceBlob = await this.createBlob(diceData, 'base64');
-          treeItems.push({
-            path: `${imagesPath}/dice-${section.id}.png`,
-            mode: '100644',
-            type: 'blob',
-            sha: diceBlob.sha
-          });
-          imageCount++;
         }
       }
-      console.log(`✓ Processed ${imageCount} images`);
+      console.log(`✓ Uploaded ${uploadedImages} images`);
 
       // Create new tree
-      console.log(`⏳ Creating new tree with ${treeItems.length} items...`);
+      progress(`Building file tree (${treeItems.length} files)...`);
       const newTree = await this.createTree(treeItems, commit.tree.sha);
       console.log(`✓ Tree created: ${newTree.sha.substring(0, 7)}`);
 
       // Create commit
-      console.log(`⏳ Creating commit...`);
+      progress('Creating commit...');
       const newCommit = await this.createCommit(
         `Add quest: ${questName}\n\nPublished from Quest Builder`,
         newTree.sha,
@@ -215,7 +234,7 @@ class GitHubAPI {
       console.log(`✓ Commit created: ${newCommit.sha.substring(0, 7)}`);
 
       // Update branch reference
-      console.log(`⏳ Updating branch reference...`);
+      progress('Updating branch...');
       await this.updateRef(newCommit.sha);
       console.log(`✓ Branch reference updated`);
 
@@ -451,9 +470,20 @@ function generateQuestHTML(questName, sections) {
 
   <script src="../../nav.js"><\/script>
   <script>
-    const questData = ${JSON.stringify({ name: questName, sections })};
+    // Strip image data from sections — images are served as files in /images/
+    const questData = ${JSON.stringify({
+      name: questName,
+      sections: sections.map(({ photo, diceImage, ...rest }) => rest)
+    })};
     const sectionMap = {};
     let currentSectionId = null;
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/[&<>"']/g, function(m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+      });
+    }
 
     // Build section map
     questData.sections.forEach(section => {
