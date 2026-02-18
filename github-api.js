@@ -791,6 +791,20 @@ ${completePanelHtml}
       5: [1,0,1, 0,1,0, 1,0,1],
       6: [1,0,1, 1,0,1, 1,0,1]
     };
+    // Strip image data from sections — images are served as files in /images/
+    const questData = ${JSON.stringify({
+      name: questName,
+      sections: sections.map(({ photo, diceImage, ...rest }) => ({ ...rest, hasPhoto: !!photo, hasDiceImage: !!diceImage }))
+    })};
+    const sectionMap = {};
+    let currentSectionId = null;
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/[&<>"']/g, function(m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+      });
+    }
 
     function updateCrewDisplay() {
       var el = document.getElementById('crewScoreDisplay');
@@ -915,6 +929,8 @@ ${completePanelHtml}
         if (box) { box.classList.remove('rolling'); box.classList.add('settled'); }
         var kb = document.getElementById('keep' + dieIndex + '_' + sid);
         if (kb) kb.disabled = false;
+      if (section.hasPhoto) {
+        html += \`<img src="images/\${section.id}.png" alt="\${escapeHtml(section.name)}" class="section-image visible">\`;
       }
 
       var rl = state.rollsLeft;
