@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test2 | Last Chad</title>
+  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="../../nav.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #0a0a0f;
+      background-image: radial-gradient(ellipse at 50% 0%, rgba(92, 68, 9, 0.15) 0%, transparent 60%);
+    }
+
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(10, 10, 15, 0.9);
+      border-bottom: 2px solid #3d2e0a;
+      backdrop-filter: blur(8px);
+    }
+
+    .header-title {
+      font-size: 0.9rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    .main {
+      position: relative;
+      z-index: 1;
+      margin-top: 80px;
+      padding: 24px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: 40px;
+    }
+
+    .quest-title {
+      font-size: 0.7rem;
+      color: #7ee8d4;
+      margin-bottom: 20px;
+      text-shadow: 0 0 8px rgba(126, 232, 212, 0.3);
+      text-align: center;
+    }
+
+    .section-container {
+      background: rgba(30, 20, 10, 0.8);
+      border: 2px solid #7ee8d4;
+      border-radius: 4px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 12px rgba(126, 232, 212, 0.15);
+    }
+
+    .section-name {
+      font-size: 0.55rem;
+      color: #c9a84c;
+      margin-bottom: 16px;
+      text-shadow: 0 0 4px rgba(201, 168, 76, 0.2);
+    }
+
+    .section-image {
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      border: 1px solid #7ee8d4;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .section-image.visible {
+      display: block;
+    }
+
+    .dialogue {
+      font-size: 0.35rem;
+      color: #f5e6c8;
+      line-height: 1.6;
+      margin-bottom: 20px;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .choices {
+      display: grid;
+      gap: 12px;
+    }
+
+    .choice-btn {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
+      border: 2px solid #c9a84c;
+      color: #c9a84c;
+      padding: 16px;
+      font-size: 0.35rem;
+      font-family: 'Press Start 2P', monospace;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.3s;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    .choice-btn:hover {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.4) 0%, rgba(201, 168, 76, 0.2) 100%);
+      box-shadow: 0 0 16px rgba(201, 168, 76, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .choice-btn:active {
+      transform: translateY(0);
+    }
+
+    .double-choices {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .loading {
+      text-align: center;
+      font-size: 0.35rem;
+      color: #7ee8d4;
+      padding: 40px;
+    }
+
+    .back-btn {
+      background: rgba(126, 232, 212, 0.2);
+      border: 2px solid #7ee8d4;
+      color: #7ee8d4;
+      padding: 12px 24px;
+      font-size: 0.3rem;
+      font-family: 'Press Start 2P', monospace;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+    }
+
+    .back-btn:hover {
+      background: rgba(126, 232, 212, 0.3);
+      box-shadow: 0 0 12px rgba(126, 232, 212, 0.3);
+    }
+
+    @media (max-width: 768px) {
+      .double-choices {
+        grid-template-columns: 1fr;
+      }
+      .main {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <div class="header">
+    <div class="header-title">⚔️ Test2</div>
+    <div class="nav-menu" id="navMenu"></div>
+  </div>
+
+  <div class="main">
+    <button class="back-btn" onclick="window.history.back()">← Back</button>
+    <h1 class="quest-title">Test2</h1>
+    <div id="questContainer" class="loading">Loading quest...</div>
+  </div>
+
+  <script src="../../nav.js"></script>
+  <script>
+    // Strip image data from sections — images are served as files in /images/
+    const questData = {"name":"Test2","sections":[{"id":1771428639565,"name":"1","dialogue":"Line 1\nLine 2","selectedChoice":"single","buttonName":"End","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null}]};
+    const sectionMap = {};
+    let currentSectionId = null;
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/[&<>"']/g, function(m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+      });
+    }
+
+    // Build section map
+    questData.sections.forEach(section => {
+      sectionMap[section.id] = section;
+    });
+
+    function findNextSection(section, choiceType = null) {
+      if (!section) return null;
+
+      if (section.selectedChoice === 'single') {
+        return sectionMap[section.nextSectionId] || null;
+      } else if (section.selectedChoice === 'double' && choiceType) {
+        const nextId = choiceType === 1 ? section.choice1NextSectionId : section.choice2NextSectionId;
+        return sectionMap[nextId] || null;
+      } else if (section.selectedChoice === 'dice' && choiceType) {
+        const nextId = choiceType === 'pass' ? section.passNextSectionId : section.failNextSectionId;
+        return sectionMap[nextId] || null;
+      }
+
+      return null;
+    }
+
+    function displaySection(sectionId = null) {
+      if (!sectionId && questData.sections.length > 0) {
+        sectionId = questData.sections[0].id;
+      }
+
+      const section = sectionMap[sectionId];
+      if (!section) {
+        document.getElementById('questContainer').innerHTML = '<div class="loading">Quest ended. Thanks for playing!</div>';
+        return;
+      }
+
+      currentSectionId = sectionId;
+
+      let html = `
+        <div class="section-container">
+          <div class="section-name">${escapeHtml(section.name)}</div>
+      `;
+
+      if (section.photo) {
+        html += `<img src="images/${section.id}.png" alt="${escapeHtml(section.name)}" class="section-image visible">`;
+      }
+
+      html += `
+          <div class="dialogue">${escapeHtml(section.dialogue || 'No dialogue...')}</div>
+      `;
+
+      if (section.selectedChoice === 'single') {
+        const nextSection = findNextSection(section);
+        html += `
+          <div class="choices">
+            <button class="choice-btn" onclick="displaySection(${nextSection ? nextSection.id : 'null'})">
+              ${escapeHtml(section.buttonName || 'Continue')}
+            </button>
+          </div>
+        `;
+      } else if (section.selectedChoice === 'double') {
+        const next1 = findNextSection(section, 1);
+        const next2 = findNextSection(section, 2);
+        html += `
+          <div class="choices double-choices">
+            <button class="choice-btn" onclick="displaySection(${next1 ? next1.id : 'null'})">
+              ${escapeHtml(section.button1Name || 'Choice A')}
+            </button>
+            <button class="choice-btn" onclick="displaySection(${next2 ? next2.id : 'null'})">
+              ${escapeHtml(section.button2Name || 'Choice B')}
+            </button>
+          </div>
+        `;
+      } else if (section.selectedChoice === 'dice') {
+        html += `
+          <div class="choices">
+            <button class="choice-btn" onclick="handleDiceRoll('pass')" style="margin-bottom: 12px;">
+              🎲 Roll Dice
+            </button>
+            <p style="text-align: center; font-size: 0.25rem; color: #a0963d; margin-top: 16px;">
+              Need 6 + 5 + 4 to pass!
+            </p>
+          </div>
+        `;
+      }
+
+      html += '</div>';
+      document.getElementById('questContainer').innerHTML = html;
+    }
+
+    function handleDiceRoll(outcome) {
+      const section = sectionMap[currentSectionId];
+      const nextSection = findNextSection(section, outcome);
+
+      // Simple dice roll animation
+      let rolls = 0;
+      const interval = setInterval(() => {
+        const dice = Math.floor(Math.random() * 6) + 1;
+        document.querySelector('.choice-btn').textContent = '🎲 ' + dice;
+        rolls++;
+        if (rolls > 10) {
+          clearInterval(interval);
+          displaySection(nextSection ? nextSection.id : null);
+        }
+      }, 100);
+    }
+
+    // Load first section
+    displaySection();
+  </script>
+</body>
+</html>
