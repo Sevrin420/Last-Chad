@@ -1422,7 +1422,7 @@
       saveBtn.textContent = '⏳ Publishing...';
 
       try {
-        // Initialize GitHub API
+        // Initialize GitHub API (publish to landing page branch so GitHub Pages can serve the quests)
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/create-landing-page-1qjhB');
 
         // Publish quest

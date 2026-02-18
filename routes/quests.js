@@ -32,6 +32,21 @@ function sanitizeName(name) {
 }
 
 /**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+/**
  * Generate quest player HTML
  */
 function generateQuestHTML(questData) {
@@ -215,13 +230,13 @@ function generateQuestHTML(questData) {
   <div class="bg"></div>
 
   <div class="header">
-    <div class="header-title">⚔️ ${questName}</div>
+    <div class="header-title">⚔️ ${escapeHtml(questName)}</div>
     <div class="nav-menu" id="navMenu"></div>
   </div>
 
   <div class="main">
     <button class="back-btn" onclick="window.history.back()">← Back</button>
-    <h1 class="quest-title">${questName}</h1>
+    <h1 class="quest-title">${escapeHtml(questName)}</h1>
     <div id="questContainer" class="loading">Loading quest...</div>
   </div>
 
@@ -232,9 +247,11 @@ function generateQuestHTML(questData) {
     let currentSectionId = null;
 
     // Build section map
-    questData.sections.forEach(section => {
-      sectionMap[section.id] = section;
-    });
+    if (questData && questData.sections) {
+      questData.sections.forEach(section => {
+        sectionMap[section.id] = section;
+      });
+    }
 
     function findNextSection(section, choiceType = null) {
       if (!section) return null;
@@ -267,15 +284,15 @@ function generateQuestHTML(questData) {
 
       let html = \`
         <div class="section-container">
-          <div class="section-name">\${section.name}</div>
+          <div class="section-name">\${escapeHtml(section.name)}</div>
       \`;
 
       if (section.photo) {
-        html += \`<img src="images/\${section.id}.png" alt="\${section.name}" class="section-image visible">\`;
+        html += \`<img src="images/\${section.id}.png" alt="\${escapeHtml(section.name)}" class="section-image visible">\`;
       }
 
       html += \`
-          <div class="dialogue">\${section.dialogue || 'No dialogue...'}</div>
+          <div class="dialogue">\${escapeHtml(section.dialogue || 'No dialogue...')}</div>
       \`;
 
       if (section.selectedChoice === 'single') {
@@ -283,7 +300,7 @@ function generateQuestHTML(questData) {
         html += \`
           <div class="choices">
             <button class="choice-btn" onclick="displaySection(\${nextSection ? nextSection.id : 'null'})">
-              \${section.buttonName || 'Continue'}
+              \${escapeHtml(section.buttonName || 'Continue')}
             </button>
           </div>
         \`;
@@ -293,10 +310,10 @@ function generateQuestHTML(questData) {
         html += \`
           <div class="choices double-choices">
             <button class="choice-btn" onclick="displaySection(\${next1 ? next1.id : 'null'})">
-              \${section.button1Name || 'Choice A'}
+              \${escapeHtml(section.button1Name || 'Choice A')}
             </button>
             <button class="choice-btn" onclick="displaySection(\${next2 ? next2.id : 'null'})">
-              \${section.button2Name || 'Choice B'}
+              \${escapeHtml(section.button2Name || 'Choice B')}
             </button>
           </div>
         \`;
@@ -334,8 +351,13 @@ function generateQuestHTML(questData) {
       }, 100);
     }
 
-    // Load first section
-    displaySection();
+    // Validate and load first section
+    if (!questData || !questData.sections || questData.sections.length === 0) {
+      document.getElementById('questContainer').innerHTML = '<div class="loading">❌ Error: Quest data is missing!</div>';
+      console.error('Invalid quest data:', questData);
+    } else {
+      displaySection();
+    }
   <\/script>
 </body>
 </html>`;
