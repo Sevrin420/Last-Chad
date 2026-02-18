@@ -355,8 +355,13 @@ function generateQuestHTML(questName, sections) {
                 <button class="keep-btn" id="keep${i}_${sid}" disabled>LOCK</button>
               </div>`).join('');
 
+      const diceImgHtml = section.diceImage
+        ? `<img src="images/dice-${sid}.png" alt="Dice visual" class="section-img">`
+        : '';
+
       actionHtml = `
         <div class="dice-section">
+          ${diceImgHtml}
           <div class="dice-meta-tag">${statLabel} BONUS +0 &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
           <div class="dice-row">${diceColsHtml}
           </div>
@@ -792,10 +797,12 @@ ${completePanelHtml}
       6: [1,0,1, 1,0,1, 1,0,1]
     };
     // Strip image data from sections — images are served as files in /images/
-    const questData = ${JSON.stringify({
-      name: questName,
-      sections: sections.map(({ photo, diceImage, ...rest }) => ({ ...rest, hasPhoto: !!photo, hasDiceImage: !!diceImage }))
-    })};
+    const questData = ${
+      JSON.stringify({
+        name: questName,
+        sections: sections.map(({ photo, diceImage, ...rest }) => ({ ...rest, hasPhoto: !!photo, hasDiceImage: !!diceImage }))
+      }).replace(/<\//g, '<\\/')
+    };
     const sectionMap = {};
     let currentSectionId = null;
 
@@ -927,11 +934,10 @@ ${completePanelHtml}
         renderFace(dieIndex, finalValue, sid);
         var box = document.getElementById('die' + dieIndex + '_' + sid);
         if (box) { box.classList.remove('rolling'); box.classList.add('settled'); }
-        var kb = document.getElementById('keep' + dieIndex + '_' + sid);
-        if (kb) kb.disabled = false;
-      if (section.hasPhoto) {
-        html += \`<img src="images/\${section.id}.png" alt="\${escapeHtml(section.name)}" class="section-image visible">\`;
       }
+
+      // All dice have settled — safe to allow interaction now
+      state.isRolling = false;
 
       var rl = state.rollsLeft;
       if (rollsLeftTxt) rollsLeftTxt.textContent = rl + ' ROLL' + (rl !== 1 ? 'S' : '') + ' LEFT';
@@ -947,9 +953,14 @@ ${completePanelHtml}
         finaliseDice(sid);
       } else {
         if (rollBtn) rollBtn.disabled = false;
+        // Enable keep buttons only for dice that have a value (settled this roll or previously kept)
+        for (var k = 0; k < 5; k++) {
+          if (state.values[k] > 0 && !state.kept[k]) {
+            var kbEnable = document.getElementById('keep' + k + '_' + sid);
+            if (kbEnable) kbEnable.disabled = false;
+          }
+        }
       }
-
-      state.isRolling = false;
     }
 
     function finaliseDice(sid) {

@@ -20,9 +20,9 @@
     '<div class="nav-wrapper">' +
       '<button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>' +
       '<div class="nav-dropdown" id="navDropdown">' +
-        link('mint.html',  'MINT',  'mint')  +
-        link('enter.html', 'ENTER', 'enter') +
-        link('docs.html',  'DOCS',  'docs')  +
+        link('/mint.html',  'MINT',  'mint')  +
+        link('/enter.html', 'ENTER', 'enter') +
+        link('/docs.html',  'DOCS',  'docs')  +
       '</div>' +
     '</div>';
 
