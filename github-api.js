@@ -403,12 +403,13 @@ function generateQuestHTML(questName, sections) {
     return `
       <!-- ${sectionName} -->
       <div class="panel${isFirst ? ' active' : ''}" id="panel-${sid}">
-        <div class="mission-tag">${sectionName}</div>
         ${imageHtml}
         <div class="narrative">
           ${dialogueHtml}
         </div>
-        ${actionHtml}
+        <div class="action-wrap">
+          ${actionHtml}
+        </div>
       </div>`;
   }).join('\n');
 
@@ -416,7 +417,6 @@ function generateQuestHTML(questName, sections) {
   const completePanelHtml = `
       <!-- Quest Complete -->
       <div class="panel" id="panel-complete">
-        <div class="mission-tag">QUEST COMPLETE</div>
         <div class="narrative">
           <p>You have reached the end of <span class="highlight">${escapeHtml(questName)}</span>.</p>
           ${hasDice ? '<p>Your crew held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
@@ -425,11 +425,13 @@ function generateQuestHTML(questName, sections) {
         <div class="score-breakdown">
           <div class="breakdown-title">AFTER ACTION REPORT</div>
           <div class="breakdown-row total">
-            <span class="breakdown-label">TOTAL CREW SCORE</span>
+            <span class="breakdown-label">TOTAL SCORE</span>
             <span class="breakdown-val" id="finalScore">0</span>
           </div>
         </div>` : ''}
-        <button class="action-btn" onclick="window.history.back()">RETURN</button>
+        <div class="action-wrap">
+          <button class="action-btn" onclick="window.history.back()">RETURN</button>
+        </div>
       </div>`;
 
   const diceOutcomesJson = JSON.stringify(diceOutcomes);
@@ -515,6 +517,7 @@ function generateQuestHTML(questName, sections) {
       border-radius: 4px;
       margin-bottom: 20px;
       display: block;
+      opacity: 0;
     }
 
     /* Crew score tracker */
@@ -559,8 +562,29 @@ function generateQuestHTML(questName, sections) {
       line-height: 2.2;
       color: #f5e6c8;
       margin-bottom: 24px;
+      opacity: 0;
     }
     .narrative p + p { margin-top: 14px; }
+    .narrative.typing p { display: none; }
+    .typewriter-line {
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      line-height: 2.2;
+      color: #f5e6c8;
+      min-height: 2.4em;
+    }
+    .typewriter-cursor {
+      display: inline-block;
+      width: 0.55em;
+      height: 0.9em;
+      background: #c9a84c;
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      animation: blink-cursor 0.7s step-end infinite;
+    }
+    @keyframes blink-cursor { 50% { opacity: 0; } }
+    .action-wrap { visibility: hidden; }
+    .result-success { color: #c9a84c; }
+    .result-fail { color: #e53935; }
     .highlight { color: #c9a84c; }
 
     /* Choice buttons */
@@ -773,7 +797,7 @@ function generateQuestHTML(questName, sections) {
   <main class="main">
     ${hasDice ? `
     <div class="crew-tracker" id="crewTracker">
-      <span class="crew-tracker-label">CREW SCORE</span>
+      <span class="crew-tracker-label">SCORE</span>
       <span class="crew-tracker-value" id="crewScoreDisplay">0</span>
     </div>` : ''}
 
@@ -786,6 +810,7 @@ ${completePanelHtml}
   <script src="../../nav.js"><\/script>
   <script>
     var crewScore = 0;
+    var _animGen = 0;
     var diceOutcomes = ${diceOutcomesJson};
 
     var dotLayouts = {
@@ -820,22 +845,113 @@ ${completePanelHtml}
 
     function showPanel(id) {
       document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
-      var panel = id ? document.getElementById('panel-' + id) : null;
-      if (panel) {
-        panel.classList.add('active');
-      } else {
-        var cp = document.getElementById('panel-complete');
-        if (cp) {
-          cp.classList.add('active');
-          var fs = document.getElementById('finalScore');
-          if (fs) fs.textContent = crewScore;
-        }
+      var panelId = id ? 'panel-' + id : 'panel-complete';
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      // Reset states for entrance animation
+      var img = panel.querySelector('.section-img');
+      var narrative = panel.querySelector('.narrative');
+      var actionWrap = panel.querySelector('.action-wrap');
+      if (img) { img.style.transition = ''; img.style.opacity = '0'; }
+      if (narrative) {
+        narrative.style.transition = '';
+        narrative.style.opacity = '0';
+        narrative.classList.remove('typing');
+        var old = narrative.querySelector('.typewriter-line');
+        if (old) old.remove();
       }
+      if (actionWrap) actionWrap.style.visibility = 'hidden';
+      if (!id) {
+        var fs = document.getElementById('finalScore');
+        if (fs) fs.textContent = crewScore;
+      }
+      panel.classList.add('active');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      animatePanel(id || null);
     }
 
     function goToSection(id) {
       showPanel(id || null);
+    }
+
+    async function animatePanel(sid) {
+      var panelId = sid ? 'panel-' + sid : 'panel-complete';
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      var gen = ++_animGen;
+      function alive() { return gen === _animGen; }
+      function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+      var img = panel.querySelector('.section-img');
+      var narrative = panel.querySelector('.narrative');
+      var actionWrap = panel.querySelector('.action-wrap');
+
+      // Collect plain-text lines from narrative <p> tags
+      var lines = [];
+      if (narrative) {
+        narrative.querySelectorAll('p').forEach(function(p) {
+          var text = p.textContent || p.innerText || '';
+          if (text.trim()) lines.push(text.trim());
+        });
+      }
+
+      // Step 1: fade in image
+      if (img) {
+        img.style.transition = 'opacity 0.8s ease';
+        await wait(30);
+        if (!alive()) return;
+        img.style.opacity = '1';
+        await wait(900);
+        if (!alive()) return;
+      }
+
+      // Step 2: fade in narrative container, then type lines
+      if (narrative) {
+        narrative.classList.add('typing');
+        var tw = document.createElement('div');
+        tw.className = 'typewriter-line';
+        var cur = document.createElement('span');
+        cur.className = 'typewriter-cursor';
+        tw.appendChild(cur);
+        narrative.insertBefore(tw, narrative.firstChild);
+
+        narrative.style.transition = 'opacity 0.4s ease';
+        await wait(20);
+        if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+        narrative.style.opacity = '1';
+        await wait(450);
+        if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+
+        // Type each line — erase before the next, keep the last
+        for (var li = 0; li < lines.length; li++) {
+          var line = lines[li];
+          tw.textContent = '';
+          tw.appendChild(cur);
+          var typed = '';
+          for (var ci = 0; ci < line.length; ci++) {
+            if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+            typed += line[ci];
+            tw.textContent = typed;
+            tw.appendChild(cur);
+            await wait(30);
+          }
+          await wait(900);
+          if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+          if (li < lines.length - 1) {
+            tw.textContent = '';
+            tw.appendChild(cur);
+            await wait(400);
+            if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+          }
+        }
+
+        // Reveal original narrative HTML
+        tw.remove();
+        narrative.classList.remove('typing');
+      }
+
+      // Step 3: reveal action
+      if (actionWrap) actionWrap.style.visibility = 'visible';
     }
 
     /* ===== DICE SYSTEM ===== */
@@ -994,16 +1110,16 @@ ${completePanelHtml}
       updateCrewDisplay();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
-      if (scoreLabel) scoreLabel.textContent = 'CREW';
+      if (scoreLabel) scoreLabel.textContent = 'SCORE';
       if (scoreValue) scoreValue.textContent = crew;
 
       if (total >= difficulty) {
-        if (resultText) resultText.innerHTML = '<span class="highlight">' + crew + ' crew assembled.</span> Difficulty ' + difficulty + ' cleared. Press forward.';
+        if (resultText) resultText.innerHTML = '<span class="result-success">SUCCESS</span>';
         if (continueWrap) continueWrap.classList.add('show');
         if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.passNextId);
       } else {
         if (scoreBox) scoreBox.className = 'score-box no-score';
-        if (resultText) resultText.innerHTML = 'Only <span class="highlight">' + crew + ' crew</span> — needed ' + difficulty + '. You fall short.';
+        if (resultText) resultText.innerHTML = '<span class="result-fail">FAILURE</span>';
         if (continueWrap) continueWrap.classList.add('show');
         if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.failNextId);
       }
@@ -1011,15 +1127,17 @@ ${completePanelHtml}
 
     function noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
       if (scoreBox) scoreBox.className = 'score-box no-score';
-      if (scoreLabel) scoreLabel.textContent = 'NO CREW';
+      if (scoreLabel) scoreLabel.textContent = 'NO SCORE';
       if (scoreValue) scoreValue.textContent = '0';
-      if (resultText) resultText.innerHTML = 'The dice forsake you. Needed ' + (difficulty || 8) + '. <span class="highlight">You push on alone.</span>';
+      if (resultText) resultText.innerHTML = '<span class="result-fail">FAILURE</span>';
       if (continueWrap) continueWrap.classList.add('show');
       if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
     }
 
     // Initialise dice state + event listeners for each dice section
 ${diceInitJs}
+    // Animate the first panel on load
+    animatePanel(${sections.length > 0 ? sections[0].id : 'null'});
   <\/script>
 </body>
 </html>`;
