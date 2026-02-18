@@ -1034,6 +1034,27 @@
 
   <script src="nav.js"></script>
   <script>
+    // HTML escaping helpers
+    function escAttr(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+    function escContent(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+    // Escape text for inside a <textarea> (prevent early close)
+    function escTextarea(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;');
+    }
+
     // State management
     const state = {
       questName: '',
@@ -1052,6 +1073,22 @@
       document.getElementById('treeViewModal').addEventListener('click', (e) => {
         if (e.target === document.getElementById('treeViewModal')) closeTreeView();
       });
+
+      // Choice selection — single delegation, attached once here in init()
+      document.getElementById('sectionsContainer').addEventListener('click', (e) => {
+        const choiceOption = e.target.closest('.choice-option');
+        if (choiceOption) {
+          const sectionId = parseInt(choiceOption.dataset.sectionId);
+          const choice = choiceOption.dataset.choice;
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.selectedChoice = choice;
+            renderSections();
+            saveQuestAuto();
+          }
+        }
+      });
+
       renderSections();
     }
 
@@ -1147,7 +1184,7 @@
           <!-- Section Name -->
           <div class="form-group">
             <label>Section Name</label>
-            <input type="text" placeholder="e.g., The Forest Entrance" value="${section.name}" data-section-id="${section.id}" class="section-name-input">
+            <input type="text" placeholder="e.g., The Forest Entrance" value="${escAttr(section.name)}" data-section-id="${section.id}" class="section-name-input">
           </div>
 
           <!-- Photo Upload -->
@@ -1163,7 +1200,7 @@
           <!-- Dialogue Box -->
           <div class="form-group">
             <label>Dialogue / Story Text</label>
-            <textarea placeholder="What does the NPC say? Describe the scene..." data-section-id="${section.id}" class="section-dialogue-input">${section.dialogue}</textarea>
+            <textarea placeholder="What does the NPC say? Describe the scene..." data-section-id="${section.id}" class="section-dialogue-input">${escTextarea(section.dialogue)}</textarea>
           </div>
 
           <!-- Choice Options -->
@@ -1194,30 +1231,30 @@
           <!-- Single Button Config -->
           <div class="choice-config ${section.selectedChoice === 'single' ? 'visible' : ''}" data-config="single" data-section-id="${section.id}">
             <label>Button Text</label>
-            <input type="text" class="button-name-input" placeholder="e.g., Continue, Accept Quest" value="${section.buttonName || 'Continue'}" data-section-id="${section.id}">
+            <input type="text" class="button-name-input" placeholder="e.g., Continue, Accept Quest" value="${escAttr(section.buttonName || 'Continue')}" data-section-id="${section.id}">
             <label style="margin-top: 16px;">Leads To Section</label>
             <select class="next-section-select" data-section-id="${section.id}" data-choice-type="single">
               <option value="">-- No next section --</option>
-              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.nextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.nextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${escContent(s.name)}</option>`).join('')}
             </select>
           </div>
 
           <!-- Double Button Config -->
           <div class="choice-config ${section.selectedChoice === 'double' ? 'visible' : ''}" data-config="double" data-section-id="${section.id}">
             <label>First Choice Button</label>
-            <input type="text" class="button1-name-input" placeholder="e.g., Accept" value="${section.button1Name || 'Choice A'}" data-section-id="${section.id}" style="margin-bottom: 12px;">
+            <input type="text" class="button1-name-input" placeholder="e.g., Accept" value="${escAttr(section.button1Name || 'Choice A')}" data-section-id="${section.id}" style="margin-bottom: 12px;">
             <label style="margin-bottom: 8px;">Leads To Section</label>
             <select class="choice1-next-section-select" data-section-id="${section.id}">
               <option value="">-- No next section --</option>
-              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.choice1NextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.choice1NextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${escContent(s.name)}</option>`).join('')}
             </select>
 
             <label style="margin-top: 16px;">Second Choice Button</label>
-            <input type="text" class="button2-name-input" placeholder="e.g., Decline" value="${section.button2Name || 'Choice B'}" data-section-id="${section.id}" style="margin-bottom: 12px;">
+            <input type="text" class="button2-name-input" placeholder="e.g., Decline" value="${escAttr(section.button2Name || 'Choice B')}" data-section-id="${section.id}" style="margin-bottom: 12px;">
             <label style="margin-bottom: 8px;">Leads To Section</label>
             <select class="choice2-next-section-select" data-section-id="${section.id}">
               <option value="">-- No next section --</option>
-              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.choice2NextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.choice2NextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${escContent(s.name)}</option>`).join('')}
             </select>
           </div>
 
@@ -1253,13 +1290,13 @@
             <label style="margin-top: 20px;">On Pass</label>
             <select class="pass-next-section-select" data-section-id="${section.id}">
               <option value="">-- No next section --</option>
-              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.passNextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.passNextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${escContent(s.name)}</option>`).join('')}
             </select>
 
             <label style="margin-top: 16px;">On Fail</label>
             <select class="fail-next-section-select" data-section-id="${section.id}">
               <option value="">-- No next section --</option>
-              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.failNextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${s.name}</option>`).join('')}
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.failNextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${escContent(s.name)}</option>`).join('')}
             </select>
           </div>
 
@@ -1267,7 +1304,7 @@
           ${section.selectedChoice === 'single' ? `
             <div class="button-preview">
               <div class="button-preview-label">📦 Button Preview</div>
-              <div class="single-button-preview">${section.buttonName || 'Continue'}</div>
+              <div class="single-button-preview">${escContent(section.buttonName || 'Continue')}</div>
             </div>
           ` : ''}
 
@@ -1275,8 +1312,8 @@
             <div class="button-preview">
               <div class="button-preview-label">📦 Button Preview</div>
               <div class="double-buttons-preview">
-                <div class="double-button-preview">${section.button1Name || 'Choice A'}</div>
-                <div class="double-button-preview">${section.button2Name || 'Choice B'}</div>
+                <div class="double-button-preview">${escContent(section.button1Name || 'Choice A')}</div>
+                <div class="double-button-preview">${escContent(section.button2Name || 'Choice B')}</div>
               </div>
             </div>
           ` : ''}
@@ -1353,27 +1390,14 @@
                 preview.classList.add('visible');
                 saveQuestAuto();
               }
+              e.target.value = ''; // allow re-selecting the same file
             };
             reader.readAsDataURL(file);
           }
         });
       });
 
-      // Choice selection (using event delegation for reliability)
-      const container = document.getElementById('sectionsContainer');
-      container.addEventListener('click', (e) => {
-        const choiceOption = e.target.closest('.choice-option');
-        if (choiceOption) {
-          const sectionId = parseInt(choiceOption.dataset.sectionId);
-          const choice = choiceOption.dataset.choice;
-          const section = state.sections.find(s => s.id === sectionId);
-          if (section) {
-            section.selectedChoice = choice;
-            renderSections();
-            saveQuestAuto();
-          }
-        }
-      });
+      // Choice selection handled via event delegation in init() — do NOT add here
 
       // Single button name input
       document.querySelectorAll('.button-name-input').forEach(input => {
@@ -1440,6 +1464,7 @@
                 renderSections();
                 saveQuestAuto();
               }
+              e.target.value = ''; // allow re-selecting the same file
             };
             reader.readAsDataURL(file);
           }
@@ -1734,10 +1759,13 @@
       closeBtn.onclick = () => modal.classList.remove('open');
       closeIcon.onclick = () => modal.classList.remove('open');
 
-      // Close on background click
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.remove('open');
-      });
+      // Close on background click — only bind once
+      if (!modal._bgClickBound) {
+        modal._bgClickBound = true;
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) modal.classList.remove('open');
+        });
+      }
     }
 
     function exportQuest() {
