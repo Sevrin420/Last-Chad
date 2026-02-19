@@ -1,0 +1,37 @@
+{
+  "name": "Sally1",
+  "sections": [
+    {
+      "id": 1771464274889,
+      "name": "1",
+      "dialogue": "Hello there my friend\nDo you need a torch or a path?",
+      "selectedChoice": "single",
+      "buttonName": "Yes",
+      "nextSectionId": 1771464317676,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8
+    },
+    {
+      "id": 1771464317676,
+      "name": "Down we go",
+      "dialogue": "Let's see what's deeper, could there be some kind of place to sleep?\nI wouldn't know but if there is the people will cheer.",
+      "selectedChoice": "dice",
+      "buttonName": "Continue",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": "dexterity",
+      "difficulty": 8
+    }
+  ]
+}
