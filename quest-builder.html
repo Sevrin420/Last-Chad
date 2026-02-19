@@ -332,6 +332,19 @@
       color: #f5e6c8;
     }
 
+    .section-music-select {
+      width: 100%;
+      background: rgba(20, 15, 5, 0.9);
+      border: 1px solid #c9a84c;
+      color: #f5e6c8;
+      padding: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.3rem;
+      border-radius: 2px;
+    }
+    .section-music-select:focus { outline: none; border-color: #7ee8d4; }
+    .section-music-select option { background: #0a0a0f; color: #f5e6c8; }
+
     .button-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1072,6 +1085,9 @@
       sections: []
     };
 
+    // Music tracks loaded from music/manifest.json
+    let musicTracks = [];
+
     // Initialize
     function init() {
       loadQuestData();
@@ -1102,6 +1118,16 @@
       });
 
       renderSections();
+
+      // Load music track list for dropdowns
+      fetch('music/manifest.json')
+        .then(r => r.json())
+        .then(tracks => {
+          musicTracks = tracks || [];
+          // Re-render so dropdowns populate with the loaded tracks
+          renderSections();
+        })
+        .catch(() => { musicTracks = []; });
     }
 
     // Load saved data
@@ -1128,7 +1154,8 @@
             passNextSectionId: section.passNextSectionId || null,
             failNextSectionId: section.failNextSectionId || null,
             statBonus: section.statBonus || null,
-            difficulty: section.difficulty !== undefined ? section.difficulty : 8
+            difficulty: section.difficulty !== undefined ? section.difficulty : 8,
+            music: section.music || null
           }));
           document.getElementById('questName').value = state.questName;
           document.getElementById('introDialogue').value = state.introDialogue;
@@ -1174,7 +1201,8 @@
         passNextSectionId: null,
         failNextSectionId: null,
         statBonus: null,
-        difficulty: 8
+        difficulty: 8,
+        music: null
       };
       state.sections.push(newSection);
       renderSections();
@@ -1220,6 +1248,15 @@
           <div class="form-group">
             <label>Dialogue / Story Text</label>
             <textarea placeholder="What does the NPC say? Describe the scene..." data-section-id="${section.id}" class="section-dialogue-input">${escTextarea(section.dialogue)}</textarea>
+          </div>
+
+          <!-- Music for this section -->
+          <div class="form-group">
+            <label>♪ Background Music</label>
+            <select class="section-music-select" data-section-id="${section.id}">
+              <option value="">— none —</option>
+              ${musicTracks.map(t => `<option value="music/${t.file}" ${section.music === 'music/' + t.file ? 'selected' : ''}>${escAttr(t.name)}</option>`).join('')}
+            </select>
           </div>
 
           <!-- Choice Options -->
@@ -1578,6 +1615,18 @@
           if (section) {
             const val = parseInt(e.target.value);
             section.difficulty = isNaN(val) ? 8 : Math.max(2, Math.min(12, val));
+            saveQuestAuto();
+          }
+        });
+      });
+
+      // Music select
+      document.querySelectorAll('.section-music-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.music = e.target.value || null;
             saveQuestAuto();
           }
         });

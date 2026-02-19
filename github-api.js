@@ -298,6 +298,15 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
   });
   const diceSectionIds = sections.filter(s => s.selectedChoice === 'dice').map(s => s.id);
 
+  // Build section → music map (paths are relative to site root; prefix ../../ for quests subfolder)
+  const sectionMusic = {};
+  sections.forEach(s => {
+    if (s.music) {
+      sectionMusic[s.id] = '../../' + s.music;
+    }
+  });
+  const sectionMusicJson = JSON.stringify(sectionMusic);
+
   // Format dialogue text: split on newlines into <p> tags
   function formatDialogue(text) {
     if (!text) return '<p>...</p>';
@@ -1005,6 +1014,17 @@ ${completePanelHtml}
     var crewScore = 0;
     var _animGen = 0;
     var diceOutcomes = ${diceOutcomesJson};
+    var sectionMusic = ${sectionMusicJson};
+
+    function playQuestMusic(sectionId) {
+      var audio = document.getElementById('questBgMusic');
+      if (!audio) return;
+      var src = sectionId ? (sectionMusic[sectionId] || '') : '';
+      if (!src) { audio.pause(); audio.src = ''; return; }
+      if (audio.src.endsWith(src.replace(/^\.\.\/\.\.\//, ''))) return; // already playing
+      audio.src = src;
+      audio.play().catch(function() {});
+    }
 
     var dotLayouts = {
       1: [0,0,0, 0,1,0, 0,0,0],
@@ -1059,6 +1079,7 @@ ${completePanelHtml}
         if (fs) fs.textContent = crewScore;
       }
       panel.classList.add('active');
+      playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
     }
@@ -1073,7 +1094,9 @@ ${completePanelHtml}
         overlay.classList.add('hidden');
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1300);
       }
-      animatePanel(${sections.length > 0 ? sections[0].id : 'null'});
+      var firstId = ${sections.length > 0 ? sections[0].id : 'null'};
+      playQuestMusic(firstId);
+      animatePanel(firstId);
     }
 
     async function animatePanel(sid) {
@@ -1605,6 +1628,7 @@ ${diceInitJs}
       }
     }
   <\/script>
+<audio id="questBgMusic" loop></audio>
 </body>
 </html>`;
 }
