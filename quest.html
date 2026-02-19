@@ -815,7 +815,8 @@
   <script>
     // ===== URL PARAMS =====
     const params = new URLSearchParams(window.location.search);
-    const chadId = params.get('chad') || '1';
+    const chadId = params.get('chad');
+    if (!chadId) { window.location.replace('enter.html'); }
     document.getElementById('portraitImg').src = 'assets/chads/' + chadId + '.png';
     document.getElementById('chadName').textContent = 'CHAD #' + chadId;
 
