@@ -323,6 +323,33 @@
       border-color: rgba(255, 255, 255, 0.35);
     }
 
+    /* Sound toggle – top-right corner */
+    .sound-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 25;
+      width: 34px;
+      height: 34px;
+      background: rgba(0, 0, 0, 0.38);
+      color: rgba(255, 255, 255, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 3px;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .sound-btn:hover {
+      background: rgba(0, 0, 0, 0.62);
+      color: rgba(255, 255, 255, 0.92);
+      border-color: rgba(255, 255, 255, 0.38);
+    }
+
     /* Buttons hidden until video ends, then fade in */
     .mint-btn, .enter-btn {
       opacity: 0;
@@ -346,13 +373,16 @@
   <div class="landing">
     <img src="assets/last_chad_background.jpg" alt="Last Chad" class="hero-image">
 
-    <!-- Intro video (autoplays muted; last frame stays when done) -->
-    <video id="intro-video" class="intro-video" muted playsinline preload="auto">
+    <!-- Intro video (tries to autoplay with sound; last frame stays when done) -->
+    <video id="intro-video" class="intro-video" playsinline preload="auto">
       <source src="intro.mp4" type="video/mp4">
     </video>
 
     <!-- Skip button shown while video plays -->
     <button id="skip-btn" class="skip-btn">SKIP ▶</button>
+
+    <!-- Sound toggle – top right corner -->
+    <button id="sound-btn" class="sound-btn" title="Mute">🔊</button>
 
     <!-- Nav menu -->
     <div id="nav-placeholder"></div>
@@ -365,32 +395,80 @@
     // --- Intro video logic ---
     (function() {
       try {
-        var video   = document.getElementById('intro-video');
-        var skipBtn = document.getElementById('skip-btn');
-        var mintBtn = document.querySelector('.mint-btn');
+        var video    = document.getElementById('intro-video');
+        var skipBtn  = document.getElementById('skip-btn');
+        var soundBtn = document.getElementById('sound-btn');
+        var mintBtn  = document.querySelector('.mint-btn');
         var enterBtn = document.querySelector('.enter-btn');
 
+        // --- Sound toggle ---
+        function setSoundState(muted) {
+          video.muted    = muted;
+          soundBtn.textContent = muted ? '🔇' : '🔊';
+          soundBtn.title       = muted ? 'Unmute' : 'Mute';
+        }
+
+        soundBtn.addEventListener('click', function() {
+          setSoundState(!video.muted);
+        });
+
+        // --- Reveal mint/enter buttons (called after video ends or skip) ---
         function revealButtons() {
-          skipBtn.style.display = 'none';
+          skipBtn.style.display  = 'none';
+          soundBtn.style.display = 'none';
           mintBtn.classList.add('visible');
           enterBtn.classList.add('visible');
         }
 
+        // --- Natural video end ---
         video.addEventListener('ended', revealButtons);
 
+        // --- Skip: jump to 50s, fade that frame in, then reveal buttons ---
         skipBtn.addEventListener('click', function() {
-          video.pause();
-          revealButtons();
+          skipBtn.style.display  = 'none';
+          soundBtn.style.display = 'none';
+
+          // Fade video out
+          video.style.transition = 'opacity 0.25s ease';
+          video.style.opacity    = '0';
+
+          setTimeout(function() {
+            video.pause();
+            video.currentTime = 50;
+
+            // Wait for the frame to render, then fade it back in
+            function onSeeked() {
+              video.removeEventListener('seeked', onSeeked);
+              video.style.transition = 'opacity 0.85s ease';
+              video.style.opacity    = '1';
+              // After the frame has fully faded in, bring in the buttons
+              setTimeout(function() {
+                video.style.transition = '';
+                revealButtons();
+              }, 900);
+            }
+            video.addEventListener('seeked', onSeeked);
+          }, 280);
         });
 
-        // Attempt autoplay; fall back to showing buttons immediately if blocked
+        // --- Autoplay: try with sound first, fall back to muted ---
+        video.muted = false;
         var p = video.play();
         if (p !== undefined) {
           p.catch(function() {
-            video.style.display = 'none';
-            skipBtn.style.display = 'none';
-            mintBtn.classList.add('visible');
-            enterBtn.classList.add('visible');
+            // Sound blocked – retry muted
+            setSoundState(true);
+            var p2 = video.play();
+            if (p2 !== undefined) {
+              p2.catch(function() {
+                // All autoplay blocked – skip straight to main content
+                video.style.display  = 'none';
+                skipBtn.style.display  = 'none';
+                soundBtn.style.display = 'none';
+                mintBtn.classList.add('visible');
+                enterBtn.classList.add('visible');
+              });
+            }
           });
         }
       } catch(e) {}
