@@ -73,7 +73,8 @@
       text-shadow: 0 0 8px rgba(126, 232, 212, 0.3);
     }
 
-    .quest-title-section input {
+    .quest-title-section input,
+    .quest-title-section textarea {
       width: 100%;
       background: rgba(20, 15, 5, 0.9);
       border: 1px solid #7ee8d4;
@@ -85,7 +86,14 @@
       min-height: 40px;
     }
 
-    .quest-title-section input:focus {
+    .quest-title-section textarea {
+      min-height: 80px;
+      resize: vertical;
+      max-height: 200px;
+    }
+
+    .quest-title-section input:focus,
+    .quest-title-section textarea:focus {
       outline: none;
       border-color: #c9a84c;
       box-shadow: 0 0 12px rgba(126, 232, 212, 0.4);
@@ -977,10 +985,12 @@
   </div>
 
   <div class="main">
-    <!-- Quest Title -->
+    <!-- Quest Title & Intro -->
     <div class="quest-title-section">
       <h1>📜 Quest Name</h1>
       <input type="text" id="questName" placeholder="Enter quest name..." maxlength="50">
+      <h1 style="margin-top: 24px;">🗺️ Intro Dialogue</h1>
+      <textarea id="introDialogue" placeholder="Opening text shown on the START screen before the quest begins... (optional)"></textarea>
     </div>
 
     <!-- Sections Container -->
@@ -1058,6 +1068,7 @@
     // State management
     const state = {
       questName: '',
+      introDialogue: '',
       sections: []
     };
 
@@ -1065,6 +1076,7 @@
     function init() {
       loadQuestData();
       document.getElementById('questName').addEventListener('input', handleQuestNameChange);
+      document.getElementById('introDialogue').addEventListener('input', handleIntroDialogueChange);
       document.getElementById('addSectionBtn').addEventListener('click', addSection);
       document.getElementById('saveBtn').addEventListener('click', saveQuest);
       document.getElementById('exportBtn').addEventListener('click', exportQuest);
@@ -1099,6 +1111,7 @@
         try {
           const data = JSON.parse(saved);
           state.questName = data.questName || '';
+          state.introDialogue = data.introDialogue || '';
           state.sections = (data.sections || []).map(section => ({
             id: section.id,
             name: section.name || '',
@@ -1118,6 +1131,7 @@
             difficulty: section.difficulty !== undefined ? section.difficulty : 8
           }));
           document.getElementById('questName').value = state.questName;
+          document.getElementById('introDialogue').value = state.introDialogue;
         } catch (e) {
           console.error('Error loading quest data:', e);
           state.sections = [];
@@ -1132,6 +1146,11 @@
 
     function handleQuestNameChange(e) {
       state.questName = e.target.value;
+      saveQuestAuto();
+    }
+
+    function handleIntroDialogueChange(e) {
+      state.introDialogue = e.target.value;
       saveQuestAuto();
     }
 
@@ -1658,7 +1677,7 @@
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/create-landing-page-1qjhB');
 
         // Publish quest
-        github.publishQuest(questName, state.sections, onPublishProgress)
+        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '')
           .then(data => {
             showPublishProgress(false);
             showQuestPublishedModal(questName, data.questUrl);

@@ -100,7 +100,7 @@ class GitHubAPI {
     });
   }
 
-  async publishQuest(questName, sections, onProgress = null) {
+  async publishQuest(questName, sections, onProgress = null, introDialogue = '') {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
     for (const section of sections) {
@@ -154,7 +154,7 @@ class GitHubAPI {
 
       // Generate quest HTML
       progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections);
+      const questHTML = generateQuestHTML(questName, sections, introDialogue);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
       console.log(`✓ Quest HTML blob created`);
       treeItems.push({
@@ -274,7 +274,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections) {
+function generateQuestHTML(questName, sections, introDialogue = '') {
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -582,7 +582,7 @@ function generateQuestHTML(questName, sections) {
       animation: blink-cursor 0.7s step-end infinite;
     }
     @keyframes blink-cursor { 50% { opacity: 0; } }
-    .action-wrap { visibility: hidden; }
+    .action-wrap { opacity: 0; pointer-events: none; }
     .result-success { color: #c9a84c; }
     .result-fail { color: #e53935; }
     .highlight { color: #c9a84c; }
@@ -784,9 +784,81 @@ function generateQuestHTML(questName, sections) {
       .quest-panel { padding: 20px 16px; }
       .dice-row { gap: 5px; }
     }
+
+    /* Intro overlay */
+    #intro-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.92);
+      transition: opacity 1.2s ease;
+      animation: intro-appear 0.8s ease;
+    }
+    #intro-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    @keyframes intro-appear {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .intro-box {
+      background: rgba(10, 8, 4, 0.97);
+      border: 3px solid #c9a84c;
+      border-radius: 6px;
+      padding: 40px 36px;
+      max-width: 560px;
+      width: 92%;
+      box-shadow: 0 0 40px rgba(201, 168, 76, 0.25), inset 0 0 20px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    .intro-title {
+      font-size: clamp(0.55rem, 2vw, 0.8rem);
+      color: #c9a84c;
+      text-shadow: 0 0 12px rgba(201, 168, 76, 0.4);
+      margin-bottom: 28px;
+      letter-spacing: 0.04em;
+    }
+    .intro-text {
+      font-size: clamp(0.38rem, 1.5vw, 0.52rem);
+      line-height: 2.4;
+      color: #f5e6c8;
+      margin-bottom: 36px;
+    }
+    .intro-start-btn {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
+      border: 2px solid #c9a84c;
+      color: #c9a84c;
+      padding: 14px 44px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+      cursor: pointer;
+      border-radius: 4px;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      transition: all 0.3s;
+      letter-spacing: 0.05em;
+    }
+    .intro-start-btn:hover {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.45) 0%, rgba(201, 168, 76, 0.2) 100%);
+      box-shadow: 0 0 20px rgba(201, 168, 76, 0.35);
+      transform: translateY(-1px);
+    }
+    .intro-start-btn:active { transform: scale(0.97); }
   </style>
 </head>
 <body>
+  <!-- Intro overlay — appears before any panel content loads -->
+  <div id="intro-overlay">
+    <div class="intro-box">
+      <div class="intro-title">${escapeHtml(questName)}</div>
+      ${introDialogue ? `<div class="intro-text">${escapeHtml(introDialogue).replace(/\n/g, '<br>')}</div>` : ''}
+      <button class="intro-start-btn" onclick="startQuest()">START</button>
+    </div>
+  </div>
+
   <div class="bg"></div>
 
   <header class="header">
@@ -860,7 +932,7 @@ ${completePanelHtml}
         var old = narrative.querySelector('.typewriter-line');
         if (old) old.remove();
       }
-      if (actionWrap) actionWrap.style.visibility = 'hidden';
+      if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
       if (!id) {
         var fs = document.getElementById('finalScore');
         if (fs) fs.textContent = crewScore;
@@ -872,6 +944,15 @@ ${completePanelHtml}
 
     function goToSection(id) {
       showPanel(id || null);
+    }
+
+    function startQuest() {
+      var overlay = document.getElementById('intro-overlay');
+      if (overlay) {
+        overlay.classList.add('hidden');
+        setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1300);
+      }
+      animatePanel(${sections.length > 0 ? sections[0].id : 'null'});
     }
 
     async function animatePanel(sid) {
@@ -897,11 +978,11 @@ ${completePanelHtml}
 
       // Step 1: fade in image
       if (img) {
-        img.style.transition = 'opacity 0.8s ease';
+        img.style.transition = 'opacity 1.6s ease';
         await wait(30);
         if (!alive()) return;
         img.style.opacity = '1';
-        await wait(900);
+        await wait(1800);
         if (!alive()) return;
       }
 
@@ -915,11 +996,11 @@ ${completePanelHtml}
         tw.appendChild(cur);
         narrative.insertBefore(tw, narrative.firstChild);
 
-        narrative.style.transition = 'opacity 0.4s ease';
+        narrative.style.transition = 'opacity 0.8s ease';
         await wait(20);
         if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
         narrative.style.opacity = '1';
-        await wait(450);
+        await wait(900);
         if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
 
         // Type each line — erase before the next, keep the last
@@ -933,14 +1014,14 @@ ${completePanelHtml}
             typed += line[ci];
             tw.textContent = typed;
             tw.appendChild(cur);
-            await wait(30);
+            await wait(60);
           }
-          await wait(900);
+          await wait(1800);
           if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
           if (li < lines.length - 1) {
             tw.textContent = '';
             tw.appendChild(cur);
-            await wait(400);
+            await wait(800);
             if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
           }
         }
@@ -951,7 +1032,7 @@ ${completePanelHtml}
       }
 
       // Step 3: reveal action
-      if (actionWrap) actionWrap.style.visibility = 'visible';
+      if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
     }
 
     /* ===== DICE SYSTEM ===== */
@@ -1136,8 +1217,7 @@ ${completePanelHtml}
 
     // Initialise dice state + event listeners for each dice section
 ${diceInitJs}
-    // Animate the first panel on load
-    animatePanel(${sections.length > 0 ? sections[0].id : 'null'});
+    // Quest starts when the player clicks START on the intro overlay
   <\/script>
 </body>
 </html>`;
