@@ -569,6 +569,49 @@
     .lu-stat-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
     .lu-points { font-size: 0.45rem; color: #c9a84c; text-align: center; margin-bottom: 6px; line-height: 2; }
     .lu-token  { font-size: 0.38rem; color: #8a7a5a; text-align: center; margin-bottom: 16px; }
+
+    /* --- Music selector row --- */
+    .music-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #2a1e06;
+    }
+    .music-row-label {
+      font-size: 0.28rem;
+      color: #5c4409;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .music-select {
+      flex: 1;
+      min-width: 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.25rem;
+      background: rgba(20, 14, 6, 0.9);
+      border: 1px solid #3d2e0a;
+      border-radius: 2px;
+      color: #8a7a5a;
+      padding: 5px 6px;
+      cursor: pointer;
+    }
+    .music-select:focus { outline: none; border-color: #5c4409; }
+    .music-select option { background: #1a1008; }
+    .music-stop-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.25rem;
+      background: transparent;
+      border: 1px solid #3d2e0a;
+      color: #5c4409;
+      padding: 5px 8px;
+      border-radius: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .music-stop-btn:hover { border-color: #8b6914; color: #8b6914; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 </head>
@@ -603,6 +646,13 @@
 
       <!-- ===== PANEL: INTRO ===== -->
       <div class="panel active" id="panel-intro">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-intro" onchange="panelMusicChanged('panel-intro')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">MISSION BRIEFING — DAY 2</div>
         <div class="narrative">
           <p>The city reeks of ozone and ash. Last night the <span class="highlight">Synthettes</span> hit the western quarter — first wave, coordinated, surgical. Forty-seven dead. Nobody expected it.</p>
@@ -615,6 +665,13 @@
 
       <!-- ===== PANEL: CHOICE 1 ===== -->
       <div class="panel" id="panel-choice1">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-choice1" onchange="panelMusicChanged('panel-choice1')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">THE JUNCTION</div>
         <div class="narrative">
           <p>You drop through a rusted grate into the sewer network. The smell hits like a wall. Forty meters in, the tunnel splits.</p>
@@ -634,6 +691,13 @@
 
       <!-- ===== PANEL: DICE ENCOUNTER ===== -->
       <div class="panel" id="panel-dice">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-dice" onchange="panelMusicChanged('panel-dice')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">PATROL DRONE DETECTED</div>
         <div class="narrative">
           <p>You freeze. Twenty meters ahead, a Synthette scout drone hovers — its scanner sweeping slow arcs across the pipe walls.</p>
@@ -700,6 +764,13 @@
 
       <!-- ===== PANEL: CHOICE 2 ===== -->
       <div class="panel" id="panel-choice2">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-choice2" onchange="panelMusicChanged('panel-choice2')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">BLOCKED EXIT</div>
         <div class="narrative">
           <p>You reach the exit shaft — a rusted ladder leading up to a maintenance hatch. It's sealed. A Synthette security lock, recently installed.</p>
@@ -719,6 +790,13 @@
 
       <!-- ===== PANEL: RESULTS ===== -->
       <div class="panel" id="panel-results">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-results" onchange="panelMusicChanged('panel-results')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">MISSION COMPLETE</div>
         <div class="narrative">
           <p>You climb out of the maintenance hatch into cold air. The city still burns in the west.</p>
@@ -1005,7 +1083,72 @@
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById(id).classList.add('active');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      playPanelMusic(id);
     }
+
+    // ===== MUSIC SYSTEM =====
+    const _questAudio = document.getElementById('questAudio');
+    const _panelMusicSelects = {
+      'panel-intro':   'music-intro',
+      'panel-choice1': 'music-choice1',
+      'panel-dice':    'music-dice',
+      'panel-choice2': 'music-choice2',
+      'panel-results': 'music-results'
+    };
+
+    // Fetch music/manifest.json and populate every dropdown with available tracks.
+    // Format: [{ "name": "Track Name", "file": "filename.mp3" }, ...]
+    async function loadMusicOptions() {
+      try {
+        const res = await fetch('music/manifest.json');
+        if (!res.ok) return;
+        const tracks = await res.json();
+        if (!Array.isArray(tracks) || tracks.length === 0) return;
+        Object.values(_panelMusicSelects).forEach(selId => {
+          const sel = document.getElementById(selId);
+          if (!sel) return;
+          tracks.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = 'music/' + t.file;
+            opt.textContent = t.name;
+            sel.appendChild(opt);
+          });
+        });
+      } catch (err) {
+        console.warn('Music manifest unavailable:', err);
+      }
+    }
+
+    // Play whichever track is selected for the given panel (or stop if "— silence —").
+    function playPanelMusic(panelId) {
+      const selId = _panelMusicSelects[panelId];
+      if (!selId) return;
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const src = sel.value;
+      if (!src) { stopMusic(); return; }
+      // Don't restart the same track if it's already playing
+      const resolved = new URL(src, window.location.href).href;
+      if (_questAudio.src === resolved && !_questAudio.paused) return;
+      _questAudio.src = src;
+      _questAudio.loop = true;
+      _questAudio.volume = 0.5;
+      _questAudio.play().catch(() => {});
+    }
+
+    // Called when the user changes the dropdown while that panel is visible.
+    function panelMusicChanged(panelId) {
+      const panel = document.getElementById(panelId);
+      if (panel && panel.classList.contains('active')) playPanelMusic(panelId);
+    }
+
+    function stopMusic() {
+      _questAudio.pause();
+      _questAudio.currentTime = 0;
+      _questAudio.src = '';
+    }
+
+    loadMusicOptions();
 
     // ===== INTRO -> QUEST =====
     async function startQuest() {
@@ -1587,6 +1730,7 @@
       }
     }
   </script>
+  <audio id="questAudio" loop></audio>
   <script src="nav.js"></script>
 </body>
 </html>
