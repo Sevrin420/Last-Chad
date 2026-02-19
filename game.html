@@ -193,9 +193,91 @@
       padding: 10px 0;
     }
 
+    /* --- Right panels wrapper (stats + items) --- */
+    .right-panels {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    /* Make stats-panel share space evenly with items panel */
+    .stats-panel { min-width: 0; }
+
+    /* --- Items panel --- */
+    .items-panel {
+      flex: 1;
+      min-width: 0;
+      background: rgba(10, 8, 4, 0.75);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .items-panel-header {
+      font-size: 0.45rem;
+      color: #c9a84c;
+      text-align: center;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.35);
+      flex-shrink: 0;
+    }
+
+    .items-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .item-slot {
+      border: 2px solid #3d2e0a;
+      border-radius: 3px;
+      background: rgba(20, 14, 6, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 1;
+    }
+
+    .item-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: pixelated;
+      display: none;
+    }
+
+    .item-slot.has-item {
+      border-color: #8b6914;
+      box-shadow:
+        inset 0 0 8px rgba(0,0,0,0.4),
+        0 0 6px rgba(139,105,20,0.2);
+    }
+
+    .item-slot.has-item img { display: block; }
+
+    .item-slot.has-item .item-empty-dot { display: none; }
+
+    .item-empty-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #3d2e0a;
+    }
+
     @media (max-width: 400px) {
       .character-card { gap: 10px; }
       .stats-panel { padding: 10px 12px; }
+      .right-panels { gap: 8px; }
+      .items-panel { padding: 8px; }
     }
 
     /* --- Dice area --- */
@@ -577,47 +659,73 @@
 
   <main class="main">
 
-    <!-- Character card: portrait + stats -->
+    <!-- Character card: portrait | stats | items -->
     <div class="character-card">
       <div class="portrait" id="portrait">
         <img id="portraitImg" src="" alt="">
       </div>
 
-      <div class="stats-panel" id="statsPanel">
-        <div class="stats-panel-header" id="chadLabel">CHAD #—</div>
-        <div class="stat-level-row">
-          <span>LVL</span>
-          <span class="stat-level-val" id="statLevel">—</span>
-        </div>
-        <div class="stat-level-row">
-          <span>XP</span>
-          <span class="stat-level-val" id="statXp">—</span>
+      <div class="right-panels">
+        <!-- Stats column -->
+        <div class="stats-panel" id="statsPanel">
+          <div class="stats-panel-header" id="chadLabel">CHAD #—</div>
+          <div class="stat-level-row">
+            <span>LVL</span>
+            <span class="stat-level-val" id="statLevel">—</span>
+          </div>
+          <div class="stat-level-row">
+            <span>XP</span>
+            <span class="stat-level-val" id="statXp">—</span>
+          </div>
+
+          <div style="border-top: 1px solid #3d2e0a; margin: 4px 0;"></div>
+
+          <div class="stat-row-g">
+            <span class="stat-label-g">STR</span>
+            <div class="stat-bar-g"><div class="stat-bar-fill-g str" id="barStr"></div></div>
+            <span class="stat-val-g" id="valStr">—</span>
+          </div>
+          <div class="stat-row-g">
+            <span class="stat-label-g">INT</span>
+            <div class="stat-bar-g"><div class="stat-bar-fill-g int" id="barInt"></div></div>
+            <span class="stat-val-g" id="valInt">—</span>
+          </div>
+          <div class="stat-row-g">
+            <span class="stat-label-g">DEX</span>
+            <div class="stat-bar-g"><div class="stat-bar-fill-g dex" id="barDex"></div></div>
+            <span class="stat-val-g" id="valDex">—</span>
+          </div>
+          <div class="stat-row-g">
+            <span class="stat-label-g">CHA</span>
+            <div class="stat-bar-g"><div class="stat-bar-fill-g cha" id="barCha"></div></div>
+            <span class="stat-val-g" id="valCha">—</span>
+          </div>
+
+          <div class="stats-loading" id="statsLoading">Loading stats...</div>
         </div>
 
-        <div style="border-top: 1px solid #3d2e0a; margin: 4px 0;"></div>
-
-        <div class="stat-row-g">
-          <span class="stat-label-g">STR</span>
-          <div class="stat-bar-g"><div class="stat-bar-fill-g str" id="barStr"></div></div>
-          <span class="stat-val-g" id="valStr">—</span>
+        <!-- Items column -->
+        <div class="items-panel">
+          <div class="items-panel-header">ITEMS</div>
+          <div class="items-grid">
+            <div class="item-slot" id="itemSlot0">
+              <img id="itemImg0" src="" alt="">
+              <div class="item-empty-dot"></div>
+            </div>
+            <div class="item-slot" id="itemSlot1">
+              <img id="itemImg1" src="" alt="">
+              <div class="item-empty-dot"></div>
+            </div>
+            <div class="item-slot" id="itemSlot2">
+              <img id="itemImg2" src="" alt="">
+              <div class="item-empty-dot"></div>
+            </div>
+            <div class="item-slot" id="itemSlot3">
+              <img id="itemImg3" src="" alt="">
+              <div class="item-empty-dot"></div>
+            </div>
+          </div>
         </div>
-        <div class="stat-row-g">
-          <span class="stat-label-g">INT</span>
-          <div class="stat-bar-g"><div class="stat-bar-fill-g int" id="barInt"></div></div>
-          <span class="stat-val-g" id="valInt">—</span>
-        </div>
-        <div class="stat-row-g">
-          <span class="stat-label-g">DEX</span>
-          <div class="stat-bar-g"><div class="stat-bar-fill-g dex" id="barDex"></div></div>
-          <span class="stat-val-g" id="valDex">—</span>
-        </div>
-        <div class="stat-row-g">
-          <span class="stat-label-g">CHA</span>
-          <div class="stat-bar-g"><div class="stat-bar-fill-g cha" id="barCha"></div></div>
-          <span class="stat-val-g" id="valCha">—</span>
-        </div>
-
-        <div class="stats-loading" id="statsLoading">Loading stats...</div>
       </div>
     </div>
 
@@ -784,6 +892,40 @@
     }
 
     loadStats();
+
+    // ========== LOAD ITEMS ==========
+    const ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
+    const ITEMS_ABI = ['function balanceOf(address account, uint256 id) view returns (uint256)'];
+    const KNOWN_ITEMS = [
+      { id: 1, name: "CINDY'S CODE", img: 'assets/docs_lobby/lobbybrochure.jpg' }
+    ];
+    const ITEM_SLOTS = 4;
+
+    async function loadItems() {
+      const wallet = sessionStorage.getItem('lcWallet');
+      if (!wallet) return;
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, provider);
+        let slotIndex = 0;
+        for (const item of KNOWN_ITEMS) {
+          if (slotIndex >= ITEM_SLOTS) break;
+          const balance = await contract.balanceOf(wallet, item.id);
+          if (!balance.isZero()) {
+            const slot = document.getElementById('itemSlot' + slotIndex);
+            const img  = document.getElementById('itemImg'  + slotIndex);
+            img.src = item.img;
+            img.alt = item.name;
+            slot.classList.add('has-item');
+            slotIndex++;
+          }
+        }
+      } catch (err) {
+        console.warn('Items load failed:', err);
+      }
+    }
+
+    loadItems();
 
     // ========== DICE STATE ==========
     const NUM_DICE = 5;

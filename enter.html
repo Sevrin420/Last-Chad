@@ -863,6 +863,7 @@
 
     function onConnected(addr) {
       userAddress = addr;
+      sessionStorage.setItem('lcWallet', addr);
       walletBtn.textContent = truncateAddress(addr);
       walletBtn.classList.add('connected');
       walletModal.classList.remove('show');
@@ -874,6 +875,7 @@
       provider = null;
       signer = null;
       userAddress = null;
+      sessionStorage.removeItem('lcWallet');
       walletBtn.textContent = 'Connect Wallet';
       walletBtn.classList.remove('connected');
       disconnectDropdown.classList.remove('show');
