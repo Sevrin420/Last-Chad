@@ -883,6 +883,29 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
     .disconnect-btn { width: 100%; padding: 12px 16px; font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: #e53935; background: none; border: none; cursor: pointer; text-align: center; transition: background 0.15s; }
     .disconnect-btn:hover { background: rgba(229, 57, 53, 0.15); }
 
+    /* Music toggle button */
+    .music-toggle {
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      z-index: 150;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(20, 15, 5, 0.55);
+      border: 1px solid rgba(201, 168, 76, 0.45);
+      color: #c9a84c;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+    }
+    .music-toggle:hover { background: rgba(40, 28, 8, 0.75); border-color: rgba(201, 168, 76, 0.8); }
+    .music-toggle.muted { opacity: 0.45; }
+
     /* Wallet & level-up modals */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.show { display: flex; }
@@ -952,6 +975,7 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
       </div>
     </div>
   </header>
+  <button class="music-toggle" id="musicToggleBtn" onclick="toggleQuestMusic()" title="Toggle music">♪</button>
 
   <main class="main">
     ${hasDice ? `
@@ -1016,14 +1040,34 @@ ${completePanelHtml}
     var diceOutcomes = ${diceOutcomesJson};
     var sectionMusic = ${sectionMusicJson};
 
+    var musicMuted = false;
+    var _currentMusicSrc = '';
+
     function playQuestMusic(sectionId) {
       var audio = document.getElementById('questBgMusic');
       if (!audio) return;
       var src = sectionId ? (sectionMusic[sectionId] || '') : '';
-      if (!src) { audio.pause(); audio.src = ''; return; }
+      _currentMusicSrc = src;
+      if (!src || musicMuted) { audio.pause(); audio.src = ''; return; }
       if (audio.src.endsWith(src.replace(/^\.\.\/\.\.\//, ''))) return; // already playing
       audio.src = src;
       audio.play().catch(function() {});
+    }
+
+    function toggleQuestMusic() {
+      var btn = document.getElementById('musicToggleBtn');
+      var audio = document.getElementById('questBgMusic');
+      musicMuted = !musicMuted;
+      if (musicMuted) {
+        if (audio) { audio.pause(); }
+        if (btn) { btn.textContent = '🔇'; btn.classList.add('muted'); btn.title = 'Unmute music'; }
+      } else {
+        if (btn) { btn.textContent = '♪'; btn.classList.remove('muted'); btn.title = 'Mute music'; }
+        if (_currentMusicSrc && audio) {
+          audio.src = _currentMusicSrc;
+          audio.play().catch(function() {});
+        }
+      }
     }
 
     var dotLayouts = {
