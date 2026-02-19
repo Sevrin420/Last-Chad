@@ -6,6 +6,7 @@
   <title>Game | Last Chad</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="nav.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -78,7 +79,8 @@
 
     /* --- Portrait --- */
     .portrait {
-      width: clamp(140px, 35vw, 200px);
+      width: clamp(130px, 30vw, 190px);
+      flex-shrink: 0;
       border: 4px solid #c9a84c;
       border-radius: 4px;
       background: rgba(30, 20, 10, 0.8);
@@ -87,7 +89,6 @@
         inset 0 0 20px rgba(0, 0, 0, 0.3),
         0 0 20px rgba(201, 168, 76, 0.2);
       image-rendering: pixelated;
-      margin-top: 10px;
     }
 
     .portrait img {
@@ -97,11 +98,110 @@
       image-rendering: pixelated;
     }
 
+    /* --- Character card (portrait + stats side-by-side) --- */
+    .character-card {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 16px;
+      width: 100%;
+      max-width: 520px;
+      margin-bottom: 24px;
+    }
+
+    /* --- Stats panel --- */
+    .stats-panel {
+      flex: 1;
+      background: rgba(10, 8, 4, 0.75);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .stats-panel-header {
+      font-size: 0.55rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.35);
+      margin-bottom: 4px;
+    }
+
+    .stat-level-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.38rem;
+      color: #8a7a5a;
+      margin-bottom: 2px;
+    }
+
+    .stat-level-val {
+      color: #c9a84c;
+      font-size: 0.45rem;
+    }
+
+    .stat-row-g {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-label-g {
+      font-size: 0.35rem;
+      color: #8a7a5a;
+      width: 24px;
+      flex-shrink: 0;
+    }
+
+    .stat-bar-g {
+      flex: 1;
+      height: 6px;
+      background: rgba(30, 20, 10, 0.8);
+      border: 1px solid #3d2e0a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .stat-bar-fill-g {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+      width: 0%;
+    }
+
+    .stat-bar-fill-g.str { background: linear-gradient(90deg, #c0392b, #e74c3c); box-shadow: 0 0 4px rgba(192,57,43,0.5); }
+    .stat-bar-fill-g.int { background: linear-gradient(90deg, #2980b9, #3498db); box-shadow: 0 0 4px rgba(41,128,185,0.5); }
+    .stat-bar-fill-g.dex { background: linear-gradient(90deg, #27ae60, #2ecc71); box-shadow: 0 0 4px rgba(39,174,96,0.5); }
+    .stat-bar-fill-g.cha { background: linear-gradient(90deg, #8e44ad, #9b59b6); box-shadow: 0 0 4px rgba(142,68,173,0.5); }
+
+    .stat-val-g {
+      font-size: 0.4rem;
+      color: #c9a84c;
+      width: 14px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .stats-loading {
+      font-size: 0.35rem;
+      color: #5c4409;
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    @media (max-width: 400px) {
+      .character-card { gap: 10px; }
+      .stats-panel { padding: 10px 12px; }
+    }
+
     /* --- Dice area --- */
     .dice-section {
       width: 100%;
       max-width: 520px;
-      margin-top: 24px;
     }
 
     .dice-row {
@@ -437,9 +537,49 @@
   </header>
 
   <main class="main">
-    <!-- Portrait -->
-    <div class="portrait" id="portrait">
-      <img id="portraitImg" src="" alt="">
+
+    <!-- Character card: portrait + stats -->
+    <div class="character-card">
+      <div class="portrait" id="portrait">
+        <img id="portraitImg" src="" alt="">
+      </div>
+
+      <div class="stats-panel" id="statsPanel">
+        <div class="stats-panel-header" id="chadLabel">CHAD #—</div>
+        <div class="stat-level-row">
+          <span>LVL</span>
+          <span class="stat-level-val" id="statLevel">—</span>
+        </div>
+        <div class="stat-level-row">
+          <span>XP</span>
+          <span class="stat-level-val" id="statXp">—</span>
+        </div>
+
+        <div style="border-top: 1px solid #3d2e0a; margin: 4px 0;"></div>
+
+        <div class="stat-row-g">
+          <span class="stat-label-g">STR</span>
+          <div class="stat-bar-g"><div class="stat-bar-fill-g str" id="barStr"></div></div>
+          <span class="stat-val-g" id="valStr">—</span>
+        </div>
+        <div class="stat-row-g">
+          <span class="stat-label-g">INT</span>
+          <div class="stat-bar-g"><div class="stat-bar-fill-g int" id="barInt"></div></div>
+          <span class="stat-val-g" id="valInt">—</span>
+        </div>
+        <div class="stat-row-g">
+          <span class="stat-label-g">DEX</span>
+          <div class="stat-bar-g"><div class="stat-bar-fill-g dex" id="barDex"></div></div>
+          <span class="stat-val-g" id="valDex">—</span>
+        </div>
+        <div class="stat-row-g">
+          <span class="stat-label-g">CHA</span>
+          <div class="stat-bar-g"><div class="stat-bar-fill-g cha" id="barCha"></div></div>
+          <span class="stat-val-g" id="valCha">—</span>
+        </div>
+
+        <div class="stats-loading" id="statsLoading">Loading stats...</div>
+      </div>
     </div>
 
     <!-- Dice -->
@@ -504,6 +644,68 @@
 
     document.getElementById('portraitImg').src = chadImg;
     document.getElementById('chadName').textContent = 'CHAD #' + chadId;
+    document.getElementById('chadLabel').textContent = 'CHAD #' + chadId;
+
+    // ========== LOAD STATS FROM CHAIN ==========
+    const CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
+    const READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
+    const STATS_ABI = [
+      'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
+      'function getLevel(uint256 tokenId) external view returns (uint256)',
+      'function getExperience(uint256 tokenId) external view returns (uint256)'
+    ];
+    const MAX_STAT = 10;
+
+    function setBar(id, val) {
+      const pct = Math.min(100, (val / MAX_STAT) * 100);
+      document.getElementById(id).style.width = pct + '%';
+    }
+
+    async function loadStats() {
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, STATS_ABI, provider);
+
+        // Fire requests in parallel
+        const [statsResult, levelResult] = await Promise.all([
+          contract.getStats(chadId),
+          contract.getLevel(chadId)
+        ]);
+
+        const str = statsResult.strength.toNumber();
+        const int = statsResult.intelligence.toNumber();
+        const dex = statsResult.dexterity.toNumber();
+        const cha = statsResult.charisma.toNumber();
+        const level = levelResult.toNumber ? levelResult.toNumber() : Number(levelResult);
+
+        // Try to get XP (may not be on all contract versions)
+        let xpText = '—';
+        try {
+          const xp = await contract.getExperience(chadId);
+          const xpNum = xp.toNumber ? xp.toNumber() : Number(xp);
+          const nextLevel = (level + 1) * 100;
+          xpText = xpNum + ' / ' + nextLevel;
+        } catch (_) {}
+
+        document.getElementById('statLevel').textContent = level;
+        document.getElementById('statXp').textContent = xpText;
+        document.getElementById('valStr').textContent = str;
+        document.getElementById('valInt').textContent = int;
+        document.getElementById('valDex').textContent = dex;
+        document.getElementById('valCha').textContent = cha;
+        setBar('barStr', str);
+        setBar('barInt', int);
+        setBar('barDex', dex);
+        setBar('barCha', cha);
+
+        document.getElementById('statsLoading').style.display = 'none';
+      } catch (err) {
+        console.warn('Stats load failed:', err);
+        document.getElementById('statsLoading').textContent = 'Stats unavailable';
+      }
+    }
+
+    loadStats();
 
     // ========== DICE STATE ==========
     const NUM_DICE = 5;
