@@ -544,6 +544,31 @@
       .quest-panel { padding: 20px 16px; }
       .dice-row { gap: 5px; }
     }
+
+    /* --- Level-up modal extras --- */
+    .lu-stat-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      background: rgba(61,46,10,0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .lu-stat-btn:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); box-shadow: 0 0 10px rgba(139,105,20,0.2); }
+    .lu-stat-btn:active { transform: scale(0.97); }
+    .lu-stat-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .lu-stat-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .lu-points { font-size: 0.45rem; color: #c9a84c; text-align: center; margin-bottom: 6px; line-height: 2; }
+    .lu-token  { font-size: 0.38rem; color: #8a7a5a; text-align: center; margin-bottom: 16px; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 </head>
@@ -761,6 +786,32 @@
     </div>
   </div>
 
+  <!-- Level Up Modal -->
+  <div class="modal-overlay" id="levelUpModal">
+    <div class="modal">
+      <h2 class="modal-title">LEVEL UP!</h2>
+      <div class="lu-points" id="luPointsLeft">1 POINT TO ASSIGN</div>
+      <div class="lu-token" id="luTokenId"></div>
+      <button class="lu-stat-btn" onclick="spendStatPoint(0)">
+        <span class="lu-stat-icon" style="background:#c0392b;">&#9876;</span>
+        STRENGTH +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(1)">
+        <span class="lu-stat-icon" style="background:#2980b9;">&#128218;</span>
+        INTELLIGENCE +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(2)">
+        <span class="lu-stat-icon" style="background:#27ae60;">&#127939;</span>
+        DEXTERITY +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(3)">
+        <span class="lu-stat-icon" style="background:#8e44ad;">&#128081;</span>
+        CHARISMA +1
+      </button>
+      <div class="loading-text" id="luStatus" style="display:none; margin-top:10px;"></div>
+    </div>
+  </div>
+
   <script>
     // ===== URL PARAMS =====
     const params = new URLSearchParams(window.location.search);
@@ -965,6 +1016,21 @@
 
       const btn    = document.getElementById('beginBtn');
       const status = document.getElementById('beginStatus');
+
+      // Check if this NFT already completed this quest
+      if (QUEST_REWARDS_ADDRESS) {
+        try {
+          const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+          const readContract = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
+          const completed = await readContract.questCompleted(chadId, QUEST_ID);
+          if (completed) {
+            status.textContent = 'CHAD #' + chadId + ' HAS ALREADY COMPLETED THIS QUEST';
+            status.style.color = '#e53935';
+            btn.disabled = false;
+            return;
+          }
+        } catch (e) { /* chain read failed — proceed */ }
+      }
 
       // No contract deployed yet — run in local demo mode
       if (!QUEST_REWARDS_ADDRESS) {
@@ -1229,8 +1295,16 @@
     const QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
       'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
+      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
+      'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
       'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
       'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded)'
+    ];
+    const LASTCHAD_EXTENDED_ABI = [
+      'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
+      'function getPendingStatPoints(uint256 tokenId) external view returns (uint256)',
+      'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
+      'function getLevel(uint256 tokenId) external view returns (uint256)'
     ];
 
     async function showResults() {
@@ -1406,6 +1480,8 @@
         stopCountdown();
         btn.disabled    = true;
         btn.textContent = '+' + quest.crewScore + ' XP AWARDED';
+        // In demo mode still show level-up UI based on chain state
+        await checkAndShowLevelUp(quest.tokenId);
         return;
       }
 
@@ -1442,6 +1518,9 @@
         stopCountdown();
         status.style.display = 'none';
         btn.textContent = xpAwarded !== null ? '+' + xpAwarded + ' XP AWARDED' : 'XP CLAIMED';
+
+        // Check for level-up and show stat allocation popup
+        await checkAndShowLevelUp(quest.tokenId);
       } catch (err) {
         console.error('claimXp failed:', err);
         status.textContent = err.code !== 4001
@@ -1450,6 +1529,60 @@
         status.style.display = err.code !== 4001 ? 'block' : 'none';
         btn.disabled    = false;
         btn.textContent = 'CLAIM XP';
+      }
+    }
+    // ===== LEVEL-UP POPUP =====
+    let _levelUpPending = 0;
+
+    async function checkAndShowLevelUp(tokenId) {
+      if (!tokenId) return;
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_EXTENDED_ABI, readProvider);
+        const pending = await contract.getPendingStatPoints(tokenId);
+        const pts = pending.toNumber ? pending.toNumber() : Number(pending);
+        if (pts > 0) showLevelUpModal(tokenId, pts);
+      } catch (e) { console.warn('Level-up check failed:', e); }
+    }
+
+    function showLevelUpModal(tokenId, points) {
+      _levelUpPending = points;
+      const modal = document.getElementById('levelUpModal');
+      document.getElementById('luPointsLeft').textContent = points + ' POINT' + (points !== 1 ? 'S' : '') + ' TO ASSIGN';
+      document.getElementById('luTokenId').textContent = 'CHAD #' + tokenId;
+      document.getElementById('luStatus').style.display = 'none';
+      document.getElementById('luStatus').textContent = '';
+      // Enable all stat buttons
+      document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = false);
+      modal.classList.add('show');
+    }
+
+    async function spendStatPoint(statIndex) {
+      if (!userAddress || !quest.tokenId) return;
+      const statusEl = document.getElementById('luStatus');
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'SIGNING...';
+      document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = true);
+
+      try {
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_EXTENDED_ABI, signer);
+        const tx = await contract.spendStatPoint(quest.tokenId, statIndex);
+        statusEl.textContent = 'CONFIRMING...';
+        await tx.wait();
+
+        _levelUpPending--;
+        if (_levelUpPending > 0) {
+          document.getElementById('luPointsLeft').textContent = _levelUpPending + ' POINT' + (_levelUpPending !== 1 ? 'S' : '') + ' TO ASSIGN';
+          statusEl.textContent = 'ASSIGNED! CHOOSE NEXT STAT.';
+          document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = false);
+        } else {
+          statusEl.textContent = 'ALL STATS ASSIGNED!';
+          setTimeout(() => document.getElementById('levelUpModal').classList.remove('show'), 1500);
+        }
+      } catch (err) {
+        console.error('spendStatPoint failed:', err);
+        statusEl.textContent = err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED';
+        document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = false);
       }
     }
   </script>
