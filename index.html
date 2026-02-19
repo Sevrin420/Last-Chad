@@ -285,11 +285,74 @@
 
     /* index.html: nav positioned over the hero image */
     .nav-wrapper { position: absolute; top: 12px; left: 12px; z-index: 50; }
+
+    /* --- Intro video overlay --- */
+    .intro-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 10;
+      background: #0a0a0f;
+    }
+
+    /* Skip button */
+    .skip-btn {
+      position: absolute;
+      bottom: 5%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.35);
+      color: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 2px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.35rem, 1vw, 0.55rem);
+      padding: 7px 16px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .skip-btn:hover {
+      background: rgba(0, 0, 0, 0.6);
+      color: rgba(255, 255, 255, 0.88);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Buttons hidden until video ends, then fade in */
+    .mint-btn, .enter-btn {
+      opacity: 0;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    @keyframes fadeInBtn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .mint-btn.visible, .enter-btn.visible {
+      animation: fadeInBtn 1.3s ease both;
+      opacity: 1;
+      pointer-events: auto;
+    }
   </style>
 </head>
 <body>
   <div class="landing">
     <img src="assets/last_chad_background.jpg" alt="Last Chad" class="hero-image">
+
+    <!-- Intro video (autoplays muted; last frame stays when done) -->
+    <video id="intro-video" class="intro-video" muted playsinline preload="auto">
+      <source src="intro.mp4" type="video/mp4">
+    </video>
+
+    <!-- Skip button shown while video plays -->
+    <button id="skip-btn" class="skip-btn">SKIP ▶</button>
 
     <!-- Nav menu -->
     <div id="nav-placeholder"></div>
@@ -299,6 +362,41 @@
   </div>
 
   <script>
+    // --- Intro video logic ---
+    (function() {
+      try {
+        var video   = document.getElementById('intro-video');
+        var skipBtn = document.getElementById('skip-btn');
+        var mintBtn = document.querySelector('.mint-btn');
+        var enterBtn = document.querySelector('.enter-btn');
+
+        function revealButtons() {
+          skipBtn.style.display = 'none';
+          mintBtn.classList.add('visible');
+          enterBtn.classList.add('visible');
+        }
+
+        video.addEventListener('ended', revealButtons);
+
+        skipBtn.addEventListener('click', function() {
+          video.pause();
+          revealButtons();
+        });
+
+        // Attempt autoplay; fall back to showing buttons immediately if blocked
+        var p = video.play();
+        if (p !== undefined) {
+          p.catch(function() {
+            video.style.display = 'none';
+            skipBtn.style.display = 'none';
+            mintBtn.classList.add('visible');
+            enterBtn.classList.add('visible');
+          });
+        }
+      } catch(e) {}
+    })();
+
+    // --- Ripple effects ---
     try {
       document.querySelectorAll('.btn').forEach(function(btn) {
         btn.addEventListener('click', function (e) {
