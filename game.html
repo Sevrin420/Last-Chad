@@ -525,6 +525,45 @@
       .header { padding: 12px 16px; }
       .dice-row { gap: 6px; }
     }
+
+    /* --- Mission briefing typewriter --- */
+    .mission-log {
+      width: 100%;
+      max-width: 520px;
+      background: rgba(4, 0, 0, 0.88);
+      border: 2px solid #8e0000;
+      border-radius: 4px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      box-shadow:
+        inset 0 0 24px rgba(0,0,0,0.7),
+        0 0 14px rgba(142,0,0,0.2);
+      min-height: 60px;
+    }
+
+    .mission-line {
+      font-size: clamp(0.34rem, 1.4vw, 0.42rem);
+      color: #e53935;
+      line-height: 2.3;
+      text-shadow: 0 0 6px rgba(229,57,53,0.5);
+      white-space: pre;
+    }
+
+    .mission-cursor {
+      display: inline-block;
+      width: 6px;
+      height: 0.8em;
+      background: #e53935;
+      margin-left: 1px;
+      vertical-align: middle;
+      box-shadow: 0 0 5px rgba(229,57,53,0.7);
+      animation: mcursor 0.75s step-end infinite;
+    }
+
+    @keyframes mcursor {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -581,6 +620,9 @@
         <div class="stats-loading" id="statsLoading">Loading stats...</div>
       </div>
     </div>
+
+    <!-- Mission briefing -->
+    <div class="mission-log" id="missionLog"></div>
 
     <!-- Dice -->
     <div class="dice-section">
@@ -663,6 +705,7 @@
     }
 
     async function loadStats() {
+      let str = 0, intel = 0, dex = 0, cha = 0, level = 1;
       try {
         const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, STATS_ABI, provider);
@@ -673,11 +716,11 @@
           contract.getLevel(chadId)
         ]);
 
-        const str = statsResult.strength.toNumber();
-        const int = statsResult.intelligence.toNumber();
-        const dex = statsResult.dexterity.toNumber();
-        const cha = statsResult.charisma.toNumber();
-        const level = levelResult.toNumber ? levelResult.toNumber() : Number(levelResult);
+        str   = statsResult.strength.toNumber();
+        intel = statsResult.intelligence.toNumber();
+        dex   = statsResult.dexterity.toNumber();
+        cha   = statsResult.charisma.toNumber();
+        level = levelResult.toNumber ? levelResult.toNumber() : Number(levelResult);
 
         // Try to get XP (may not be on all contract versions)
         let xpText = '—';
@@ -691,11 +734,11 @@
         document.getElementById('statLevel').textContent = level;
         document.getElementById('statXp').textContent = xpText;
         document.getElementById('valStr').textContent = str;
-        document.getElementById('valInt').textContent = int;
+        document.getElementById('valInt').textContent = intel;
         document.getElementById('valDex').textContent = dex;
         document.getElementById('valCha').textContent = cha;
         setBar('barStr', str);
-        setBar('barInt', int);
+        setBar('barInt', intel);
         setBar('barDex', dex);
         setBar('barCha', cha);
 
@@ -703,6 +746,40 @@
       } catch (err) {
         console.warn('Stats load failed:', err);
         document.getElementById('statsLoading').textContent = 'Stats unavailable';
+      }
+      startBriefing(str, intel, dex, cha, level);
+    }
+
+    // ========== MISSION BRIEFING TYPEWRITER ==========
+    function startBriefing(str, intel, dex, cha, level) {
+      const p = (n) => String(n).padStart(2, ' ');
+      const lines = [
+        '> MISSION: EPISODE I - DAY 1 RECON',
+        '> OPERATIVE: CHAD #' + chadId + '   LVL ' + level,
+        '> --------------------------------',
+        '> STR: ' + p(str) + '   INT: ' + p(intel) + '   DEX: ' + p(dex) + '   CHA: ' + p(cha),
+        '> DIFFICULTY: STANDARD',
+        '> OBJECTIVE: ROLL SHIP \u00b7 CAPTAIN \u00b7 MATE',
+        '> AWAITING ORDERS...',
+      ];
+      typewriterLog(document.getElementById('missionLog'), lines);
+    }
+
+    async function typewriterLog(container, lines) {
+      const cursor = document.createElement('span');
+      cursor.className = 'mission-cursor';
+      for (const text of lines) {
+        const div = document.createElement('div');
+        div.className = 'mission-line';
+        const textSpan = document.createElement('span');
+        div.appendChild(textSpan);
+        div.appendChild(cursor);
+        container.appendChild(div);
+        for (const char of text) {
+          textSpan.textContent += char;
+          await new Promise(r => setTimeout(r, 26));
+        }
+        await new Promise(r => setTimeout(r, 160));
       }
     }
 
