@@ -297,6 +297,36 @@
       background: #0a0a0f;
     }
 
+    /* Tap-to-start overlay */
+    .tap-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .tap-label {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.55rem, 1.8vw, 1rem);
+      color: rgba(255, 255, 255, 0.75);
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 3px;
+      padding: 14px 28px;
+      letter-spacing: 3px;
+      pointer-events: none;
+      animation: tapPulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes tapPulse {
+      0%, 100% { opacity: 0.6; }
+      50%       { opacity: 1; }
+    }
+
     /* Skip button */
     .skip-btn {
       position: absolute;
@@ -378,11 +408,16 @@
       <source src="intro.mp4" type="video/mp4">
     </video>
 
-    <!-- Skip button shown while video plays -->
-    <button id="skip-btn" class="skip-btn">SKIP ▶</button>
+    <!-- Tap-to-start overlay (needed for browser sound policy) -->
+    <div id="tap-overlay" class="tap-overlay">
+      <span class="tap-label">▶ TAP TO START</span>
+    </div>
 
-    <!-- Sound toggle – top right corner -->
-    <button id="sound-btn" class="sound-btn" title="Mute">🔊</button>
+    <!-- Skip button shown while video plays (hidden until tap-to-start) -->
+    <button id="skip-btn" class="skip-btn" style="display:none">SKIP ▶</button>
+
+    <!-- Sound toggle – top right corner (hidden until tap-to-start) -->
+    <button id="sound-btn" class="sound-btn" style="display:none" title="Mute">🔊</button>
 
     <!-- Nav menu -->
     <div id="nav-placeholder"></div>
@@ -395,9 +430,10 @@
     // --- Intro video logic ---
     (function() {
       try {
-        var video    = document.getElementById('intro-video');
-        var skipBtn  = document.getElementById('skip-btn');
-        var soundBtn = document.getElementById('sound-btn');
+        var video      = document.getElementById('intro-video');
+        var skipBtn    = document.getElementById('skip-btn');
+        var soundBtn   = document.getElementById('sound-btn');
+        var tapOverlay = document.getElementById('tap-overlay');
         var mintBtn  = document.querySelector('.mint-btn');
         var enterBtn = document.querySelector('.enter-btn');
 
@@ -458,26 +494,24 @@
           }, 280);
         });
 
-        // --- Autoplay: try with sound first, fall back to muted ---
-        video.muted = false;
-        var p = video.play();
-        if (p !== undefined) {
-          p.catch(function() {
-            // Sound blocked – retry muted
-            setSoundState(true);
-            var p2 = video.play();
-            if (p2 !== undefined) {
-              p2.catch(function() {
-                // All autoplay blocked – skip straight to main content
-                video.style.display  = 'none';
-                skipBtn.style.display  = 'none';
-                soundBtn.style.display = 'none';
-                mintBtn.classList.add('visible');
-                enterBtn.classList.add('visible');
-              });
-            }
-          });
-        }
+        // --- Tap to start (browsers require user gesture for sound) ---
+        tapOverlay.addEventListener('click', function() {
+          tapOverlay.style.display = 'none';
+          skipBtn.style.display  = '';
+          soundBtn.style.display = '';
+          video.muted = false;
+          var p = video.play();
+          if (p !== undefined) {
+            p.catch(function() {
+              // Play still blocked – skip to main content
+              video.style.display    = 'none';
+              skipBtn.style.display  = 'none';
+              soundBtn.style.display = 'none';
+              mintBtn.classList.add('visible');
+              enterBtn.classList.add('visible');
+            });
+          }
+        });
       } catch(e) {}
     })();
 
