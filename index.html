@@ -292,7 +292,7 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       z-index: 10;
       background: #0a0a0f;
     }
@@ -420,8 +420,15 @@
           enterBtn.classList.add('visible');
         }
 
-        // --- Natural video end ---
-        video.addEventListener('ended', revealButtons);
+        // --- Natural video end: seek to 50s still frame, then reveal ---
+        video.addEventListener('ended', function() {
+          video.currentTime = 50;
+          function onSeeked() {
+            video.removeEventListener('seeked', onSeeked);
+            revealButtons();
+          }
+          video.addEventListener('seeked', onSeeked);
+        });
 
         // --- Skip: jump to 50s, fade that frame in, then reveal buttons ---
         skipBtn.addEventListener('click', function() {
