@@ -544,6 +544,74 @@
       .quest-panel { padding: 20px 16px; }
       .dice-row { gap: 5px; }
     }
+
+    /* --- Level-up modal extras --- */
+    .lu-stat-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      background: rgba(61,46,10,0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .lu-stat-btn:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); box-shadow: 0 0 10px rgba(139,105,20,0.2); }
+    .lu-stat-btn:active { transform: scale(0.97); }
+    .lu-stat-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .lu-stat-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .lu-points { font-size: 0.45rem; color: #c9a84c; text-align: center; margin-bottom: 6px; line-height: 2; }
+    .lu-token  { font-size: 0.38rem; color: #8a7a5a; text-align: center; margin-bottom: 16px; }
+
+    /* --- Music selector row --- */
+    .music-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #2a1e06;
+    }
+    .music-row-label {
+      font-size: 0.28rem;
+      color: #5c4409;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .music-select {
+      flex: 1;
+      min-width: 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.25rem;
+      background: rgba(20, 14, 6, 0.9);
+      border: 1px solid #3d2e0a;
+      border-radius: 2px;
+      color: #8a7a5a;
+      padding: 5px 6px;
+      cursor: pointer;
+    }
+    .music-select:focus { outline: none; border-color: #5c4409; }
+    .music-select option { background: #1a1008; }
+    .music-stop-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.25rem;
+      background: transparent;
+      border: 1px solid #3d2e0a;
+      color: #5c4409;
+      padding: 5px 8px;
+      border-radius: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .music-stop-btn:hover { border-color: #8b6914; color: #8b6914; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 </head>
@@ -578,6 +646,13 @@
 
       <!-- ===== PANEL: INTRO ===== -->
       <div class="panel active" id="panel-intro">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-intro" onchange="panelMusicChanged('panel-intro')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">MISSION BRIEFING — DAY 2</div>
         <div class="narrative">
           <p>The city reeks of ozone and ash. Last night the <span class="highlight">Synthettes</span> hit the western quarter — first wave, coordinated, surgical. Forty-seven dead. Nobody expected it.</p>
@@ -590,6 +665,13 @@
 
       <!-- ===== PANEL: CHOICE 1 ===== -->
       <div class="panel" id="panel-choice1">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-choice1" onchange="panelMusicChanged('panel-choice1')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">THE JUNCTION</div>
         <div class="narrative">
           <p>You drop through a rusted grate into the sewer network. The smell hits like a wall. Forty meters in, the tunnel splits.</p>
@@ -609,6 +691,13 @@
 
       <!-- ===== PANEL: DICE ENCOUNTER ===== -->
       <div class="panel" id="panel-dice">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-dice" onchange="panelMusicChanged('panel-dice')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">PATROL DRONE DETECTED</div>
         <div class="narrative">
           <p>You freeze. Twenty meters ahead, a Synthette scout drone hovers — its scanner sweeping slow arcs across the pipe walls.</p>
@@ -675,6 +764,13 @@
 
       <!-- ===== PANEL: CHOICE 2 ===== -->
       <div class="panel" id="panel-choice2">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-choice2" onchange="panelMusicChanged('panel-choice2')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">BLOCKED EXIT</div>
         <div class="narrative">
           <p>You reach the exit shaft — a rusted ladder leading up to a maintenance hatch. It's sealed. A Synthette security lock, recently installed.</p>
@@ -694,6 +790,13 @@
 
       <!-- ===== PANEL: RESULTS ===== -->
       <div class="panel" id="panel-results">
+        <div class="music-row">
+          <span class="music-row-label">♪ MUSIC</span>
+          <select class="music-select" id="music-results" onchange="panelMusicChanged('panel-results')">
+            <option value="">— silence —</option>
+          </select>
+          <button class="music-stop-btn" title="Stop" onclick="stopMusic()">■</button>
+        </div>
         <div class="mission-tag">MISSION COMPLETE</div>
         <div class="narrative">
           <p>You climb out of the maintenance hatch into cold air. The city still burns in the west.</p>
@@ -761,10 +864,37 @@
     </div>
   </div>
 
+  <!-- Level Up Modal -->
+  <div class="modal-overlay" id="levelUpModal">
+    <div class="modal">
+      <h2 class="modal-title">LEVEL UP!</h2>
+      <div class="lu-points" id="luPointsLeft">1 POINT TO ASSIGN</div>
+      <div class="lu-token" id="luTokenId"></div>
+      <button class="lu-stat-btn" onclick="spendStatPoint(0)">
+        <span class="lu-stat-icon" style="background:#c0392b;">&#9876;</span>
+        STRENGTH +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(1)">
+        <span class="lu-stat-icon" style="background:#2980b9;">&#128218;</span>
+        INTELLIGENCE +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(2)">
+        <span class="lu-stat-icon" style="background:#27ae60;">&#127939;</span>
+        DEXTERITY +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(3)">
+        <span class="lu-stat-icon" style="background:#8e44ad;">&#128081;</span>
+        CHARISMA +1
+      </button>
+      <div class="loading-text" id="luStatus" style="display:none; margin-top:10px;"></div>
+    </div>
+  </div>
+
   <script>
     // ===== URL PARAMS =====
     const params = new URLSearchParams(window.location.search);
-    const chadId = params.get('chad') || '1';
+    const chadId = params.get('chad');
+    if (!chadId) { window.location.replace('enter.html'); }
     document.getElementById('portraitImg').src = 'assets/chads/' + chadId + '.png';
     document.getElementById('chadName').textContent = 'CHAD #' + chadId;
 
@@ -953,7 +1083,72 @@
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById(id).classList.add('active');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      playPanelMusic(id);
     }
+
+    // ===== MUSIC SYSTEM =====
+    const _questAudio = document.getElementById('questAudio');
+    const _panelMusicSelects = {
+      'panel-intro':   'music-intro',
+      'panel-choice1': 'music-choice1',
+      'panel-dice':    'music-dice',
+      'panel-choice2': 'music-choice2',
+      'panel-results': 'music-results'
+    };
+
+    // Fetch music/manifest.json and populate every dropdown with available tracks.
+    // Format: [{ "name": "Track Name", "file": "filename.mp3" }, ...]
+    async function loadMusicOptions() {
+      try {
+        const res = await fetch('music/manifest.json');
+        if (!res.ok) return;
+        const tracks = await res.json();
+        if (!Array.isArray(tracks) || tracks.length === 0) return;
+        Object.values(_panelMusicSelects).forEach(selId => {
+          const sel = document.getElementById(selId);
+          if (!sel) return;
+          tracks.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = 'music/' + t.file;
+            opt.textContent = t.name;
+            sel.appendChild(opt);
+          });
+        });
+      } catch (err) {
+        console.warn('Music manifest unavailable:', err);
+      }
+    }
+
+    // Play whichever track is selected for the given panel (or stop if "— silence —").
+    function playPanelMusic(panelId) {
+      const selId = _panelMusicSelects[panelId];
+      if (!selId) return;
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const src = sel.value;
+      if (!src) { stopMusic(); return; }
+      // Don't restart the same track if it's already playing
+      const resolved = new URL(src, window.location.href).href;
+      if (_questAudio.src === resolved && !_questAudio.paused) return;
+      _questAudio.src = src;
+      _questAudio.loop = true;
+      _questAudio.volume = 0.5;
+      _questAudio.play().catch(() => {});
+    }
+
+    // Called when the user changes the dropdown while that panel is visible.
+    function panelMusicChanged(panelId) {
+      const panel = document.getElementById(panelId);
+      if (panel && panel.classList.contains('active')) playPanelMusic(panelId);
+    }
+
+    function stopMusic() {
+      _questAudio.pause();
+      _questAudio.currentTime = 0;
+      _questAudio.src = '';
+    }
+
+    loadMusicOptions();
 
     // ===== INTRO -> QUEST =====
     async function startQuest() {
@@ -965,6 +1160,21 @@
 
       const btn    = document.getElementById('beginBtn');
       const status = document.getElementById('beginStatus');
+
+      // Check if this NFT already completed this quest
+      if (QUEST_REWARDS_ADDRESS) {
+        try {
+          const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+          const readContract = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
+          const completed = await readContract.questCompleted(chadId, QUEST_ID);
+          if (completed) {
+            status.textContent = 'CHAD #' + chadId + ' HAS ALREADY COMPLETED THIS QUEST';
+            status.style.color = '#e53935';
+            btn.disabled = false;
+            return;
+          }
+        } catch (e) { /* chain read failed — proceed */ }
+      }
 
       // No contract deployed yet — run in local demo mode
       if (!QUEST_REWARDS_ADDRESS) {
@@ -1229,8 +1439,16 @@
     const QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
       'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
+      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
+      'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
       'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
       'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded)'
+    ];
+    const LASTCHAD_EXTENDED_ABI = [
+      'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
+      'function getPendingStatPoints(uint256 tokenId) external view returns (uint256)',
+      'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
+      'function getLevel(uint256 tokenId) external view returns (uint256)'
     ];
 
     async function showResults() {
@@ -1406,6 +1624,8 @@
         stopCountdown();
         btn.disabled    = true;
         btn.textContent = '+' + quest.crewScore + ' XP AWARDED';
+        // In demo mode still show level-up UI based on chain state
+        await checkAndShowLevelUp(quest.tokenId);
         return;
       }
 
@@ -1442,6 +1662,9 @@
         stopCountdown();
         status.style.display = 'none';
         btn.textContent = xpAwarded !== null ? '+' + xpAwarded + ' XP AWARDED' : 'XP CLAIMED';
+
+        // Check for level-up and show stat allocation popup
+        await checkAndShowLevelUp(quest.tokenId);
       } catch (err) {
         console.error('claimXp failed:', err);
         status.textContent = err.code !== 4001
@@ -1452,7 +1675,62 @@
         btn.textContent = 'CLAIM XP';
       }
     }
+    // ===== LEVEL-UP POPUP =====
+    let _levelUpPending = 0;
+
+    async function checkAndShowLevelUp(tokenId) {
+      if (!tokenId) return;
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_EXTENDED_ABI, readProvider);
+        const pending = await contract.getPendingStatPoints(tokenId);
+        const pts = pending.toNumber ? pending.toNumber() : Number(pending);
+        if (pts > 0) showLevelUpModal(tokenId, pts);
+      } catch (e) { console.warn('Level-up check failed:', e); }
+    }
+
+    function showLevelUpModal(tokenId, points) {
+      _levelUpPending = points;
+      const modal = document.getElementById('levelUpModal');
+      document.getElementById('luPointsLeft').textContent = points + ' POINT' + (points !== 1 ? 'S' : '') + ' TO ASSIGN';
+      document.getElementById('luTokenId').textContent = 'CHAD #' + tokenId;
+      document.getElementById('luStatus').style.display = 'none';
+      document.getElementById('luStatus').textContent = '';
+      // Enable all stat buttons
+      document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = false);
+      modal.classList.add('show');
+    }
+
+    async function spendStatPoint(statIndex) {
+      if (!userAddress || !quest.tokenId) return;
+      const statusEl = document.getElementById('luStatus');
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'SIGNING...';
+      document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = true);
+
+      try {
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_EXTENDED_ABI, signer);
+        const tx = await contract.spendStatPoint(quest.tokenId, statIndex);
+        statusEl.textContent = 'CONFIRMING...';
+        await tx.wait();
+
+        _levelUpPending--;
+        if (_levelUpPending > 0) {
+          document.getElementById('luPointsLeft').textContent = _levelUpPending + ' POINT' + (_levelUpPending !== 1 ? 'S' : '') + ' TO ASSIGN';
+          statusEl.textContent = 'ASSIGNED! CHOOSE NEXT STAT.';
+          document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = false);
+        } else {
+          statusEl.textContent = 'ALL STATS ASSIGNED!';
+          setTimeout(() => document.getElementById('levelUpModal').classList.remove('show'), 1500);
+        }
+      } catch (err) {
+        console.error('spendStatPoint failed:', err);
+        statusEl.textContent = err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED';
+        document.querySelectorAll('.lu-stat-btn').forEach(b => b.disabled = false);
+      }
+    }
   </script>
+  <audio id="questAudio" loop></audio>
   <script src="nav.js"></script>
 </body>
 </html>

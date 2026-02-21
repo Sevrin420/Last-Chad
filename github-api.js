@@ -298,6 +298,15 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
   });
   const diceSectionIds = sections.filter(s => s.selectedChoice === 'dice').map(s => s.id);
 
+  // Build section → music map (paths are relative to site root; prefix ../../ for quests subfolder)
+  const sectionMusic = {};
+  sections.forEach(s => {
+    if (s.music) {
+      sectionMusic[s.id] = '../../' + s.music;
+    }
+  });
+  const sectionMusicJson = JSON.stringify(sectionMusic);
+
   // Format dialogue text: split on newlines into <p> tags
   function formatDialogue(text) {
     if (!text) return '<p>...</p>';
@@ -429,6 +438,10 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
             <span class="breakdown-val" id="finalScore">0</span>
           </div>
         </div>` : ''}
+        <div class="claim-xp-section">
+          <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM XP</button>
+          <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
+        </div>
         <div class="action-wrap">
           <button class="action-btn" onclick="window.history.back()">RETURN</button>
         </div>
@@ -847,6 +860,95 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
       transform: translateY(-1px);
     }
     .intro-start-btn:active { transform: scale(0.97); }
+    .intro-start-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Wallet button */
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+    .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
+    .wallet-btn.connected { background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%); border-color: #4caf50; color: #a5d6a7; font-size: 0.5rem; }
+    .wallet-wrapper { position: relative; }
+    .disconnect-dropdown { display: none; position: absolute; top: calc(100% + 6px); right: 0; background: linear-gradient(180deg, #1e1608 0%, #140f05 100%); border: 2px solid #5c4409; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.7); z-index: 110; min-width: 160px; }
+    .disconnect-dropdown.show { display: block; }
+    .disconnect-btn { width: 100%; padding: 12px 16px; font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: #e53935; background: none; border: none; cursor: pointer; text-align: center; transition: background 0.15s; }
+    .disconnect-btn:hover { background: rgba(229, 57, 53, 0.15); }
+
+    /* Music toggle button */
+    .music-toggle {
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      z-index: 150;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(20, 15, 5, 0.55);
+      border: 1px solid rgba(201, 168, 76, 0.45);
+      color: #c9a84c;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+    }
+    .music-toggle:hover { background: rgba(40, 28, 8, 0.75); border-color: rgba(201, 168, 76, 0.8); }
+    .music-toggle.muted { opacity: 0.45; }
+
+    /* Wallet & level-up modals */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: linear-gradient(180deg, #1e1608 0%, #140f05 100%); border: 3px solid #5c4409; border-radius: 8px; padding: 28px 24px; max-width: 380px; width: 100%; box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(139,105,20,0.15); }
+    .modal-title { font-size: 0.7rem; color: #c9a84c; text-align: center; margin-bottom: 24px; }
+    .wallet-option { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; margin-bottom: 10px; font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: #f5e6c8; background: rgba(61,46,10,0.3); border: 2px solid #3d2e0a; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .wallet-option:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); }
+    .wallet-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .modal-close { display: block; margin: 16px auto 0; font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: #5c4409; background: none; border: none; cursor: pointer; padding: 8px; }
+    .modal-close:hover { color: #c9a84c; }
+
+    /* Level-up stat buttons */
+    .lu-stat-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; margin-bottom: 10px; font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: #f5e6c8; background: rgba(61,46,10,0.3); border: 2px solid #3d2e0a; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .lu-stat-btn:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); }
+    .lu-stat-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .lu-stat-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .lu-points { font-size: 0.45rem; color: #c9a84c; text-align: center; margin-bottom: 6px; line-height: 2; }
+    .lu-token  { font-size: 0.38rem; color: #8a7a5a; text-align: center; margin-bottom: 16px; }
+    .loading-text { font-size: 0.4rem; color: #8a7a5a; text-align: center; padding: 10px 0; }
+
+    /* Quest complete panel extras */
+    .claim-xp-section { margin-bottom: 20px; }
+    .claim-xp-btn {
+      width: 100%;
+      padding: 16px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5);
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .claim-xp-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%); border-color: #f5e6c8; }
+    .claim-xp-btn:active { transform: translateY(3px); }
+    .claim-xp-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Completed banner */
+    .quest-completed-banner { background: rgba(76,175,80,0.1); border: 2px solid #4caf50; border-radius: 6px; padding: 16px; text-align: center; font-size: 0.5rem; color: #4caf50; line-height: 2; margin-bottom: 16px; }
   </style>
 </head>
 <body>
@@ -855,7 +957,9 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
     <div class="intro-box">
       <div class="intro-title">${escapeHtml(questName)}</div>
       ${introDialogue ? `<div class="intro-text">${escapeHtml(introDialogue).replace(/\n/g, '<br>')}</div>` : ''}
-      <button class="intro-start-btn" onclick="startQuest()">START</button>
+      <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet to save progress on-chain</div>
+      <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
+      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()">START</button>
     </div>
   </div>
 
@@ -863,8 +967,15 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
 
   <header class="header">
     <div id="nav-placeholder"></div>
-    <span class="chad-name">${escapeHtml(questName)}</span>
+    <span class="chad-name" id="chadName">${escapeHtml(questName)}</span>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
   </header>
+  <button class="music-toggle" id="musicToggleBtn" onclick="toggleQuestMusic()" title="Toggle music">♪</button>
 
   <main class="main">
     ${hasDice ? `
@@ -879,11 +990,85 @@ ${completePanelHtml}
     </div>
   </main>
 
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>Rabby
+      </button>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9889;</span>Core
+      </button>
+      <button class="wallet-option" data-wallet="metamask">
+        <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>MetaMask
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>WalletConnect
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
+
+  <!-- Level Up Modal -->
+  <div class="modal-overlay" id="levelUpModal">
+    <div class="modal">
+      <h2 class="modal-title">LEVEL UP!</h2>
+      <div class="lu-points" id="luPointsLeft">1 POINT TO ASSIGN</div>
+      <div class="lu-token" id="luTokenId"></div>
+      <button class="lu-stat-btn" onclick="spendStatPoint(0)">
+        <span class="lu-stat-icon" style="background:#c0392b;">&#9876;</span>STRENGTH +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(1)">
+        <span class="lu-stat-icon" style="background:#2980b9;">&#128218;</span>INTELLIGENCE +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(2)">
+        <span class="lu-stat-icon" style="background:#27ae60;">&#127939;</span>DEXTERITY +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(3)">
+        <span class="lu-stat-icon" style="background:#8e44ad;">&#128081;</span>CHARISMA +1
+      </button>
+      <div class="loading-text" id="luStatus" style="display:none; margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"><\/script>
   <script src="../../nav.js"><\/script>
   <script>
     var crewScore = 0;
     var _animGen = 0;
     var diceOutcomes = ${diceOutcomesJson};
+    var sectionMusic = ${sectionMusicJson};
+
+    var musicMuted = false;
+    var _currentMusicSrc = '';
+
+    function playQuestMusic(sectionId) {
+      var audio = document.getElementById('questBgMusic');
+      if (!audio) return;
+      var src = sectionId ? (sectionMusic[sectionId] || '') : '';
+      _currentMusicSrc = src;
+      if (!src || musicMuted) { audio.pause(); audio.src = ''; return; }
+      if (audio.src.endsWith(src.replace(/^\.\.\/\.\.\//, ''))) return; // already playing
+      audio.src = src;
+      audio.play().catch(function() {});
+    }
+
+    function toggleQuestMusic() {
+      var btn = document.getElementById('musicToggleBtn');
+      var audio = document.getElementById('questBgMusic');
+      musicMuted = !musicMuted;
+      if (musicMuted) {
+        if (audio) { audio.pause(); }
+        if (btn) { btn.textContent = '🔇'; btn.classList.add('muted'); btn.title = 'Unmute music'; }
+      } else {
+        if (btn) { btn.textContent = '♪'; btn.classList.remove('muted'); btn.title = 'Mute music'; }
+        if (_currentMusicSrc && audio) {
+          audio.src = _currentMusicSrc;
+          audio.play().catch(function() {});
+        }
+      }
+    }
 
     var dotLayouts = {
       1: [0,0,0, 0,1,0, 0,0,0],
@@ -938,6 +1123,7 @@ ${completePanelHtml}
         if (fs) fs.textContent = crewScore;
       }
       panel.classList.add('active');
+      playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
     }
@@ -952,7 +1138,9 @@ ${completePanelHtml}
         overlay.classList.add('hidden');
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1300);
       }
-      animatePanel(${sections.length > 0 ? sections[0].id : 'null'});
+      var firstId = ${sections.length > 0 ? sections[0].id : 'null'};
+      playQuestMusic(firstId);
+      animatePanel(firstId);
     }
 
     async function animatePanel(sid) {
@@ -1218,7 +1406,273 @@ ${completePanelHtml}
     // Initialise dice state + event listeners for each dice section
 ${diceInitJs}
     // Quest starts when the player clicks START on the intro overlay
+
+    // ===== WALLET + ON-CHAIN INTEGRATION =====
+    var QUEST_SLUG = '${sanitized}';
+    var AVAX_CHAIN_ID = '0xa869';
+    var AVAX_CHAIN = { chainId: AVAX_CHAIN_ID, chainName: 'Avalanche Fuji Testnet', nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 }, rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'], blockExplorerUrls: ['https://testnet.snowtrace.io/'] };
+    var WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
+    var CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
+    var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
+    var LASTCHAD_ABI = [
+      'function ownerOf(uint256 tokenId) external view returns (address)',
+      'function balanceOf(address owner) external view returns (uint256)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256)',
+      'function getPendingStatPoints(uint256 tokenId) external view returns (uint256)',
+      'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
+      'function totalSupply() external view returns (uint256)'
+    ];
+
+    var walletProvider = null;
+    var walletSigner = null;
+    var userAddress = null;
+    var chadId = null;
+    var _luPending = 0;
+
+    // Read chad from URL param
+    (function() {
+      var p = new URLSearchParams(window.location.search);
+      var c = p.get('chad');
+      if (c && parseInt(c) > 0) chadId = parseInt(c);
+    })();
+
+    function truncateAddress(addr) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
+
+    function isMobile() { return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent); }
+
+    async function switchToAvalanche(raw) {
+      try {
+        await raw.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
+      } catch (err) {
+        if (err.code === 4902) await raw.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
+        else throw err;
+      }
+    }
+
+    function onConnected(addr) {
+      userAddress = addr;
+      document.getElementById('walletBtn').textContent = truncateAddress(addr);
+      document.getElementById('walletBtn').classList.add('connected');
+      document.getElementById('walletModal').classList.remove('show');
+      checkQuestCompletion();
+    }
+
+    function onDisconnected() {
+      walletProvider = walletSigner = userAddress = null;
+      document.getElementById('walletBtn').textContent = 'Connect Wallet';
+      document.getElementById('walletBtn').classList.remove('connected');
+      document.getElementById('disconnectDropdown').classList.remove('show');
+    }
+
+    async function connectInjected(name) {
+      var raw = null;
+      if (name === 'core' && (window.avalanche || (window.core && window.core.ethereum))) { raw = window.avalanche || window.core.ethereum; }
+      else if (window.ethereum) {
+        if (window.ethereum.providers && window.ethereum.providers.length) {
+          for (var p of window.ethereum.providers) {
+            if (name === 'rabby' && p.isRabby) { raw = p; break; }
+            if (name === 'metamask' && p.isMetaMask && !p.isRabby) { raw = p; break; }
+            if (name === 'core' && (p.isAvalanche || p.isCoreWallet)) { raw = p; break; }
+          }
+        }
+        if (!raw) raw = window.ethereum;
+      }
+      if (!raw) { alert(name + ' wallet not detected.'); return; }
+      try {
+        var accounts = await raw.request({ method: 'eth_requestAccounts' });
+        if (!accounts || accounts.length === 0) throw new Error('No accounts');
+        await switchToAvalanche(raw);
+        walletProvider = new ethers.providers.Web3Provider(raw);
+        walletSigner = walletProvider.getSigner();
+        onConnected(accounts[0]);
+        raw.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
+        raw.on('chainChanged', function() { window.location.reload(); });
+      } catch (err) { if (err.code !== 4001) alert('Connection failed: ' + (err.message || err)); }
+    }
+
+    function loadWcScript() {
+      if (window.WalletConnectEthereumProvider) return Promise.resolve();
+      return new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = '../../assets/walletconnect-provider.js';
+        s.onload = resolve; s.onerror = function() { reject(new Error('Failed to load WalletConnect')); };
+        document.head.appendChild(s);
+      });
+    }
+
+    async function connectWalletConnect() {
+      try {
+        await loadWcScript();
+        var wc = await window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: READ_RPC } });
+        await wc.connect();
+        walletProvider = new ethers.providers.Web3Provider(wc);
+        walletSigner = walletProvider.getSigner();
+        onConnected(await walletSigner.getAddress());
+        wc.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
+        wc.on('disconnect', onDisconnected);
+      } catch (err) { alert('WalletConnect failed. Please try again.'); }
+    }
+
+    async function connectWallet(name) {
+      if (name === 'walletconnect') { await connectWalletConnect(); return; }
+      await connectInjected(name);
+    }
+
+    // Wallet button events
+    document.getElementById('walletBtn').addEventListener('click', function() {
+      if (userAddress) { document.getElementById('disconnectDropdown').classList.toggle('show'); }
+      else { document.getElementById('walletModal').classList.add('show'); }
+    });
+    document.getElementById('disconnectBtn').addEventListener('click', onDisconnected);
+    document.getElementById('modalClose').addEventListener('click', function() { document.getElementById('walletModal').classList.remove('show'); });
+    document.getElementById('walletModal').addEventListener('click', function(e) { if (e.target === document.getElementById('walletModal')) document.getElementById('walletModal').classList.remove('show'); });
+    document.querySelectorAll('.wallet-option').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.getElementById('walletModal').classList.remove('show');
+        connectWallet(btn.dataset.wallet);
+      });
+    });
+    document.addEventListener('click', function(e) { if (!e.target.closest('.wallet-wrapper')) document.getElementById('disconnectDropdown').classList.remove('show'); });
+
+    // ===== QUEST COMPLETION TRACKING =====
+    function getCompletionKey(tokenId) { return 'lc_q_' + QUEST_SLUG + '_' + tokenId; }
+    function isQuestDone(tokenId) { return localStorage.getItem(getCompletionKey(tokenId)) === '1'; }
+    function markQuestDone(tokenId) { localStorage.setItem(getCompletionKey(tokenId), '1'); }
+
+    function checkQuestCompletion() {
+      if (!chadId) return;
+      var done = isQuestDone(chadId);
+      var banner = document.getElementById('introCompletedBanner');
+      var startBtn = document.getElementById('introStartBtn');
+      var note = document.getElementById('introWalletNote');
+      if (done) {
+        document.getElementById('introCompletedId').textContent = chadId;
+        if (banner) banner.style.display = 'block';
+        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'COMPLETED'; }
+        if (note) note.style.display = 'none';
+      } else {
+        if (banner) banner.style.display = 'none';
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'START'; }
+      }
+    }
+
+    // Run check on page load (using chadId from URL)
+    checkQuestCompletion();
+
+    // Auto-reconnect wallet on page load
+    (async function() {
+      var raw = window.ethereum || window.avalanche;
+      if (raw) {
+        try {
+          var accounts = await raw.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            await switchToAvalanche(raw);
+            walletProvider = new ethers.providers.Web3Provider(raw);
+            walletSigner = walletProvider.getSigner();
+            onConnected(accounts[0]);
+          }
+        } catch(e) {}
+      }
+    })();
+
+    // ===== CLAIM XP =====
+    async function claimQuestXP() {
+      var btn = document.getElementById('claimXpBtn');
+      var statusEl = document.getElementById('claimXpStatus');
+
+      if (!userAddress) {
+        document.getElementById('walletModal').classList.add('show');
+        return;
+      }
+
+      if (!chadId) {
+        statusEl.textContent = 'Add ?chad=TOKEN_ID to the URL to link your NFT.';
+        return;
+      }
+
+      if (isQuestDone(chadId)) {
+        statusEl.textContent = 'XP already claimed for CHAD #' + chadId;
+        btn.disabled = true;
+        btn.textContent = 'ALREADY CLAIMED';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'CLAIMING...';
+      statusEl.textContent = '';
+
+      // Try to verify ownership
+      try {
+        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var readContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+        var owner = await readContract.ownerOf(chadId);
+        if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+          statusEl.textContent = 'You do not own CHAD #' + chadId;
+          btn.disabled = false;
+          btn.textContent = 'CLAIM XP';
+          return;
+        }
+      } catch(e) { /* ownership check failed — proceed */ }
+
+      // Mark as completed locally first, then check for level-up on-chain
+      markQuestDone(chadId);
+      btn.textContent = 'XP CLAIMED — CHAD #' + chadId;
+      statusEl.textContent = 'Quest score: ' + crewScore + ' pts recorded locally.';
+      checkQuestCompletion();
+
+      // Check for pending stat points (from any prior on-chain XP award)
+      await checkAndShowLevelUp(chadId);
+    }
+
+    // ===== LEVEL-UP =====
+    async function checkAndShowLevelUp(tokenId) {
+      if (!tokenId || !userAddress) return;
+      try {
+        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var readContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+        var pending = await readContract.getPendingStatPoints(tokenId);
+        var pts = pending.toNumber ? pending.toNumber() : Number(pending);
+        if (pts > 0) showLevelUpModal(tokenId, pts);
+      } catch(e) { console.warn('Level-up check failed:', e); }
+    }
+
+    function showLevelUpModal(tokenId, points) {
+      _luPending = points;
+      document.getElementById('luPointsLeft').textContent = points + ' POINT' + (points !== 1 ? 'S' : '') + ' TO ASSIGN';
+      document.getElementById('luTokenId').textContent = 'CHAD #' + tokenId;
+      document.getElementById('luStatus').style.display = 'none';
+      document.getElementById('luStatus').textContent = '';
+      document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
+      document.getElementById('levelUpModal').classList.add('show');
+    }
+
+    async function spendStatPoint(statIndex) {
+      if (!userAddress || !chadId) return;
+      var statusEl = document.getElementById('luStatus');
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'SIGNING...';
+      document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = true; });
+      try {
+        var contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, walletSigner);
+        var tx = await contract.spendStatPoint(chadId, statIndex);
+        statusEl.textContent = 'CONFIRMING...';
+        await tx.wait();
+        _luPending--;
+        if (_luPending > 0) {
+          document.getElementById('luPointsLeft').textContent = _luPending + ' POINT' + (_luPending !== 1 ? 'S' : '') + ' TO ASSIGN';
+          statusEl.textContent = 'ASSIGNED! CHOOSE NEXT STAT.';
+          document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
+        } else {
+          statusEl.textContent = 'ALL STATS ASSIGNED!';
+          setTimeout(function() { document.getElementById('levelUpModal').classList.remove('show'); }, 1500);
+        }
+      } catch(err) {
+        statusEl.textContent = err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED';
+        document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
+      }
+    }
   <\/script>
+<audio id="questBgMusic" loop></audio>
 </body>
 </html>`;
 }
