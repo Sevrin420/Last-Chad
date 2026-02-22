@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>03 test | Last Chad</title>
+  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="../../nav.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    /* Background — checkerboard wood texture matching quest.html */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #3b2a14;
+      background-image:
+        linear-gradient(45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
+        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      image-rendering: pixelated;
+    }
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(90, 65, 30, 0.4) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(30, 20, 10, 0.3) 0%, rgba(30, 20, 10, 0.6) 100%);
+    }
+
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(30, 20, 10, 0.9);
+      border-bottom: 2px solid #5c4409;
+      backdrop-filter: blur(8px);
+    }
+    .chad-name {
+      font-size: 0.55rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+    }
+
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 90px 16px 60px;
+    }
+
+    .section-img {
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: block;
+      opacity: 0;
+    }
+
+    /* Crew score tracker */
+    .crew-tracker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(20, 14, 6, 0.7);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 10px 16px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 560px;
+    }
+    .crew-tracker-label { font-size: 0.4rem; color: #8a7a5a; }
+    .crew-tracker-value { font-size: 0.8rem; color: #c9a84c; text-shadow: 0 0 8px rgba(201, 168, 76, 0.4); }
+
+    /* Quest panel */
+    .quest-panel {
+      width: 100%;
+      max-width: 560px;
+      background: rgba(10, 8, 4, 0.85);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      padding: 28px 24px;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6), 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .mission-tag {
+      font-size: 0.45rem;
+      color: #e53935;
+      letter-spacing: 0.15em;
+      margin-bottom: 16px;
+    }
+
+    .narrative {
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      line-height: 2.2;
+      color: #f5e6c8;
+      margin-bottom: 24px;
+      opacity: 0;
+    }
+    .narrative p + p { margin-top: 14px; }
+    .narrative.typing p { display: none; }
+    .typewriter-line {
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      line-height: 2.2;
+      color: #f5e6c8;
+      min-height: 2.4em;
+    }
+    .typewriter-cursor {
+      display: inline-block;
+      width: 0.55em;
+      height: 0.9em;
+      background: #c9a84c;
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      animation: blink-cursor 0.7s step-end infinite;
+    }
+    @keyframes blink-cursor { 50% { opacity: 0; } }
+    .action-wrap { opacity: 0; pointer-events: none; }
+    .result-success { color: #c9a84c; }
+    .result-fail { color: #e53935; }
+    .highlight { color: #c9a84c; }
+
+    /* Choice buttons */
+    .choices { display: flex; flex-direction: column; gap: 12px; }
+
+    .choice-btn {
+      padding: 16px 20px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+      color: #f5e6c8;
+      background: rgba(30, 22, 8, 0.8);
+      border: 3px solid #5c4409;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: left;
+      line-height: 1.8;
+      transition: all 0.15s;
+      touch-action: manipulation;
+      box-shadow: inset -2px -2px 0 #1a1200, inset 2px 2px 0 #3d2e0a, 2px 2px 0 #000;
+    }
+    .choice-btn:hover { border-color: #c9a84c; color: #c9a84c; background: rgba(50, 36, 10, 0.85); }
+    .choice-btn:active { transform: translateY(2px); box-shadow: inset -1px -1px 0 #1a1200, inset 1px 1px 0 #3d2e0a, 1px 1px 0 #000; }
+    .choice-label { color: #c9a84c; display: block; margin-bottom: 6px; }
+    .choice-btn:hover .choice-label { color: #ffe082; }
+
+    /* Primary action button */
+    .action-btn {
+      width: 100%;
+      padding: 16px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255, 220, 120, 0.4), inset 0 -2px 0 rgba(0, 0, 0, 0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s;
+      touch-action: manipulation;
+      animation: glow 2s ease-in-out infinite;
+    }
+    .action-btn:hover { animation: none; background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%); border-color: #f5e6c8; }
+    .action-btn:active { transform: translateY(3px); }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
+      50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
+    }
+
+    /* Dice stat/difficulty header */
+    .dice-meta-tag {
+      font-size: 0.42rem;
+      color: #e53935;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+      text-align: center;
+      line-height: 2;
+    }
+
+    /* Dice system */
+    .dice-section { width: 100%; margin-top: 8px; }
+    .dice-row { display: flex; justify-content: center; gap: 8px; }
+    .dice-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+    .dice-box {
+      width: clamp(48px, 13vw, 72px);
+      height: clamp(48px, 13vw, 72px);
+      background: rgba(20, 14, 6, 0.9);
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .dice-box.rolling { border-color: #c9a84c; box-shadow: inset 0 0 15px rgba(0,0,0,0.4), 0 0 12px rgba(201,168,76,0.3); }
+    .dice-box.kept    { border-color: #4caf50; box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 0 10px rgba(76,175,80,0.25); }
+    .dice-box.settled { border-color: #c9a84c; }
+
+    .dice-face {
+      width: 100%; height: 100%;
+      display: grid;
+      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 15%;
+      gap: 2px;
+    }
+    .dice-face .dot {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #c9a84c;
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(201,168,76,0.5);
+    }
+    .dice-box.kept .dice-face .dot { background: #4caf50; box-shadow: 0 0 4px rgba(76,175,80,0.5); }
+    .dot { visibility: hidden; }
+
+    .keep-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.28rem, 1.2vw, 0.38rem);
+      padding: 6px 0;
+      width: clamp(48px, 13vw, 72px);
+      color: #8a7a5a;
+      background: rgba(61, 46, 10, 0.3);
+      border: 3px solid #3d2e0a;
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.15s;
+      touch-action: manipulation;
+      box-shadow: inset -2px -2px 0 #1a1200, inset 2px 2px 0 #5c4409, 2px 2px 0 #000;
+    }
+    .keep-btn:hover { border-color: #5c4409; color: #c9a84c; }
+    .keep-btn.active { border-color: #4caf50; color: #4caf50; background: rgba(76,175,80,0.1); box-shadow: inset -2px -2px 0 #2e7d32, inset 2px 2px 0 #66bb6a, 2px 2px 0 #000; }
+    .keep-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .roll-section { margin-top: 18px; text-align: center; }
+
+    .roll-btn {
+      padding: 14px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5);
+      touch-action: manipulation;
+      animation: roll-glow 2s ease-in-out infinite;
+    }
+    .roll-btn:hover { animation: none; background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%); border-color: #f5e6c8; }
+    .roll-btn:active { transform: translateY(3px); }
+    .roll-btn:disabled { opacity: 0.4; cursor: not-allowed; animation: none; }
+
+    @keyframes roll-glow {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
+      50%       { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(201,168,76,0.4); }
+    }
+
+    .rolls-left { margin-top: 10px; font-size: 0.4rem; color: #8a7a5a; }
+
+    .score-box {
+      display: flex;
+      margin-top: 18px;
+      padding: 16px 20px;
+      background: #0a0a0f;
+      border: 3px solid #5c4409;
+      border-radius: 6px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 16px rgba(0,0,0,0.5);
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .checklist { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+    .check-item { display: flex; align-items: center; gap: 10px; font-size: clamp(0.42rem, 1.8vw, 0.55rem); color: #e53935; transition: color 0.3s; }
+    .check-item.checked { color: #4caf50; }
+    .check-box { width: 20px; height: 20px; border: 3px solid #e53935; border-radius: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color 0.3s, background 0.3s; }
+    .check-item.checked .check-box { border-color: #4caf50; background: rgba(76,175,80,0.15); }
+    .check-mark { display: none; color: #4caf50; font-size: 1.2rem; line-height: 0; margin-top: -2px; }
+    .check-item.checked .check-mark { display: block; }
+    .score-right { flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70px; }
+    .score-label { font-size: clamp(0.45rem, 2vw, 0.6rem); color: #8a7a5a; margin-bottom: 8px; line-height: 2; }
+    .score-value { font-size: clamp(1.6rem, 6vw, 2.6rem); color: #c9a84c; text-shadow: 0 0 12px rgba(201,168,76,0.5); }
+    .score-box.no-score .score-label { color: #e53935; }
+    .score-box.no-score .score-value { color: #e53935; text-shadow: 0 0 12px rgba(229,57,53,0.4); }
+    .score-box.scored .score-label { color: #8a7a5a; }
+    .score-box.scored .score-value { color: #c9a84c; }
+
+    .continue-wrap { margin-top: 20px; display: none; }
+    .continue-wrap.show { display: block; }
+    .dice-result-text { font-size: clamp(0.45rem, 1.8vw, 0.6rem); line-height: 2.2; color: #f5e6c8; margin-bottom: 16px; }
+    .dice-result-text .highlight { color: #c9a84c; }
+
+    /* Score breakdown (quest complete panel) */
+    .score-breakdown {
+      background: rgba(20, 14, 6, 0.8);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+    .breakdown-title { font-size: 0.42rem; color: #8a7a5a; letter-spacing: 0.12em; margin-bottom: 16px; }
+    .breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(61, 46, 10, 0.4); }
+    .breakdown-row:last-child { border-bottom: none; }
+    .breakdown-label { font-size: clamp(0.38rem, 1.5vw, 0.48rem); color: #8a7a5a; }
+    .breakdown-val { font-size: clamp(0.5rem, 2vw, 0.65rem); color: #c9a84c; }
+    .breakdown-row.total .breakdown-label { color: #f5e6c8; font-size: clamp(0.42rem, 1.8vw, 0.55rem); }
+    .breakdown-row.total .breakdown-val { font-size: clamp(0.8rem, 3vw, 1.1rem); color: #c9a84c; text-shadow: 0 0 10px rgba(201,168,76,0.5); }
+
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .quest-panel { padding: 20px 16px; }
+      .dice-row { gap: 5px; }
+    }
+
+    /* Intro overlay */
+    #intro-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.92);
+      transition: opacity 1.2s ease;
+      animation: intro-appear 0.8s ease;
+    }
+    #intro-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    @keyframes intro-appear {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .intro-box {
+      background: rgba(10, 8, 4, 0.97);
+      border: 3px solid #c9a84c;
+      border-radius: 6px;
+      padding: 40px 36px;
+      max-width: 560px;
+      width: 92%;
+      box-shadow: 0 0 40px rgba(201, 168, 76, 0.25), inset 0 0 20px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    .intro-title {
+      font-size: clamp(0.55rem, 2vw, 0.8rem);
+      color: #c9a84c;
+      text-shadow: 0 0 12px rgba(201, 168, 76, 0.4);
+      margin-bottom: 28px;
+      letter-spacing: 0.04em;
+    }
+    .intro-text {
+      font-size: clamp(0.38rem, 1.5vw, 0.52rem);
+      line-height: 2.4;
+      color: #f5e6c8;
+      margin-bottom: 36px;
+    }
+    .intro-start-btn {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.3) 0%, rgba(201, 168, 76, 0.1) 100%);
+      border: 2px solid #c9a84c;
+      color: #c9a84c;
+      padding: 14px 44px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+      cursor: pointer;
+      border-radius: 4px;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      transition: all 0.3s;
+      letter-spacing: 0.05em;
+    }
+    .intro-start-btn:hover {
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.45) 0%, rgba(201, 168, 76, 0.2) 100%);
+      box-shadow: 0 0 20px rgba(201, 168, 76, 0.35);
+      transform: translateY(-1px);
+    }
+    .intro-start-btn:active { transform: scale(0.97); }
+    .intro-start-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Wallet button */
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+    .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
+    .wallet-btn.connected { background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%); border-color: #4caf50; color: #a5d6a7; font-size: 0.5rem; }
+    .wallet-wrapper { position: relative; }
+    .disconnect-dropdown { display: none; position: absolute; top: calc(100% + 6px); right: 0; background: linear-gradient(180deg, #1e1608 0%, #140f05 100%); border: 2px solid #5c4409; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.7); z-index: 110; min-width: 160px; }
+    .disconnect-dropdown.show { display: block; }
+    .disconnect-btn { width: 100%; padding: 12px 16px; font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: #e53935; background: none; border: none; cursor: pointer; text-align: center; transition: background 0.15s; }
+    .disconnect-btn:hover { background: rgba(229, 57, 53, 0.15); }
+
+    /* Music toggle button */
+    .music-toggle {
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      z-index: 150;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(20, 15, 5, 0.55);
+      border: 1px solid rgba(201, 168, 76, 0.45);
+      color: #c9a84c;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+    }
+    .music-toggle:hover { background: rgba(40, 28, 8, 0.75); border-color: rgba(201, 168, 76, 0.8); }
+    .music-toggle.muted { opacity: 0.45; }
+
+    /* Wallet & level-up modals */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: linear-gradient(180deg, #1e1608 0%, #140f05 100%); border: 3px solid #5c4409; border-radius: 8px; padding: 28px 24px; max-width: 380px; width: 100%; box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(139,105,20,0.15); }
+    .modal-title { font-size: 0.7rem; color: #c9a84c; text-align: center; margin-bottom: 24px; }
+    .wallet-option { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; margin-bottom: 10px; font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: #f5e6c8; background: rgba(61,46,10,0.3); border: 2px solid #3d2e0a; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .wallet-option:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); }
+    .wallet-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .modal-close { display: block; margin: 16px auto 0; font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: #5c4409; background: none; border: none; cursor: pointer; padding: 8px; }
+    .modal-close:hover { color: #c9a84c; }
+
+    /* Level-up stat buttons */
+    .lu-stat-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; margin-bottom: 10px; font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: #f5e6c8; background: rgba(61,46,10,0.3); border: 2px solid #3d2e0a; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .lu-stat-btn:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); }
+    .lu-stat-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .lu-stat-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .lu-points { font-size: 0.45rem; color: #c9a84c; text-align: center; margin-bottom: 6px; line-height: 2; }
+    .lu-token  { font-size: 0.38rem; color: #8a7a5a; text-align: center; margin-bottom: 16px; }
+    .loading-text { font-size: 0.4rem; color: #8a7a5a; text-align: center; padding: 10px 0; }
+
+    /* Quest complete panel extras */
+    .claim-xp-section { margin-bottom: 20px; }
+    .claim-xp-btn {
+      width: 100%;
+      padding: 16px 40px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+      box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5);
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .claim-xp-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%); border-color: #f5e6c8; }
+    .claim-xp-btn:active { transform: translateY(3px); }
+    .claim-xp-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Completed banner */
+    .quest-completed-banner { background: rgba(76,175,80,0.1); border: 2px solid #4caf50; border-radius: 6px; padding: 16px; text-align: center; font-size: 0.5rem; color: #4caf50; line-height: 2; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <!-- Intro overlay — appears before any panel content loads -->
+  <div id="intro-overlay">
+    <div class="intro-box">
+      <div class="intro-title">03 test</div>
+      <div class="intro-text">As the chads flee from the synthettes <br>They try not to die<br>Much is in their way<br>Good luck!</div>
+      <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet to save progress on-chain</div>
+      <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
+      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()">START</button>
+    </div>
+  </div>
+
+  <div class="bg"></div>
+
+  <header class="header">
+    <div id="nav-placeholder"></div>
+    <span class="chad-name" id="chadName">03 test</span>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
+  </header>
+  <button class="music-toggle" id="musicToggleBtn" onclick="toggleQuestMusic()" title="Toggle music">♪</button>
+
+  <main class="main">
+    
+    <div class="crew-tracker" id="crewTracker">
+      <span class="crew-tracker-label">SCORE</span>
+      <span class="crew-tracker-value" id="crewScoreDisplay">0</span>
+    </div>
+
+    <div class="quest-panel">
+
+      <!-- Section 1 -->
+      <div class="panel active" id="panel-1771725612061">
+        <img src="images/1771725612061.png" alt="Section 1" class="section-img">
+        <div class="narrative">
+          <p>Look at these items</p>
+        </div>
+        <div class="action-wrap">
+          
+        <div class="dice-section">
+          
+          <div class="dice-meta-tag">CHARISMA BONUS +0 &nbsp;&nbsp; DIFFICULTY: 8</div>
+          <div class="dice-row">
+              <div class="dice-col">
+                <div class="dice-box" id="die0_1771725612061"><div class="dice-face" id="face0_1771725612061"></div></div>
+                <button class="keep-btn" id="keep0_1771725612061" disabled>LOCK</button>
+              </div>
+              <div class="dice-col">
+                <div class="dice-box" id="die1_1771725612061"><div class="dice-face" id="face1_1771725612061"></div></div>
+                <button class="keep-btn" id="keep1_1771725612061" disabled>LOCK</button>
+              </div>
+              <div class="dice-col">
+                <div class="dice-box" id="die2_1771725612061"><div class="dice-face" id="face2_1771725612061"></div></div>
+                <button class="keep-btn" id="keep2_1771725612061" disabled>LOCK</button>
+              </div>
+              <div class="dice-col">
+                <div class="dice-box" id="die3_1771725612061"><div class="dice-face" id="face3_1771725612061"></div></div>
+                <button class="keep-btn" id="keep3_1771725612061" disabled>LOCK</button>
+              </div>
+              <div class="dice-col">
+                <div class="dice-box" id="die4_1771725612061"><div class="dice-face" id="face4_1771725612061"></div></div>
+                <button class="keep-btn" id="keep4_1771725612061" disabled>LOCK</button>
+              </div>
+          </div>
+          <div class="roll-section">
+            <button class="roll-btn" id="rollBtn_1771725612061" onclick="rollDice(1771725612061)">ROLL</button>
+            <div class="rolls-left" id="rollsLeft_1771725612061">3 ROLLS LEFT</div>
+          </div>
+          <div class="score-box" id="scoreBox_1771725612061">
+            <div class="checklist">
+              <div class="check-item" id="check6_1771725612061">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>6 = SHIP</span>
+              </div>
+              <div class="check-item" id="check5_1771725612061">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>5 = CAPTAIN</span>
+              </div>
+              <div class="check-item" id="check4_1771725612061">
+                <div class="check-box"><span class="check-mark">✓</span></div>
+                <span>4 = MATE</span>
+              </div>
+            </div>
+            <div class="score-right">
+              <div class="score-label" id="scoreLabel_1771725612061">ROLL THE DICE</div>
+              <div class="score-value" id="scoreValue_1771725612061">-</div>
+            </div>
+          </div>
+          <div class="continue-wrap" id="continueWrap_1771725612061">
+            <div class="dice-result-text" id="diceResultText_1771725612061"></div>
+            <button class="action-btn" id="diceActionBtn_1771725612061">CONTINUE</button>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- Quest Complete -->
+      <div class="panel" id="panel-complete">
+        <div class="narrative">
+          <p>You have reached the end of <span class="highlight">03 test</span>.</p>
+          <p>Your crew held strong through every trial.</p>
+        </div>
+        
+        <div class="score-breakdown">
+          <div class="breakdown-title">AFTER ACTION REPORT</div>
+          <div class="breakdown-row total">
+            <span class="breakdown-label">TOTAL SCORE</span>
+            <span class="breakdown-val" id="finalScore">0</span>
+          </div>
+        </div>
+        <div class="claim-xp-section">
+          <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM XP</button>
+          <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
+        </div>
+        <div class="action-wrap">
+          <button class="action-btn" onclick="window.history.back()">RETURN</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>Rabby
+      </button>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9889;</span>Core
+      </button>
+      <button class="wallet-option" data-wallet="metamask">
+        <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>MetaMask
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>WalletConnect
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
+
+  <!-- Level Up Modal -->
+  <div class="modal-overlay" id="levelUpModal">
+    <div class="modal">
+      <h2 class="modal-title">LEVEL UP!</h2>
+      <div class="lu-points" id="luPointsLeft">1 POINT TO ASSIGN</div>
+      <div class="lu-token" id="luTokenId"></div>
+      <button class="lu-stat-btn" onclick="spendStatPoint(0)">
+        <span class="lu-stat-icon" style="background:#c0392b;">&#9876;</span>STRENGTH +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(1)">
+        <span class="lu-stat-icon" style="background:#2980b9;">&#128218;</span>INTELLIGENCE +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(2)">
+        <span class="lu-stat-icon" style="background:#27ae60;">&#127939;</span>DEXTERITY +1
+      </button>
+      <button class="lu-stat-btn" onclick="spendStatPoint(3)">
+        <span class="lu-stat-icon" style="background:#8e44ad;">&#128081;</span>CHARISMA +1
+      </button>
+      <div class="loading-text" id="luStatus" style="display:none; margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script src="../../nav.js"></script>
+  <script>
+    var crewScore = 0;
+    var _animGen = 0;
+    var diceOutcomes = {"1771725612061":{"passNextId":null,"failNextId":null,"statBonus":"charisma","difficulty":8}};
+    var sectionMusic = {};
+
+    var musicMuted = false;
+    var _currentMusicSrc = '';
+
+    function playQuestMusic(sectionId) {
+      var audio = document.getElementById('questBgMusic');
+      if (!audio) return;
+      var src = sectionId ? (sectionMusic[sectionId] || '') : '';
+      _currentMusicSrc = src;
+      if (!src || musicMuted) { audio.pause(); audio.src = ''; return; }
+      if (audio.src.endsWith(src.replace(/^../..//, ''))) return; // already playing
+      audio.src = src;
+      audio.play().catch(function() {});
+    }
+
+    function toggleQuestMusic() {
+      var btn = document.getElementById('musicToggleBtn');
+      var audio = document.getElementById('questBgMusic');
+      musicMuted = !musicMuted;
+      if (musicMuted) {
+        if (audio) { audio.pause(); }
+        if (btn) { btn.textContent = '🔇'; btn.classList.add('muted'); btn.title = 'Unmute music'; }
+      } else {
+        if (btn) { btn.textContent = '♪'; btn.classList.remove('muted'); btn.title = 'Mute music'; }
+        if (_currentMusicSrc && audio) {
+          audio.src = _currentMusicSrc;
+          audio.play().catch(function() {});
+        }
+      }
+    }
+
+    var dotLayouts = {
+      1: [0,0,0, 0,1,0, 0,0,0],
+      2: [0,0,1, 0,0,0, 1,0,0],
+      3: [0,0,1, 0,1,0, 1,0,0],
+      4: [1,0,1, 0,0,0, 1,0,1],
+      5: [1,0,1, 0,1,0, 1,0,1],
+      6: [1,0,1, 1,0,1, 1,0,1]
+    };
+    // Strip image data from sections — images are served as files in /images/
+    const questData = {"name":"03 test","sections":[{"id":1771725612061,"name":"Section 1","dialogue":"Look at these items","selectedChoice":"dice","buttonName":"Continue","button1Name":"Choice A","button2Name":"Choice B","nextSectionId":null,"choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":"charisma","difficulty":8,"music":null,"hasPhoto":true,"hasDiceImage":false}]};
+    const sectionMap = {};
+    let currentSectionId = null;
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/[&<>"']/g, function(m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+      });
+    }
+
+    function updateCrewDisplay() {
+      var el = document.getElementById('crewScoreDisplay');
+      if (el) el.textContent = crewScore;
+    }
+
+    function showPanel(id) {
+      document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+      var panelId = id ? 'panel-' + id : 'panel-complete';
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      // Reset states for entrance animation
+      var img = panel.querySelector('.section-img');
+      var narrative = panel.querySelector('.narrative');
+      var actionWrap = panel.querySelector('.action-wrap');
+      if (img) { img.style.transition = ''; img.style.opacity = '0'; }
+      if (narrative) {
+        narrative.style.transition = '';
+        narrative.style.opacity = '0';
+        narrative.classList.remove('typing');
+        var old = narrative.querySelector('.typewriter-line');
+        if (old) old.remove();
+      }
+      if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
+      if (!id) {
+        var fs = document.getElementById('finalScore');
+        if (fs) fs.textContent = crewScore;
+      }
+      panel.classList.add('active');
+      playQuestMusic(id || null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      animatePanel(id || null);
+    }
+
+    function goToSection(id) {
+      showPanel(id || null);
+    }
+
+    function startQuest() {
+      var overlay = document.getElementById('intro-overlay');
+      if (overlay) {
+        overlay.classList.add('hidden');
+        setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1300);
+      }
+      var firstId = 1771725612061;
+      playQuestMusic(firstId);
+      animatePanel(firstId);
+    }
+
+    async function animatePanel(sid) {
+      var panelId = sid ? 'panel-' + sid : 'panel-complete';
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      var gen = ++_animGen;
+      function alive() { return gen === _animGen; }
+      function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+      var img = panel.querySelector('.section-img');
+      var narrative = panel.querySelector('.narrative');
+      var actionWrap = panel.querySelector('.action-wrap');
+
+      // Collect plain-text lines from narrative <p> tags
+      var lines = [];
+      if (narrative) {
+        narrative.querySelectorAll('p').forEach(function(p) {
+          var text = p.textContent || p.innerText || '';
+          if (text.trim()) lines.push(text.trim());
+        });
+      }
+
+      // Step 1: fade in image
+      if (img) {
+        img.style.transition = 'opacity 1.6s ease';
+        await wait(30);
+        if (!alive()) return;
+        img.style.opacity = '1';
+        await wait(1800);
+        if (!alive()) return;
+      }
+
+      // Step 2: fade in narrative container, then type lines
+      if (narrative) {
+        narrative.classList.add('typing');
+        var tw = document.createElement('div');
+        tw.className = 'typewriter-line';
+        var cur = document.createElement('span');
+        cur.className = 'typewriter-cursor';
+        tw.appendChild(cur);
+        narrative.insertBefore(tw, narrative.firstChild);
+
+        narrative.style.transition = 'opacity 0.8s ease';
+        await wait(20);
+        if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+        narrative.style.opacity = '1';
+        await wait(900);
+        if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+
+        // Type each line — erase before the next, keep the last
+        for (var li = 0; li < lines.length; li++) {
+          var line = lines[li];
+          tw.textContent = '';
+          tw.appendChild(cur);
+          var typed = '';
+          for (var ci = 0; ci < line.length; ci++) {
+            if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+            typed += line[ci];
+            tw.textContent = typed;
+            tw.appendChild(cur);
+            await wait(60);
+          }
+          await wait(1800);
+          if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+          if (li < lines.length - 1) {
+            tw.textContent = '';
+            tw.appendChild(cur);
+            await wait(800);
+            if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
+          }
+        }
+
+        // Reveal original narrative HTML
+        tw.remove();
+        narrative.classList.remove('typing');
+      }
+
+      // Step 3: reveal action
+      if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+    }
+
+    /* ===== DICE SYSTEM ===== */
+    var diceState = {};
+
+    function getDiceState(sid) {
+      if (!diceState[sid]) {
+        diceState[sid] = {
+          values: [0, 0, 0, 0, 0],
+          kept: [false, false, false, false, false],
+          rollsLeft: 3,
+          isRolling: false
+        };
+        for (var i = 0; i < 5; i++) {
+          (function(idx, sectionId) {
+            var keepBtn = document.getElementById('keep' + idx + '_' + sectionId);
+            if (keepBtn) {
+              keepBtn.addEventListener('click', function() {
+                var state = diceState[sectionId];
+                if (state.isRolling || state.values[idx] === 0) return;
+                state.kept[idx] = !state.kept[idx];
+                keepBtn.classList.toggle('active', state.kept[idx]);
+                keepBtn.textContent = state.kept[idx] ? 'LOCKED' : 'LOCK';
+                document.getElementById('die' + idx + '_' + sectionId).classList.toggle('kept', state.kept[idx]);
+                updateChecklist(sectionId, false);
+              });
+            }
+          })(i, sid);
+          renderFace(i, 0, sid);
+        }
+      }
+      return diceState[sid];
+    }
+
+    function renderFace(index, value, sid) {
+      var face = document.getElementById('face' + index + '_' + sid);
+      if (!face) return;
+      face.innerHTML = '';
+      if (value === 0) return;
+      var layout = dotLayouts[value];
+      for (var i = 0; i < 9; i++) {
+        var dot = document.createElement('div');
+        dot.className = 'dot';
+        if (layout[i]) dot.style.visibility = 'visible';
+        face.appendChild(dot);
+      }
+    }
+
+    function updateChecklist(sid, includeFinal) {
+      var state = diceState[sid];
+      if (!state) return;
+      var vals = [];
+      for (var i = 0; i < 5; i++) {
+        if (state.kept[i] || includeFinal) vals.push(state.values[i]);
+      }
+      var tmp = vals.slice();
+      var i6 = tmp.indexOf(6); var has6 = i6 !== -1; if (has6) tmp.splice(i6, 1);
+      var i5 = tmp.indexOf(5); var has5 = i5 !== -1; if (has5) tmp.splice(i5, 1);
+      var i4 = tmp.indexOf(4); var has4 = i4 !== -1; if (has4) tmp.splice(i4, 1);
+      var c6 = document.getElementById('check6_' + sid); if (c6) c6.classList.toggle('checked', has6);
+      var c5 = document.getElementById('check5_' + sid); if (c5) c5.classList.toggle('checked', has5);
+      var c4 = document.getElementById('check4_' + sid); if (c4) c4.classList.toggle('checked', has4);
+    }
+
+    async function rollDice(sid) {
+      var state = getDiceState(sid);
+      if (state.isRolling || state.rollsLeft <= 0) return;
+      state.isRolling = true;
+      state.rollsLeft--;
+
+      var rollBtn = document.getElementById('rollBtn_' + sid);
+      var rollsLeftTxt = document.getElementById('rollsLeft_' + sid);
+      if (rollBtn) rollBtn.disabled = true;
+
+      var toRoll = [];
+      for (var i = 0; i < 5; i++) { if (!state.kept[i]) toRoll.push(i); }
+
+      toRoll.forEach(function(i) {
+        var box = document.getElementById('die' + i + '_' + sid);
+        if (box) { box.classList.add('rolling'); box.classList.remove('settled'); }
+      });
+
+      var cycleTimers = {};
+      toRoll.forEach(function(i) {
+        cycleTimers[i] = setInterval(function() {
+          renderFace(i, Math.floor(Math.random() * 6) + 1, sid);
+        }, 60);
+      });
+
+      for (var order = 0; order < toRoll.length; order++) {
+        await new Promise(function(resolve) { setTimeout(resolve, order === 0 ? 2500 : 800); });
+        var dieIndex = toRoll[order];
+        clearInterval(cycleTimers[dieIndex]);
+        var finalValue = Math.floor(Math.random() * 6) + 1;
+        state.values[dieIndex] = finalValue;
+        renderFace(dieIndex, finalValue, sid);
+        var box = document.getElementById('die' + dieIndex + '_' + sid);
+        if (box) { box.classList.remove('rolling'); box.classList.add('settled'); }
+      }
+
+      // All dice have settled — safe to allow interaction now
+      state.isRolling = false;
+
+      var rl = state.rollsLeft;
+      if (rollsLeftTxt) rollsLeftTxt.textContent = rl + ' ROLL' + (rl !== 1 ? 'S' : '') + ' LEFT';
+
+      if (rl <= 0) {
+        if (rollBtn) { rollBtn.disabled = true; rollBtn.textContent = 'NO ROLLS'; }
+        if (rollsLeftTxt) rollsLeftTxt.textContent = 'TURN OVER';
+        for (var j = 0; j < 5; j++) {
+          var keepBtn = document.getElementById('keep' + j + '_' + sid);
+          if (keepBtn) keepBtn.disabled = true;
+        }
+        updateChecklist(sid, true);
+        finaliseDice(sid);
+      } else {
+        if (rollBtn) rollBtn.disabled = false;
+        // Enable keep buttons only for dice that have a value (settled this roll or previously kept)
+        for (var k = 0; k < 5; k++) {
+          if (state.values[k] > 0 && !state.kept[k]) {
+            var kbEnable = document.getElementById('keep' + k + '_' + sid);
+            if (kbEnable) kbEnable.disabled = false;
+          }
+        }
+      }
+    }
+
+    function finaliseDice(sid) {
+      var state = diceState[sid];
+      var scoreBox    = document.getElementById('scoreBox_'      + sid);
+      var scoreLabel  = document.getElementById('scoreLabel_'    + sid);
+      var scoreValue  = document.getElementById('scoreValue_'    + sid);
+      var continueWrap = document.getElementById('continueWrap_' + sid);
+      var resultText  = document.getElementById('diceResultText_' + sid);
+      var actionBtn   = document.getElementById('diceActionBtn_' + sid);
+      var outcome     = diceOutcomes[sid] || {};
+      var difficulty  = outcome.difficulty !== undefined ? outcome.difficulty : 8;
+
+      var vals = state.values.slice();
+      var i6 = vals.indexOf(6);
+      if (i6 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      vals.splice(i6, 1);
+      var i5 = vals.indexOf(5);
+      if (i5 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      vals.splice(i5, 1);
+      var i4 = vals.indexOf(4);
+      if (i4 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      vals.splice(i4, 1);
+
+      var crew = vals[0] + vals[1];
+      // Stat bonus: +0 for custom quests (no on-chain read)
+      var statBonusVal = 0;
+      var total = crew + statBonusVal;
+
+      crewScore += crew;
+      updateCrewDisplay();
+
+      if (scoreBox) scoreBox.className = 'score-box scored';
+      if (scoreLabel) scoreLabel.textContent = 'SCORE';
+      if (scoreValue) scoreValue.textContent = crew;
+
+      if (total >= difficulty) {
+        if (resultText) resultText.innerHTML = '<span class="result-success">SUCCESS</span>';
+        if (continueWrap) continueWrap.classList.add('show');
+        if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.passNextId);
+      } else {
+        if (scoreBox) scoreBox.className = 'score-box no-score';
+        if (resultText) resultText.innerHTML = '<span class="result-fail">FAILURE</span>';
+        if (continueWrap) continueWrap.classList.add('show');
+        if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(outcome.failNextId);
+      }
+    }
+
+    function noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
+      if (scoreBox) scoreBox.className = 'score-box no-score';
+      if (scoreLabel) scoreLabel.textContent = 'NO SCORE';
+      if (scoreValue) scoreValue.textContent = '0';
+      if (resultText) resultText.innerHTML = '<span class="result-fail">FAILURE</span>';
+      if (continueWrap) continueWrap.classList.add('show');
+      if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
+    }
+
+    // Initialise dice state + event listeners for each dice section
+    getDiceState(1771725612061);
+    // Quest starts when the player clicks START on the intro overlay
+
+    // ===== WALLET + ON-CHAIN INTEGRATION =====
+    var QUEST_SLUG = '03-test';
+    var AVAX_CHAIN_ID = '0xa869';
+    var AVAX_CHAIN = { chainId: AVAX_CHAIN_ID, chainName: 'Avalanche Fuji Testnet', nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 }, rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'], blockExplorerUrls: ['https://testnet.snowtrace.io/'] };
+    var WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
+    var CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
+    var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
+    var LASTCHAD_ABI = [
+      'function ownerOf(uint256 tokenId) external view returns (address)',
+      'function balanceOf(address owner) external view returns (uint256)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256)',
+      'function getPendingStatPoints(uint256 tokenId) external view returns (uint256)',
+      'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
+      'function totalSupply() external view returns (uint256)'
+    ];
+
+    var walletProvider = null;
+    var walletSigner = null;
+    var userAddress = null;
+    var chadId = null;
+    var _luPending = 0;
+
+    // Read chad from URL param
+    (function() {
+      var p = new URLSearchParams(window.location.search);
+      var c = p.get('chad');
+      if (c && parseInt(c) > 0) chadId = parseInt(c);
+    })();
+
+    function truncateAddress(addr) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
+
+    function isMobile() { return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent); }
+
+    async function switchToAvalanche(raw) {
+      try {
+        await raw.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
+      } catch (err) {
+        if (err.code === 4902) await raw.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
+        else throw err;
+      }
+    }
+
+    function onConnected(addr) {
+      userAddress = addr;
+      document.getElementById('walletBtn').textContent = truncateAddress(addr);
+      document.getElementById('walletBtn').classList.add('connected');
+      document.getElementById('walletModal').classList.remove('show');
+      checkQuestCompletion();
+    }
+
+    function onDisconnected() {
+      walletProvider = walletSigner = userAddress = null;
+      document.getElementById('walletBtn').textContent = 'Connect Wallet';
+      document.getElementById('walletBtn').classList.remove('connected');
+      document.getElementById('disconnectDropdown').classList.remove('show');
+    }
+
+    async function connectInjected(name) {
+      var raw = null;
+      if (name === 'core' && (window.avalanche || (window.core && window.core.ethereum))) { raw = window.avalanche || window.core.ethereum; }
+      else if (window.ethereum) {
+        if (window.ethereum.providers && window.ethereum.providers.length) {
+          for (var p of window.ethereum.providers) {
+            if (name === 'rabby' && p.isRabby) { raw = p; break; }
+            if (name === 'metamask' && p.isMetaMask && !p.isRabby) { raw = p; break; }
+            if (name === 'core' && (p.isAvalanche || p.isCoreWallet)) { raw = p; break; }
+          }
+        }
+        if (!raw) raw = window.ethereum;
+      }
+      if (!raw) { alert(name + ' wallet not detected.'); return; }
+      try {
+        var accounts = await raw.request({ method: 'eth_requestAccounts' });
+        if (!accounts || accounts.length === 0) throw new Error('No accounts');
+        await switchToAvalanche(raw);
+        walletProvider = new ethers.providers.Web3Provider(raw);
+        walletSigner = walletProvider.getSigner();
+        onConnected(accounts[0]);
+        raw.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
+        raw.on('chainChanged', function() { window.location.reload(); });
+      } catch (err) { if (err.code !== 4001) alert('Connection failed: ' + (err.message || err)); }
+    }
+
+    function loadWcScript() {
+      if (window.WalletConnectEthereumProvider) return Promise.resolve();
+      return new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = '../../assets/walletconnect-provider.js';
+        s.onload = resolve; s.onerror = function() { reject(new Error('Failed to load WalletConnect')); };
+        document.head.appendChild(s);
+      });
+    }
+
+    async function connectWalletConnect() {
+      try {
+        await loadWcScript();
+        var wc = await window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: READ_RPC } });
+        await wc.connect();
+        walletProvider = new ethers.providers.Web3Provider(wc);
+        walletSigner = walletProvider.getSigner();
+        onConnected(await walletSigner.getAddress());
+        wc.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
+        wc.on('disconnect', onDisconnected);
+      } catch (err) { alert('WalletConnect failed. Please try again.'); }
+    }
+
+    async function connectWallet(name) {
+      if (name === 'walletconnect') { await connectWalletConnect(); return; }
+      await connectInjected(name);
+    }
+
+    // Wallet button events
+    document.getElementById('walletBtn').addEventListener('click', function() {
+      if (userAddress) { document.getElementById('disconnectDropdown').classList.toggle('show'); }
+      else { document.getElementById('walletModal').classList.add('show'); }
+    });
+    document.getElementById('disconnectBtn').addEventListener('click', onDisconnected);
+    document.getElementById('modalClose').addEventListener('click', function() { document.getElementById('walletModal').classList.remove('show'); });
+    document.getElementById('walletModal').addEventListener('click', function(e) { if (e.target === document.getElementById('walletModal')) document.getElementById('walletModal').classList.remove('show'); });
+    document.querySelectorAll('.wallet-option').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.getElementById('walletModal').classList.remove('show');
+        connectWallet(btn.dataset.wallet);
+      });
+    });
+    document.addEventListener('click', function(e) { if (!e.target.closest('.wallet-wrapper')) document.getElementById('disconnectDropdown').classList.remove('show'); });
+
+    // ===== QUEST COMPLETION TRACKING =====
+    function getCompletionKey(tokenId) { return 'lc_q_' + QUEST_SLUG + '_' + tokenId; }
+    function isQuestDone(tokenId) { return localStorage.getItem(getCompletionKey(tokenId)) === '1'; }
+    function markQuestDone(tokenId) { localStorage.setItem(getCompletionKey(tokenId), '1'); }
+
+    function checkQuestCompletion() {
+      if (!chadId) return;
+      var done = isQuestDone(chadId);
+      var banner = document.getElementById('introCompletedBanner');
+      var startBtn = document.getElementById('introStartBtn');
+      var note = document.getElementById('introWalletNote');
+      if (done) {
+        document.getElementById('introCompletedId').textContent = chadId;
+        if (banner) banner.style.display = 'block';
+        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'COMPLETED'; }
+        if (note) note.style.display = 'none';
+      } else {
+        if (banner) banner.style.display = 'none';
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'START'; }
+      }
+    }
+
+    // Run check on page load (using chadId from URL)
+    checkQuestCompletion();
+
+    // Auto-reconnect wallet on page load
+    (async function() {
+      var raw = window.ethereum || window.avalanche;
+      if (raw) {
+        try {
+          var accounts = await raw.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            await switchToAvalanche(raw);
+            walletProvider = new ethers.providers.Web3Provider(raw);
+            walletSigner = walletProvider.getSigner();
+            onConnected(accounts[0]);
+          }
+        } catch(e) {}
+      }
+    })();
+
+    // ===== CLAIM XP =====
+    async function claimQuestXP() {
+      var btn = document.getElementById('claimXpBtn');
+      var statusEl = document.getElementById('claimXpStatus');
+
+      if (!userAddress) {
+        document.getElementById('walletModal').classList.add('show');
+        return;
+      }
+
+      if (!chadId) {
+        statusEl.textContent = 'Add ?chad=TOKEN_ID to the URL to link your NFT.';
+        return;
+      }
+
+      if (isQuestDone(chadId)) {
+        statusEl.textContent = 'XP already claimed for CHAD #' + chadId;
+        btn.disabled = true;
+        btn.textContent = 'ALREADY CLAIMED';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'CLAIMING...';
+      statusEl.textContent = '';
+
+      // Try to verify ownership
+      try {
+        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var readContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+        var owner = await readContract.ownerOf(chadId);
+        if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+          statusEl.textContent = 'You do not own CHAD #' + chadId;
+          btn.disabled = false;
+          btn.textContent = 'CLAIM XP';
+          return;
+        }
+      } catch(e) { /* ownership check failed — proceed */ }
+
+      // Mark as completed locally first, then check for level-up on-chain
+      markQuestDone(chadId);
+      btn.textContent = 'XP CLAIMED — CHAD #' + chadId;
+      statusEl.textContent = 'Quest score: ' + crewScore + ' pts recorded locally.';
+      checkQuestCompletion();
+
+      // Check for pending stat points (from any prior on-chain XP award)
+      await checkAndShowLevelUp(chadId);
+    }
+
+    // ===== LEVEL-UP =====
+    async function checkAndShowLevelUp(tokenId) {
+      if (!tokenId || !userAddress) return;
+      try {
+        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var readContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+        var pending = await readContract.getPendingStatPoints(tokenId);
+        var pts = pending.toNumber ? pending.toNumber() : Number(pending);
+        if (pts > 0) showLevelUpModal(tokenId, pts);
+      } catch(e) { console.warn('Level-up check failed:', e); }
+    }
+
+    function showLevelUpModal(tokenId, points) {
+      _luPending = points;
+      document.getElementById('luPointsLeft').textContent = points + ' POINT' + (points !== 1 ? 'S' : '') + ' TO ASSIGN';
+      document.getElementById('luTokenId').textContent = 'CHAD #' + tokenId;
+      document.getElementById('luStatus').style.display = 'none';
+      document.getElementById('luStatus').textContent = '';
+      document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
+      document.getElementById('levelUpModal').classList.add('show');
+    }
+
+    async function spendStatPoint(statIndex) {
+      if (!userAddress || !chadId) return;
+      var statusEl = document.getElementById('luStatus');
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'SIGNING...';
+      document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = true; });
+      try {
+        var contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, walletSigner);
+        var tx = await contract.spendStatPoint(chadId, statIndex);
+        statusEl.textContent = 'CONFIRMING...';
+        await tx.wait();
+        _luPending--;
+        if (_luPending > 0) {
+          document.getElementById('luPointsLeft').textContent = _luPending + ' POINT' + (_luPending !== 1 ? 'S' : '') + ' TO ASSIGN';
+          statusEl.textContent = 'ASSIGNED! CHOOSE NEXT STAT.';
+          document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
+        } else {
+          statusEl.textContent = 'ALL STATS ASSIGNED!';
+          setTimeout(function() { document.getElementById('levelUpModal').classList.remove('show'); }, 1500);
+        }
+      } catch(err) {
+        statusEl.textContent = err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED';
+        document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
+      }
+    }
+  </script>
+<audio id="questBgMusic" loop></audio>
+</body>
+</html>
