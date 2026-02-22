@@ -100,6 +100,10 @@ class GitHubAPI {
     });
   }
 
+  async getBlob(sha) {
+    return this.request('GET', `/repos/${this.owner}/${this.repo}/git/blobs/${sha}`);
+  }
+
   async publishQuest(questName, sections, onProgress = null, introDialogue = '') {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
@@ -177,6 +181,34 @@ class GitHubAPI {
         type: 'blob',
         sha: questDataBlob.sha
       });
+
+      // Update quests/index.json manifest
+      progress('Updating quest manifest...');
+      const indexJsonItem = treeItems.find(item => item.path === 'quests/index.json');
+      let questIndex = [];
+      if (indexJsonItem && indexJsonItem.sha) {
+        try {
+          const blobData = await this.getBlob(indexJsonItem.sha);
+          const decoded = atob(blobData.content.replace(/\n/g, ''));
+          questIndex = JSON.parse(decoded);
+        } catch (e) {
+          console.warn('Could not read existing quest index, starting fresh:', e);
+          questIndex = [];
+        }
+      }
+      if (!questIndex.find(q => q.slug === sanitized)) {
+        questIndex.push({ name: questName, slug: sanitized });
+      }
+      const indexBlob = await this.createBlob(JSON.stringify(questIndex, null, 2), 'utf-8');
+      const indexIdx = treeItems.findIndex(item => item.path === 'quests/index.json');
+      if (indexIdx !== -1) treeItems.splice(indexIdx, 1);
+      treeItems.push({
+        path: 'quests/index.json',
+        mode: '100644',
+        type: 'blob',
+        sha: indexBlob.sha
+      });
+      console.log(`✓ Quest manifest updated`);
 
       // Process and add images
       let uploadedImages = 0;

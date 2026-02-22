@@ -540,10 +540,46 @@
     }
     .modal-close:hover { color: #c9a84c; }
 
+    /* --- Quest dropdown --- */
+    .quest-select {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      color: #f5e6c8;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 3px solid #5c4409;
+      border-radius: 0;
+      padding: 12px 16px;
+      min-width: 260px;
+      max-width: 320px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%235c4409'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.04),
+        0 4px 0 #111,
+        0 6px 0 #000;
+      transition: border-color 0.2s;
+    }
+    .quest-select:focus,
+    .quest-select:hover {
+      border-color: #c9a84c;
+    }
+    .quest-select option {
+      background: #1e1608;
+      color: #f5e6c8;
+      font-size: 0.6rem;
+    }
+
     /* --- Responsive --- */
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
       .gallery-item { width: 85px; height: 85px; }
+      .quest-select { min-width: 200px; font-size: 0.5rem; }
     }
   </style>
 </head>
@@ -610,9 +646,13 @@
         <div class="xp-label" id="xpLabel">0 / 100 XP</div>
       </div>
 
-      <!-- Battle button -->
-      <button class="battle-btn" id="battleBtn">EPISODE 1</button>
-      <div class="quest-name-label">Day 1 - Recon</div>
+      <!-- Quest selector + Battle button -->
+      <div id="questSelectWrap" style="display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:20px;">
+        <select id="questSelect" class="quest-select">
+          <option value="">Loading quests...</option>
+        </select>
+        <button class="battle-btn" id="battleBtn" style="margin-top:0;">BEGIN QUEST</button>
+      </div>
 
       <!-- Gallery -->
       <div class="gallery-section">
@@ -1014,8 +1054,43 @@
 
     battleBtn.addEventListener('click', function () {
       if (!this.classList.contains('active') || !selectedTokenId) return;
-      window.location.href = 'quest.html?chad=' + selectedTokenId;
+      const questSelect = document.getElementById('questSelect');
+      const slug = questSelect ? questSelect.value : '';
+      if (slug) {
+        window.location.href = 'quests/' + slug + '/index.html?chad=' + selectedTokenId;
+      } else {
+        window.location.href = 'quest.html?chad=' + selectedTokenId;
+      }
     });
+
+    // ========== QUEST DROPDOWN ==========
+    async function loadQuestDropdown() {
+      const questSelect = document.getElementById('questSelect');
+      if (!questSelect) return;
+      try {
+        const res = await fetch('quests/index.json?v=' + Date.now());
+        if (!res.ok) throw new Error('Not found');
+        const quests = await res.json();
+        questSelect.innerHTML = '';
+        if (quests.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'No quests available';
+          questSelect.appendChild(opt);
+        } else {
+          quests.forEach(q => {
+            const opt = document.createElement('option');
+            opt.value = q.slug;
+            opt.textContent = q.name;
+            questSelect.appendChild(opt);
+          });
+        }
+      } catch (e) {
+        questSelect.innerHTML = '<option value="">No quests available</option>';
+        console.warn('Could not load quest list:', e);
+      }
+    }
+    loadQuestDropdown();
 
     // ========== AUTO-RECONNECT ==========
     (async () => {
