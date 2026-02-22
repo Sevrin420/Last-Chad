@@ -690,7 +690,8 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <script>
+  <script type="module">
+    import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
     // ========== CONFIG ==========
     const CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
     const CONTRACT_ABI = [
@@ -703,17 +704,8 @@
       'function getExperience(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)'
     ];
-    const AVAX_CHAIN_ID = '0xa869';
-    const AVAX_CHAIN = {
-      chainId: AVAX_CHAIN_ID,
-      chainName: 'Avalanche Fuji Testnet',
-      nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
-      rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'],
-      blockExplorerUrls: ['https://testnet.snowtrace.io/']
-    };
     const READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
     const MAX_SUPPLY = 6;
-    const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 
     // ========== DOM ==========
     const walletBtn = document.getElementById('walletBtn');
@@ -740,19 +732,9 @@
     const galleryEmpty = document.getElementById('galleryEmpty');
 
     // ========== STATE ==========
-    let provider = null;
-    let signer = null;
     let userAddress = null;
     let selectedTokenId = null;
     let ownedTokens = [];
-
-    // ========== HELPERS ==========
-    function isMobile() {
-      return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-    }
-    function getDappUrl() { return window.location.href; }
-    function getDappHost() { return window.location.host + window.location.pathname; }
-    function truncateAddress(addr) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
 
     // ========== UI STATES ==========
     function showArena() {
@@ -891,16 +873,6 @@
     }
 
     // ========== WALLET ==========
-    async function switchToAvalanche(rawProvider) {
-      try {
-        await rawProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
-      } catch (err) {
-        if (err.code === 4902) {
-          await rawProvider.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
-        } else throw err;
-      }
-    }
-
     function onConnected(addr) {
       userAddress = addr;
       sessionStorage.setItem('lcWallet', addr);
@@ -912,119 +884,12 @@
     }
 
     function onDisconnected() {
-      provider = null;
-      signer = null;
       userAddress = null;
       sessionStorage.removeItem('lcWallet');
       walletBtn.textContent = 'Connect Wallet';
       walletBtn.classList.remove('connected');
       disconnectDropdown.classList.remove('show');
       hideArena();
-    }
-
-    function getMobileDeepLink(walletName) {
-      const url = getDappHost();
-      const fullUrl = getDappUrl();
-      switch (walletName) {
-        case 'metamask': return 'https://metamask.app.link/dapp/' + url;
-        case 'core': return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
-        case 'rabby': return 'https://rabby.io';
-        default: return null;
-      }
-    }
-
-    async function connectWallet(walletName) {
-      const hasInjected = window.ethereum || window.avalanche;
-      if (walletName === 'walletconnect' || (walletName === 'core' && isMobile() && !window.avalanche && !(window.core && window.core.ethereum))) { await connectWalletConnect(); return; }
-      if (!hasInjected && isMobile() && walletName !== 'walletconnect') {
-        const deepLink = getMobileDeepLink(walletName);
-        if (deepLink) { window.location.href = deepLink; return; }
-      }
-      await connectInjected(walletName);
-    }
-
-    async function connectInjected(walletName) {
-      let rawProvider = null;
-      if (walletName === 'core' && (window.avalanche || (window.core && window.core.ethereum))) {
-        rawProvider = window.avalanche || window.core.ethereum;
-      } else if (window.ethereum) {
-        if (window.ethereum.providers && window.ethereum.providers.length) {
-          for (const p of window.ethereum.providers) {
-            if (walletName === 'rabby' && p.isRabby) { rawProvider = p; break; }
-            if (walletName === 'metamask' && p.isMetaMask && !p.isRabby) { rawProvider = p; break; }
-            if (walletName === 'core' && (p.isAvalanche || p.isCoreWallet)) { rawProvider = p; break; }
-          }
-        }
-        if (!rawProvider) {
-          if (walletName === 'rabby' && window.ethereum.isRabby) rawProvider = window.ethereum;
-          else if (walletName === 'metamask' && window.ethereum.isMetaMask) rawProvider = window.ethereum;
-          else if (walletName === 'core' && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet)) rawProvider = window.ethereum;
-          else rawProvider = window.ethereum;
-        }
-      }
-
-      if (!rawProvider) {
-        if (isMobile()) {
-          const deepLink = getMobileDeepLink(walletName);
-          if (deepLink) { window.location.href = deepLink; return; }
-        }
-        const urls = { rabby: 'https://rabby.io', core: 'https://core.app', metamask: 'https://metamask.io' };
-        alert(walletName.charAt(0).toUpperCase() + walletName.slice(1) +
-          ' wallet not detected.\n\nInstall the extension from ' + (urls[walletName] || ''));
-        return;
-      }
-
-      try {
-        const accounts = await rawProvider.request({ method: 'eth_requestAccounts' });
-        if (!accounts || accounts.length === 0) throw new Error('No accounts');
-        await switchToAvalanche(rawProvider);
-        provider = new ethers.providers.Web3Provider(rawProvider);
-        signer = provider.getSigner();
-        onConnected(accounts[0]);
-        rawProvider.on('accountsChanged', (accs) => {
-          if (accs.length === 0) onDisconnected();
-          else onConnected(accs[0]);
-        });
-        rawProvider.on('chainChanged', () => window.location.reload());
-      } catch (err) {
-        console.error('Connection failed:', err);
-        if (err.code !== 4001) alert('Failed to connect: ' + (err.message || err));
-      }
-    }
-
-    function loadWcScript() {
-      if (window.WalletConnectEthereumProvider) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'assets/walletconnect-provider.js';
-        s.onload = resolve;
-        s.onerror = () => reject(new Error('Failed to load WalletConnect SDK'));
-        document.head.appendChild(s);
-      });
-    }
-
-    async function connectWalletConnect() {
-      if (!WALLETCONNECT_PROJECT_ID) {
-        alert('WalletConnect project ID not configured.');
-        return;
-      }
-      try {
-        await loadWcScript();
-        const EthereumProvider = window.WalletConnectEthereumProvider.EthereumProvider;
-        const wcProvider = await EthereumProvider.init({
-          projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true,
-          rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' }
-        });
-        await wcProvider.connect();
-        provider = new ethers.providers.Web3Provider(wcProvider);
-        signer = provider.getSigner();
-        onConnected(await signer.getAddress());
-        wcProvider.on('accountsChanged', (accs) => { if (!accs.length) onDisconnected(); else onConnected(accs[0]); });
-        wcProvider.on('disconnect', onDisconnected);
-      } catch (err) {
-        console.error('WalletConnect failed:', err);
-        alert('WalletConnect failed to connect. Please try again or use a different wallet.');
-      }
     }
 
     // ========== EVENTS ==========
@@ -1035,7 +900,7 @@
 
     disconnectBtn.addEventListener('click', () => {
       disconnectDropdown.classList.remove('show');
-      onDisconnected();
+      disconnect(onDisconnected);
     });
 
     document.addEventListener('click', (e) => {
@@ -1048,7 +913,7 @@
     document.querySelectorAll('.wallet-option').forEach(opt => {
       opt.addEventListener('click', () => {
         walletModal.classList.remove('show');
-        connectWallet(opt.dataset.wallet);
+        connectWallet(opt.dataset.wallet, { onConnected, onDisconnected });
       });
     });
 
@@ -1093,20 +958,7 @@
     loadQuestDropdown();
 
     // ========== AUTO-RECONNECT ==========
-    (async () => {
-      const rawProvider = window.ethereum || window.avalanche;
-      if (rawProvider) {
-        try {
-          const accounts = await rawProvider.request({ method: 'eth_accounts' });
-          if (accounts && accounts.length > 0) {
-            await switchToAvalanche(rawProvider);
-            provider = new ethers.providers.Web3Provider(rawProvider);
-            signer = provider.getSigner();
-            onConnected(accounts[0]);
-          }
-        } catch (e) {}
-      }
-    })();
+    autoReconnect({ onConnected, onDisconnected });
   </script>
   <script src="nav.js"></script>
 </body>
