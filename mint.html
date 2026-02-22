@@ -795,24 +795,18 @@
       connectWallet, autoReconnect, disconnect,
       getSigner, getUserAddress, truncateAddress
     } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
 
     // ========== CONFIG ==========
     const PRICE = 0.02;
     const MAX_SUPPLY = 70;
     const MAX_MINT_PER_WALLET = 5;
-    const CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
 
     // Contract ABI — only the functions called in this file
-    // REMOVED: MAX_SUPPLY() — hardcoded as MAX_SUPPLY const, never fetched
-    // REMOVED: MINT_PRICE() — hardcoded as PRICE const, never fetched
-    // REMOVED: balanceOf(), ownerOf(), tokenURI() — not called in mint.html
     const CONTRACT_ABI = [
       'function mint(uint256 quantity) external payable',
       'function totalSupply() external view returns (uint256)'
     ];
-
-    // Read-only provider for fetching supply even when wallet not connected
-    const READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
 
     // ========== DOM ==========
     const slider = document.getElementById('qtySlider');
