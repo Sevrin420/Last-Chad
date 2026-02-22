@@ -874,11 +874,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
 
     // ========== CONFIG ==========
     const TOTAL_POINTS = 2;
     const MAX_PER_STAT = 10;
-    const CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
     const CONTRACT_ABI = [
       'function setStats(uint256 tokenId, string calldata name, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma) external',
       'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
@@ -886,7 +886,6 @@
       'function ownerOf(uint256 tokenId) external view returns (address)',
       'function totalSupply() external view returns (uint256)'
     ];
-    const READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
 
     // ========== URL PARAMS ==========
     const params = new URLSearchParams(window.location.search);
