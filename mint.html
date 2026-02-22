@@ -802,15 +802,13 @@
     const MAX_MINT_PER_WALLET = 5;
     const CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
 
-    // Contract ABI — matches LastChad.sol
+    // Contract ABI — only the functions called in this file
+    // REMOVED: MAX_SUPPLY() — hardcoded as MAX_SUPPLY const, never fetched
+    // REMOVED: MINT_PRICE() — hardcoded as PRICE const, never fetched
+    // REMOVED: balanceOf(), ownerOf(), tokenURI() — not called in mint.html
     const CONTRACT_ABI = [
       'function mint(uint256 quantity) external payable',
-      'function totalSupply() external view returns (uint256)',
-      'function MAX_SUPPLY() external view returns (uint256)',
-      'function MINT_PRICE() external view returns (uint256)',
-      'function balanceOf(address owner) external view returns (uint256)',
-      'function ownerOf(uint256 tokenId) external view returns (address)',
-      'function tokenURI(uint256 tokenId) external view returns (string)'
+      'function totalSupply() external view returns (uint256)'
     ];
 
     // Read-only provider for fetching supply even when wallet not connected
@@ -871,12 +869,11 @@
         }
 
         // Update contract link
-        if (CONTRACT_ADDRESS) {
-          const contractLink = document.getElementById('contractLink');
-          contractLink.textContent = CONTRACT_ADDRESS.slice(0, 6) + '...' + CONTRACT_ADDRESS.slice(-4);
-          contractLink.href = 'https://testnet.snowtrace.io/address/' + CONTRACT_ADDRESS;
-          contractLink.target = '_blank';
-        }
+        // REMOVED: redundant `if (CONTRACT_ADDRESS)` — function already returns early above if falsy
+        const contractLink = document.getElementById('contractLink');
+        contractLink.textContent = CONTRACT_ADDRESS.slice(0, 6) + '...' + CONTRACT_ADDRESS.slice(-4);
+        contractLink.href = 'https://testnet.snowtrace.io/address/' + CONTRACT_ADDRESS;
+        contractLink.target = '_blank';
       } catch (err) {
         console.error('Failed to read supply:', err);
       }
@@ -936,6 +933,7 @@
       mintBtn.disabled = true;
       btnText.textContent = 'MINT';
       mintBtn.classList.remove('ready');
+      // FLAG: getElementById here is redundant — disconnectDropdown const is already in scope (line 943)
       try { document.getElementById('disconnectDropdown').classList.remove('show'); } catch(e) {}
     }
 
