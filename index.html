@@ -363,32 +363,21 @@
           video.addEventListener('seeked', onSeeked);
         });
 
-        // --- Skip: jump to 50s, fade that frame in, then reveal buttons ---
+        // --- Skip: jump to 50s still frame, then reveal buttons ---
         skipBtn.addEventListener('click', function() {
           skipBtn.style.display  = 'none';
           soundBtn.style.display = 'none';
 
-          // Fade video out
-          video.style.transition = 'opacity 0.25s ease';
-          video.style.opacity    = '0';
+          // Pause and seek without fading out — current frame stays visible
+          // so the background image never shows through
+          video.pause();
+          video.currentTime = 50;
 
-          setTimeout(function() {
-            video.pause();
-            video.currentTime = 50;
-
-            // Wait for the frame to render, then fade it back in
-            function onSeeked() {
-              video.removeEventListener('seeked', onSeeked);
-              video.style.transition = 'opacity 0.85s ease';
-              video.style.opacity    = '1';
-              // After the frame has fully faded in, bring in the buttons
-              setTimeout(function() {
-                video.style.transition = '';
-                revealButtons();
-              }, 900);
-            }
-            video.addEventListener('seeked', onSeeked);
-          }, 280);
+          function onSeeked() {
+            video.removeEventListener('seeked', onSeeked);
+            revealButtons();
+          }
+          video.addEventListener('seeked', onSeeked);
         });
 
         // --- Tap to start (browsers require user gesture for sound) ---
