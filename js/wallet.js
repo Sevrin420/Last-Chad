@@ -19,7 +19,6 @@ export const AVAX_CHAIN = {
   blockExplorerUrls: ['https://testnet.snowtrace.io/']
 };
 
-// TODO: Set your WalletConnect project ID from https://cloud.walletconnect.com
 export const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 
 // ========== MODULE STATE ==========
