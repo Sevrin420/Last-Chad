@@ -617,6 +617,8 @@
 </head>
 <body>
 
+  <audio id="questAudio" loop></audio>
+
   <div class="bg"></div>
 
   <header class="header">
@@ -1084,6 +1086,75 @@
       document.getElementById(id).classList.add('active');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       playPanelMusic(id);
+      typewriterPanel(id);
+    }
+
+    // ===== TYPEWRITER =====
+    // Types each <p> in .narrative one character at a time, line by line.
+    const _twTimers = [];   // track pending timeouts so we can cancel on re-entry
+
+    function typewriterPanel(panelId) {
+      // Cancel any in-progress typewriter
+      while (_twTimers.length) clearTimeout(_twTimers.pop());
+
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+      const narrative = panel.querySelector('.narrative');
+      if (!narrative) return;
+
+      const paras = Array.from(narrative.querySelectorAll('p'));
+      if (!paras.length) return;
+
+      // Snapshot and clear each paragraph's content
+      const origHTML = paras.map(p => {
+        const h = p.innerHTML;
+        p.innerHTML = '';
+        return h;
+      });
+
+      let paraIdx = 0;
+
+      function typeNextPara() {
+        if (paraIdx >= paras.length) return;
+        const para  = paras[paraIdx];
+        const html  = origHTML[paraIdx];
+        let pos = 0;
+
+        function step() {
+          if (pos >= html.length) {
+            para.innerHTML = html;   // restore full HTML (cleans any partial tag)
+            paraIdx++;
+            if (paraIdx < paras.length) {
+              const t = setTimeout(typeNextPara, 380);
+              _twTimers.push(t);
+            }
+            return;
+          }
+
+          // Jump over HTML tags instantly (no delay)
+          if (html[pos] === '<') {
+            const close = html.indexOf('>', pos);
+            if (close !== -1) { pos = close + 1; para.innerHTML = html.substring(0, pos); step(); return; }
+          }
+
+          // Jump over HTML entities instantly
+          if (html[pos] === '&') {
+            const semi = html.indexOf(';', pos);
+            if (semi !== -1) { pos = semi + 1; para.innerHTML = html.substring(0, pos); step(); return; }
+          }
+
+          pos++;
+          para.innerHTML = html.substring(0, pos);
+          const t = setTimeout(step, 24);
+          _twTimers.push(t);
+        }
+
+        step();
+      }
+
+      // Small initial delay so the panel transition finishes first
+      const t = setTimeout(typeNextPara, 80);
+      _twTimers.push(t);
     }
 
     // ===== MUSIC SYSTEM =====
@@ -1608,8 +1679,11 @@
       }
     }
 
-    // Attempt to resume in-progress session on page load
-    loadSession();
+    // Attempt to resume in-progress session on page load.
+    // If no session, typewriter the default intro panel.
+    if (!loadSession()) {
+      typewriterPanel('panel-intro');
+    }
 
     // ===== CLAIM XP =====
     async function claimXp() {
@@ -1730,7 +1804,6 @@
       }
     }
   </script>
-  <audio id="questAudio" loop></audio>
   <script src="nav.js"></script>
 </body>
 </html>
