@@ -918,7 +918,7 @@
     let currentTokenId = tokenIds[0] || null;
     let stats = { str: 0, int: 0, dex: 0, cha: 0 };
     let assignedTokens = new Set();
-    let nameAlreadySet = false;
+    // REMOVED: nameAlreadySet — written in loadToken and checkIfAssigned but never read
 
     // ========== STAT ELEMENTS ==========
     const statElements = {
@@ -1018,7 +1018,6 @@
       chadLabel.textContent = 'CHAD #' + tokenId;
 
       // Reset name + stats
-      nameAlreadySet = false;
       nameInput.value = '';
       nameInput.disabled = false;
       nameCounter.textContent = '0 / 12';
@@ -1058,7 +1057,6 @@
             nameInput.value = existingName;
             nameInput.disabled = true;
             nameCounter.textContent = existingName.length + ' / 12';
-            nameAlreadySet = true;
           }
           showAllocation();
         }
@@ -1159,18 +1157,13 @@
         if (tab) tab.classList.add('done');
 
         // Show assigned view after brief delay
+        // REMOVED: empty if (all-assigned) { // All done } branch — find() returns undefined when all assigned, inner if(next) is false
         setTimeout(() => {
           checkIfAssigned(currentTokenId);
 
-          // If all tokens are assigned, check if we should redirect
-          if (tokenIds.length > 0 && assignedTokens.size >= tokenIds.length) {
-            // All done
-          } else {
-            // Find next unassigned token
-            const next = tokenIds.find(id => !assignedTokens.has(id));
-            if (next) {
-              setTimeout(() => loadToken(next), 500);
-            }
+          const next = tokenIds.find(id => !assignedTokens.has(id));
+          if (next) {
+            setTimeout(() => loadToken(next), 500);
           }
         }, 1500);
 

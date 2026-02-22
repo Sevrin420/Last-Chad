@@ -705,7 +705,7 @@
       'function tokenName(uint256 tokenId) view returns (string)'
     ];
     const READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
-    const MAX_SUPPLY = 6;
+    // REMOVED: MAX_SUPPLY (6) — declared but never referenced in this file
 
     // ========== DOM ==========
     const walletBtn = document.getElementById('walletBtn');
@@ -859,10 +859,8 @@
           galleryScroll.appendChild(item);
         }
 
-        // Auto-select first chad
-        if (ownedTokens.length > 0) {
-          selectChad(ownedTokens[0], 'assets/chads/' + ownedTokens[0] + '.png');
-        }
+        // Auto-select first chad (ownedTokens.length > 0 guaranteed — empty case returned above)
+        selectChad(ownedTokens[0], 'assets/chads/' + ownedTokens[0] + '.png');
 
       } catch (err) {
         console.error('Failed to load Chads:', err);

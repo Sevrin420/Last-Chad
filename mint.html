@@ -933,8 +933,8 @@
       mintBtn.disabled = true;
       btnText.textContent = 'MINT';
       mintBtn.classList.remove('ready');
-      // FLAG: getElementById here is redundant — disconnectDropdown const is already in scope (line 943)
-      try { document.getElementById('disconnectDropdown').classList.remove('show'); } catch(e) {}
+      // REMOVED: redundant try/catch getElementById — disconnectDropdown const is in scope
+      disconnectDropdown.classList.remove('show');
     }
 
     // ========== MODAL EVENTS ==========
