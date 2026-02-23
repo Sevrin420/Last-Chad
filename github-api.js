@@ -293,7 +293,7 @@ class GitHubAPI {
 }
 
 /**
- * Generate quest player HTML — matches quest.html visual format
+ * Generate quest player HTML
  */
 function escapeHtml(text) {
   const map = {
@@ -382,7 +382,7 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
         </div>`;
 
     } else if (section.selectedChoice === 'dice') {
-      // Full Ship-Captain-Crew dice section (matching quest.html)
+      // Full Ship-Captain-Crew dice section
       const statLabelMap = {
         strength: 'STRENGTH', intelligence: 'INTELLIGENCE',
         dexterity: 'DEXTERITY', charisma: 'CHARISMA'
@@ -502,7 +502,7 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
       overflow-x: hidden;
     }
 
-    /* Background — checkerboard wood texture matching quest.html */
+    /* Background — checkerboard wood texture */
     .bg {
       position: fixed;
       inset: 0;

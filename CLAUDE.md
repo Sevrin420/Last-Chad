@@ -80,7 +80,6 @@
 | `mint.html` | 1264 | NFT minting: wallet, quantity, stats, naming |
 | `enter.html` | 1036 | Character selection & inventory |
 | `game.html` | 701 | Dice rolling minigame |
-| `quest.html` | 1458 | Quest completion & XP rewards |
 | `stats.html` | 1417 | Character progression & stat spending |
 | `docs.html` | 1114 | Game rules & documentation |
 | `admin.html` | 470 | Owner control panel |

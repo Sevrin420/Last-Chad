@@ -554,11 +554,6 @@ But quest-builder is designed to avoid this - most things should be configurable
 <section class="quests-grid">
     <h2>Available Quests</h2>
 
-    <!-- Existing quests -->
-    <a href="quests/quest.html">
-        <button class="quest-button">Classic Quest</button>
-    </a>
-
     <!-- Your new quest -->
     <a href="quests/the-dragons-hoard/the-dragons-hoard.html">
         <button class="quest-button">🐉 The Dragon's Hoard</button>
