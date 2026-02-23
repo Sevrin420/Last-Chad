@@ -4,7 +4,6 @@
     'mint.html':   'mint',
     'enter.html':  'enter',
     'game.html':   'enter',
-    'quest.html':  'enter',
     'stats.html':  'enter',
     'docs.html':   'docs',
     'market.html': 'market'
