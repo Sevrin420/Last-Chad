@@ -24,11 +24,8 @@ contract Market is Ownable, ReentrancyGuard {
 
     // ========== STATE ==========
 
-    /// @notice Fee in basis points charged on each sale (default 2.5%)
-    uint256 public feeBps = 250;
-
-    /// @notice Total fees collected, withdrawable by owner
-    uint256 public accumulatedFees;
+    /// @notice Fee in basis points charged on each sale (default 5%)
+    uint256 public feeBps = 500;
 
     /// @notice NFT contracts allowed to be listed on this market
     mapping(address => bool) public approvedContracts;
@@ -40,7 +37,6 @@ contract Market is Ownable, ReentrancyGuard {
 
     event ContractApproved(address indexed nftContract, bool approved);
     event FeeUpdated(uint256 newFeeBps);
-    event FeesWithdrawn(uint256 amount);
     event Listed(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price);
     event Delisted(address indexed nftContract, uint256 indexed tokenId, address seller);
     event Sold(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 price);
@@ -77,17 +73,6 @@ contract Market is Ownable, ReentrancyGuard {
         require(newFeeBps <= 1000, "Market: fee too high");
         feeBps = newFeeBps;
         emit FeeUpdated(newFeeBps);
-    }
-
-    /**
-     * @notice Withdraw accumulated marketplace fees to owner wallet.
-     */
-    function withdrawFees() external onlyOwner {
-        uint256 amount = accumulatedFees;
-        require(amount > 0, "Market: nothing to withdraw");
-        accumulatedFees = 0;
-        payable(owner()).transfer(amount);
-        emit FeesWithdrawn(amount);
     }
 
     /**
@@ -159,13 +144,13 @@ contract Market is Ownable, ReentrancyGuard {
 
         uint256 fee          = (price * feeBps) / 10000;
         uint256 sellerAmount = price - fee;
-        accumulatedFees     += fee;
 
         // Transfer NFT to buyer first (checks-effects-interactions pattern)
         IERC721(nftContract).safeTransferFrom(seller, msg.sender, tokenId);
 
-        // Pay seller
+        // Pay seller and send fee directly to deployer wallet
         payable(seller).transfer(sellerAmount);
+        payable(owner()).transfer(fee);
 
         // Refund overpayment
         if (msg.value > price) {
