@@ -1,0 +1,22 @@
+{
+  "name": "02-test",
+  "sections": [
+    {
+      "id": 1771828425769,
+      "name": "Section 1",
+      "dialogue": "Hello my friend\nLine twio",
+      "selectedChoice": "single",
+      "buttonName": "Continue",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "music": null
+    }
+  ]
+}
