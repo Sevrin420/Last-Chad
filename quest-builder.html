@@ -1128,11 +1128,11 @@
       });
 
       // Choice selection — single delegation, attached once here in init()
-      document.getElementById('sectionsContainer').addEventListener('click', (e) => {
-        const choiceOption = e.target.closest('.choice-option');
-        if (choiceOption) {
-          const sectionId = parseInt(choiceOption.dataset.sectionId);
-          const choice = choiceOption.dataset.choice;
+      document.getElementById('sectionsContainer').addEventListener('change', (e) => {
+        const select = e.target.closest('.section-action-type-select');
+        if (select) {
+          const sectionId = parseInt(select.dataset.sectionId);
+          const choice = select.value || null;
           const section = state.sections.find(s => s.id === sectionId);
           if (section) {
             section.selectedChoice = choice;
@@ -1304,26 +1304,12 @@
           <!-- Choice Options -->
           <div class="form-group">
             <label>Choose Action Type</label>
-            <div class="choices-grid">
-              <div class="choice-option ${section.selectedChoice === 'single' ? 'selected' : ''}" data-section-id="${section.id}" data-choice="single">
-                <div class="choice-icon">🔘</div>
-                <div class="choice-title">Single Button</div>
-                <div class="choice-desc">One path forward</div>
-                <div class="choice-type">→ Next Section</div>
-              </div>
-              <div class="choice-option ${section.selectedChoice === 'double' ? 'selected' : ''}" data-section-id="${section.id}" data-choice="double">
-                <div class="choice-icon">⚖️</div>
-                <div class="choice-title">Double Button</div>
-                <div class="choice-desc">Choose your path</div>
-                <div class="choice-type">→ Branch</div>
-              </div>
-              <div class="choice-option ${section.selectedChoice === 'dice' ? 'selected' : ''}" data-section-id="${section.id}" data-choice="dice">
-                <div class="choice-icon">🎲</div>
-                <div class="choice-title">Roll Dice</div>
-                <div class="choice-desc">Test your luck</div>
-                <div class="choice-type">→ 0-12 XP</div>
-              </div>
-            </div>
+            <select class="section-action-type-select section-music-select" data-section-id="${section.id}">
+              <option value="">-- Choose action type --</option>
+              <option value="single" ${section.selectedChoice === 'single' ? 'selected' : ''}>🔘 Single Button → Next Section</option>
+              <option value="double" ${section.selectedChoice === 'double' ? 'selected' : ''}>⚖️ Double Button → Branch</option>
+              <option value="dice" ${section.selectedChoice === 'dice' ? 'selected' : ''}>🎲 Roll Dice → 0-12 XP</option>
+            </select>
           </div>
 
           <!-- Single Button Config -->
