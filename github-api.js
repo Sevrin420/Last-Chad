@@ -1081,7 +1081,7 @@ ${completePanelHtml}
       var src = sectionId ? (sectionMusic[sectionId] || '') : '';
       _currentMusicSrc = src;
       if (!src || musicMuted) { audio.pause(); audio.src = ''; return; }
-      if (audio.src.endsWith(src.replace(/^\.\.\/\.\.\//, ''))) return; // already playing
+      if (audio.src.endsWith(src.replace('../../', ''))) return; // already playing
       audio.src = src;
       audio.play().catch(function() {});
     }
