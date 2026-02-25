@@ -127,6 +127,18 @@ XP = choiceBonus1 + diceScore + choiceBonus2 + dexBonus
 4. Test dice derivation with `keccak256(seed, roll, die)`
 5. Validate XP formula
 
+### Adding a New Item Award Option (Quest Builder)
+To make a new ERC-1155 item available as a section reward in the quest builder:
+1. Add an `<option>` to the `section-item-award-select` dropdown in `quest-builder.html`:
+   ```html
+   <option value="2" ${section.itemAward === '2' ? 'selected' : ''}>2: Item Name</option>
+   ```
+2. Add a matching entry to the `knownItems` map in `github-api.js` (`generateQuestHTML`):
+   ```js
+   const knownItems = { '1': "Cindy's Code", '2': "Item Name" };
+   ```
+The item ID must match its ID in `LastChadItems.sol`. The `mint(itemId, 1)` call uses the price returned by `getItem()` on-chain, so free items (price=0) cost only gas.
+
 ---
 
 ## Common Commands
