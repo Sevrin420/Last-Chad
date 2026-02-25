@@ -1446,7 +1446,7 @@
       });
 
       // Photo upload
-      document.querySelectorAll('.photo-upload').forEach(uploadDiv => {
+      document.querySelectorAll('.photo-upload[data-section-id]').forEach(uploadDiv => {
         uploadDiv.addEventListener('click', (e) => {
           const input = uploadDiv.querySelector('input[type="file"]');
           input.click();
