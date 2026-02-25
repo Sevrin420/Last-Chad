@@ -358,6 +358,14 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   });
   const sectionMusicJson = JSON.stringify(sectionMusic);
 
+  // Build item awards map and name lookup
+  const knownItems = { '1': "Cindy's Code" };
+  const itemAwards = {};
+  sections.forEach(s => {
+    if (s.itemAward) itemAwards[s.id] = s.itemAward;
+  });
+  const itemAwardsJson = JSON.stringify(itemAwards);
+
   const introLines = introDialogue
     ? introDialogue.split('\n').map(l => l.trim()).filter(Boolean)
     : [];
@@ -465,6 +473,19 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       actionHtml = `<button class="action-btn" onclick="goToSection(null)">CONTINUE</button>`;
     }
 
+    const itemId = section.itemAward || null;
+    const itemName = itemId ? (escapeHtml(knownItems[itemId] || ('Item #' + itemId))) : null;
+    const claimWrapHtml = itemId ? `
+          <div class="item-claim-wrap" id="itemClaimWrap_${sid}">
+            <div class="item-award-label">ITEM REWARD: ${itemName}</div>
+            <button class="claim-item-btn" id="claimItemBtn_${sid}" onclick="claimSectionItem(${sid})">CLAIM ITEM</button>
+            <div class="loading-text" id="claimItemStatus_${sid}"></div>
+            <button class="skip-item-link" onclick="skipItemClaim(${sid})">skip</button>
+          </div>
+          <div id="sectionAction_${sid}" style="display:none;">
+            ${actionHtml}
+          </div>` : actionHtml;
+
     return `
       <!-- ${sectionName} -->
       <div class="panel${isFirst ? ' active' : ''}" id="panel-${sid}">
@@ -473,7 +494,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           ${dialogueHtml}
         </div>
         <div class="action-wrap">
-          ${actionHtml}
+          ${claimWrapHtml}
         </div>
       </div>`;
   }).join('\n');
@@ -1005,6 +1026,20 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
 
     /* Completed banner */
     .quest-completed-banner { background: rgba(76,175,80,0.1); border: 2px solid #4caf50; border-radius: 6px; padding: 16px; text-align: center; font-size: 0.5rem; color: #4caf50; line-height: 2; margin-bottom: 16px; }
+
+    /* Item claim */
+    .item-claim-wrap { margin-bottom: 0; }
+    .item-award-label { font-size: clamp(0.35rem, 1.4vw, 0.48rem); color: #7ee8d4; text-align: center; margin-bottom: 12px; letter-spacing: 0.05em; text-shadow: 0 0 6px rgba(126,232,212,0.3); }
+    .claim-item-btn { width: 100%; padding: 16px 40px; font-family: 'Press Start 2P', monospace; font-size: clamp(0.65rem, 2.5vw, 0.85rem); color: #fff; background: linear-gradient(180deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%); border: 3px solid #66bb6a; border-radius: 6px; cursor: pointer; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; box-shadow: inset 0 2px 0 rgba(160,230,160,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #1b5e20, 0 6px 15px rgba(0,0,0,0.5); transition: all 0.2s; touch-action: manipulation; animation: item-glow 2s ease-in-out infinite; }
+    .claim-item-btn:hover { animation: none; background: linear-gradient(180deg, #66bb6a 0%, #388e3c 50%, #2e7d32 100%); border-color: #a5d6a7; }
+    .claim-item-btn:active { transform: translateY(3px); }
+    .claim-item-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; animation: none; }
+    @keyframes item-glow {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(160,230,160,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #1b5e20, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(76,175,80,0.2); }
+      50%       { box-shadow: inset 0 2px 0 rgba(160,230,160,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #1b5e20, 0 6px 15px rgba(0,0,0,0.5), 0 0 28px rgba(76,175,80,0.45); }
+    }
+    .skip-item-link { display: block; margin-top: 10px; width: 100%; background: none; border: none; font-family: 'Press Start 2P', monospace; font-size: 0.3rem; color: #5c4409; text-align: center; cursor: pointer; padding: 4px; }
+    .skip-item-link:hover { color: #8a7a5a; }
   </style>
 </head>
 <body>
@@ -1517,6 +1552,12 @@ ${diceInitJs}
       'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
       'function totalSupply() external view returns (uint256)'
     ];
+    var ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
+    var LASTCHAD_ITEMS_ABI = [
+      'function mint(uint256 itemId, uint256 quantity) external payable',
+      'function getItem(uint256 itemId) external view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)'
+    ];
+    var itemAwards = ${itemAwardsJson};
 
     var walletProvider = null;
     var walletSigner = null;
@@ -1765,6 +1806,51 @@ ${diceInitJs}
       } catch(err) {
         statusEl.textContent = err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED';
         document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
+      }
+    }
+
+    // ===== SECTION ITEM CLAIM =====
+    function revealSectionAction(sectionId) {
+      var claimWrap = document.getElementById('itemClaimWrap_' + sectionId);
+      var actionContent = document.getElementById('sectionAction_' + sectionId);
+      if (claimWrap) claimWrap.style.display = 'none';
+      if (actionContent) actionContent.style.display = 'block';
+    }
+
+    function skipItemClaim(sectionId) {
+      revealSectionAction(sectionId);
+    }
+
+    async function claimSectionItem(sectionId) {
+      var itemId = itemAwards[sectionId];
+      if (!itemId) { revealSectionAction(sectionId); return; }
+
+      var btn = document.getElementById('claimItemBtn_' + sectionId);
+      var statusEl = document.getElementById('claimItemStatus_' + sectionId);
+
+      if (!userAddress) {
+        document.getElementById('walletModal').classList.add('show');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'MINTING...';
+      if (statusEl) statusEl.textContent = '';
+
+      try {
+        var itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, LASTCHAD_ITEMS_ABI, walletSigner);
+        var itemInfo = await itemsContract.getItem(itemId);
+        var price = itemInfo.price || itemInfo[3];
+        var tx = await itemsContract.mint(itemId, 1, { value: price });
+        if (statusEl) statusEl.textContent = 'CONFIRMING...';
+        await tx.wait();
+        btn.textContent = 'CLAIMED!';
+        if (statusEl) statusEl.textContent = 'ITEM ADDED TO YOUR WALLET';
+        setTimeout(function() { revealSectionAction(sectionId); }, 1200);
+      } catch(err) {
+        if (statusEl) statusEl.textContent = err.code === 4001 ? 'CANCELLED' : 'ERROR: ' + (err.reason || err.message || 'Failed');
+        btn.disabled = false;
+        btn.textContent = 'CLAIM ITEM';
       }
     }
   <\/script>
