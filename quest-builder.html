@@ -1181,7 +1181,8 @@
             failNextSectionId: section.failNextSectionId || null,
             statBonus: section.statBonus || null,
             difficulty: section.difficulty !== undefined ? section.difficulty : 8,
-            music: section.music || null
+            music: section.music || null,
+            itemAward: section.itemAward || null
           }));
           document.getElementById('questName').value = state.questName;
           document.getElementById('introDialogue').value = state.introDialogue;
@@ -1233,7 +1234,8 @@
         failNextSectionId: null,
         statBonus: null,
         difficulty: 8,
-        music: null
+        music: null,
+        itemAward: null
       };
       state.sections.push(newSection);
       renderSections();
@@ -1287,6 +1289,15 @@
             <select class="section-music-select" data-section-id="${section.id}">
               <option value="">— none —</option>
               ${musicTracks.map(t => `<option value="music/${t.file}" ${section.music === 'music/' + t.file ? 'selected' : ''}>${escAttr(t.name)}</option>`).join('')}
+            </select>
+          </div>
+
+          <!-- Item Award -->
+          <div class="form-group">
+            <label>🎁 Item Award</label>
+            <select class="section-item-award-select section-music-select" data-section-id="${section.id}">
+              <option value="">-- No Item --</option>
+              <option value="1" ${section.itemAward === '1' ? 'selected' : ''}>1: Cindy's Code</option>
             </select>
           </div>
 
@@ -1658,6 +1669,18 @@
           const section = state.sections.find(s => s.id === sectionId);
           if (section) {
             section.music = e.target.value || null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      // Item award select
+      document.querySelectorAll('.section-item-award-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.itemAward = e.target.value || null;
             saveQuestAuto();
           }
         });
