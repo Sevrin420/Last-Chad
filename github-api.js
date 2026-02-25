@@ -104,9 +104,10 @@ class GitHubAPI {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/git/blobs/${sha}`);
   }
 
-  async publishQuest(questName, sections, onProgress = null, introDialogue = '') {
+  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null) {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
+    if (introPhoto) imageCount++;
     for (const section of sections) {
       if (section.photo) imageCount++;
       if (section.diceImage) imageCount++;
@@ -158,7 +159,7 @@ class GitHubAPI {
 
       // Generate quest HTML
       progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections, introDialogue);
+      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
       console.log(`✓ Quest HTML blob created`);
       treeItems.push({
@@ -212,6 +213,24 @@ class GitHubAPI {
 
       // Process and add images
       let uploadedImages = 0;
+
+      // Upload intro photo if provided
+      if (introPhoto) {
+        const introParts = introPhoto.split(',');
+        const introData = introParts.length > 1 ? introParts[1] : introParts[0];
+        if (introData) {
+          progress('Uploading intro image...');
+          const introBlob = await this.createBlob(introData, 'base64');
+          treeItems.push({
+            path: `${imagesPath}/intro.png`,
+            mode: '100644',
+            type: 'blob',
+            sha: introBlob.sha
+          });
+          uploadedImages++;
+        }
+      }
+
       for (const section of sections) {
         if (section.photo) {
           const imageParts = section.photo.split(',');
@@ -306,7 +325,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections, introDialogue = '') {
+function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false) {
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -338,6 +357,11 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
     }
   });
   const sectionMusicJson = JSON.stringify(sectionMusic);
+
+  const introLines = introDialogue
+    ? introDialogue.split('\n').map(l => l.trim()).filter(Boolean)
+    : [];
+  const introLinesJson = JSON.stringify(introLines);
 
   // Format dialogue text: split on newlines into <p> tags
   function formatDialogue(text) {
@@ -987,11 +1011,12 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
   <!-- Intro overlay — appears before any panel content loads -->
   <div id="intro-overlay">
     <div class="intro-box">
+      ${hasIntroPhoto ? `<img src="images/intro.png" alt="${escapeHtml(questName)}" style="width:100%;max-width:460px;height:auto;border-radius:4px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">` : ''}
       <div class="intro-title">${escapeHtml(questName)}</div>
-      ${introDialogue ? `<div class="intro-text">${escapeHtml(introDialogue).replace(/\n/g, '<br>')}</div>` : ''}
+      ${introLines.length > 0 ? '<div id="introText" class="intro-text" style="opacity:0;text-align:left;"></div>' : ''}
       <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet to save progress on-chain</div>
       <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
-      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()">START</button>
+      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()"${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
     </div>
   </div>
 
@@ -1071,6 +1096,7 @@ ${completePanelHtml}
     var _animGen = 0;
     var diceOutcomes = ${diceOutcomesJson};
     var sectionMusic = ${sectionMusicJson};
+    var introLines = ${introLinesJson};
 
     var musicMuted = false;
     var _currentMusicSrc = '';
@@ -1173,6 +1199,43 @@ ${completePanelHtml}
       var firstId = ${sections.length > 0 ? sections[0].id : 'null'};
       playQuestMusic(firstId);
       animatePanel(firstId);
+    }
+
+    async function animateIntro() {
+      var introText = document.getElementById('introText');
+      var startBtn = document.getElementById('introStartBtn');
+      if (!introLines.length) {
+        if (startBtn) { startBtn.style.opacity = '1'; startBtn.style.pointerEvents = 'auto'; }
+        return;
+      }
+      function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+      introText.style.transition = 'opacity 0.5s ease';
+      await wait(400);
+      introText.style.opacity = '1';
+      await wait(600);
+      for (var li = 0; li < introLines.length; li++) {
+        var line = introLines[li];
+        var p = document.createElement('p');
+        var cur = document.createElement('span');
+        cur.className = 'typewriter-cursor';
+        p.appendChild(cur);
+        introText.appendChild(p);
+        var typed = '';
+        for (var ci = 0; ci < line.length; ci++) {
+          typed += line[ci];
+          p.textContent = typed;
+          p.appendChild(cur);
+          await wait(50);
+        }
+        cur.remove();
+        if (li < introLines.length - 1) await wait(500);
+      }
+      await wait(400);
+      if (startBtn) {
+        startBtn.style.transition = 'opacity 0.8s ease';
+        startBtn.style.opacity = '1';
+        startBtn.style.pointerEvents = startBtn.disabled ? 'none' : 'auto';
+      }
     }
 
     async function animatePanel(sid) {
@@ -1590,6 +1653,7 @@ ${diceInitJs}
 
     // Run check on page load (using chadId from URL)
     checkQuestCompletion();
+    animateIntro();
 
     // Auto-reconnect wallet on page load
     (async function() {
