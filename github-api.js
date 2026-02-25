@@ -104,9 +104,10 @@ class GitHubAPI {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/git/blobs/${sha}`);
   }
 
-  async publishQuest(questName, sections, onProgress = null, introDialogue = '') {
+  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null) {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
+    if (introPhoto) imageCount++;
     for (const section of sections) {
       if (section.photo) imageCount++;
       if (section.diceImage) imageCount++;
@@ -158,7 +159,7 @@ class GitHubAPI {
 
       // Generate quest HTML
       progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections, introDialogue);
+      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
       console.log(`✓ Quest HTML blob created`);
       treeItems.push({
@@ -212,6 +213,24 @@ class GitHubAPI {
 
       // Process and add images
       let uploadedImages = 0;
+
+      // Upload intro photo if provided
+      if (introPhoto) {
+        const introParts = introPhoto.split(',');
+        const introData = introParts.length > 1 ? introParts[1] : introParts[0];
+        if (introData) {
+          progress('Uploading intro image...');
+          const introBlob = await this.createBlob(introData, 'base64');
+          treeItems.push({
+            path: `${imagesPath}/intro.png`,
+            mode: '100644',
+            type: 'blob',
+            sha: introBlob.sha
+          });
+          uploadedImages++;
+        }
+      }
+
       for (const section of sections) {
         if (section.photo) {
           const imageParts = section.photo.split(',');
@@ -306,7 +325,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections, introDialogue = '') {
+function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false) {
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -987,6 +1006,7 @@ function generateQuestHTML(questName, sections, introDialogue = '') {
   <!-- Intro overlay — appears before any panel content loads -->
   <div id="intro-overlay">
     <div class="intro-box">
+      ${hasIntroPhoto ? `<img src="images/intro.png" alt="${escapeHtml(questName)}" style="width:100%;max-width:460px;height:auto;border-radius:4px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">` : ''}
       <div class="intro-title">${escapeHtml(questName)}</div>
       ${introDialogue ? `<div class="intro-text">${escapeHtml(introDialogue).replace(/\n/g, '<br>')}</div>` : ''}
       <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet to save progress on-chain</div>

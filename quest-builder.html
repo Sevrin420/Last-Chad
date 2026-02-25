@@ -1002,6 +1002,12 @@
     <div class="quest-title-section">
       <h1>📜 Quest Name</h1>
       <input type="text" id="questName" placeholder="Enter quest name..." maxlength="50">
+      <h1 style="margin-top: 24px;">🖼️ Intro Image</h1>
+      <div class="photo-upload" id="introPhotoUpload">
+        <input type="file" accept="image/*" id="introPhotoInput">
+        <div class="photo-upload-text">📷 Click to upload intro image</div>
+      </div>
+      <img class="photo-preview" id="introPhotoPreview" src="" alt="Intro image">
       <h1 style="margin-top: 24px;">🗺️ Intro Dialogue</h1>
       <textarea id="introDialogue" placeholder="Opening text shown on the START screen before the quest begins... (optional)"></textarea>
     </div>
@@ -1082,6 +1088,7 @@
     const state = {
       questName: '',
       introDialogue: '',
+      introPhoto: null,
       sections: []
     };
 
@@ -1093,6 +1100,24 @@
       loadQuestData();
       document.getElementById('questName').addEventListener('input', handleQuestNameChange);
       document.getElementById('introDialogue').addEventListener('input', handleIntroDialogueChange);
+
+      // Intro photo upload
+      const introUpload = document.getElementById('introPhotoUpload');
+      introUpload.addEventListener('click', () => document.getElementById('introPhotoInput').click());
+      document.getElementById('introPhotoInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          state.introPhoto = ev.target.result;
+          const preview = document.getElementById('introPhotoPreview');
+          preview.src = ev.target.result;
+          preview.classList.add('visible');
+          saveQuestAuto();
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+      });
       document.getElementById('addSectionBtn').addEventListener('click', addSection);
       document.getElementById('saveBtn').addEventListener('click', saveQuest);
       document.getElementById('exportBtn').addEventListener('click', exportQuest);
@@ -1138,6 +1163,7 @@
           const data = JSON.parse(saved);
           state.questName = data.questName || '';
           state.introDialogue = data.introDialogue || '';
+          state.introPhoto = data.introPhoto || null;
           state.sections = (data.sections || []).map(section => ({
             id: section.id,
             name: section.name || '',
@@ -1159,6 +1185,11 @@
           }));
           document.getElementById('questName').value = state.questName;
           document.getElementById('introDialogue').value = state.introDialogue;
+          if (state.introPhoto) {
+            const preview = document.getElementById('introPhotoPreview');
+            preview.src = state.introPhoto;
+            preview.classList.add('visible');
+          }
         } catch (e) {
           console.error('Error loading quest data:', e);
           state.sections = [];
@@ -1726,7 +1757,7 @@
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/create-landing-page-1qjhB');
 
         // Publish quest
-        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '')
+        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null)
           .then(data => {
             showPublishProgress(false);
             showQuestPublishedModal(questName, data.questUrl);
