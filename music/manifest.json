@@ -1,1 +1,9 @@
-[]
+[
+  { "file": "adventure.mp3", "name": "Adventure" },
+  { "file": "darkintro.mp3", "name": "Dark Intro" },
+  { "file": "hopefull.mp3", "name": "Hopeful" },
+  { "file": "intense.mp3", "name": "Intense" },
+  { "file": "moody.mp3", "name": "Moody" },
+  { "file": "suspense.mp3", "name": "Suspense" },
+  { "file": "upbeat.mp3", "name": "Upbeat" }
+]
