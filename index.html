@@ -311,7 +311,7 @@
     </div>
 
     <!-- Skip button shown while video plays (hidden until tap-to-start) -->
-    <button id="skip-btn" class="skip-btn" style="display:none">ENTER ▶</button>
+    <button id="skip-btn" class="skip-btn" style="display:none">SKIP ▶</button>
 
     <!-- Sound toggle – top right corner (hidden until tap-to-start) -->
     <button id="sound-btn" class="sound-btn" style="display:none" title="Mute">🔊</button>
@@ -365,7 +365,7 @@
 
         // --- Enter: navigate directly to chadbase (bypasses ENTER CAMP button) ---
         skipBtn.addEventListener('click', function() {
-          window.location.href = 'chadbase.html?autoplay=1';
+          window.location.href = 'chadbase.html';
         });
 
         // --- Tap to start (browsers require user gesture for sound) ---
