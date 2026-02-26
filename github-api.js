@@ -1438,25 +1438,23 @@ ${completePanelHtml}
         var baseDex = parseInt(statsResult.dexterity);
         var baseCha = parseInt(statsResult.charisma);
 
-        // Check item balances and apply modifiers
+        // Read equipped items from localStorage (saved by quest.html equip modal)
         var modStr = 0, modInt = 0, modDex = 0, modCha = 0;
         var equippedItems = [];
-        var walletAddr = userAddress || null;
-        if (walletAddr) {
-          var itemIds = Object.keys(ITEM_MODIFIERS);
-          for (var i = 0; i < itemIds.length; i++) {
-            var iid = itemIds[i];
-            var bal = await itemsContract.balanceOf(walletAddr, iid);
-            if (parseInt(bal) > 0) {
-              var mod = ITEM_MODIFIERS[iid];
-              modStr += (mod.str || 0);
-              modInt += (mod.int || 0);
-              modDex += (mod.dex || 0);
-              modCha += (mod.cha || 0);
-              equippedItems.push({ id: iid, name: knownItems[iid] || ('Item #' + iid) });
-            }
+        try {
+          var saved = localStorage.getItem('lc_equipped_' + chadId);
+          var slots = saved ? JSON.parse(saved) : [];
+          for (var si = 0; si < slots.length; si++) {
+            var iid = slots[si];
+            if (!iid) continue;
+            var mod = ITEM_MODIFIERS[iid] || {};
+            modStr += (mod.str || 0);
+            modInt += (mod.int || 0);
+            modDex += (mod.dex || 0);
+            modCha += (mod.cha || 0);
+            equippedItems.push({ id: iid, name: knownItems[iid] || ('Item #' + iid) });
           }
-        }
+        } catch(ex) {}
 
         // Col 2: display stats with modifiers
         function setStatEl(elId, base, mod) {

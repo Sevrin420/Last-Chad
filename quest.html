@@ -540,6 +540,118 @@
     }
     .modal-close:hover { color: #c9a84c; }
 
+    /* --- Equip modal --- */
+    .equip-modal { max-width: 420px; }
+
+    .equip-slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .equip-slot {
+      padding: 10px 8px;
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      font-size: 0.4rem;
+      color: #5c4409;
+      text-align: center;
+      background: rgba(0,0,0,0.3);
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .equip-slot.filled {
+      border-color: #c9a84c;
+      color: #c9a84c;
+      background: rgba(92, 68, 9, 0.2);
+    }
+
+    .equip-slot-label {
+      font-size: 0.32rem;
+      color: #3d2e0a;
+      text-align: center;
+      margin-bottom: 6px;
+      letter-spacing: 0.08em;
+    }
+
+    .equip-divider {
+      font-size: 0.42rem;
+      color: #8a7a5a;
+      text-align: center;
+      margin: 14px 0 8px;
+      border-top: 1px solid #3d2e0a;
+      padding-top: 12px;
+      letter-spacing: 0.1em;
+    }
+
+    .equip-item-list {
+      max-height: 160px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+    }
+
+    .equip-item-list::-webkit-scrollbar { width: 4px; }
+    .equip-item-list::-webkit-scrollbar-track { background: #1e1608; }
+    .equip-item-list::-webkit-scrollbar-thumb { background: #5c4409; border-radius: 2px; }
+
+    .equip-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 4px;
+      border-bottom: 1px solid #1e1608;
+    }
+
+    .equip-item-name {
+      font-size: 0.4rem;
+      color: #f5e6c8;
+    }
+
+    .equip-item-qty { color: #5c4409; }
+
+    .equip-item-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.36rem;
+      padding: 6px 10px;
+      background: rgba(61, 46, 10, 0.5);
+      border: 2px solid #5c4409;
+      border-radius: 3px;
+      color: #c9a84c;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .equip-item-btn.equipped {
+      background: rgba(229, 57, 53, 0.2);
+      border-color: #e53935;
+      color: #e53935;
+    }
+
+    .confirm-equip-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .confirm-equip-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+    }
+
     /* --- Quest dropdown --- */
     .quest-select {
       font-family: 'Press Start 2P', monospace;
@@ -689,10 +801,30 @@
     </div>
   </div>
 
+  <!-- Equip Items Modal -->
+  <div class="modal-overlay" id="equipModal">
+    <div class="modal equip-modal">
+      <h2 class="modal-title" id="equipModalTitle">EQUIP ITEMS</h2>
+      <div class="equip-slot-label">ITEM SLOTS (click slot to remove)</div>
+      <div class="equip-slots">
+        <div class="equip-slot" id="equipSlot0">EMPTY</div>
+        <div class="equip-slot" id="equipSlot1">EMPTY</div>
+        <div class="equip-slot" id="equipSlot2">EMPTY</div>
+        <div class="equip-slot" id="equipSlot3">EMPTY</div>
+      </div>
+      <div class="equip-divider">YOUR ITEMS</div>
+      <div class="equip-item-list" id="equipItemList">
+        <div style="color:#8a7a5a; font-size:0.5rem; text-align:center; padding:12px;">Checking inventory...</div>
+      </div>
+      <button class="confirm-equip-btn" id="confirmEquipBtn">CONFIRM LOADOUT</button>
+      <button class="modal-close" id="skipEquipBtn">SKIP</button>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
     // ========== CONFIG ==========
     const CONTRACT_ABI = [
       'function totalSupply() view returns (uint256)',
@@ -704,6 +836,13 @@
       'function getExperience(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)'
     ];
+
+    const ITEMS_ABI = [
+      'function balanceOf(address account, uint256 id) view returns (uint256)',
+      'function getItem(uint256 itemId) view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)'
+    ];
+    // Known ERC-1155 items — add entries here when new items are created
+    const KNOWN_ITEMS = { '1': "Cindy's Code" };
 
     // ========== DOM ==========
     const walletBtn = document.getElementById('walletBtn');
@@ -733,6 +872,7 @@
     let userAddress = null;
     let selectedTokenId = null;
     let ownedTokens = [];
+    let equippedItems = [null, null, null, null]; // itemId strings or null
 
     // ========== UI STATES ==========
     function showArena() {
@@ -777,6 +917,8 @@
 
       // Fetch stats and XP from chain
       fetchChadData(tokenId);
+      // Open item equip modal
+      openEquipModal(tokenId);
     }
 
     async function fetchChadData(tokenId) {
@@ -865,6 +1007,96 @@
       }
     }
 
+    // ========== EQUIP MODAL ==========
+    function renderEquipSlots() {
+      for (let i = 0; i < 4; i++) {
+        const slotEl = document.getElementById('equipSlot' + i);
+        if (!slotEl) continue;
+        const itemId = equippedItems[i];
+        slotEl.textContent = itemId ? (KNOWN_ITEMS[itemId] || 'Item #' + itemId) : 'EMPTY';
+        slotEl.classList.toggle('filled', !!itemId);
+      }
+    }
+
+    async function openEquipModal(tokenId) {
+      document.getElementById('equipModalTitle').textContent = 'EQUIP ITEMS — CHAD #' + tokenId;
+      // Restore saved loadout for this chad
+      try {
+        const saved = localStorage.getItem('lc_equipped_' + tokenId);
+        equippedItems = saved ? JSON.parse(saved) : [null, null, null, null];
+      } catch (e) {
+        equippedItems = [null, null, null, null];
+      }
+      renderEquipSlots();
+      document.getElementById('equipModal').classList.add('show');
+      await loadOwnedItems();
+    }
+
+    async function loadOwnedItems() {
+      const listEl = document.getElementById('equipItemList');
+      listEl.innerHTML = '<div style="color:#8a7a5a;font-size:0.5rem;text-align:center;padding:12px;">Checking inventory...</div>';
+      if (!userAddress || !ITEMS_CONTRACT_ADDRESS) {
+        listEl.innerHTML = '<div style="color:#5c4409;font-size:0.5rem;text-align:center;padding:12px;">Items contract not deployed yet</div>';
+        return;
+      }
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProvider);
+        const ownedItems = [];
+        for (const [itemId, itemName] of Object.entries(KNOWN_ITEMS)) {
+          const bal = await itemsContract.balanceOf(userAddress, itemId);
+          if (parseInt(bal) > 0) ownedItems.push({ id: itemId, name: itemName, qty: parseInt(bal) });
+        }
+        if (ownedItems.length === 0) {
+          listEl.innerHTML = '<div style="color:#5c4409;font-size:0.5rem;text-align:center;padding:12px;">No items in inventory</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        for (const item of ownedItems) {
+          const row = document.createElement('div');
+          row.className = 'equip-item-row';
+          const btn = document.createElement('button');
+          btn.className = 'equip-item-btn' + (equippedItems.includes(item.id) ? ' equipped' : '');
+          btn.textContent = equippedItems.includes(item.id) ? 'REMOVE' : 'EQUIP';
+          btn.dataset.itemId = item.id;
+          btn.addEventListener('click', () => toggleItemEquip(item.id));
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'equip-item-name';
+          nameSpan.innerHTML = item.name + ' <span class="equip-item-qty">(x' + item.qty + ')</span>';
+          row.appendChild(nameSpan);
+          row.appendChild(btn);
+          listEl.appendChild(row);
+        }
+      } catch (e) {
+        listEl.innerHTML = '<div style="color:#8a7a5a;font-size:0.5rem;text-align:center;padding:12px;">Could not load items</div>';
+      }
+    }
+
+    function toggleItemEquip(itemId) {
+      const idx = equippedItems.indexOf(itemId);
+      if (idx >= 0) {
+        equippedItems[idx] = null;
+      } else {
+        const emptyIdx = equippedItems.indexOf(null);
+        if (emptyIdx < 0) { alert('All 4 slots full. Remove an item first.'); return; }
+        equippedItems[emptyIdx] = itemId;
+      }
+      renderEquipSlots();
+      // Update button states in list without re-fetching
+      document.querySelectorAll('#equipItemList .equip-item-btn').forEach(btn => {
+        const isEquipped = equippedItems.includes(btn.dataset.itemId);
+        btn.textContent = isEquipped ? 'REMOVE' : 'EQUIP';
+        btn.classList.toggle('equipped', isEquipped);
+      });
+    }
+
+    function confirmEquip() {
+      if (selectedTokenId) {
+        localStorage.setItem('lc_equipped_' + selectedTokenId, JSON.stringify(equippedItems));
+      }
+      document.getElementById('equipModal').classList.remove('show');
+    }
+
     // ========== WALLET ==========
     function onConnected(addr) {
       userAddress = addr;
@@ -910,11 +1142,26 @@
       });
     });
 
+    document.getElementById('confirmEquipBtn').addEventListener('click', confirmEquip);
+    document.getElementById('skipEquipBtn').addEventListener('click', () => {
+      document.getElementById('equipModal').classList.remove('show');
+    });
+    document.getElementById('equipModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('equipModal')) confirmEquip();
+    });
+    // Slot click = unequip that slot
+    for (let i = 0; i < 4; i++) {
+      document.getElementById('equipSlot' + i).addEventListener('click', () => {
+        if (equippedItems[i]) { equippedItems[i] = null; renderEquipSlots(); }
+      });
+    }
+
     battleBtn.addEventListener('click', function () {
       if (!this.classList.contains('active') || !selectedTokenId) return;
       const questSelect = document.getElementById('questSelect');
       const slug = questSelect ? questSelect.value : '';
       if (slug) {
+        localStorage.setItem('lc_equipped_' + selectedTokenId, JSON.stringify(equippedItems));
         window.location.href = 'quests/' + slug + '/index.html?chad=' + selectedTokenId;
       }
     });
