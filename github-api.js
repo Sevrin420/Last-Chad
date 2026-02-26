@@ -529,14 +529,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           <p>You have reached the end of <span class="highlight">${escapeHtml(questName)}</span>.</p>
           ${hasDice ? '<p>Your crew held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
         </div>
-        ${hasDice ? `
-        <div class="score-breakdown">
-          <div class="breakdown-title">AFTER ACTION REPORT</div>
-          <div class="breakdown-row total">
-            <span class="breakdown-label">TOTAL SCORE</span>
-            <span class="breakdown-val" id="finalScore">0</span>
-          </div>
-        </div>` : ''}
         <div class="claim-xp-section">
           <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM XP</button>
           <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
@@ -709,22 +701,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       color: #c9a84c;
       background: rgba(92, 68, 9, 0.2);
     }
-
-    /* Crew score tracker */
-    .crew-tracker {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(20, 14, 6, 0.7);
-      border: 2px solid #3d2e0a;
-      border-radius: 4px;
-      padding: 10px 16px;
-      margin-bottom: 20px;
-      width: 100%;
-      max-width: 560px;
-    }
-    .crew-tracker-label { font-size: 0.4rem; color: #8a7a5a; }
-    .crew-tracker-value { font-size: 0.8rem; color: #c9a84c; text-shadow: 0 0 8px rgba(201, 168, 76, 0.4); }
 
     /* Quest panel */
     .quest-panel {
@@ -953,21 +929,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     .dice-result-text { font-size: clamp(0.45rem, 1.8vw, 0.6rem); line-height: 2.2; color: #f5e6c8; margin-bottom: 16px; }
     .dice-result-text .highlight { color: #c9a84c; }
 
-    /* Score breakdown (quest complete panel) */
-    .score-breakdown {
-      background: rgba(20, 14, 6, 0.8);
-      border: 2px solid #3d2e0a;
-      border-radius: 4px;
-      padding: 18px 20px;
-      margin-bottom: 24px;
-    }
-    .breakdown-title { font-size: 0.42rem; color: #8a7a5a; letter-spacing: 0.12em; margin-bottom: 16px; }
-    .breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(61, 46, 10, 0.4); }
-    .breakdown-row:last-child { border-bottom: none; }
-    .breakdown-label { font-size: clamp(0.38rem, 1.5vw, 0.48rem); color: #8a7a5a; }
-    .breakdown-val { font-size: clamp(0.5rem, 2vw, 0.65rem); color: #c9a84c; }
-    .breakdown-row.total .breakdown-label { color: #f5e6c8; font-size: clamp(0.42rem, 1.8vw, 0.55rem); }
-    .breakdown-row.total .breakdown-val { font-size: clamp(0.8rem, 3vw, 1.1rem); color: #c9a84c; text-shadow: 0 0 10px rgba(201,168,76,0.5); }
 
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
@@ -1170,11 +1131,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   <button class="music-toggle" id="musicToggleBtn" onclick="toggleQuestMusic()" title="Toggle music">♪</button>
 
   <main class="main">
-    ${hasDice ? `
-    <div class="crew-tracker" id="crewTracker">
-      <span class="crew-tracker-label">SCORE</span>
-      <span class="crew-tracker-value" id="crewScoreDisplay">0</span>
-    </div>` : ''}
 
     <div class="quest-panel">
 ${panelsHtml}
@@ -1227,7 +1183,6 @@ ${completePanelHtml}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"><\/script>
   <script src="../../nav.js"><\/script>
   <script>
-    var crewScore = 0;
     var _animGen = 0;
 
     // ===== IN-PROGRESS SESSION PERSISTENCE =====
@@ -1235,7 +1190,7 @@ ${completePanelHtml}
     function _progressKey() { return 'lc_qprog_' + QUEST_SLUG + '_' + chadId; }
     function _saveProgress() {
       if (!chadId) return;
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, score: crewScore }));
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1304,12 +1259,7 @@ ${completePanelHtml}
       });
     }
 
-    function updateCrewDisplay() {
-      var el = document.getElementById('crewScoreDisplay');
-      if (el) el.textContent = crewScore;
-    }
-
-    function showPanel(id) {
+function showPanel(id) {
       document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
       var panelId = id ? 'panel-' + id : 'panel-complete';
       var panel = document.getElementById(panelId);
@@ -1327,10 +1277,6 @@ ${completePanelHtml}
         if (old) old.remove();
       }
       if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
-      if (!id) {
-        var fs = document.getElementById('finalScore');
-        if (fs) fs.textContent = crewScore;
-      }
       panel.classList.add('active');
       playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1358,8 +1304,6 @@ ${completePanelHtml}
       var saved = _loadProgress();
       if (saved && !isQuestDone(chadId)) {
         if (saved.seed) _questSeed = saved.seed;
-        crewScore = saved.score || 0;
-        updateCrewDisplay();
         var resumeId = saved.sectionId || firstId;
         playQuestMusic(resumeId);
         animatePanel(resumeId);
@@ -1738,8 +1682,6 @@ ${completePanelHtml}
       var statBonusVal = 0;
       var total = crew + statBonusVal;
 
-      crewScore += crew;
-      updateCrewDisplay();
       _saveProgress();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
