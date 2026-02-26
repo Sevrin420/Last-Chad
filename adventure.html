@@ -712,12 +712,23 @@
       background: rgba(30, 20, 10, 0.7);
       border: 2px solid #c9a84c;
       border-radius: 4px;
-      padding: 8px 10px;
+      padding: 6px 8px;
       font-size: 0.38rem;
       color: #c9a84c;
       text-align: center;
       line-height: 1.6;
       box-shadow: 0 0 8px rgba(201, 168, 76, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .equipped-item-badge img {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 3px;
+      display: block;
     }
 
     .equipped-item-badge { cursor: pointer; }
@@ -1194,7 +1205,16 @@
       for (const itemId of active) {
         const badge = document.createElement('div');
         badge.className = 'equipped-item-badge';
-        badge.textContent = KNOWN_ITEMS[itemId] || 'Item #' + itemId;
+        const details = ITEM_DETAILS[itemId];
+        if (details && details.image) {
+          const img = document.createElement('img');
+          img.src = details.image;
+          img.alt = KNOWN_ITEMS[itemId] || 'Item #' + itemId;
+          badge.appendChild(img);
+        }
+        const label = document.createElement('span');
+        label.textContent = KNOWN_ITEMS[itemId] || 'Item #' + itemId;
+        badge.appendChild(label);
         badge.addEventListener('click', function(e) {
           e.stopPropagation();
           showItemPopup(itemId, badge);
