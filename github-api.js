@@ -414,7 +414,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
         </div>`;
 
     } else if (section.selectedChoice === 'dice') {
-      // Full Ship-Captain-Crew dice section
+      // Full Ship-Captain-Score dice section
       const statLabelMap = {
         strength: 'STRENGTH', intelligence: 'INTELLIGENCE',
         dexterity: 'DEXTERITY', charisma: 'CHARISMA'
@@ -527,7 +527,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       <div class="panel" id="panel-complete">
         <div class="narrative">
           <p>You have reached the end of <span class="highlight">${escapeHtml(questName)}</span>.</p>
-          ${hasDice ? '<p>Your crew held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
+          ${hasDice ? '<p>Your score held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
         </div>
         <div class="claim-xp-section">
           <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM XP</button>
@@ -1668,25 +1668,25 @@ function showPanel(id) {
 
       var vals = state.values.slice();
       var i6 = vals.indexOf(6);
-      if (i6 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i6 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i6, 1);
       var i5 = vals.indexOf(5);
-      if (i5 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i5 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i5, 1);
       var i4 = vals.indexOf(4);
-      if (i4 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i4 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i4, 1);
 
-      var crew = vals[0] + vals[1];
+      var score = vals[0] + vals[1];
       // Stat bonus: +0 for custom quests (no on-chain read)
       var statBonusVal = 0;
-      var total = crew + statBonusVal;
+      var total = score + statBonusVal;
 
       _saveProgress();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'SCORE';
-      if (scoreValue) scoreValue.textContent = crew;
+      if (scoreValue) scoreValue.textContent = score;
 
       if (total >= difficulty) {
         if (resultText) resultText.innerHTML = '<span class="result-success">SUCCESS</span>';
@@ -1700,7 +1700,7 @@ function showPanel(id) {
       }
     }
 
-    function noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
+    function noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
       if (scoreBox) scoreBox.className = 'score-box no-score';
       if (scoreLabel) scoreLabel.textContent = 'NO SCORE';
       if (scoreValue) scoreValue.textContent = '0';
