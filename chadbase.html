@@ -87,7 +87,7 @@
       cursor: pointer;
       text-decoration: none;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       transition: transform 0.2s ease, opacity 0.8s ease;
       background: transparent;
@@ -118,11 +118,13 @@
       position: relative;
       z-index: 1;
       color: #fff;
-      font-size: clamp(0.45rem, 1.4vw, 0.75rem);
+      font-size: clamp(0.65rem, 1.9vw, 1rem);
       text-align: center;
       line-height: 1.6;
       letter-spacing: 0.03em;
       pointer-events: none;
+      align-self: flex-start;
+      margin-top: 10%;
       text-shadow:
         0 0 6px currentColor,
         0 1px 3px rgba(0,0,0,0.9);
@@ -187,6 +189,21 @@
       0%, 100% { opacity: 0.6; }
       50%       { opacity: 1.0; }
     }
+
+    /* ── Boxes left of pot — Docs — GRAY ── */
+    .zone-docs { left: 1%; bottom: 4%; width: 24%; height: 26%; }
+    .zone-docs .zone-label { color: #c8c8d0; }
+    .zone-docs::before {
+      background: radial-gradient(ellipse at center,
+        rgba(160, 160, 180, 0.55) 0%,
+        rgba(160, 160, 180, 0.20) 45%,
+        transparent 70%);
+      animation: pulse-gray 3.4s ease-in-out infinite;
+    }
+    @keyframes pulse-gray {
+      0%, 100% { opacity: 0.55; }
+      50%       { opacity: 1.0; }
+    }
   </style>
 </head>
 <body>
@@ -211,6 +228,11 @@
     <!-- Pot over fire — Eat/Rest -->
     <a class="zone zone-rest" href="#">
       <span class="zone-label">EAT/<br>REST</span>
+    </a>
+
+    <!-- Boxes left of pot — Docs -->
+    <a class="zone zone-docs" href="docs.html">
+      <span class="zone-label">DOCS</span>
     </a>
   </div>
 
