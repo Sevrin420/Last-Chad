@@ -160,5 +160,19 @@
       <span class="zone-label">EAT/<br>REST</span>
     </a>
   </div>
+
+  <audio id="bg-music" src="music/moody.mp3" loop></audio>
+  <script>
+    const music = document.getElementById('bg-music');
+    music.volume = 0.5;
+    // Autoplay requires a user gesture — start on first click/touch
+    function startMusic() {
+      music.play().catch(() => {});
+      document.removeEventListener('click', startMusic);
+      document.removeEventListener('touchstart', startMusic);
+    }
+    document.addEventListener('click', startMusic);
+    document.addEventListener('touchstart', startMusic);
+  </script>
 </body>
 </html>
