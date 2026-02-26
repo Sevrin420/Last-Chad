@@ -1049,9 +1049,12 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       ${hasIntroPhoto ? `<img src="images/intro.png" alt="${escapeHtml(questName)}" style="width:100%;max-width:460px;height:auto;border-radius:4px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">` : ''}
       <div class="intro-title">${escapeHtml(questName)}</div>
       ${introLines.length > 0 ? '<div id="introText" class="intro-text" style="opacity:0;text-align:left;"></div>' : ''}
-      <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet to save progress on-chain</div>
+      <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet &amp; select your Chad to start</div>
+      <select id="chadSelect" style="display:none;font-family:'Press Start 2P',monospace;font-size:0.38rem;background:#1a1005;color:#c9a84c;border:2px solid #5c4409;border-radius:4px;padding:8px 10px;width:100%;margin-bottom:14px;cursor:pointer;">
+        <option value="">— SELECT YOUR CHAD —</option>
+      </select>
       <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
-      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()"${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
+      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()" disabled${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
     </div>
   </div>
 
@@ -1226,6 +1229,7 @@ ${completePanelHtml}
     }
 
     function startQuest() {
+      if (!chadId) { alert('Select your Chad NFT first.'); return; }
       var overlay = document.getElementById('intro-overlay');
       if (overlay) {
         overlay.classList.add('hidden');
@@ -1609,13 +1613,14 @@ ${diceInitJs}
     var walletSigner = null;
     var userAddress = null;
     var chadId = null;
+    var _chadIdFromUrl = false;
     var _luPending = 0;
 
     // Read chad from URL param
     (function() {
       var p = new URLSearchParams(window.location.search);
       var c = p.get('chad');
-      if (c && parseInt(c) > 0) chadId = parseInt(c);
+      if (c && parseInt(c) > 0) { chadId = parseInt(c); _chadIdFromUrl = true; }
     })();
 
     function truncateAddress(addr) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
@@ -1636,7 +1641,11 @@ ${diceInitJs}
       document.getElementById('walletBtn').textContent = truncateAddress(addr);
       document.getElementById('walletBtn').classList.add('connected');
       document.getElementById('walletModal').classList.remove('show');
-      checkQuestCompletion();
+      if (_chadIdFromUrl) {
+        checkQuestCompletion();
+      } else {
+        loadChadPicker();
+      }
     }
 
     function onDisconnected() {
@@ -1644,6 +1653,13 @@ ${diceInitJs}
       document.getElementById('walletBtn').textContent = 'Connect Wallet';
       document.getElementById('walletBtn').classList.remove('connected');
       document.getElementById('disconnectDropdown').classList.remove('show');
+      if (!_chadIdFromUrl) {
+        chadId = null;
+        var sel = document.getElementById('chadSelect');
+        if (sel) { sel.style.display = 'none'; sel.innerHTML = '<option value="">— SELECT YOUR CHAD —</option>'; }
+        var startBtn = document.getElementById('introStartBtn');
+        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'START'; }
+      }
     }
 
     async function connectInjected(name) {
@@ -1716,17 +1732,47 @@ ${diceInitJs}
     });
     document.addEventListener('click', function(e) { if (!e.target.closest('.wallet-wrapper')) document.getElementById('disconnectDropdown').classList.remove('show'); });
 
+    // Chad picker: update chadId and re-check completion on selection
+    (function() {
+      var sel = document.getElementById('chadSelect');
+      if (sel) {
+        sel.addEventListener('change', function() {
+          var val = parseInt(this.value);
+          chadId = val > 0 ? val : null;
+          checkQuestCompletion();
+        });
+      }
+    })();
+
     // ===== QUEST COMPLETION TRACKING =====
     function getCompletionKey(tokenId) { return 'lc_q_' + QUEST_SLUG + '_' + tokenId; }
     function isQuestDone(tokenId) { return localStorage.getItem(getCompletionKey(tokenId)) === '1'; }
     function markQuestDone(tokenId) { localStorage.setItem(getCompletionKey(tokenId), '1'); }
 
-    function checkQuestCompletion() {
-      if (!chadId) return;
-      var done = isQuestDone(chadId);
+    async function checkQuestCompletion() {
       var banner = document.getElementById('introCompletedBanner');
       var startBtn = document.getElementById('introStartBtn');
       var note = document.getElementById('introWalletNote');
+
+      if (!chadId) {
+        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'START'; }
+        if (banner) banner.style.display = 'none';
+        return;
+      }
+
+      // Fast local check first
+      var done = isQuestDone(chadId);
+
+      // On-chain check via QuestRewards (authoritative)
+      if (!done && QUEST_REWARDS_ADDRESS) {
+        try {
+          var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+          var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+          done = await qr.questCompleted(chadId, QUEST_ID);
+          if (done) markQuestDone(chadId); // sync localStorage
+        } catch(e) {}
+      }
+
       if (done) {
         document.getElementById('introCompletedId').textContent = chadId;
         if (banner) banner.style.display = 'block';
@@ -1738,7 +1784,36 @@ ${diceInitJs}
       }
     }
 
-    // Run check on page load (using chadId from URL)
+    async function loadChadPicker() {
+      var sel = document.getElementById('chadSelect');
+      if (!sel) return;
+      sel.style.display = 'block';
+      sel.innerHTML = '<option value="">Loading Chads...</option>';
+      var startBtn = document.getElementById('introStartBtn');
+      if (startBtn) startBtn.disabled = true;
+      try {
+        var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, rp);
+        var bal = await contract.balanceOf(userAddress);
+        var count = bal.toNumber ? bal.toNumber() : Number(bal);
+        sel.innerHTML = '<option value="">— SELECT YOUR CHAD —</option>';
+        for (var i = 0; i < count; i++) {
+          var tid = await contract.tokenOfOwnerByIndex(userAddress, i);
+          var id = tid.toNumber ? tid.toNumber() : Number(tid);
+          var opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = 'CHAD #' + id;
+          sel.appendChild(opt);
+        }
+        if (count === 0) {
+          sel.innerHTML = '<option value="">No Chads owned</option>';
+        }
+      } catch(e) {
+        sel.innerHTML = '<option value="">Error loading NFTs</option>';
+      }
+    }
+
+    // Run check on page load (using chadId from URL if present)
     checkQuestCompletion();
     animateIntro();
 
