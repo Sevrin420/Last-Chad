@@ -826,6 +826,7 @@
         overlay.classList.add('hidden');
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1300);
       }
+      _startOnChainQuest(); // fire-and-forget: seeds deterministic dice if QuestRewards is configured
       var firstId = 1771471496248;
       playQuestMusic(firstId);
       animatePanel(firstId);
@@ -920,7 +921,9 @@
           values: [0, 0, 0, 0, 0],
           kept: [false, false, false, false, false],
           rollsLeft: 3,
-          isRolling: false
+          isRolling: false,
+          kept1: 0,
+          kept2: 0
         };
         for (var i = 0; i < 5; i++) {
           (function(idx, sectionId) {
@@ -978,6 +981,16 @@
       if (state.isRolling || state.rollsLeft <= 0) return;
       state.isRolling = true;
       state.rollsLeft--;
+      var currentRoll = 3 - state.rollsLeft; // 1, 2, or 3
+
+      // Snapshot kept bitmask before this roll (needed for QuestRewards.completeQuest)
+      if (currentRoll === 2) {
+        state.kept1 = 0;
+        for (var ki = 0; ki < 5; ki++) { if (state.kept[ki]) state.kept1 |= (1 << ki); }
+      } else if (currentRoll === 3) {
+        state.kept2 = 0;
+        for (var ki = 0; ki < 5; ki++) { if (state.kept[ki]) state.kept2 |= (1 << ki); }
+      }
 
       var rollBtn = document.getElementById('rollBtn_' + sid);
       var rollsLeftTxt = document.getElementById('rollsLeft_' + sid);
@@ -1002,7 +1015,9 @@
         await new Promise(function(resolve) { setTimeout(resolve, order === 0 ? 2500 : 800); });
         var dieIndex = toRoll[order];
         clearInterval(cycleTimers[dieIndex]);
-        var finalValue = Math.floor(Math.random() * 6) + 1;
+        var finalValue = (_questSeed && typeof ethers !== 'undefined')
+          ? _deriveDieJS(_questSeed, currentRoll, dieIndex)
+          : Math.floor(Math.random() * 6) + 1;
         state.values[dieIndex] = finalValue;
         renderFace(dieIndex, finalValue, sid);
         var box = document.getElementById('die' + dieIndex + '_' + sid);
@@ -1110,6 +1125,37 @@
       'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
       'function totalSupply() external view returns (uint256)'
     ];
+    var QUEST_REWARDS_ADDRESS = ''; // set after deploying QuestRewards.sol
+    var QUEST_REWARDS_ABI = [
+      'function startQuest(uint256 tokenId, uint8 questId) external',
+      'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
+      'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
+      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
+    ];
+    var QUEST_ID = 0;
+    var _questSeed = null; // set after startQuest confirmed on-chain
+
+    // Mirror of QuestRewards._deriveDie: keccak256(seed, roll, dieIndex) % 6 + 1
+    function _deriveDieJS(seed, roll, dieIndex) {
+      try {
+        var packed = ethers.utils.solidityPack(['bytes32', 'uint8', 'uint8'], [seed, roll, dieIndex]);
+        return ethers.BigNumber.from(ethers.utils.keccak256(packed)).mod(6).toNumber() + 1;
+      } catch(e) { return Math.floor(Math.random() * 6) + 1; }
+    }
+
+    // Start on-chain quest session (fire-and-forget, dice fall back to Math.random if not ready)
+    async function _startOnChainQuest() {
+      if (!QUEST_REWARDS_ADDRESS || !chadId || !walletSigner) return;
+      try {
+        var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
+        var tx = await qr.startQuest(chadId, QUEST_ID);
+        await tx.wait();
+        var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        var session = await qrRead.getSession(chadId);
+        _questSeed = session[0]; // bytes32 seed
+      } catch(e) { console.warn('startOnChainQuest failed:', e); }
+    }
 
     var walletProvider = null;
     var walletSigner = null;
@@ -1302,13 +1348,32 @@
         }
       } catch(e) { /* ownership check failed — proceed */ }
 
-      // Mark as completed locally first, then check for level-up on-chain
+      // Award XP on-chain via QuestRewards if configured, otherwise localStorage only
+      if (QUEST_REWARDS_ADDRESS && walletSigner) {
+        statusEl.textContent = 'CONFIRM IN WALLET...';
+        try {
+          var _dsIds = Object.keys(diceOutcomes);
+          var _dsState = _dsIds.length > 0 ? diceState[Number(_dsIds[0])] : null;
+          var _kept1 = _dsState ? _dsState.kept1 : 0;
+          var _kept2 = _dsState ? _dsState.kept2 : 0;
+          var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
+          var tx = await qr.completeQuest(chadId, QUEST_ID, 0, 0, _kept1, _kept2);
+          statusEl.textContent = 'CONFIRMING...';
+          await tx.wait();
+        } catch(e) {
+          btn.disabled = false;
+          btn.textContent = 'CLAIM XP';
+          statusEl.textContent = 'Failed: ' + (e.reason || e.message || String(e));
+          return;
+        }
+      }
+
       markQuestDone(chadId);
       btn.textContent = 'XP CLAIMED — CHAD #' + chadId;
-      statusEl.textContent = 'Quest score: ' + crewScore + ' pts recorded locally.';
+      statusEl.textContent = QUEST_REWARDS_ADDRESS ? 'XP awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).';
       checkQuestCompletion();
 
-      // Check for pending stat points (from any prior on-chain XP award)
+      // Check for pending stat points from level-up
       await checkAndShowLevelUp(chadId);
     }
 

@@ -433,6 +433,28 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
         : '';
 
       actionHtml = `
+        <div class="quest-hud" id="questHud_${sid}">
+          <div class="hud-col hud-col-chad">
+            <img id="hudChadImg_${sid}" class="hud-chad-img" src="" alt="Chad NFT">
+          </div>
+          <div class="hud-col hud-col-stats">
+            <div class="hud-col-title">STATS</div>
+            <div class="hud-stat-row"><span class="hud-stat-label">STR</span><span class="hud-stat-val" id="hudStr_${sid}">-</span></div>
+            <div class="hud-stat-row"><span class="hud-stat-label">INT</span><span class="hud-stat-val" id="hudInt_${sid}">-</span></div>
+            <div class="hud-stat-row"><span class="hud-stat-label">DEX</span><span class="hud-stat-val" id="hudDex_${sid}">-</span></div>
+            <div class="hud-stat-row"><span class="hud-stat-label">CHA</span><span class="hud-stat-val" id="hudCha_${sid}">-</span></div>
+            <div class="hud-stat-row hud-xp-row"><span class="hud-stat-label">LVL</span><span class="hud-stat-val" id="hudLvl_${sid}">-</span></div>
+          </div>
+          <div class="hud-col hud-col-items">
+            <div class="hud-col-title">ITEMS</div>
+            <div class="hud-item-slots" id="hudSlots_${sid}">
+              <div class="item-slot empty" id="hudSlot0_${sid}">EMPTY</div>
+              <div class="item-slot empty" id="hudSlot1_${sid}">EMPTY</div>
+              <div class="item-slot empty" id="hudSlot2_${sid}">EMPTY</div>
+              <div class="item-slot empty" id="hudSlot3_${sid}">EMPTY</div>
+            </div>
+          </div>
+        </div>
         <div class="dice-section">
           ${diceImgHtml}
           <div class="dice-meta-tag">${statLabel} BONUS +0 &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
@@ -601,13 +623,91 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
 
     .section-img {
       width: 100%;
-      max-width: 500px;
+      max-width: 250px;
       height: auto;
       border: 2px solid #5c4409;
       border-radius: 4px;
       margin-bottom: 20px;
       display: block;
       opacity: 0;
+    }
+
+    /* Quest HUD — 3-column layout above dice sections */
+    .quest-hud {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    .hud-col {
+      background: rgba(10, 8, 4, 0.85);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      padding: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .hud-col-chad {
+      flex: 0 0 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+    .hud-chad-img {
+      width: 82px;
+      height: 82px;
+      object-fit: cover;
+      border-radius: 3px;
+      border: 1px solid #5c4409;
+      display: block;
+    }
+    .hud-col-title {
+      font-size: 0.38rem;
+      color: #c9a84c;
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .hud-stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .hud-stat-label {
+      font-size: 0.35rem;
+      color: #8a7a5a;
+    }
+    .hud-stat-val {
+      font-size: 0.38rem;
+      color: #fff;
+    }
+    .hud-stat-val.boosted { color: #4caf50; }
+    .hud-xp-row { margin-top: 6px; border-top: 1px solid #3d2e0a; padding-top: 4px; }
+    .hud-item-slots {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .item-slot {
+      font-size: 0.32rem;
+      padding: 4px 6px;
+      border: 1px solid #3d2e0a;
+      border-radius: 3px;
+      color: #8a7a5a;
+      background: rgba(0,0,0,0.3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+    .item-slot.equipped {
+      border-color: #c9a84c;
+      color: #c9a84c;
+      background: rgba(92, 68, 9, 0.2);
     }
 
     /* Crew score tracker */
@@ -1129,6 +1229,22 @@ ${completePanelHtml}
   <script>
     var crewScore = 0;
     var _animGen = 0;
+
+    // ===== IN-PROGRESS SESSION PERSISTENCE =====
+    // Saves seed + current section + score so reloads resume from the same point.
+    function _progressKey() { return 'lc_qprog_' + QUEST_SLUG + '_' + chadId; }
+    function _saveProgress() {
+      if (!chadId) return;
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, score: crewScore }));
+    }
+    function _loadProgress() {
+      if (!chadId) return null;
+      try { return JSON.parse(localStorage.getItem(_progressKey())); } catch(e) { return null; }
+    }
+    function _clearProgress() {
+      if (!chadId) return;
+      localStorage.removeItem(_progressKey());
+    }
     var diceOutcomes = ${diceOutcomesJson};
     var sectionMusic = ${sectionMusicJson};
     var introLines = ${introLinesJson};
@@ -1219,21 +1335,43 @@ ${completePanelHtml}
       playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
+      // Load HUD if this panel contains a dice section
+      if (id && panel.querySelector('.quest-hud')) loadQuestHUD(id);
     }
 
     function goToSection(id) {
+      currentSectionId = id || null;
+      _saveProgress();
       showPanel(id || null);
     }
 
     function startQuest() {
+      if (!chadId) { alert('Select your Chad NFT first.'); return; }
       var overlay = document.getElementById('intro-overlay');
       if (overlay) {
         overlay.classList.add('hidden');
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1300);
       }
       var firstId = ${sections.length > 0 ? sections[0].id : 'null'};
+
+      // Resume saved session if one exists (prevents restarting mid-quest)
+      var saved = _loadProgress();
+      if (saved && !isQuestDone(chadId)) {
+        if (saved.seed) _questSeed = saved.seed;
+        crewScore = saved.score || 0;
+        updateCrewDisplay();
+        var resumeId = saved.sectionId || firstId;
+        playQuestMusic(resumeId);
+        animatePanel(resumeId);
+        return;
+      }
+
+      // Fresh start
+      currentSectionId = firstId;
+      _saveProgress();
       playQuestMusic(firstId);
       animatePanel(firstId);
+      _startOnChainQuest(); // fire-and-forget: seeds deterministic dice if QuestRewards is configured
     }
 
     async function animateIntro() {
@@ -1270,6 +1408,80 @@ ${completePanelHtml}
         startBtn.style.transition = 'opacity 0.8s ease';
         startBtn.style.opacity = '1';
         startBtn.style.pointerEvents = startBtn.disabled ? 'none' : 'auto';
+      }
+    }
+
+    // Item stat modifiers: itemId -> { str, int, dex, cha }
+    var ITEM_MODIFIERS = {
+      '1': { str: 0, int: 1, dex: 0, cha: 0 } // Cindy's Code: +1 INT
+    };
+
+    async function loadQuestHUD(sid) {
+      if (!chadId) return;
+      var hudEl = document.getElementById('questHud_' + sid);
+      if (!hudEl) return;
+
+      // Col 1: Chad NFT image
+      var imgEl = document.getElementById('hudChadImg_' + sid);
+      if (imgEl) imgEl.src = '../../assets/chads/' + chadId + '.png';
+
+      try {
+        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var lcContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+        var itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, LASTCHAD_ITEMS_ABI, readProvider);
+
+        // Fetch base stats and level
+        var statsResult = await lcContract.getStats(chadId);
+        var level = await lcContract.getLevel(chadId);
+        var baseStr = parseInt(statsResult.strength);
+        var baseInt = parseInt(statsResult.intelligence);
+        var baseDex = parseInt(statsResult.dexterity);
+        var baseCha = parseInt(statsResult.charisma);
+
+        // Read equipped items from localStorage (saved by quest.html equip modal)
+        var modStr = 0, modInt = 0, modDex = 0, modCha = 0;
+        var equippedItems = [];
+        try {
+          var saved = localStorage.getItem('lc_equipped_' + chadId);
+          var slots = saved ? JSON.parse(saved) : [];
+          for (var si = 0; si < slots.length; si++) {
+            var iid = slots[si];
+            if (!iid) continue;
+            var mod = ITEM_MODIFIERS[iid] || {};
+            modStr += (mod.str || 0);
+            modInt += (mod.int || 0);
+            modDex += (mod.dex || 0);
+            modCha += (mod.cha || 0);
+            equippedItems.push({ id: iid, name: knownItems[iid] || ('Item #' + iid) });
+          }
+        } catch(ex) {}
+
+        // Col 2: display stats with modifiers
+        function setStatEl(elId, base, mod) {
+          var el = document.getElementById(elId);
+          if (!el) return;
+          el.textContent = mod > 0 ? (base + mod) + ' (+' + mod + ')' : '' + base;
+          if (mod > 0) el.classList.add('boosted');
+        }
+        setStatEl('hudStr_' + sid, baseStr, modStr);
+        setStatEl('hudInt_' + sid, baseInt, modInt);
+        setStatEl('hudDex_' + sid, baseDex, modDex);
+        setStatEl('hudCha_' + sid, baseCha, modCha);
+        var lvlEl = document.getElementById('hudLvl_' + sid);
+        if (lvlEl) lvlEl.textContent = parseInt(level);
+
+        // Col 3: item slots (up to 4)
+        for (var s = 0; s < 4; s++) {
+          var slotEl = document.getElementById('hudSlot' + s + '_' + sid);
+          if (!slotEl) continue;
+          if (s < equippedItems.length) {
+            slotEl.textContent = equippedItems[s].name;
+            slotEl.classList.remove('empty');
+            slotEl.classList.add('equipped');
+          }
+        }
+      } catch (e) {
+        // HUD is cosmetic — silently fail if RPC unavailable
       }
     }
 
@@ -1362,7 +1574,9 @@ ${completePanelHtml}
           values: [0, 0, 0, 0, 0],
           kept: [false, false, false, false, false],
           rollsLeft: 3,
-          isRolling: false
+          isRolling: false,
+          kept1: 0,
+          kept2: 0
         };
         for (var i = 0; i < 5; i++) {
           (function(idx, sectionId) {
@@ -1420,6 +1634,25 @@ ${completePanelHtml}
       if (state.isRolling || state.rollsLeft <= 0) return;
       state.isRolling = true;
       state.rollsLeft--;
+      var currentRoll = 3 - state.rollsLeft; // 1, 2, or 3
+
+      // Snapshot kept bitmask before this roll (needed for QuestRewards.completeQuest)
+      if (currentRoll === 2) {
+        state.kept1 = 0;
+        for (var ki = 0; ki < 5; ki++) { if (state.kept[ki]) state.kept1 |= (1 << ki); }
+      } else if (currentRoll === 3) {
+        state.kept2 = 0;
+        for (var ki = 0; ki < 5; ki++) { if (state.kept[ki]) state.kept2 |= (1 << ki); }
+      }
+
+      // On-chain seed is mandatory — block roll until startQuest() confirms
+      if (!_questSeed) {
+        state.isRolling = false;
+        state.rollsLeft++;
+        var waitBtn = document.getElementById('rollBtn_' + sid);
+        if (waitBtn) { waitBtn.textContent = 'AWAITING SEED'; waitBtn.disabled = false; }
+        return;
+      }
 
       var rollBtn = document.getElementById('rollBtn_' + sid);
       var rollsLeftTxt = document.getElementById('rollsLeft_' + sid);
@@ -1444,7 +1677,7 @@ ${completePanelHtml}
         await new Promise(function(resolve) { setTimeout(resolve, order === 0 ? 2500 : 800); });
         var dieIndex = toRoll[order];
         clearInterval(cycleTimers[dieIndex]);
-        var finalValue = Math.floor(Math.random() * 6) + 1;
+        var finalValue = _deriveDieJS(_questSeed, currentRoll, dieIndex);
         state.values[dieIndex] = finalValue;
         renderFace(dieIndex, finalValue, sid);
         var box = document.getElementById('die' + dieIndex + '_' + sid);
@@ -1507,6 +1740,7 @@ ${completePanelHtml}
 
       crewScore += crew;
       updateCrewDisplay();
+      _saveProgress();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'SCORE';
@@ -1550,14 +1784,52 @@ ${diceInitJs}
       'function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256)',
       'function getPendingStatPoints(uint256 tokenId) external view returns (uint256)',
       'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
-      'function totalSupply() external view returns (uint256)'
+      'function totalSupply() external view returns (uint256)',
+      'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
+      'function getExperience(uint256 tokenId) external view returns (uint256)',
+      'function getLevel(uint256 tokenId) external view returns (uint256)'
     ];
     var ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
     var LASTCHAD_ITEMS_ABI = [
       'function mint(uint256 itemId, uint256 quantity) external payable',
-      'function getItem(uint256 itemId) external view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)'
+      'function getItem(uint256 itemId) external view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)',
+      'function balanceOf(address account, uint256 id) external view returns (uint256)'
     ];
     var itemAwards = ${itemAwardsJson};
+    var QUEST_REWARDS_ADDRESS = ''; // set after deploying QuestRewards.sol
+    var QUEST_REWARDS_ABI = [
+      'function startQuest(uint256 tokenId, uint8 questId) external',
+      'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
+      'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
+      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
+    ];
+    var QUEST_ID = 0;
+    var _questSeed = null; // set after startQuest confirmed on-chain
+
+    // Mirror of QuestRewards._deriveDie: keccak256(seed, roll, dieIndex) % 6 + 1
+    function _deriveDieJS(seed, roll, dieIndex) {
+      var packed = ethers.utils.solidityPack(['bytes32', 'uint8', 'uint8'], [seed, roll, dieIndex]);
+      return ethers.BigNumber.from(ethers.utils.keccak256(packed)).mod(6).toNumber() + 1;
+    }
+
+    // Start on-chain quest session — seed is REQUIRED before dice can roll
+    async function _startOnChainQuest() {
+      if (!QUEST_REWARDS_ADDRESS || !chadId || !walletSigner) return;
+      try {
+        var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
+        var tx = await qr.startQuest(chadId, QUEST_ID);
+        await tx.wait();
+        var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        var session = await qrRead.getSession(chadId);
+        _questSeed = session[0]; // bytes32 seed
+        _saveProgress();
+        // Re-enable any roll buttons that were waiting for the seed
+        document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
+          if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
+        });
+      } catch(e) { console.warn('startOnChainQuest failed:', e); }
+    }
 
     var walletProvider = null;
     var walletSigner = null;
@@ -1670,17 +1942,36 @@ ${diceInitJs}
     });
     document.addEventListener('click', function(e) { if (!e.target.closest('.wallet-wrapper')) document.getElementById('disconnectDropdown').classList.remove('show'); });
 
+
     // ===== QUEST COMPLETION TRACKING =====
     function getCompletionKey(tokenId) { return 'lc_q_' + QUEST_SLUG + '_' + tokenId; }
     function isQuestDone(tokenId) { return localStorage.getItem(getCompletionKey(tokenId)) === '1'; }
     function markQuestDone(tokenId) { localStorage.setItem(getCompletionKey(tokenId), '1'); }
 
-    function checkQuestCompletion() {
-      if (!chadId) return;
-      var done = isQuestDone(chadId);
+    async function checkQuestCompletion() {
       var banner = document.getElementById('introCompletedBanner');
       var startBtn = document.getElementById('introStartBtn');
       var note = document.getElementById('introWalletNote');
+
+      if (!chadId) {
+        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'START'; }
+        if (banner) banner.style.display = 'none';
+        return;
+      }
+
+      // Fast local check first
+      var done = isQuestDone(chadId);
+
+      // On-chain check via QuestRewards (authoritative)
+      if (!done && QUEST_REWARDS_ADDRESS) {
+        try {
+          var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+          var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+          done = await qr.questCompleted(chadId, QUEST_ID);
+          if (done) markQuestDone(chadId); // sync localStorage
+        } catch(e) {}
+      }
+
       if (done) {
         document.getElementById('introCompletedId').textContent = chadId;
         if (banner) banner.style.display = 'block';
@@ -1692,7 +1983,8 @@ ${diceInitJs}
       }
     }
 
-    // Run check on page load (using chadId from URL)
+
+    // Run check on page load (using chadId from URL if present)
     checkQuestCompletion();
     animateIntro();
 
@@ -1751,13 +2043,34 @@ ${diceInitJs}
         }
       } catch(e) { /* ownership check failed — proceed */ }
 
-      // Mark as completed locally first, then check for level-up on-chain
+      // Award XP on-chain via QuestRewards if configured, otherwise localStorage only
+      if (QUEST_REWARDS_ADDRESS && walletSigner) {
+        statusEl.textContent = 'CONFIRM IN WALLET...';
+        try {
+          // Get kept bitmasks from the first dice section (if any)
+          var _dsIds = Object.keys(diceOutcomes);
+          var _dsState = _dsIds.length > 0 ? diceState[Number(_dsIds[0])] : null;
+          var _kept1 = _dsState ? _dsState.kept1 : 0;
+          var _kept2 = _dsState ? _dsState.kept2 : 0;
+          var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
+          var tx = await qr.completeQuest(chadId, QUEST_ID, 0, 0, _kept1, _kept2);
+          statusEl.textContent = 'CONFIRMING...';
+          await tx.wait();
+        } catch(e) {
+          btn.disabled = false;
+          btn.textContent = 'CLAIM XP';
+          statusEl.textContent = 'Failed: ' + (e.reason || e.message || String(e));
+          return;
+        }
+      }
+
       markQuestDone(chadId);
+      _clearProgress();
       btn.textContent = 'XP CLAIMED — CHAD #' + chadId;
-      statusEl.textContent = 'Quest score: ' + crewScore + ' pts recorded locally.';
+      statusEl.textContent = QUEST_REWARDS_ADDRESS ? 'XP awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).';
       checkQuestCompletion();
 
-      // Check for pending stat points (from any prior on-chain XP award)
+      // Check for pending stat points from level-up
       await checkAndShowLevelUp(chadId);
     }
 
