@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arena | Last Chad</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="nav.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+    }
+
+    /* --- Pixelated brown background --- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: #3b2a14;
+      background-image:
+        linear-gradient(45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
+        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      image-rendering: pixelated;
+    }
+
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(90, 65, 30, 0.4) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(30, 20, 10, 0.3) 0%, rgba(30, 20, 10, 0.6) 100%);
+    }
+
+    /* --- Header --- */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(30, 20, 10, 0.9);
+      border-bottom: 2px solid #5c4409;
+      backdrop-filter: blur(8px);
+    }
+
+    .wallet-wrapper { position: relative; }
+
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 220, 120, 0.4),
+        0 2px 6px rgba(0, 0, 0, 0.5);
+      touch-action: manipulation;
+    }
+    .wallet-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+    }
+    .wallet-btn.connected {
+      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
+      border-color: #4caf50;
+      color: #a5d6a7;
+      font-size: 0.65rem;
+    }
+
+    .disconnect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      z-index: 110;
+      min-width: 160px;
+    }
+    .disconnect-dropdown.show { display: block; }
+
+    .disconnect-btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      color: #e53935;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s;
+    }
+    .disconnect-btn:hover { background: rgba(229, 57, 53, 0.15); }
+
+    /* --- Main content --- */
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 90px 20px 40px;
+    }
+
+    /* --- Connect prompt --- */
+    .connect-prompt {
+      text-align: center;
+      margin-top: 80px;
+    }
+    .connect-prompt p {
+      font-size: 0.75rem;
+      color: #8a7a5a;
+      line-height: 2;
+    }
+
+    /* --- Portrait row layout --- */
+    .portrait-section {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .portrait-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .portrait-info {
+      display: none;
+      margin-top: 16px;
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+      align-self: center;
+    }
+
+    .portrait-level {
+      font-size: 0.65rem;
+      color: #f5e6c8;
+      margin-bottom: 8px;
+    }
+
+    .xp-bar-wrap {
+      width: 100%;
+      height: 8px;
+      background: rgba(10, 8, 3, 0.8);
+      border: 2px solid #5c4409;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .xp-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3a7d44 0%, #6abf69 100%);
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    .xp-label {
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-top: 5px;
+    }
+
+    /* --- Stats panel --- */
+    .stats-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 4px;
+    }
+
+    .stat-box {
+      background: rgba(30, 20, 10, 0.7);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      padding: 10px 16px;
+      min-width: 90px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.52rem;
+      color: #8a7a5a;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 0.85rem;
+      color: #c9a84c;
+    }
+
+    /* --- Portrait frame --- */
+    .portrait-frame {
+      width: clamp(200px, 50vw, 280px);
+      height: auto;
+      border: 4px solid #5c4409;
+      border-radius: 4px;
+      background: rgba(30, 20, 10, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 30px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(0, 0, 0, 0.4);
+      image-rendering: pixelated;
+      min-height: 120px;
+    }
+
+    .portrait-frame.has-chad {
+      border-color: #c9a84c;
+      box-shadow:
+        inset 0 0 20px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(201, 168, 76, 0.2),
+        0 0 40px rgba(201, 168, 76, 0.1);
+    }
+
+    .portrait-frame img {
+      width: 100%;
+      height: auto;
+      image-rendering: pixelated;
+      display: none;
+    }
+
+    .portrait-frame img.show { display: block; }
+
+    .portrait-placeholder {
+      font-size: 0.65rem;
+      color: #5c4409;
+      text-align: center;
+      line-height: 2;
+      padding: 20px;
+    }
+
+    .portrait-placeholder.hidden { display: none; }
+
+    .portrait-name {
+      font-size: 0.7rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      margin-bottom: 6px;
+    }
+
+    /* --- Battle button --- */
+    .battle-btn {
+      margin-top: 20px;
+      padding: 18px 52px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+      color: #fff;
+      background: linear-gradient(180deg, #555 0%, #333 50%, #222 100%);
+      border: 4px solid #555;
+      border-radius: 0;
+      cursor: not-allowed;
+      opacity: 0.4;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.1),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #111,
+        0 6px 0 #000,
+        0 8px 15px rgba(0,0,0,0.6);
+      touch-action: manipulation;
+    }
+
+    .battle-btn.active {
+      opacity: 1;
+      cursor: pointer;
+      background: linear-gradient(180deg, #e53935 0%, #c62828 50%, #8e0000 100%);
+      border-color: #ff5252;
+      box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #5d0000,
+        0 6px 0 #3a0000,
+        0 8px 15px rgba(0,0,0,0.6),
+        0 0 20px rgba(229, 57, 53, 0.3);
+      animation: battle-glow 2s ease-in-out infinite;
+    }
+
+    .battle-btn.active::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      pointer-events: none;
+    }
+
+    .battle-btn.active:hover {
+      animation: none;
+      background: linear-gradient(180deg, #ff5252 0%, #e53935 50%, #b71c1c 100%);
+      border-color: #ff8a80;
+      box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.5),
+        inset 0 -2px 0 rgba(0,0,0,0.3),
+        0 4px 0 #5d0000,
+        0 6px 0 #3a0000,
+        0 8px 20px rgba(0,0,0,0.6),
+        0 0 30px rgba(229, 57, 53, 0.5);
+    }
+
+    .battle-btn.active:hover::after {
+      left: 120%;
+      transition: left 0.5s ease;
+    }
+
+    .battle-btn.active:active {
+      transform: translateY(4px);
+      box-shadow:
+        inset 0 2px 4px rgba(0,0,0,0.5),
+        0 1px 0 #5d0000,
+        0 2px 8px rgba(0,0,0,0.6),
+        0 0 25px rgba(255, 80, 80, 0.6);
+    }
+
+    @keyframes battle-glow {
+      0%, 100% { box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #5d0000,
+        0 6px 0 #3a0000,
+        0 8px 15px rgba(0,0,0,0.6),
+        0 0 15px rgba(229, 57, 53, 0.2);
+      }
+      50% { box-shadow:
+        inset 0 2px 0 rgba(255,150,150,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #5d0000,
+        0 6px 0 #3a0000,
+        0 8px 15px rgba(0,0,0,0.6),
+        0 0 30px rgba(229, 57, 53, 0.5);
+      }
+    }
+
+    .quest-name-label {
+      text-align: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-top: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    /* --- Gallery --- */
+    .gallery-section {
+      width: 100%;
+      max-width: 600px;
+      margin-top: 30px;
+    }
+
+    .gallery-label {
+      font-size: 0.65rem;
+      color: #8a7a5a;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .gallery-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 8px 4px 14px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .gallery-scroll::-webkit-scrollbar {
+      height: 6px;
+    }
+    .gallery-scroll::-webkit-scrollbar-track {
+      background: #1e1608;
+      border-radius: 3px;
+    }
+    .gallery-scroll::-webkit-scrollbar-thumb {
+      background: #5c4409;
+      border-radius: 3px;
+    }
+
+    .gallery-item {
+      flex-shrink: 0;
+      width: 100px;
+      height: 100px;
+      border: 3px solid #3d2e0a;
+      border-radius: 4px;
+      background: rgba(30, 20, 10, 0.7);
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.2s;
+      scroll-snap-align: center;
+      position: relative;
+      image-rendering: pixelated;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: pixelated;
+    }
+
+    .gallery-item:hover {
+      border-color: #8b6914;
+      box-shadow: 0 0 10px rgba(139, 105, 20, 0.3);
+    }
+
+    .gallery-item.selected {
+      border-color: #c9a84c;
+      box-shadow:
+        0 0 12px rgba(201, 168, 76, 0.5),
+        inset 0 0 8px rgba(201, 168, 76, 0.15);
+      transform: scale(1.05);
+    }
+
+    .gallery-item .token-id {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      font-size: 0.4rem;
+      color: #c9a84c;
+      background: rgba(0,0,0,0.7);
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
+
+    .gallery-empty {
+      text-align: center;
+      font-size: 0.6rem;
+      color: #5c4409;
+      padding: 30px 20px;
+      line-height: 2;
+    }
+
+    /* --- Wallet modal --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 28px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+    }
+
+    .modal-title {
+      font-size: 0.85rem;
+      color: #c9a84c;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .wallet-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      color: #f5e6c8;
+      background: rgba(61, 46, 10, 0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .wallet-option:hover {
+      border-color: #8b6914;
+      background: rgba(92, 68, 9, 0.3);
+    }
+    .wallet-option:active { transform: scale(0.97); }
+
+    .wallet-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .modal-close {
+      display: block;
+      margin: 16px auto 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      color: #5c4409;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .modal-close:hover { color: #c9a84c; }
+
+    /* --- Equip modal --- */
+    .equip-modal { max-width: 420px; }
+
+    .equip-slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .equip-slot {
+      padding: 10px 8px;
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      font-size: 0.4rem;
+      color: #5c4409;
+      text-align: center;
+      background: rgba(0,0,0,0.3);
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .equip-slot.filled {
+      border-color: #c9a84c;
+      color: #c9a84c;
+      background: rgba(92, 68, 9, 0.2);
+    }
+
+    .equip-slot-label {
+      font-size: 0.32rem;
+      color: #3d2e0a;
+      text-align: center;
+      margin-bottom: 6px;
+      letter-spacing: 0.08em;
+    }
+
+    .equip-divider {
+      font-size: 0.42rem;
+      color: #8a7a5a;
+      text-align: center;
+      margin: 14px 0 8px;
+      border-top: 1px solid #3d2e0a;
+      padding-top: 12px;
+      letter-spacing: 0.1em;
+    }
+
+    .equip-item-list {
+      max-height: 160px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+    }
+
+    .equip-item-list::-webkit-scrollbar { width: 4px; }
+    .equip-item-list::-webkit-scrollbar-track { background: #1e1608; }
+    .equip-item-list::-webkit-scrollbar-thumb { background: #5c4409; border-radius: 2px; }
+
+    .equip-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 4px;
+      border-bottom: 1px solid #1e1608;
+    }
+
+    .equip-item-name {
+      font-size: 0.4rem;
+      color: #f5e6c8;
+    }
+
+    .equip-item-qty { color: #5c4409; }
+
+    .equip-item-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.36rem;
+      padding: 6px 10px;
+      background: rgba(61, 46, 10, 0.5);
+      border: 2px solid #5c4409;
+      border-radius: 3px;
+      color: #c9a84c;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .equip-item-btn.equipped {
+      background: rgba(229, 57, 53, 0.2);
+      border-color: #e53935;
+      color: #e53935;
+    }
+
+    .confirm-equip-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .confirm-equip-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+    }
+
+    /* --- Quest dropdown --- */
+    .quest-select {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      color: #f5e6c8;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 3px solid #5c4409;
+      border-radius: 0;
+      padding: 12px 16px;
+      min-width: 260px;
+      max-width: 320px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%235c4409'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.04),
+        0 4px 0 #111,
+        0 6px 0 #000;
+      transition: border-color 0.2s;
+    }
+    .quest-select:focus,
+    .quest-select:hover {
+      border-color: #c9a84c;
+    }
+    .quest-select option {
+      background: #1e1608;
+      color: #f5e6c8;
+      font-size: 0.6rem;
+    }
+
+    /* --- Equipped items column --- */
+    .equipped-items-col {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 4px;
+      min-width: 90px;
+    }
+
+    .equipped-col-label {
+      font-size: 0.42rem;
+      color: #5c4409;
+      text-align: center;
+      margin-bottom: 2px;
+      letter-spacing: 0.1em;
+    }
+
+    .equipped-item-badge {
+      background: rgba(30, 20, 10, 0.7);
+      border: 2px solid #c9a84c;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 0.38rem;
+      color: #c9a84c;
+      text-align: center;
+      line-height: 1.6;
+      box-shadow: 0 0 8px rgba(201, 168, 76, 0.15);
+    }
+
+    /* --- Boosted stat (item bonus) --- */
+    .stat-value.boosted {
+      color: #ffe066;
+      text-shadow: 0 0 6px #ffe066, 0 0 14px #ffd700, 0 0 24px rgba(255, 215, 0, 0.4);
+      animation: stat-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes stat-pulse {
+      0%, 100% { text-shadow: 0 0 6px #ffe066, 0 0 14px #ffd700, 0 0 24px rgba(255, 215, 0, 0.4); }
+      50% { text-shadow: 0 0 10px #ffe066, 0 0 22px #ffd700, 0 0 36px rgba(255, 215, 0, 0.6); }
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 480px) {
+      .header { padding: 12px 16px; }
+      .gallery-item { width: 85px; height: 85px; }
+      .quest-select { min-width: 200px; font-size: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background -->
+  <div class="bg"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div id="nav-placeholder"></div>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Connect prompt (shown when not connected) -->
+    <div class="connect-prompt" id="connectPrompt">
+      <p>Connect your wallet<br>to view your Chads</p>
+    </div>
+
+    <!-- Arena content (shown when connected) -->
+    <div id="arenaContent" style="display:none; width:100%; display:flex; flex-direction:column; align-items:center;">
+      <!-- Portrait + Stats -->
+      <div class="portrait-section">
+        <div class="portrait-col">
+          <div class="portrait-frame" id="portraitFrame">
+            <img id="portraitImg" src="" alt="">
+            <div class="portrait-placeholder" id="portraitPlaceholder">Select a<br>Chad below</div>
+          </div>
+        </div>
+        <div class="stats-panel" id="statsPanel">
+          <div class="stat-box">
+            <div class="stat-label">STR</div>
+            <div class="stat-value" id="statStr">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">INT</div>
+            <div class="stat-value" id="statInt">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">DEX</div>
+            <div class="stat-value" id="statDex">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">CHA</div>
+            <div class="stat-value" id="statCha">—</div>
+          </div>
+        </div>
+        <div class="equipped-items-col" id="equippedItemsCol"></div>
+      </div>
+
+      <!-- Name / Level / XP (centered below portrait row) -->
+      <div class="portrait-info" id="portraitInfo">
+        <div class="portrait-name" id="portraitName"></div>
+        <div class="portrait-level" id="portraitLevel">LVL 1</div>
+        <div class="xp-bar-wrap">
+          <div class="xp-bar-fill" id="xpBarFill"></div>
+        </div>
+        <div class="xp-label" id="xpLabel">0 / 100 XP</div>
+      </div>
+
+      <!-- Quest selector + Battle button -->
+      <div id="questSelectWrap" style="display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:20px;">
+        <select id="questSelect" class="quest-select">
+          <option value="">Loading quests...</option>
+        </select>
+        <button class="battle-btn" id="battleBtn" style="margin-top:0;">BEGIN QUEST</button>
+      </div>
+
+      <!-- Gallery -->
+      <div class="gallery-section">
+        <div class="gallery-label">YOUR CHADS</div>
+        <div id="galleryContainer">
+          <div class="gallery-empty" id="galleryEmpty">No Chads found in this wallet</div>
+          <div class="gallery-scroll" id="galleryScroll"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
+        Rabby
+      </button>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9889;</span>
+        Core
+      </button>
+      <button class="wallet-option" data-wallet="metamask">
+        <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>
+        MetaMask
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
+        WalletConnect
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
+
+  <!-- Equip Items Modal -->
+  <div class="modal-overlay" id="equipModal">
+    <div class="modal equip-modal">
+      <h2 class="modal-title" id="equipModalTitle">EQUIP ITEMS</h2>
+      <div class="equip-slot-label">ITEM SLOTS (click slot to remove)</div>
+      <div class="equip-slots">
+        <div class="equip-slot" id="equipSlot0">EMPTY</div>
+        <div class="equip-slot" id="equipSlot1">EMPTY</div>
+        <div class="equip-slot" id="equipSlot2">EMPTY</div>
+        <div class="equip-slot" id="equipSlot3">EMPTY</div>
+      </div>
+      <div class="equip-divider">YOUR ITEMS</div>
+      <div class="equip-item-list" id="equipItemList">
+        <div style="color:#8a7a5a; font-size:0.5rem; text-align:center; padding:12px;">Checking inventory...</div>
+      </div>
+      <button class="confirm-equip-btn" id="confirmEquipBtn">CONFIRM LOADOUT</button>
+      <button class="modal-close" id="skipEquipBtn">SKIP</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script type="module">
+    import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    // ========== CONFIG ==========
+    const CONTRACT_ABI = [
+      'function totalSupply() view returns (uint256)',
+      'function balanceOf(address owner) view returns (uint256)',
+      'function ownerOf(uint256 tokenId) view returns (address)',
+      'function tokenURI(uint256 tokenId) view returns (string)',
+      'function MAX_SUPPLY() view returns (uint256)',
+      'function getStats(uint256 tokenId) view returns (uint32, uint32, uint32, uint32, bool)',
+      'function getExperience(uint256 tokenId) view returns (uint256)',
+      'function tokenName(uint256 tokenId) view returns (string)'
+    ];
+
+    const ITEMS_ABI = [
+      'function balanceOf(address account, uint256 id) view returns (uint256)',
+      'function getItem(uint256 itemId) view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)'
+    ];
+    // Known ERC-1155 items — add entries here when new items are created
+    const KNOWN_ITEMS = { '1': "Cindy's Code" };
+
+    // Stat bonuses granted by each item (add keys: str, int, dex, cha)
+    const ITEM_BONUSES = {
+      '1': { int: 1 }  // Cindy's Code: +1 INT
+    };
+
+    // ========== DOM ==========
+    const walletBtn = document.getElementById('walletBtn');
+    const walletModal = document.getElementById('walletModal');
+    const modalClose = document.getElementById('modalClose');
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const connectPrompt = document.getElementById('connectPrompt');
+    const arenaContent = document.getElementById('arenaContent');
+    const portraitFrame = document.getElementById('portraitFrame');
+    const portraitImg = document.getElementById('portraitImg');
+    const portraitPlaceholder = document.getElementById('portraitPlaceholder');
+    const portraitInfo = document.getElementById('portraitInfo');
+    const portraitName = document.getElementById('portraitName');
+    const portraitLevel = document.getElementById('portraitLevel');
+    const xpBarFill = document.getElementById('xpBarFill');
+    const xpLabel = document.getElementById('xpLabel');
+    const statStr = document.getElementById('statStr');
+    const statInt = document.getElementById('statInt');
+    const statDex = document.getElementById('statDex');
+    const statCha = document.getElementById('statCha');
+    const battleBtn = document.getElementById('battleBtn');
+    const galleryScroll = document.getElementById('galleryScroll');
+    const galleryEmpty = document.getElementById('galleryEmpty');
+
+    // ========== STATE ==========
+    let userAddress = null;
+    let selectedTokenId = null;
+    let ownedTokens = [];
+    let equippedItems = [null, null, null, null]; // itemId strings or null
+    let baseStats = null; // { str, int, dex, cha, assigned }
+
+    // ========== UI STATES ==========
+    function showArena() {
+      connectPrompt.style.display = 'none';
+      arenaContent.style.display = 'flex';
+    }
+
+    function hideArena() {
+      connectPrompt.style.display = 'block';
+      arenaContent.style.display = 'none';
+      galleryScroll.innerHTML = '';
+      selectedTokenId = null;
+      ownedTokens = [];
+      portraitImg.classList.remove('show');
+      portraitPlaceholder.classList.remove('hidden');
+      portraitFrame.classList.remove('has-chad');
+      portraitInfo.style.display = 'none';
+      portraitName.textContent = '';
+      portraitLevel.textContent = 'LVL 1';
+      xpBarFill.style.width = '0%';
+      xpLabel.textContent = '0 / 100 XP';
+      baseStats = null;
+      statStr.textContent = '—'; statStr.classList.remove('boosted');
+      statInt.textContent = '—'; statInt.classList.remove('boosted');
+      statDex.textContent = '—'; statDex.classList.remove('boosted');
+      statCha.textContent = '—'; statCha.classList.remove('boosted');
+      const col = document.getElementById('equippedItemsCol');
+      if (col) { col.style.display = 'none'; col.innerHTML = ''; }
+      battleBtn.classList.remove('active');
+    }
+
+    function selectChad(tokenId, imageUrl) {
+      selectedTokenId = tokenId;
+      portraitImg.src = imageUrl;
+      portraitImg.classList.add('show');
+      portraitPlaceholder.classList.add('hidden');
+      portraitFrame.classList.add('has-chad');
+      portraitName.textContent = 'Last Chad #' + tokenId;
+      portraitInfo.style.display = 'block';
+      battleBtn.classList.add('active');
+
+      document.querySelectorAll('.gallery-item').forEach(item => {
+        item.classList.toggle('selected', item.dataset.tokenId == tokenId);
+      });
+
+      // Fetch stats and XP from chain
+      fetchChadData(tokenId);
+      // Open item equip modal
+      openEquipModal(tokenId);
+    }
+
+    async function fetchChadData(tokenId) {
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+
+        const [statsResult, xpResult, nameResult] = await Promise.all([
+          contract.getStats(tokenId),
+          contract.getExperience(tokenId),
+          contract.tokenName(tokenId)
+        ]);
+
+        if (nameResult && nameResult.trim()) {
+          portraitName.textContent = nameResult;
+        }
+
+        const [str, intel, dex, cha, assigned] = statsResult;
+        baseStats = assigned
+          ? { str: str.toNumber(), int: intel.toNumber(), dex: dex.toNumber(), cha: cha.toNumber(), assigned: true }
+          : null;
+        applyItemBonuses();
+
+        const xp = xpResult.toNumber();
+        const level = Math.floor(xp / 100) + 1;
+        const xpIntoLevel = xp % 100;
+        const pct = xpIntoLevel;
+        portraitLevel.textContent = 'LVL ' + level;
+        xpBarFill.style.width = pct + '%';
+        xpLabel.textContent = xpIntoLevel + ' / 100 XP';
+      } catch (err) {
+        console.error('Failed to load chad data:', err);
+      }
+    }
+
+    // ========== LOAD OWNED NFTS ==========
+    async function loadOwnedChads() {
+      if (!userAddress || !CONTRACT_ADDRESS) return;
+
+      galleryScroll.innerHTML = '';
+      ownedTokens = [];
+
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+        const totalSupply = (await contract.totalSupply()).toNumber();
+
+        for (let tokenId = 1; tokenId <= totalSupply; tokenId++) {
+          try {
+            const owner = await contract.ownerOf(tokenId);
+            if (owner.toLowerCase() === userAddress.toLowerCase()) {
+              ownedTokens.push(tokenId);
+            }
+          } catch (e) {}
+        }
+
+        if (ownedTokens.length === 0) {
+          galleryEmpty.style.display = 'block';
+          galleryScroll.style.display = 'none';
+          return;
+        }
+
+        galleryEmpty.style.display = 'none';
+        galleryScroll.style.display = 'flex';
+
+        for (const tokenId of ownedTokens) {
+          const imageUrl = 'assets/chads/' + tokenId + '.png';
+
+          const item = document.createElement('div');
+          item.className = 'gallery-item';
+          item.dataset.tokenId = tokenId;
+          item.innerHTML = '<img src="' + imageUrl + '" alt="Chad #' + tokenId + '"><span class="token-id">#' + tokenId + '</span>';
+
+          item.addEventListener('click', () => {
+            selectChad(tokenId, imageUrl);
+          });
+
+          galleryScroll.appendChild(item);
+        }
+
+      } catch (err) {
+        console.error('Failed to load Chads:', err);
+        galleryEmpty.textContent = 'Failed to load Chads';
+        galleryEmpty.style.display = 'block';
+        galleryScroll.style.display = 'none';
+      }
+    }
+
+    // ========== ITEM BONUSES & EQUIPPED COLUMN ==========
+    function applyItemBonuses() {
+      const bonuses = { str: 0, int: 0, dex: 0, cha: 0 };
+      for (const itemId of equippedItems.filter(Boolean)) {
+        const b = ITEM_BONUSES[itemId];
+        if (b) {
+          if (b.str) bonuses.str += b.str;
+          if (b.int) bonuses.int += b.int;
+          if (b.dex) bonuses.dex += b.dex;
+          if (b.cha) bonuses.cha += b.cha;
+        }
+      }
+      applyStatDisplay(statStr, 'str', bonuses.str);
+      applyStatDisplay(statInt, 'int', bonuses.int);
+      applyStatDisplay(statDex, 'dex', bonuses.dex);
+      applyStatDisplay(statCha, 'cha', bonuses.cha);
+    }
+
+    function applyStatDisplay(el, key, bonus) {
+      if (!baseStats) { el.textContent = '—'; el.classList.remove('boosted'); el.title = ''; return; }
+      const base = baseStats[key];
+      el.classList.remove('boosted');
+      el.title = '';
+      if (bonus > 0) {
+        el.textContent = (base + bonus).toString();
+        el.classList.add('boosted');
+        el.title = base + ' + ' + bonus + ' (item bonus)';
+      } else {
+        el.textContent = base.toString();
+      }
+    }
+
+    function renderEquippedItemsColumn() {
+      const col = document.getElementById('equippedItemsCol');
+      const active = equippedItems.filter(Boolean);
+      if (active.length === 0) { col.style.display = 'none'; col.innerHTML = ''; return; }
+      col.style.display = 'flex';
+      col.innerHTML = '<div class="equipped-col-label">EQUIPPED</div>';
+      for (const itemId of active) {
+        const badge = document.createElement('div');
+        badge.className = 'equipped-item-badge';
+        badge.textContent = KNOWN_ITEMS[itemId] || 'Item #' + itemId;
+        col.appendChild(badge);
+      }
+    }
+
+    // ========== EQUIP MODAL ==========
+    function renderEquipSlots() {
+      for (let i = 0; i < 4; i++) {
+        const slotEl = document.getElementById('equipSlot' + i);
+        if (!slotEl) continue;
+        const itemId = equippedItems[i];
+        slotEl.textContent = itemId ? (KNOWN_ITEMS[itemId] || 'Item #' + itemId) : 'EMPTY';
+        slotEl.classList.toggle('filled', !!itemId);
+      }
+    }
+
+    async function openEquipModal(tokenId) {
+      document.getElementById('equipModalTitle').textContent = 'EQUIP ITEMS — CHAD #' + tokenId;
+      // Restore saved loadout for this chad
+      try {
+        const saved = localStorage.getItem('lc_equipped_' + tokenId);
+        equippedItems = saved ? JSON.parse(saved) : [null, null, null, null];
+      } catch (e) {
+        equippedItems = [null, null, null, null];
+      }
+      renderEquipSlots();
+      document.getElementById('equipModal').classList.add('show');
+      await loadOwnedItems();
+    }
+
+    async function loadOwnedItems() {
+      const listEl = document.getElementById('equipItemList');
+      listEl.innerHTML = '<div style="color:#8a7a5a;font-size:0.5rem;text-align:center;padding:12px;">Checking inventory...</div>';
+      if (!userAddress || !ITEMS_CONTRACT_ADDRESS) {
+        listEl.innerHTML = '<div style="color:#5c4409;font-size:0.5rem;text-align:center;padding:12px;">Items contract not deployed yet</div>';
+        return;
+      }
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProvider);
+        const ownedItems = [];
+        for (const [itemId, itemName] of Object.entries(KNOWN_ITEMS)) {
+          const bal = await itemsContract.balanceOf(userAddress, itemId);
+          if (parseInt(bal) > 0) ownedItems.push({ id: itemId, name: itemName, qty: parseInt(bal) });
+        }
+        if (ownedItems.length === 0) {
+          listEl.innerHTML = '<div style="color:#5c4409;font-size:0.5rem;text-align:center;padding:12px;">No items in inventory</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        for (const item of ownedItems) {
+          const row = document.createElement('div');
+          row.className = 'equip-item-row';
+          const btn = document.createElement('button');
+          btn.className = 'equip-item-btn' + (equippedItems.includes(item.id) ? ' equipped' : '');
+          btn.textContent = equippedItems.includes(item.id) ? 'REMOVE' : 'EQUIP';
+          btn.dataset.itemId = item.id;
+          btn.addEventListener('click', () => toggleItemEquip(item.id));
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'equip-item-name';
+          nameSpan.innerHTML = item.name + ' <span class="equip-item-qty">(x' + item.qty + ')</span>';
+          row.appendChild(nameSpan);
+          row.appendChild(btn);
+          listEl.appendChild(row);
+        }
+      } catch (e) {
+        listEl.innerHTML = '<div style="color:#8a7a5a;font-size:0.5rem;text-align:center;padding:12px;">Could not load items</div>';
+      }
+    }
+
+    function toggleItemEquip(itemId) {
+      const idx = equippedItems.indexOf(itemId);
+      if (idx >= 0) {
+        equippedItems[idx] = null;
+      } else {
+        const emptyIdx = equippedItems.indexOf(null);
+        if (emptyIdx < 0) { alert('All 4 slots full. Remove an item first.'); return; }
+        equippedItems[emptyIdx] = itemId;
+      }
+      renderEquipSlots();
+      // Update button states in list without re-fetching
+      document.querySelectorAll('#equipItemList .equip-item-btn').forEach(btn => {
+        const isEquipped = equippedItems.includes(btn.dataset.itemId);
+        btn.textContent = isEquipped ? 'REMOVE' : 'EQUIP';
+        btn.classList.toggle('equipped', isEquipped);
+      });
+    }
+
+    function confirmEquip() {
+      if (selectedTokenId) {
+        localStorage.setItem('lc_equipped_' + selectedTokenId, JSON.stringify(equippedItems));
+      }
+      document.getElementById('equipModal').classList.remove('show');
+      renderEquippedItemsColumn();
+      applyItemBonuses();
+    }
+
+    // ========== WALLET ==========
+    function onConnected(addr) {
+      userAddress = addr;
+      sessionStorage.setItem('lcWallet', addr);
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      walletModal.classList.remove('show');
+      showArena();
+      loadOwnedChads();
+    }
+
+    function onDisconnected() {
+      userAddress = null;
+      sessionStorage.removeItem('lcWallet');
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+      disconnectDropdown.classList.remove('show');
+      hideArena();
+    }
+
+    // ========== EVENTS ==========
+    walletBtn.addEventListener('click', () => {
+      if (userAddress) { disconnectDropdown.classList.toggle('show'); return; }
+      walletModal.classList.add('show');
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      disconnectDropdown.classList.remove('show');
+      disconnect(onDisconnected);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
+    });
+
+    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
+    walletModal.addEventListener('click', (e) => { if (e.target === walletModal) walletModal.classList.remove('show'); });
+
+    document.querySelectorAll('.wallet-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        walletModal.classList.remove('show');
+        connectWallet(opt.dataset.wallet, { onConnected, onDisconnected });
+      });
+    });
+
+    document.getElementById('confirmEquipBtn').addEventListener('click', confirmEquip);
+    document.getElementById('skipEquipBtn').addEventListener('click', () => {
+      document.getElementById('equipModal').classList.remove('show');
+      renderEquippedItemsColumn();
+      applyItemBonuses();
+    });
+    document.getElementById('equipModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('equipModal')) confirmEquip();
+    });
+    // Slot click = unequip that slot
+    for (let i = 0; i < 4; i++) {
+      document.getElementById('equipSlot' + i).addEventListener('click', () => {
+        if (equippedItems[i]) { equippedItems[i] = null; renderEquipSlots(); }
+      });
+    }
+
+    battleBtn.addEventListener('click', function () {
+      if (!this.classList.contains('active') || !selectedTokenId) return;
+      const questSelect = document.getElementById('questSelect');
+      const slug = questSelect ? questSelect.value : '';
+      if (slug) {
+        localStorage.setItem('lc_equipped_' + selectedTokenId, JSON.stringify(equippedItems));
+        window.location.href = 'quests/' + slug + '/index.html?chad=' + selectedTokenId;
+      }
+    });
+
+    // ========== QUEST DROPDOWN ==========
+    async function loadQuestDropdown() {
+      const questSelect = document.getElementById('questSelect');
+      if (!questSelect) return;
+      try {
+        const res = await fetch('quests/index.json?v=' + Date.now());
+        if (!res.ok) throw new Error('Not found');
+        const quests = await res.json();
+        questSelect.innerHTML = '';
+        if (quests.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'No quests available';
+          questSelect.appendChild(opt);
+        } else {
+          quests.forEach(q => {
+            const opt = document.createElement('option');
+            opt.value = q.slug;
+            opt.textContent = q.name;
+            questSelect.appendChild(opt);
+          });
+        }
+      } catch (e) {
+        questSelect.innerHTML = '<option value="">No quests available</option>';
+        console.warn('Could not load quest list:', e);
+      }
+    }
+    loadQuestDropdown();
+
+    // ========== AUTO-RECONNECT ==========
+    autoReconnect({ onConnected, onDisconnected });
+  </script>
+  <script src="nav.js"></script>
+</body>
+</html>
