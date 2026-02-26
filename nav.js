@@ -2,12 +2,12 @@
   var page = window.location.pathname.split('/').pop() || 'index.html';
   var active = {
     'mint.html':      'mint',
-    'quest.html':     'enter',
-    'game.html':      'enter',
-    'stats.html':     'enter',
+    'quest.html':     'base',
+    'game.html':      'base',
+    'stats.html':     'base',
     'docs.html':      'docs',
-    'market.html':    'market',
-    'chadbase.html':  'enter'
+    'market.html':    'base',
+    'chadbase.html':  'base'
   }[page] || '';
 
   function link(href, label, key) {
@@ -21,10 +21,9 @@
     '<div class="nav-wrapper">' +
       '<button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>' +
       '<div class="nav-dropdown" id="navDropdown">' +
-        link('/mint.html',   'MINT',   'mint')   +
-        link('/quest.html',  'ENTER',  'enter')  +
-        link('/market.html', 'MARKET', 'market') +
-        link('/docs.html',   'DOCS',   'docs')   +
+        link('/mint.html',     'MINT', 'mint') +
+        link('/chadbase.html', 'BASE', 'base') +
+        link('/docs.html',     'DOCS', 'docs') +
       '</div>' +
     '</div>';
 
