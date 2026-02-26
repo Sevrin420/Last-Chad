@@ -949,10 +949,7 @@
       xpBarFill.style.width = '0%';
       xpLabel.textContent = '0 / 100 XP';
       baseStats = null;
-      statStr.textContent = '—'; statStr.classList.remove('boosted');
-      statInt.textContent = '—'; statInt.classList.remove('boosted');
-      statDex.textContent = '—'; statDex.classList.remove('boosted');
-      statCha.textContent = '—'; statCha.classList.remove('boosted');
+      [statStr, statInt, statDex, statCha].forEach(el => { el.textContent = '—'; el.classList.remove('boosted'); });
       const col = document.getElementById('equippedItemsCol');
       if (col) { col.style.display = 'none'; col.innerHTML = ''; }
       battleBtn.classList.remove('active');
@@ -995,11 +992,11 @@
 
         const [str, intel, dex, cha, assigned] = statsResult;
         baseStats = assigned
-          ? { str: str.toNumber(), int: intel.toNumber(), dex: dex.toNumber(), cha: cha.toNumber(), assigned: true }
+          ? { str: Number(str), int: Number(intel), dex: Number(dex), cha: Number(cha) }
           : null;
         applyItemBonuses();
 
-        const xp = xpResult.toNumber();
+        const xp = Number(xpResult);
         const level = Math.floor(xp / 100) + 1;
         const xpIntoLevel = xp % 100;
         const pct = xpIntoLevel;
@@ -1083,14 +1080,12 @@
     }
 
     function applyStatDisplay(el, key, bonus) {
-      if (!baseStats) { el.textContent = '—'; el.classList.remove('boosted'); el.title = ''; return; }
+      if (!baseStats) { el.textContent = '—'; el.classList.remove('boosted'); return; }
       const base = baseStats[key];
       el.classList.remove('boosted');
-      el.title = '';
       if (bonus > 0) {
         el.textContent = (base + bonus).toString();
         el.classList.add('boosted');
-        el.title = base + ' + ' + bonus + ' (item bonus)';
       } else {
         el.textContent = base.toString();
       }
