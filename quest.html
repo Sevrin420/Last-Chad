@@ -857,9 +857,6 @@
           galleryScroll.appendChild(item);
         }
 
-        // Auto-select first chad (ownedTokens.length > 0 guaranteed — empty case returned above)
-        selectChad(ownedTokens[0], 'assets/chads/' + ownedTokens[0] + '.png');
-
       } catch (err) {
         console.error('Failed to load Chads:', err);
         galleryEmpty.textContent = 'Failed to load Chads';
