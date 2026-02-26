@@ -6,6 +6,7 @@
   <title>Chad Base — Last Chad</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -80,6 +81,9 @@
       50%       { box-shadow: 0 0 40px rgba(220,185,20,0.6), inset 0 0 30px rgba(220,185,20,0.12); }
     }
 
+    /* ── Nav positioned over scene ── */
+    .nav-wrapper { position: absolute; top: 12px; left: 12px; z-index: 200; }
+
     /* ── Shared zone styles ── */
     .zone {
       position: absolute;
@@ -87,7 +91,7 @@
       cursor: pointer;
       text-decoration: none;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       transition: transform 0.2s ease, opacity 0.8s ease;
       background: transparent;
@@ -118,11 +122,13 @@
       position: relative;
       z-index: 1;
       color: #fff;
-      font-size: clamp(0.45rem, 1.4vw, 0.75rem);
+      font-size: clamp(0.65rem, 1.9vw, 1rem);
       text-align: center;
       line-height: 1.6;
       letter-spacing: 0.03em;
       pointer-events: none;
+      align-self: flex-start;
+      margin-top: 10%;
       text-shadow:
         0 0 6px currentColor,
         0 1px 3px rgba(0,0,0,0.9);
@@ -187,6 +193,21 @@
       0%, 100% { opacity: 0.6; }
       50%       { opacity: 1.0; }
     }
+
+    /* ── Boxes left of pot — Docs — GRAY ── */
+    .zone-docs { left: 1%; bottom: 4%; width: 24%; height: 26%; }
+    .zone-docs .zone-label { color: #c8c8d0; }
+    .zone-docs::before {
+      background: radial-gradient(ellipse at center,
+        rgba(160, 160, 180, 0.55) 0%,
+        rgba(160, 160, 180, 0.20) 45%,
+        transparent 70%);
+      animation: pulse-gray 3.4s ease-in-out infinite;
+    }
+    @keyframes pulse-gray {
+      0%, 100% { opacity: 0.55; }
+      50%       { opacity: 1.0; }
+    }
   </style>
 </head>
 <body>
@@ -194,13 +215,13 @@
     <img src="assets/chadhome.jpg" alt="Chad Base" draggable="false" />
 
     <!-- North opening — Quests -->
-    <a class="zone zone-quests" href="enter.html">
+    <a class="zone zone-quests" href="quest.html">
       <span class="zone-label">QUESTS</span>
     </a>
 
     <!-- Market stall — Marketplace -->
-    <a class="zone zone-market" href="enter.html">
-      <span class="zone-label">MARKET-<br>PLACE</span>
+    <a class="zone zone-market" href="market.html">
+      <span class="zone-label">MARKET</span>
     </a>
 
     <!-- Forge — Actions -->
@@ -210,7 +231,12 @@
 
     <!-- Pot over fire — Eat/Rest -->
     <a class="zone zone-rest" href="#">
-      <span class="zone-label">EAT/<br>REST</span>
+      <span class="zone-label">RECHARGE</span>
+    </a>
+
+    <!-- Boxes left of pot — Docs -->
+    <a class="zone zone-docs" href="docs.html">
+      <span class="zone-label">DOCS</span>
     </a>
   </div>
 
@@ -218,6 +244,9 @@
   <div id="enter-overlay">
     <button id="enter-btn">ENTER CAMP</button>
   </div>
+
+  <!-- Nav menu -->
+  <div id="nav-placeholder"></div>
 
   <audio id="bg-music" src="music/moody.mp3" loop></audio>
   <script>
@@ -227,11 +256,19 @@
 
     music.volume = 0.5;
 
-    document.getElementById('enter-btn').addEventListener('click', function () {
+    function reveal() {
       music.play().catch(() => {});
       overlay.classList.add('hidden');
       scene.classList.add('revealed');
-    });
+    }
+
+    // Auto-reveal when coming from the Enter button on index.html
+    if (new URLSearchParams(window.location.search).get('autoplay') === '1') {
+      reveal();
+    }
+
+    document.getElementById('enter-btn').addEventListener('click', reveal);
   </script>
+  <script src="nav.js"></script>
 </body>
 </html>
