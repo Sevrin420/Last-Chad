@@ -157,33 +157,7 @@ class GitHubAPI {
         sha: item.sha
       }));
 
-      // Generate quest HTML
-      progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress);
-      const htmlBlob = await this.createBlob(questHTML, 'utf-8');
-      console.log(`✓ Quest HTML blob created`);
-      treeItems.push({
-        path: `${questPath}/index.html`,
-        mode: '100644',
-        type: 'blob',
-        sha: htmlBlob.sha
-      });
-
-      // Add quest data JSON (strip image data to keep it lean)
-      progress('Saving quest data...');
-      const cleanSections = sections.map(({ photo, diceImage, ...rest }) => rest);
-      const questDataBlob = await this.createBlob(
-        JSON.stringify({ name: questName, sections: cleanSections }, null, 2),
-        'utf-8'
-      );
-      treeItems.push({
-        path: `${questPath}/data.json`,
-        mode: '100644',
-        type: 'blob',
-        sha: questDataBlob.sha
-      });
-
-      // Update quests/index.json manifest
+      // Read quest index first to assign a stable on-chain questId
       progress('Updating quest manifest...');
       const indexJsonItem = treeItems.find(item => item.path === 'quests/index.json');
       let questIndex = [];
@@ -197,8 +171,11 @@ class GitHubAPI {
           questIndex = [];
         }
       }
-      if (!questIndex.find(q => q.slug === sanitized)) {
-        questIndex.push({ name: questName, slug: sanitized });
+      // Assign questId: reuse existing if re-publishing, otherwise next available slot
+      const existingEntry = questIndex.find(q => q.slug === sanitized);
+      const questId = existingEntry != null ? existingEntry.questId : questIndex.length;
+      if (!existingEntry) {
+        questIndex.push({ name: questName, slug: sanitized, questId });
       }
       const indexBlob = await this.createBlob(JSON.stringify(questIndex, null, 2), 'utf-8');
       const indexIdx = treeItems.findIndex(item => item.path === 'quests/index.json');
@@ -209,7 +186,33 @@ class GitHubAPI {
         type: 'blob',
         sha: indexBlob.sha
       });
-      console.log(`✓ Quest manifest updated`);
+      console.log(`✓ Quest manifest updated (questId=${questId})`);
+
+      // Generate quest HTML with the assigned questId
+      progress('Generating quest HTML...');
+      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress, questId);
+      const htmlBlob = await this.createBlob(questHTML, 'utf-8');
+      console.log(`✓ Quest HTML blob created`);
+      treeItems.push({
+        path: `${questPath}/index.html`,
+        mode: '100644',
+        type: 'blob',
+        sha: htmlBlob.sha
+      });
+
+      // Add quest data JSON (strip image data to keep it lean)
+      progress('Saving quest data...');
+      const cleanSections = sections.map(({ photo, diceImage, ...rest }) => rest);
+      const questDataBlob = await this.createBlob(
+        JSON.stringify({ name: questName, questId, sections: cleanSections }, null, 2),
+        'utf-8'
+      );
+      treeItems.push({
+        path: `${questPath}/data.json`,
+        mode: '100644',
+        type: 'blob',
+        sha: questDataBlob.sha
+      });
 
       // Process and add images
       let uploadedImages = 0;
@@ -325,7 +328,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '') {
+function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '', questId = 0) {
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -1744,7 +1747,7 @@ ${diceInitJs}
       'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
     ];
-    var QUEST_ID = 0;
+    var QUEST_ID = ${questId};
     var _questSeed = null; // set after startQuest confirmed on-chain
 
     // Mirror of QuestRewards._deriveDie: keccak256(seed, roll, dieIndex) % 6 + 1

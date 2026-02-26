@@ -80,10 +80,6 @@ describe("QuestRewards", function () {
       expect(await questRewards.lastChad()).to.equal(await lastChad.getAddress());
     });
 
-    it("has QUEST_COUNT = 1", async function () {
-      expect(await questRewards.QUEST_COUNT()).to.equal(1);
-    });
-
     it("has SESSION_DURATION = 3600 seconds", async function () {
       expect(await questRewards.SESSION_DURATION()).to.equal(3600);
     });
@@ -127,12 +123,6 @@ describe("QuestRewards", function () {
       await expect(
         questRewards.connect(other).startQuest(1, QUEST_ID)
       ).to.be.revertedWith("Not token owner");
-    });
-
-    it("reverts for an invalid quest ID", async function () {
-      await expect(
-        questRewards.connect(player).startQuest(1, 99)
-      ).to.be.revertedWith("Invalid quest");
     });
 
     it("reverts on a second call for the same token and quest", async function () {
