@@ -687,19 +687,23 @@
       font-size: 0.6rem;
     }
 
-    /* --- Equipped items column --- */
+    /* --- Equipped items row (below portrait, above XP bar) --- */
     .equipped-items-col {
       display: none;
-      flex-direction: column;
+      flex-direction: row;
+      flex-wrap: wrap;
       gap: 8px;
-      padding-top: 4px;
-      min-width: 90px;
+      justify-content: center;
+      margin-top: 12px;
+      width: 100%;
+      max-width: 400px;
     }
 
     .equipped-col-label {
       font-size: 0.42rem;
       color: #5c4409;
       text-align: center;
+      width: 100%;
       margin-bottom: 2px;
       letter-spacing: 0.1em;
     }
@@ -787,8 +791,10 @@
             <div class="stat-value" id="statCha">—</div>
           </div>
         </div>
-        <div class="equipped-items-col" id="equippedItemsCol"></div>
       </div>
+
+      <!-- Equipped items (below portrait row, above name/XP bar) -->
+      <div class="equipped-items-col" id="equippedItemsCol"></div>
 
       <!-- Name / Level / XP (centered below portrait row) -->
       <div class="portrait-info" id="portraitInfo">
