@@ -601,7 +601,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
 
     .section-img {
       width: 100%;
-      max-width: 167px;
+      max-width: 250px;
       height: auto;
       border: 2px solid #5c4409;
       border-radius: 4px;
