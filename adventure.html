@@ -687,6 +687,47 @@
       font-size: 0.6rem;
     }
 
+    /* --- Equipped items column --- */
+    .equipped-items-col {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 4px;
+      min-width: 90px;
+    }
+
+    .equipped-col-label {
+      font-size: 0.42rem;
+      color: #5c4409;
+      text-align: center;
+      margin-bottom: 2px;
+      letter-spacing: 0.1em;
+    }
+
+    .equipped-item-badge {
+      background: rgba(30, 20, 10, 0.7);
+      border: 2px solid #c9a84c;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 0.38rem;
+      color: #c9a84c;
+      text-align: center;
+      line-height: 1.6;
+      box-shadow: 0 0 8px rgba(201, 168, 76, 0.15);
+    }
+
+    /* --- Boosted stat (item bonus) --- */
+    .stat-value.boosted {
+      color: #ffe066;
+      text-shadow: 0 0 6px #ffe066, 0 0 14px #ffd700, 0 0 24px rgba(255, 215, 0, 0.4);
+      animation: stat-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes stat-pulse {
+      0%, 100% { text-shadow: 0 0 6px #ffe066, 0 0 14px #ffd700, 0 0 24px rgba(255, 215, 0, 0.4); }
+      50% { text-shadow: 0 0 10px #ffe066, 0 0 22px #ffd700, 0 0 36px rgba(255, 215, 0, 0.6); }
+    }
+
     /* --- Responsive --- */
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
@@ -746,6 +787,7 @@
             <div class="stat-value" id="statCha">—</div>
           </div>
         </div>
+        <div class="equipped-items-col" id="equippedItemsCol"></div>
       </div>
 
       <!-- Name / Level / XP (centered below portrait row) -->
@@ -844,6 +886,11 @@
     // Known ERC-1155 items — add entries here when new items are created
     const KNOWN_ITEMS = { '1': "Cindy's Code" };
 
+    // Stat bonuses granted by each item (add keys: str, int, dex, cha)
+    const ITEM_BONUSES = {
+      '1': { int: 1 }  // Cindy's Code: +1 INT
+    };
+
     // ========== DOM ==========
     const walletBtn = document.getElementById('walletBtn');
     const walletModal = document.getElementById('walletModal');
@@ -873,6 +920,7 @@
     let selectedTokenId = null;
     let ownedTokens = [];
     let equippedItems = [null, null, null, null]; // itemId strings or null
+    let baseStats = null; // { str, int, dex, cha, assigned }
 
     // ========== UI STATES ==========
     function showArena() {
@@ -894,10 +942,13 @@
       portraitLevel.textContent = 'LVL 1';
       xpBarFill.style.width = '0%';
       xpLabel.textContent = '0 / 100 XP';
-      statStr.textContent = '—';
-      statInt.textContent = '—';
-      statDex.textContent = '—';
-      statCha.textContent = '—';
+      baseStats = null;
+      statStr.textContent = '—'; statStr.classList.remove('boosted');
+      statInt.textContent = '—'; statInt.classList.remove('boosted');
+      statDex.textContent = '—'; statDex.classList.remove('boosted');
+      statCha.textContent = '—'; statCha.classList.remove('boosted');
+      const col = document.getElementById('equippedItemsCol');
+      if (col) { col.style.display = 'none'; col.innerHTML = ''; }
       battleBtn.classList.remove('active');
     }
 
@@ -937,10 +988,10 @@
         }
 
         const [str, intel, dex, cha, assigned] = statsResult;
-        statStr.textContent = assigned ? str.toString() : '—';
-        statInt.textContent = assigned ? intel.toString() : '—';
-        statDex.textContent = assigned ? dex.toString() : '—';
-        statCha.textContent = assigned ? cha.toString() : '—';
+        baseStats = assigned
+          ? { str: str.toNumber(), int: intel.toNumber(), dex: dex.toNumber(), cha: cha.toNumber(), assigned: true }
+          : null;
+        applyItemBonuses();
 
         const xp = xpResult.toNumber();
         const level = Math.floor(xp / 100) + 1;
@@ -1004,6 +1055,52 @@
         galleryEmpty.textContent = 'Failed to load Chads';
         galleryEmpty.style.display = 'block';
         galleryScroll.style.display = 'none';
+      }
+    }
+
+    // ========== ITEM BONUSES & EQUIPPED COLUMN ==========
+    function applyItemBonuses() {
+      const bonuses = { str: 0, int: 0, dex: 0, cha: 0 };
+      for (const itemId of equippedItems.filter(Boolean)) {
+        const b = ITEM_BONUSES[itemId];
+        if (b) {
+          if (b.str) bonuses.str += b.str;
+          if (b.int) bonuses.int += b.int;
+          if (b.dex) bonuses.dex += b.dex;
+          if (b.cha) bonuses.cha += b.cha;
+        }
+      }
+      applyStatDisplay(statStr, 'str', bonuses.str);
+      applyStatDisplay(statInt, 'int', bonuses.int);
+      applyStatDisplay(statDex, 'dex', bonuses.dex);
+      applyStatDisplay(statCha, 'cha', bonuses.cha);
+    }
+
+    function applyStatDisplay(el, key, bonus) {
+      if (!baseStats) { el.textContent = '—'; el.classList.remove('boosted'); el.title = ''; return; }
+      const base = baseStats[key];
+      el.classList.remove('boosted');
+      el.title = '';
+      if (bonus > 0) {
+        el.textContent = (base + bonus).toString();
+        el.classList.add('boosted');
+        el.title = base + ' + ' + bonus + ' (item bonus)';
+      } else {
+        el.textContent = base.toString();
+      }
+    }
+
+    function renderEquippedItemsColumn() {
+      const col = document.getElementById('equippedItemsCol');
+      const active = equippedItems.filter(Boolean);
+      if (active.length === 0) { col.style.display = 'none'; col.innerHTML = ''; return; }
+      col.style.display = 'flex';
+      col.innerHTML = '<div class="equipped-col-label">EQUIPPED</div>';
+      for (const itemId of active) {
+        const badge = document.createElement('div');
+        badge.className = 'equipped-item-badge';
+        badge.textContent = KNOWN_ITEMS[itemId] || 'Item #' + itemId;
+        col.appendChild(badge);
       }
     }
 
@@ -1095,6 +1192,8 @@
         localStorage.setItem('lc_equipped_' + selectedTokenId, JSON.stringify(equippedItems));
       }
       document.getElementById('equipModal').classList.remove('show');
+      renderEquippedItemsColumn();
+      applyItemBonuses();
     }
 
     // ========== WALLET ==========
@@ -1145,6 +1244,8 @@
     document.getElementById('confirmEquipBtn').addEventListener('click', confirmEquip);
     document.getElementById('skipEquipBtn').addEventListener('click', () => {
       document.getElementById('equipModal').classList.remove('show');
+      renderEquippedItemsColumn();
+      applyItemBonuses();
     });
     document.getElementById('equipModal').addEventListener('click', (e) => {
       if (e.target === document.getElementById('equipModal')) confirmEquip();
