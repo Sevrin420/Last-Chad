@@ -311,7 +311,7 @@
     </div>
 
     <!-- Skip button shown while video plays (hidden until tap-to-start) -->
-    <button id="skip-btn" class="skip-btn" style="display:none">SKIP ▶</button>
+    <button id="skip-btn" class="skip-btn" style="display:none">ENTER ▶</button>
 
     <!-- Sound toggle – top right corner (hidden until tap-to-start) -->
     <button id="sound-btn" class="sound-btn" style="display:none" title="Mute">🔊</button>
@@ -320,7 +320,7 @@
     <div id="nav-placeholder"></div>
 
     <a href="mint.html" class="btn mint-btn" aria-label="Mint"><span>Mint</span></a>
-    <a href="enter.html" class="btn enter-btn" aria-label="Enter"><span>Enter</span></a>
+    <a href="quest.html" class="btn enter-btn" aria-label="Enter"><span>Enter</span></a>
   </div>
 
   <script>
@@ -363,21 +363,9 @@
           video.addEventListener('seeked', onSeeked);
         });
 
-        // --- Skip: jump to 50s still frame, then reveal buttons ---
+        // --- Enter: navigate directly to chadbase (bypasses ENTER CAMP button) ---
         skipBtn.addEventListener('click', function() {
-          skipBtn.style.display  = 'none';
-          soundBtn.style.display = 'none';
-
-          // Pause and seek without fading out — current frame stays visible
-          // so the background image never shows through
-          video.pause();
-          video.currentTime = 50;
-
-          function onSeeked() {
-            video.removeEventListener('seeked', onSeeked);
-            revealButtons();
-          }
-          video.addEventListener('seeked', onSeeked);
+          window.location.href = 'chadbase.html?autoplay=1';
         });
 
         // --- Tap to start (browsers require user gesture for sound) ---
