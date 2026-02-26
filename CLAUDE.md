@@ -139,6 +139,18 @@ To make a new ERC-1155 item available as a section reward in the quest builder:
    ```
 The item ID must match its ID in `LastChadItems.sol`. The `mint(itemId, 1)` call uses the price returned by `getItem()` on-chain, so free items (price=0) cost only gas.
 
+### Adding a New Item to the Equip System (quest.html / HUD)
+When a new ERC-1155 item is created, register it in two places so it appears in the equip modal and applies stat bonuses in the quest HUD:
+1. Add to `KNOWN_ITEMS` in `quest.html`:
+   ```js
+   const KNOWN_ITEMS = { '1': "Cindy's Code", '2': "Item Name" };
+   ```
+2. Add to `ITEM_MODIFIERS` in `github-api.js`:
+   ```js
+   const ITEM_MODIFIERS = { '1': { str:0, int:1, dex:0, cha:0 }, '2': { str:1, int:0, dex:0, cha:0 } };
+   ```
+The item ID must match its ID in `LastChadItems.sol`. Equipped items are saved per-chad in `localStorage` as `lc_equipped_{tokenId}` (array of 4 item ID strings or nulls).
+
 ---
 
 ## Common Commands
