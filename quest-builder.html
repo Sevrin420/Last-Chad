@@ -1785,7 +1785,8 @@
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/create-landing-page-1qjhB');
 
         // Publish quest
-        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null)
+        const QUEST_REWARDS_ADDRESS = ''; // TODO: set to deployed QuestRewards contract address
+        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, QUEST_REWARDS_ADDRESS)
           .then(data => {
             showPublishProgress(false);
             showQuestPublishedModal(questName, data.questUrl);

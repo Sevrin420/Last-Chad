@@ -104,7 +104,7 @@ class GitHubAPI {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/git/blobs/${sha}`);
   }
 
-  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null) {
+  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null, questRewardsAddress = '') {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
     if (introPhoto) imageCount++;
@@ -159,7 +159,7 @@ class GitHubAPI {
 
       // Generate quest HTML
       progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto);
+      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
       console.log(`✓ Quest HTML blob created`);
       treeItems.push({
@@ -325,7 +325,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false) {
+function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '') {
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -1737,7 +1737,7 @@ ${diceInitJs}
       'function balanceOf(address account, uint256 id) external view returns (uint256)'
     ];
     var itemAwards = ${itemAwardsJson};
-    var QUEST_REWARDS_ADDRESS = ''; // set after deploying QuestRewards.sol
+    var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}';
     var QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
       'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
