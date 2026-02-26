@@ -120,15 +120,17 @@ XP = choiceBonus1 + diceScore + choiceBonus2 + dexBonus
 - Choice bonuses: choice1 (1 or 3) + choice2 (2 or 3)
 - dexBonus: 1 dex point ≈ 1 XP bonus
 
-### On-Chain XP vs Fallback Mode
-Quest pages use `QUEST_REWARDS_ADDRESS` from `js/config.js` to determine mode:
-- **Not set / empty**: Fallback mode — dice use `Math.random()`, XP is stored in `localStorage` only (no blockchain write)
-- **Set**: On-chain mode — dice use `keccak256` seed from `startQuest()`, XP is committed to the `QuestRewards` contract
+### On-Chain Dice — Mandatory
+Dice rolls in quest gameplay always derive from an on-chain keccak256 seed. There is no `Math.random()` fallback in quest pages.
 
-#### To Activate On-Chain XP
-1. Deploy the contract: `npx hardhat run scripts/deployQuestRewards.js --network fuji`
-2. Copy the deployed address into `QUEST_REWARDS_ADDRESS` in `js/config.js` and into each quest's HTML file
-3. Authorize the contract: call `lastChad.setGameContract(questRewardsAddress, true)` from the owner wallet
+- Roll button shows **"AWAITING SEED"** (disabled) until `startQuest()` confirms on-chain and sets `_questSeed`
+- Once the seed arrives the button re-enables as **"ROLL"** and all dice are deterministic
+- **Exception**: `docs.html` Celo Tech demo uses `Math.random()` for its local illustration only
+
+#### Deploying Quest Rewards (Required Before Quests Work)
+1. Deploy: `npx hardhat run scripts/deployQuestRewards.js --network fuji`
+2. Copy the address into `QUEST_REWARDS_ADDRESS` in `js/config.js` and each quest's HTML
+3. Authorize: call `lastChad.setGameContract(questRewardsAddress, true)` from the owner wallet
 
 ### Adding a New Quest
 1. Increment `QUEST_COUNT` in `QuestRewards.sol`

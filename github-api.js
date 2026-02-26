@@ -1645,6 +1645,15 @@ ${completePanelHtml}
         for (var ki = 0; ki < 5; ki++) { if (state.kept[ki]) state.kept2 |= (1 << ki); }
       }
 
+      // On-chain seed is mandatory — block roll until startQuest() confirms
+      if (!_questSeed) {
+        state.isRolling = false;
+        state.rollsLeft++;
+        var waitBtn = document.getElementById('rollBtn_' + sid);
+        if (waitBtn) { waitBtn.textContent = 'AWAITING SEED'; waitBtn.disabled = false; }
+        return;
+      }
+
       var rollBtn = document.getElementById('rollBtn_' + sid);
       var rollsLeftTxt = document.getElementById('rollsLeft_' + sid);
       if (rollBtn) rollBtn.disabled = true;
@@ -1668,9 +1677,7 @@ ${completePanelHtml}
         await new Promise(function(resolve) { setTimeout(resolve, order === 0 ? 2500 : 800); });
         var dieIndex = toRoll[order];
         clearInterval(cycleTimers[dieIndex]);
-        var finalValue = (_questSeed && typeof ethers !== 'undefined')
-          ? _deriveDieJS(_questSeed, currentRoll, dieIndex)
-          : Math.floor(Math.random() * 6) + 1;
+        var finalValue = _deriveDieJS(_questSeed, currentRoll, dieIndex);
         state.values[dieIndex] = finalValue;
         renderFace(dieIndex, finalValue, sid);
         var box = document.getElementById('die' + dieIndex + '_' + sid);
@@ -1801,13 +1808,11 @@ ${diceInitJs}
 
     // Mirror of QuestRewards._deriveDie: keccak256(seed, roll, dieIndex) % 6 + 1
     function _deriveDieJS(seed, roll, dieIndex) {
-      try {
-        var packed = ethers.utils.solidityPack(['bytes32', 'uint8', 'uint8'], [seed, roll, dieIndex]);
-        return ethers.BigNumber.from(ethers.utils.keccak256(packed)).mod(6).toNumber() + 1;
-      } catch(e) { return Math.floor(Math.random() * 6) + 1; }
+      var packed = ethers.utils.solidityPack(['bytes32', 'uint8', 'uint8'], [seed, roll, dieIndex]);
+      return ethers.BigNumber.from(ethers.utils.keccak256(packed)).mod(6).toNumber() + 1;
     }
 
-    // Start on-chain quest session (fire-and-forget, dice fall back to Math.random if not ready)
+    // Start on-chain quest session — seed is REQUIRED before dice can roll
     async function _startOnChainQuest() {
       if (!QUEST_REWARDS_ADDRESS || !chadId || !walletSigner) return;
       try {
@@ -1818,7 +1823,11 @@ ${diceInitJs}
         var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
         var session = await qrRead.getSession(chadId);
         _questSeed = session[0]; // bytes32 seed
-        _saveProgress(); // persist seed so reloads use same dice
+        _saveProgress();
+        // Re-enable any roll buttons that were waiting for the seed
+        document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
+          if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
+        });
       } catch(e) { console.warn('startOnChainQuest failed:', e); }
     }
 
