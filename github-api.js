@@ -1110,8 +1110,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       ${hasIntroPhoto ? `<img src="images/intro.png" alt="${escapeHtml(questName)}" style="width:100%;max-width:460px;height:auto;border-radius:4px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">` : ''}
       <div class="intro-title">${escapeHtml(questName)}</div>
       ${introLines.length > 0 ? '<div id="introText" class="intro-text" style="opacity:0;text-align:left;"></div>' : ''}
-      <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet to save progress on-chain</div>
-      <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
+<div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
       <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()"${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
     </div>
   </div>
@@ -1893,7 +1892,6 @@ ${diceInitJs}
     async function checkQuestCompletion() {
       var banner = document.getElementById('introCompletedBanner');
       var startBtn = document.getElementById('introStartBtn');
-      var note = document.getElementById('introWalletNote');
 
       if (!chadId) {
         if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'START'; }
@@ -1918,7 +1916,6 @@ ${diceInitJs}
         document.getElementById('introCompletedId').textContent = chadId;
         if (banner) banner.style.display = 'block';
         if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'COMPLETED'; }
-        if (note) note.style.display = 'none';
       } else {
         if (banner) banner.style.display = 'none';
         if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'START'; }
