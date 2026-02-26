@@ -1129,6 +1129,22 @@ ${completePanelHtml}
   <script>
     var crewScore = 0;
     var _animGen = 0;
+
+    // ===== IN-PROGRESS SESSION PERSISTENCE =====
+    // Saves seed + current section + score so reloads resume from the same point.
+    function _progressKey() { return 'lc_qprog_' + QUEST_SLUG + '_' + chadId; }
+    function _saveProgress() {
+      if (!chadId) return;
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, score: crewScore }));
+    }
+    function _loadProgress() {
+      if (!chadId) return null;
+      try { return JSON.parse(localStorage.getItem(_progressKey())); } catch(e) { return null; }
+    }
+    function _clearProgress() {
+      if (!chadId) return;
+      localStorage.removeItem(_progressKey());
+    }
     var diceOutcomes = ${diceOutcomesJson};
     var sectionMusic = ${sectionMusicJson};
     var introLines = ${introLinesJson};
@@ -1222,6 +1238,8 @@ ${completePanelHtml}
     }
 
     function goToSection(id) {
+      currentSectionId = id || null;
+      _saveProgress();
       showPanel(id || null);
     }
 
@@ -1233,6 +1251,22 @@ ${completePanelHtml}
         setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1300);
       }
       var firstId = ${sections.length > 0 ? sections[0].id : 'null'};
+
+      // Resume saved session if one exists (prevents restarting mid-quest)
+      var saved = _loadProgress();
+      if (saved && !isQuestDone(chadId)) {
+        if (saved.seed) _questSeed = saved.seed;
+        crewScore = saved.score || 0;
+        updateCrewDisplay();
+        var resumeId = saved.sectionId || firstId;
+        playQuestMusic(resumeId);
+        animatePanel(resumeId);
+        return;
+      }
+
+      // Fresh start
+      currentSectionId = firstId;
+      _saveProgress();
       playQuestMusic(firstId);
       animatePanel(firstId);
       _startOnChainQuest(); // fire-and-forget: seeds deterministic dice if QuestRewards is configured
@@ -1523,6 +1557,7 @@ ${completePanelHtml}
 
       crewScore += crew;
       updateCrewDisplay();
+      _saveProgress();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'SCORE';
@@ -1603,6 +1638,7 @@ ${diceInitJs}
         var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
         var session = await qrRead.getSession(chadId);
         _questSeed = session[0]; // bytes32 seed
+        _saveProgress(); // persist seed so reloads use same dice
       } catch(e) { console.warn('startOnChainQuest failed:', e); }
     }
 
@@ -1840,6 +1876,7 @@ ${diceInitJs}
       }
 
       markQuestDone(chadId);
+      _clearProgress();
       btn.textContent = 'XP CLAIMED — CHAD #' + chadId;
       statusEl.textContent = QUEST_REWARDS_ADDRESS ? 'XP awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).';
       checkQuestCompletion();
