@@ -32,6 +32,52 @@
       display: block;
       user-select: none;
       pointer-events: none;
+      filter: blur(12px) brightness(0.6);
+      transition: filter 1.2s ease;
+    }
+
+    #scene.revealed img {
+      filter: blur(0px) brightness(1);
+    }
+
+    /* ── Enter Camp overlay ── */
+    #enter-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.8s ease;
+    }
+
+    #enter-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #enter-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+      color: #ffe96a;
+      background: rgba(10, 10, 15, 0.75);
+      border: 2px solid #ffe96a;
+      padding: 1.2em 2em;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 12px #ffe96a, 0 0 24px rgba(220,185,20,0.5);
+      box-shadow: 0 0 20px rgba(220,185,20,0.3), inset 0 0 20px rgba(220,185,20,0.05);
+      animation: btn-pulse 2s ease-in-out infinite;
+      transition: transform 0.15s ease;
+    }
+
+    #enter-btn:hover {
+      transform: scale(1.06);
+    }
+
+    @keyframes btn-pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(220,185,20,0.3), inset 0 0 20px rgba(220,185,20,0.05); }
+      50%       { box-shadow: 0 0 40px rgba(220,185,20,0.6), inset 0 0 30px rgba(220,185,20,0.12); }
     }
 
     /* ── Shared zone styles ── */
@@ -43,8 +89,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, opacity 0.8s ease;
       background: transparent;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #scene.revealed .zone {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .zone:hover {
@@ -161,18 +214,24 @@
     </a>
   </div>
 
+  <!-- Enter Camp overlay -->
+  <div id="enter-overlay">
+    <button id="enter-btn">ENTER CAMP</button>
+  </div>
+
   <audio id="bg-music" src="music/moody.mp3" loop></audio>
   <script>
     const music = document.getElementById('bg-music');
+    const overlay = document.getElementById('enter-overlay');
+    const scene = document.getElementById('scene');
+
     music.volume = 0.5;
-    // Autoplay requires a user gesture — start on first click/touch
-    function startMusic() {
+
+    document.getElementById('enter-btn').addEventListener('click', function () {
       music.play().catch(() => {});
-      document.removeEventListener('click', startMusic);
-      document.removeEventListener('touchstart', startMusic);
-    }
-    document.addEventListener('click', startMusic);
-    document.addEventListener('touchstart', startMusic);
+      overlay.classList.add('hidden');
+      scene.classList.add('revealed');
+    });
   </script>
 </body>
 </html>
