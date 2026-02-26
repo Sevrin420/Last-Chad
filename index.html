@@ -353,14 +353,13 @@
           enterBtn.classList.add('visible');
         }
 
-        // --- Natural video end: seek to 50s still frame, then reveal ---
+        // --- Natural video end: 3-second pause then go to chadbase ---
         video.addEventListener('ended', function() {
-          video.currentTime = 50;
-          function onSeeked() {
-            video.removeEventListener('seeked', onSeeked);
-            revealButtons();
-          }
-          video.addEventListener('seeked', onSeeked);
+          skipBtn.style.display  = 'none';
+          soundBtn.style.display = 'none';
+          setTimeout(function() {
+            window.location.href = 'chadbase.html';
+          }, 3000);
         });
 
         // --- Enter: navigate directly to chadbase (bypasses ENTER CAMP button) ---
@@ -377,12 +376,8 @@
           var p = video.play();
           if (p !== undefined) {
             p.catch(function() {
-              // Play still blocked – skip to main content
-              video.style.display    = 'none';
-              skipBtn.style.display  = 'none';
-              soundBtn.style.display = 'none';
-              mintBtn.classList.add('visible');
-              enterBtn.classList.add('visible');
+              // Play still blocked – go straight to chadbase
+              window.location.href = 'chadbase.html';
             });
           }
         });
