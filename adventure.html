@@ -720,6 +720,44 @@
       box-shadow: 0 0 8px rgba(201, 168, 76, 0.15);
     }
 
+    .equipped-item-badge { cursor: pointer; }
+    .equipped-item-badge:hover { border-color: #ffe066; color: #ffe066; }
+
+    .item-popup {
+      position: fixed;
+      z-index: 300;
+      background: #120e06;
+      border: 2px solid #c9a84c;
+      border-radius: 6px;
+      padding: 12px;
+      width: 180px;
+      box-shadow: 0 0 24px rgba(201, 168, 76, 0.45);
+      font-family: 'Press Start 2P', monospace;
+    }
+    .item-popup img {
+      width: 100%;
+      border-radius: 3px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .item-popup-name {
+      font-size: 0.38rem;
+      color: #c9a84c;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+    .item-popup-desc {
+      font-size: 0.28rem;
+      color: #917340;
+      line-height: 1.7;
+      margin-bottom: 8px;
+    }
+    .item-popup-bonus {
+      font-size: 0.36rem;
+      color: #ffe066;
+      text-shadow: 0 0 6px #ffe066;
+    }
+
     /* --- Boosted stat (item bonus) --- */
     .stat-value.boosted {
       color: #ffe066;
@@ -795,6 +833,12 @@
 
       <!-- Equipped items (below portrait row, above name/XP bar) -->
       <div class="equipped-items-col" id="equippedItemsCol"></div>
+      <div id="itemPopup" class="item-popup" style="display:none">
+        <img id="itemPopupImg" src="" alt="">
+        <div id="itemPopupName" class="item-popup-name"></div>
+        <div id="itemPopupDesc" class="item-popup-desc"></div>
+        <div id="itemPopupBonus" class="item-popup-bonus"></div>
+      </div>
 
       <!-- Name / Level / XP (centered below portrait row) -->
       <div class="portrait-info" id="portraitInfo">
@@ -895,6 +939,14 @@
     // Stat bonuses granted by each item (add keys: str, int, dex, cha)
     const ITEM_BONUSES = {
       '1': { int: 1 }  // Cindy's Code: +1 INT
+    };
+
+    const ITEM_DETAILS = {
+      '1': {
+        image: 'https://lastchad.xyz/assets/docs_lobby/lobbybrochure.jpg',
+        description: "A mysterious brochure from the Last Chad lobby. Cindy left it behind — no one knows what it unlocks.",
+        bonus: '+1 INT'
+      }
     };
 
     // ========== DOM ==========
@@ -1091,16 +1143,62 @@
       }
     }
 
+    function showItemPopup(itemId, badgeEl) {
+      const popup = document.getElementById('itemPopup');
+      // Toggle off if same badge clicked again
+      if (popup.style.display !== 'none' && popup.dataset.openFor === itemId) {
+        popup.style.display = 'none';
+        return;
+      }
+      const details = ITEM_DETAILS[itemId];
+      const bonus = ITEM_BONUSES[itemId];
+      document.getElementById('itemPopupImg').src = details ? details.image : '';
+      document.getElementById('itemPopupImg').style.display = details && details.image ? 'block' : 'none';
+      document.getElementById('itemPopupName').textContent = KNOWN_ITEMS[itemId] || 'Item #' + itemId;
+      document.getElementById('itemPopupDesc').textContent = details ? details.description : '';
+      document.getElementById('itemPopupBonus').textContent = details ? details.bonus : (bonus ? JSON.stringify(bonus) : '');
+      popup.dataset.openFor = itemId;
+      // Position above the badge
+      const rect = badgeEl.getBoundingClientRect();
+      const popupW = 180;
+      let left = rect.left + rect.width / 2 - popupW / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - popupW - 8));
+      const topAbove = rect.top - 8;
+      popup.style.display = 'block';
+      const popupH = popup.offsetHeight;
+      const top = topAbove - popupH > 0 ? topAbove - popupH : rect.bottom + 8;
+      popup.style.left = left + 'px';
+      popup.style.top = top + 'px';
+    }
+
+    document.addEventListener('click', function(e) {
+      const popup = document.getElementById('itemPopup');
+      if (!popup || popup.style.display === 'none') return;
+      if (!e.target.closest('.equipped-item-badge') && !e.target.closest('#itemPopup')) {
+        popup.style.display = 'none';
+      }
+    });
+
     function renderEquippedItemsColumn() {
       const col = document.getElementById('equippedItemsCol');
       const active = equippedItems.filter(Boolean);
-      if (active.length === 0) { col.style.display = 'none'; col.innerHTML = ''; return; }
+      if (active.length === 0) {
+        col.style.display = 'none';
+        col.innerHTML = '';
+        const popup = document.getElementById('itemPopup');
+        if (popup) popup.style.display = 'none';
+        return;
+      }
       col.style.display = 'flex';
       col.innerHTML = '<div class="equipped-col-label">EQUIPPED</div>';
       for (const itemId of active) {
         const badge = document.createElement('div');
         badge.className = 'equipped-item-badge';
         badge.textContent = KNOWN_ITEMS[itemId] || 'Item #' + itemId;
+        badge.addEventListener('click', function(e) {
+          e.stopPropagation();
+          showItemPopup(itemId, badge);
+        });
         col.appendChild(badge);
       }
     }
