@@ -1374,7 +1374,9 @@ function showPanel(id) {
       if (saved && !isQuestDone(chadId)) {
         if (saved.seed) _questSeed = saved.seed;
         var resumeId = saved.sectionId || firstId;
+        currentSectionId = resumeId;
         showPanel(resumeId);
+        if (!_questSeed) _startOnChainQuest();
         return;
       }
 
