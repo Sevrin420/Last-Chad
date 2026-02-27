@@ -8,5 +8,10 @@
     "name": "Episode 3 mining for glory",
     "slug": "episode-3-mining-for-glory",
     "questId": 1
+  },
+  {
+    "name": "Episode 4 mining for glory",
+    "slug": "episode-4-mining-for-glory",
+    "questId": 2
   }
 ]
