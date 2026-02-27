@@ -1307,16 +1307,14 @@ function showPanel(id) {
       if (saved && !isQuestDone(chadId)) {
         if (saved.seed) _questSeed = saved.seed;
         var resumeId = saved.sectionId || firstId;
-        playQuestMusic(resumeId);
-        animatePanel(resumeId);
+        showPanel(resumeId);
         return;
       }
 
       // Fresh start
       currentSectionId = firstId;
       _saveProgress();
-      playQuestMusic(firstId);
-      animatePanel(firstId);
+      showPanel(firstId);
       _startOnChainQuest(); // fire-and-forget: seeds deterministic dice if QuestRewards is configured
     }
 
