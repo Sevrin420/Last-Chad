@@ -428,6 +428,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       const diceColsHtml = [0,1,2,3,4].map(i => `
               <div class="dice-col">
                 <div class="dice-box" id="die${i}_${sid}" onclick="toggleDie(${i}, ${sid})"><div class="dice-face" id="face${i}_${sid}"></div></div>
+                <button class="keep-btn" id="keep${i}_${sid}" onclick="toggleDie(${i}, ${sid})">LOCK</button>
               </div>`).join('');
 
       const diceImgHtml = section.diceImage
@@ -1564,6 +1565,11 @@ function showPanel(id) {
       if (state.isRolling || state.values[idx] === 0) return;
       state.kept[idx] = !state.kept[idx];
       document.getElementById('die' + idx + '_' + sid).classList.toggle('kept', state.kept[idx]);
+      var btn = document.getElementById('keep' + idx + '_' + sid);
+      if (btn) {
+        btn.classList.toggle('active', state.kept[idx]);
+        btn.textContent = state.kept[idx] ? 'LOCKED' : 'LOCK';
+      }
       updateChecklist(sid, false);
     }
 

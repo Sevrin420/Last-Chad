@@ -652,18 +652,23 @@
           <div class="dice-row">
               <div class="dice-col">
                 <div class="dice-box" id="die0_1772172880412" onclick="toggleDie(0, 1772172880412)"><div class="dice-face" id="face0_1772172880412"></div></div>
+                <button class="keep-btn" id="keep0_1772172880412" onclick="toggleDie(0, 1772172880412)">LOCK</button>
               </div>
               <div class="dice-col">
                 <div class="dice-box" id="die1_1772172880412" onclick="toggleDie(1, 1772172880412)"><div class="dice-face" id="face1_1772172880412"></div></div>
+                <button class="keep-btn" id="keep1_1772172880412" onclick="toggleDie(1, 1772172880412)">LOCK</button>
               </div>
               <div class="dice-col">
                 <div class="dice-box" id="die2_1772172880412" onclick="toggleDie(2, 1772172880412)"><div class="dice-face" id="face2_1772172880412"></div></div>
+                <button class="keep-btn" id="keep2_1772172880412" onclick="toggleDie(2, 1772172880412)">LOCK</button>
               </div>
               <div class="dice-col">
                 <div class="dice-box" id="die3_1772172880412" onclick="toggleDie(3, 1772172880412)"><div class="dice-face" id="face3_1772172880412"></div></div>
+                <button class="keep-btn" id="keep3_1772172880412" onclick="toggleDie(3, 1772172880412)">LOCK</button>
               </div>
               <div class="dice-col">
                 <div class="dice-box" id="die4_1772172880412" onclick="toggleDie(4, 1772172880412)"><div class="dice-face" id="face4_1772172880412"></div></div>
+                <button class="keep-btn" id="keep4_1772172880412" onclick="toggleDie(4, 1772172880412)">LOCK</button>
               </div>
           </div>
           <div class="roll-section">
@@ -1147,6 +1152,11 @@ function showPanel(id) {
       if (state.isRolling || state.values[idx] === 0) return;
       state.kept[idx] = !state.kept[idx];
       document.getElementById('die' + idx + '_' + sid).classList.toggle('kept', state.kept[idx]);
+      var btn = document.getElementById('keep' + idx + '_' + sid);
+      if (btn) {
+        btn.classList.toggle('active', state.kept[idx]);
+        btn.textContent = state.kept[idx] ? 'LOCKED' : 'LOCK';
+      }
       updateChecklist(sid, false);
     }
 
