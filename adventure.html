@@ -1436,10 +1436,11 @@
       battleBtn.textContent = 'VALIDATING...';
       if (statusEl) statusEl.textContent = 'Checking eligibility...';
 
-      // Simulate first to get a clear revert reason without prompting wallet
+      // Simulate via direct RPC (not WalletConnect) so we get the actual revert reason
       try {
-        const qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, signer);
-        await qrStatic.callStatic.startQuest(selectedTokenId, questId);
+        const rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        await qrStatic.callStatic.startQuest(selectedTokenId, questId, { from: userAddress });
       } catch (simErr) {
         battleBtn.disabled = false;
         battleBtn.textContent = 'BEGIN QUEST';
