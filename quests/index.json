@@ -38,5 +38,10 @@
     "name": "Episode 10 a xhange",
     "slug": "episode-10-a-xhange",
     "questId": 7
+  },
+  {
+    "name": "Episode 11 new test",
+    "slug": "episode-11-new-test",
+    "questId": 8
   }
 ]

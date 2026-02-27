@@ -1,0 +1,24 @@
+{
+  "name": "Episode 11 new test",
+  "questId": 8,
+  "sections": [
+    {
+      "id": 1772230651521,
+      "name": "Section 1",
+      "dialogue": "Are we onchain",
+      "selectedChoice": "single",
+      "buttonName": "Continue",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "music": "music/moody.mp3",
+      "itemAward": null
+    }
+  ]
+}
