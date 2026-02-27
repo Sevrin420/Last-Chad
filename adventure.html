@@ -867,6 +867,7 @@
           <option value="">Loading quests...</option>
         </select>
         <button class="battle-btn" id="battleBtn" style="margin-top:0;">BEGIN QUEST</button>
+        <div id="questStartStatus" style="font-size:0.38rem; color:#c9a84c; text-align:center; min-height:1.5em;"></div>
       </div>
 
       <!-- Gallery -->
@@ -926,8 +927,8 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
-    import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    import { connectWallet, autoReconnect, disconnect, truncateAddress, getSigner } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, READ_RPC } from './js/config.js';
     // ========== CONFIG ==========
     const CONTRACT_ABI = [
       'function totalSupply() view returns (uint256)',
@@ -944,8 +945,13 @@
       'function balanceOf(address account, uint256 id) view returns (uint256)',
       'function getItem(uint256 itemId) view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)'
     ];
+    const QUEST_REWARDS_ABI = [
+      'function startQuest(uint256 tokenId, uint8 questId) external',
+      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
+    ];
     // Known ERC-1155 items — add entries here when new items are created
     const KNOWN_ITEMS = { '1': "Cindy's Code" };
+    let questIndexData = [];
 
     // Stat bonuses granted by each item (add keys: str, int, dex, cha)
     const ITEM_BONUSES = {
@@ -1376,13 +1382,66 @@
       });
     }
 
-    battleBtn.addEventListener('click', function () {
+    battleBtn.addEventListener('click', async function () {
       if (!this.classList.contains('active') || !selectedTokenId) return;
       const questSelect = document.getElementById('questSelect');
       const slug = questSelect ? questSelect.value : '';
-      if (slug) {
-        localStorage.setItem('lc_equipped_' + selectedTokenId, JSON.stringify(equippedItems));
-        window.location.href = 'quests/' + slug + '/index.html?chad=' + selectedTokenId;
+      if (!slug) return;
+
+      const statusEl = document.getElementById('questStartStatus');
+      const dest = 'quests/' + slug + '/index.html?chad=' + selectedTokenId;
+
+      // Save equipped items regardless of signing outcome
+      localStorage.setItem('lc_equipped_' + selectedTokenId, JSON.stringify(equippedItems));
+
+      // Require wallet connection before signing
+      if (!userAddress) {
+        walletModal.classList.add('show');
+        return;
+      }
+
+      // Look up this quest's on-chain questId
+      const entry = questIndexData.find(q => q.slug === slug);
+      const questId = entry != null ? entry.questId : null;
+
+      // If no QuestRewards contract or no questId, navigate directly
+      if (!QUEST_REWARDS_ADDRESS || questId == null) {
+        window.location.href = dest;
+        return;
+      }
+
+      const signer = getSigner();
+      if (!signer) { window.location.href = dest; return; }
+
+      battleBtn.disabled = true;
+      battleBtn.textContent = 'SIGNING...';
+      if (statusEl) statusEl.textContent = 'Approve the transaction in your wallet.';
+
+      try {
+        const qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, signer);
+        const tx = await qr.startQuest(selectedTokenId, questId);
+        battleBtn.textContent = 'CONFIRMING...';
+        if (statusEl) statusEl.textContent = 'Confirming on-chain...';
+        await tx.wait();
+        window.location.href = dest;
+      } catch (e) {
+        const msg = (e.reason || e.message || '').toLowerCase();
+        // Quest already started — seed exists on-chain, just navigate
+        if (msg.includes('already attempted') || msg.includes('already started')) {
+          window.location.href = dest;
+          return;
+        }
+        // User rejected the transaction
+        if (e.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
+          battleBtn.disabled = false;
+          battleBtn.textContent = 'BEGIN QUEST';
+          if (statusEl) statusEl.textContent = 'Transaction rejected.';
+          return;
+        }
+        // Unexpected error — warn and navigate anyway
+        console.warn('startQuest failed:', e);
+        if (statusEl) statusEl.textContent = 'Signing failed. Proceeding...';
+        setTimeout(() => { window.location.href = dest; }, 1500);
       }
     });
 
@@ -1394,6 +1453,7 @@
         const res = await fetch('quests/index.json?v=' + Date.now());
         if (!res.ok) throw new Error('Not found');
         const quests = await res.json();
+        questIndexData = quests;
         questSelect.innerHTML = '';
         if (quests.length === 0) {
           const opt = document.createElement('option');
