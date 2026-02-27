@@ -11,6 +11,10 @@
 - Keep responses short and focused — aim for under 1000 tokens total output.
 - If the task seems too broad, say "This task is too broad — please narrow it to one specific change" and stop.
 
+### Off-Limits Files (Do NOT touch unless explicitly told to)
+- **`quest.html`** — IGNORE entirely unless the user specifically says to edit it.
+- **`quests/*/index.html`** (individual quest files) — NEVER modify. Quests are generated output from `github-api.js` + `quest-builder.html`. All quest template changes go in `github-api.js` only.
+
 ---
 
 ## Project Overview
@@ -138,6 +142,40 @@ Dice rolls in quest gameplay always derive from an on-chain keccak256 seed. Ther
 3. Define dex scaling
 4. Test dice derivation with `keccak256(seed, roll, die)`
 5. Validate XP formula
+
+### Quest Builder Architecture (How It All Fits Together)
+
+The quest system has two distinct layers — the **builder** and the **generated output**:
+
+```
+quest-builder.html          ← UI for creating quests (drag sections, upload images, set choices)
+      │
+      ▼
+github-api.js               ← generateQuestHTML() turns quest data into a complete HTML file
+      │                        Also handles GitHub API calls to commit the file + images
+      ▼
+quests/{slug}/index.html    ← GENERATED OUTPUT. Never edit manually. Regenerate via builder.
+quests/{slug}/data.json     ← Raw quest data (sections, choices, music, item awards)
+quests/{slug}/images/       ← Section images uploaded through the builder
+quests/index.json           ← Registry of all quests (name + slug + optional questId)
+```
+
+**Key files to edit for quest template changes:**
+- `github-api.js` — All HTML/CSS/JS that goes into generated quests lives here
+- `quest-builder.html` — The builder UI itself (section editor, preview, publish button)
+
+**Key variables in `github-api.js` (generated script scope):**
+- `knownItems` — `{ id: "Name" }` map used for item names in HUD badges and awards
+- `HUD_ITEM_DETAILS` — `{ id: { image: url } }` for item badge images in the quest HUD
+- `ITEM_MODIFIERS` — `{ id: { str, int, dex, cha } }` for stat bonuses from equipped items
+- `loadQuestHUD(sid)` — Populates the portrait + stats + items HUD above dice sections
+- `showPanel(id)` — Switches the active section panel; calls `loadQuestHUD` if panel has `.quest-hud`
+- `animatePanel(sid)` — Fades in section image → types narrative → reveals action buttons
+
+**Quest section types (selectedChoice field):**
+- `'single'` — One button, goes to a fixed next section
+- `'double'` — Two choice buttons, each routes to a different section
+- `'dice'` — Dice game; no section image (HUD replaces it); pass/fail route to different sections
 
 ### Adding a New Item Award Option (Quest Builder)
 To make a new ERC-1155 item available as a section reward in the quest builder:
