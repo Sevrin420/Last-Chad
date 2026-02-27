@@ -388,7 +388,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     const isFirst = idx === 0;
     const sectionName = escapeHtml(section.name || `Section ${idx + 1}`);
     const dialogueHtml = formatDialogue(section.dialogue);
-    const imageHtml = (section.photo && section.selectedChoice !== 'dice')
+    const imageHtml = section.photo
       ? `<img src="images/${sid}.png" alt="${sectionName}" class="section-img">`
       : '';
 
@@ -436,7 +436,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
         : '';
 
       actionHtml = `
-        <div class="quest-hud" id="questHud_${sid}">
+        <div class="quest-hud" id="questHud_${sid}" style="display:none;opacity:0">
           <div class="hud-portrait-row">
             <div class="hud-portrait-col">
               <div class="hud-portrait-frame">
@@ -1624,6 +1624,27 @@ function showPanel(id) {
         var waitBtn = document.getElementById('rollBtn_' + sid);
         if (waitBtn) { waitBtn.textContent = 'AWAITING SEED'; waitBtn.disabled = false; }
         return;
+      }
+
+      // First roll: fade out section image, fade in HUD
+      if (currentRoll === 1) {
+        var panel = document.getElementById('panel-' + sid);
+        if (panel) {
+          var sImg = panel.querySelector('.section-img');
+          var hudEl = document.getElementById('questHud_' + sid);
+          if (sImg) {
+            sImg.style.transition = 'opacity 0.4s ease';
+            sImg.style.opacity = '0';
+            setTimeout(function() { sImg.style.display = 'none'; }, 400);
+          }
+          if (hudEl) {
+            hudEl.style.display = '';
+            setTimeout(function() {
+              hudEl.style.transition = 'opacity 0.5s ease';
+              hudEl.style.opacity = '1';
+            }, 50);
+          }
+        }
       }
 
       var rollBtn = document.getElementById('rollBtn_' + sid);
