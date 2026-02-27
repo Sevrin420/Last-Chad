@@ -1126,9 +1126,47 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .skip-item-link { display: block; margin-top: 10px; width: 100%; background: none; border: none; font-family: 'Press Start 2P', monospace; font-size: 0.3rem; color: #5c4409; text-align: center; cursor: pointer; padding: 4px; }
     .skip-item-link:hover { color: #8a7a5a; }
+
+    /* Item info popup */
+    #itemPopupOverlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.80); z-index: 9999;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    #itemPopupOverlay.open { display: flex; }
+    #itemPopup {
+      background: #1a1208; border: 2px solid #c9a84c;
+      padding: 28px 20px 22px; max-width: 300px; width: 88%;
+      position: relative; box-shadow: 0 0 40px rgba(201,168,76,0.2);
+      cursor: default;
+    }
+    #itemPopupClose {
+      position: absolute; top: 8px; right: 10px;
+      background: none; border: none; color: #c9a84c;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem; cursor: pointer; line-height: 1; padding: 4px 6px;
+    }
+    #itemPopupClose:hover { color: #fff; }
+    #itemPopupImg { width: 100%; max-width: 180px; display: block; margin: 0 auto 14px; border: 1px solid #5c4409; }
+    #itemPopupName { font-family: 'Press Start 2P', monospace; font-size: 0.52rem; color: #c9a84c; text-align: center; margin-bottom: 12px; line-height: 1.8; }
+    #itemPopupDesc { font-family: 'Press Start 2P', monospace; font-size: 0.40rem; color: #f5e6c8; line-height: 2.2; margin-bottom: 12px; }
+    #itemPopupStats { font-family: 'Press Start 2P', monospace; font-size: 0.42rem; color: #4caf50; line-height: 2; }
+    .hud-item-badge { cursor: pointer; }
+    .hud-item-badge:hover img { opacity: 0.8; }
   </style>
 </head>
 <body>
+  <!-- Item info popup -->
+  <div id="itemPopupOverlay">
+    <div id="itemPopup">
+      <button id="itemPopupClose">X</button>
+      <img id="itemPopupImg" src="" alt="">
+      <div id="itemPopupName"></div>
+      <div id="itemPopupDesc"></div>
+      <div id="itemPopupStats"></div>
+    </div>
+  </div>
+
   <!-- Intro overlay — appears before any panel content loads -->
   <div id="intro-overlay">
     <div class="intro-box">
@@ -1397,6 +1435,11 @@ function showPanel(id) {
       '1': { str: 0, int: 1, dex: 0, cha: 0 } // Cindy's Code: +1 INT
     };
 
+    // Item descriptions for popup
+    var ITEM_DESCRIPTIONS = {
+      '1': "A flash drive containing Cindy's proprietary code. Whoever carries it feels their mind sharpen."
+    };
+
     async function loadQuestHUD(sid) {
       if (!chadId) return;
       var hudEl = document.getElementById('questHud_' + sid);
@@ -1418,6 +1461,7 @@ function showPanel(id) {
           activeItems.forEach(function(iid) {
             var badge = document.createElement('div');
             badge.className = 'hud-item-badge';
+            badge.onclick = function() { showItemPopup(iid); };
             var details = HUD_ITEM_DETAILS[iid];
             if (details && details.image) {
               var im = document.createElement('img');
@@ -1461,6 +1505,33 @@ function showPanel(id) {
         // HUD is cosmetic — silently fail if RPC unavailable
       }
     }
+
+    function showItemPopup(iid) {
+      var details = HUD_ITEM_DETAILS[iid] || {};
+      var mod = ITEM_MODIFIERS[iid] || {};
+      document.getElementById('itemPopupName').textContent = knownItems[iid] || ('Item #' + iid);
+      document.getElementById('itemPopupDesc').textContent = ITEM_DESCRIPTIONS[iid] || '';
+      var imgEl = document.getElementById('itemPopupImg');
+      imgEl.src = details.image || '';
+      imgEl.style.display = details.image ? 'block' : 'none';
+      var bonuses = [];
+      if (mod.str) bonuses.push('STR +' + mod.str);
+      if (mod.int) bonuses.push('INT +' + mod.int);
+      if (mod.dex) bonuses.push('DEX +' + mod.dex);
+      if (mod.cha) bonuses.push('CHA +' + mod.cha);
+      var statsEl = document.getElementById('itemPopupStats');
+      statsEl.textContent = bonuses.join('   ');
+      statsEl.style.display = bonuses.length ? 'block' : 'none';
+      document.getElementById('itemPopupOverlay').classList.add('open');
+    }
+
+    function closeItemPopup() {
+      document.getElementById('itemPopupOverlay').classList.remove('open');
+    }
+
+    document.getElementById('itemPopupOverlay').addEventListener('click', closeItemPopup);
+    document.getElementById('itemPopup').addEventListener('click', function(e) { e.stopPropagation(); });
+    document.getElementById('itemPopupClose').addEventListener('click', closeItemPopup);
 
     async function animatePanel(sid) {
       var panelId = sid ? 'panel-' + sid : 'panel-complete';
