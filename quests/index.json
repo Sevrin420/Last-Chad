@@ -23,5 +23,10 @@
     "name": "Episode 6 Deeper",
     "slug": "episode-6-deeper",
     "questId": 4
+  },
+  {
+    "name": "Episode 7 Deeper",
+    "slug": "episode-7-deeper",
+    "questId": 5
   }
 ]

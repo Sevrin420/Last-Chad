@@ -1,0 +1,60 @@
+{
+  "name": "Episode 7 Deeper",
+  "questId": 5,
+  "sections": [
+    {
+      "id": 1772213398899,
+      "name": "Running with Dice",
+      "dialogue": "We need a torch",
+      "selectedChoice": "dice",
+      "buttonName": "Continue",
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "nextSectionId": null,
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": 1772213472163,
+      "failNextSectionId": 1772213522177,
+      "statBonus": "intelligence",
+      "difficulty": 4,
+      "music": "music/moody.mp3",
+      "itemAward": null
+    },
+    {
+      "id": 1772213472163,
+      "name": "Dice pass",
+      "dialogue": "Well done here's the item",
+      "selectedChoice": "single",
+      "buttonName": "End quest",
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "nextSectionId": null,
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "music": "music/hopefull.mp3",
+      "itemAward": "1"
+    },
+    {
+      "id": 1772213522177,
+      "name": "Dice fail",
+      "dialogue": "Nothing good happened",
+      "selectedChoice": "single",
+      "buttonName": "End quest",
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "nextSectionId": null,
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "music": "music/moody.mp3",
+      "itemAward": null
+    }
+  ]
+}
