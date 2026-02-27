@@ -18,5 +18,10 @@
     "name": "Episode 5 mining for glory",
     "slug": "episode-5-mining-for-glory",
     "questId": 3
+  },
+  {
+    "name": "Episode 6 Deeper",
+    "slug": "episode-6-deeper",
+    "questId": 4
   }
 ]
