@@ -1433,6 +1433,27 @@
         console.warn('questStarted check failed:', e);
       }
 
+      battleBtn.textContent = 'VALIDATING...';
+      if (statusEl) statusEl.textContent = 'Checking eligibility...';
+
+      // Simulate via direct RPC (not WalletConnect) so we get the actual revert reason
+      try {
+        const rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        await qrStatic.callStatic.startQuest(selectedTokenId, questId, { from: userAddress });
+      } catch (simErr) {
+        battleBtn.disabled = false;
+        battleBtn.textContent = 'BEGIN QUEST';
+        const simMsg = (simErr.reason || simErr.error?.message || simErr.message || '').toLowerCase();
+        let display = 'Cannot start quest.';
+        if (simMsg.includes('already')) display = 'CHAD #' + selectedTokenId + ' has already attempted this quest.';
+        else if (simMsg.includes('owner')) display = 'Wallet does not own Chad #' + selectedTokenId + '.';
+        else if (simErr.reason || simErr.message) display = 'Cannot start: ' + (simErr.reason || simErr.message).slice(0, 80);
+        if (statusEl) statusEl.textContent = display;
+        console.warn('startQuest simulation failed:', simErr);
+        return;
+      }
+
       battleBtn.textContent = 'SIGNING...';
       if (statusEl) statusEl.textContent = 'Approve the transaction in your wallet.';
 
@@ -1444,18 +1465,17 @@
         await tx.wait();
         window.location.href = dest;
       } catch (e) {
-        const msg = (e.reason || e.message || '').toLowerCase();
-        // User rejected the transaction
+        const reason = e.reason || (e.error && e.error.message) || e.message || '';
+        const msg = reason.toLowerCase();
         if (e.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
           battleBtn.disabled = false;
           battleBtn.textContent = 'BEGIN QUEST';
           if (statusEl) statusEl.textContent = 'Transaction rejected.';
           return;
         }
-        // Contract reverted (e.g. race condition on questStarted check)
         battleBtn.disabled = false;
         battleBtn.textContent = 'BEGIN QUEST';
-        if (statusEl) statusEl.textContent = msg.includes('already') ? 'CHAD #' + selectedTokenId + ' has already attempted this quest.' : 'Transaction failed.';
+        if (statusEl) statusEl.textContent = reason ? 'Failed: ' + reason.slice(0, 80) : 'Transaction failed.';
         console.warn('startQuest failed:', e);
       }
     });
