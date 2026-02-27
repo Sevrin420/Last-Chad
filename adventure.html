@@ -1433,6 +1433,26 @@
         console.warn('questStarted check failed:', e);
       }
 
+      battleBtn.textContent = 'VALIDATING...';
+      if (statusEl) statusEl.textContent = 'Checking eligibility...';
+
+      // Simulate first to get a clear revert reason without prompting wallet
+      try {
+        const qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, signer);
+        await qrStatic.callStatic.startQuest(selectedTokenId, questId);
+      } catch (simErr) {
+        battleBtn.disabled = false;
+        battleBtn.textContent = 'BEGIN QUEST';
+        const simMsg = (simErr.reason || simErr.error?.message || simErr.message || '').toLowerCase();
+        let display = 'Cannot start quest.';
+        if (simMsg.includes('already')) display = 'CHAD #' + selectedTokenId + ' has already attempted this quest.';
+        else if (simMsg.includes('owner')) display = 'Wallet does not own Chad #' + selectedTokenId + '.';
+        else if (simErr.reason || simErr.message) display = 'Cannot start: ' + (simErr.reason || simErr.message).slice(0, 80);
+        if (statusEl) statusEl.textContent = display;
+        console.warn('startQuest simulation failed:', simErr);
+        return;
+      }
+
       battleBtn.textContent = 'SIGNING...';
       if (statusEl) statusEl.textContent = 'Approve the transaction in your wallet.';
 
@@ -1446,7 +1466,6 @@
       } catch (e) {
         const reason = e.reason || (e.error && e.error.message) || e.message || '';
         const msg = reason.toLowerCase();
-        // User rejected the transaction
         if (e.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
           battleBtn.disabled = false;
           battleBtn.textContent = 'BEGIN QUEST';
@@ -1455,11 +1474,7 @@
         }
         battleBtn.disabled = false;
         battleBtn.textContent = 'BEGIN QUEST';
-        let display = 'Transaction failed.';
-        if (msg.includes('already')) display = 'CHAD #' + selectedTokenId + ' has already attempted this quest.';
-        else if (msg.includes('not token owner') || msg.includes('owner')) display = 'Wallet does not own Chad #' + selectedTokenId + '.';
-        else if (reason) display = 'Failed: ' + reason.slice(0, 80);
-        if (statusEl) statusEl.textContent = display;
+        if (statusEl) statusEl.textContent = reason ? 'Failed: ' + reason.slice(0, 80) : 'Transaction failed.';
         console.warn('startQuest failed:', e);
       }
     });
