@@ -18,5 +18,10 @@
   {
     "name": "Episode 1 - Tunnels of fun",
     "slug": "episode-1-tunnels-of-fun"
+  },
+  {
+    "name": "Episode 2 mining for glory",
+    "slug": "episode-2-mining-for-glory",
+    "questId": 5
   }
 ]
