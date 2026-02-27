@@ -1444,7 +1444,8 @@
         await tx.wait();
         window.location.href = dest;
       } catch (e) {
-        const msg = (e.reason || e.message || '').toLowerCase();
+        const reason = e.reason || (e.error && e.error.message) || e.message || '';
+        const msg = reason.toLowerCase();
         // User rejected the transaction
         if (e.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
           battleBtn.disabled = false;
@@ -1452,10 +1453,13 @@
           if (statusEl) statusEl.textContent = 'Transaction rejected.';
           return;
         }
-        // Contract reverted (e.g. race condition on questStarted check)
         battleBtn.disabled = false;
         battleBtn.textContent = 'BEGIN QUEST';
-        if (statusEl) statusEl.textContent = msg.includes('already') ? 'CHAD #' + selectedTokenId + ' has already attempted this quest.' : 'Transaction failed.';
+        let display = 'Transaction failed.';
+        if (msg.includes('already')) display = 'CHAD #' + selectedTokenId + ' has already attempted this quest.';
+        else if (msg.includes('not token owner') || msg.includes('owner')) display = 'Wallet does not own Chad #' + selectedTokenId + '.';
+        else if (reason) display = 'Failed: ' + reason.slice(0, 80);
+        if (statusEl) statusEl.textContent = display;
         console.warn('startQuest failed:', e);
       }
     });
