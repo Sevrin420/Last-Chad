@@ -947,6 +947,7 @@
     ];
     const QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
+      'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
     ];
     // Known ERC-1155 items — add entries here when new items are created
@@ -1411,9 +1412,27 @@
       }
 
       const signer = getSigner();
-      if (!signer) { window.location.href = dest; return; }
+      if (!signer) { walletModal.classList.add('show'); return; }
 
+      // Check on-chain whether this token has already attempted this quest
       battleBtn.disabled = true;
+      battleBtn.textContent = 'CHECKING...';
+      if (statusEl) statusEl.textContent = '';
+      try {
+        const rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        const attempted = await qrRead.questStarted(selectedTokenId, questId);
+        if (attempted) {
+          battleBtn.disabled = false;
+          battleBtn.textContent = 'BEGIN QUEST';
+          if (statusEl) statusEl.textContent = 'CHAD #' + selectedTokenId + ' has already attempted this quest.';
+          return;
+        }
+      } catch (e) {
+        // Read failed — proceed and let the tx revert if needed
+        console.warn('questStarted check failed:', e);
+      }
+
       battleBtn.textContent = 'SIGNING...';
       if (statusEl) statusEl.textContent = 'Approve the transaction in your wallet.';
 
@@ -1426,11 +1445,6 @@
         window.location.href = dest;
       } catch (e) {
         const msg = (e.reason || e.message || '').toLowerCase();
-        // Quest already started — seed exists on-chain, just navigate
-        if (msg.includes('already attempted') || msg.includes('already started')) {
-          window.location.href = dest;
-          return;
-        }
         // User rejected the transaction
         if (e.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
           battleBtn.disabled = false;
@@ -1438,10 +1452,11 @@
           if (statusEl) statusEl.textContent = 'Transaction rejected.';
           return;
         }
-        // Unexpected error — warn and navigate anyway
+        // Contract reverted (e.g. race condition on questStarted check)
+        battleBtn.disabled = false;
+        battleBtn.textContent = 'BEGIN QUEST';
+        if (statusEl) statusEl.textContent = msg.includes('already') ? 'CHAD #' + selectedTokenId + ' has already attempted this quest.' : 'Transaction failed.';
         console.warn('startQuest failed:', e);
-        if (statusEl) statusEl.textContent = 'Signing failed. Proceeding...';
-        setTimeout(() => { window.location.href = dest; }, 1500);
       }
     });
 
