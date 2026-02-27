@@ -427,8 +427,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
 
       const diceColsHtml = [0,1,2,3,4].map(i => `
               <div class="dice-col">
-                <div class="dice-box" id="die${i}_${sid}"><div class="dice-face" id="face${i}_${sid}"></div></div>
-                <button class="keep-btn" id="keep${i}_${sid}" disabled>LOCK</button>
+                <div class="dice-box" id="die${i}_${sid}" onclick="toggleDie(${i}, ${sid})"><div class="dice-face" id="face${i}_${sid}"></div></div>
               </div>`).join('');
 
       const diceImgHtml = section.diceImage
@@ -876,6 +875,9 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .dice-box.kept .dice-face .dot { background: #4caf50; box-shadow: 0 0 4px rgba(76,175,80,0.5); }
     .dot { visibility: hidden; }
+
+    .dice-box.settled { cursor: pointer; }
+    .dice-box.kept    { cursor: pointer; }
 
     .keep-btn {
       font-family: 'Press Start 2P', monospace;
@@ -1551,24 +1553,18 @@ function showPanel(id) {
           kept2: 0
         };
         for (var i = 0; i < 5; i++) {
-          (function(idx, sectionId) {
-            var keepBtn = document.getElementById('keep' + idx + '_' + sectionId);
-            if (keepBtn) {
-              keepBtn.addEventListener('click', function() {
-                var state = diceState[sectionId];
-                if (state.isRolling || state.values[idx] === 0) return;
-                state.kept[idx] = !state.kept[idx];
-                keepBtn.classList.toggle('active', state.kept[idx]);
-                keepBtn.textContent = state.kept[idx] ? 'LOCKED' : 'LOCK';
-                document.getElementById('die' + idx + '_' + sectionId).classList.toggle('kept', state.kept[idx]);
-                updateChecklist(sectionId, false);
-              });
-            }
-          })(i, sid);
           renderFace(i, 0, sid);
         }
       }
       return diceState[sid];
+    }
+
+    function toggleDie(idx, sid) {
+      var state = getDiceState(sid);
+      if (state.isRolling || state.values[idx] === 0) return;
+      state.kept[idx] = !state.kept[idx];
+      document.getElementById('die' + idx + '_' + sid).classList.toggle('kept', state.kept[idx]);
+      updateChecklist(sid, false);
     }
 
     function renderFace(index, value, sid) {
@@ -1686,21 +1682,10 @@ function showPanel(id) {
       if (rl <= 0) {
         if (rollBtn) { rollBtn.disabled = true; rollBtn.textContent = 'NO ROLLS'; }
         if (rollsLeftTxt) rollsLeftTxt.textContent = 'TURN OVER';
-        for (var j = 0; j < 5; j++) {
-          var keepBtn = document.getElementById('keep' + j + '_' + sid);
-          if (keepBtn) keepBtn.disabled = true;
-        }
         updateChecklist(sid, true);
         finaliseDice(sid);
       } else {
         if (rollBtn) rollBtn.disabled = false;
-        // Enable keep buttons only for dice that have a value (settled this roll or previously kept)
-        for (var k = 0; k < 5; k++) {
-          if (state.values[k] > 0 && !state.kept[k]) {
-            var kbEnable = document.getElementById('keep' + k + '_' + sid);
-            if (kbEnable) kbEnable.disabled = false;
-          }
-        }
       }
     }
 

@@ -316,7 +316,8 @@
     }
     .dice-box.rolling { border-color: #c9a84c; box-shadow: inset 0 0 15px rgba(0,0,0,0.4), 0 0 12px rgba(201,168,76,0.3); }
     .dice-box.kept    { border-color: #4caf50; box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 0 10px rgba(76,175,80,0.25); }
-    .dice-box.settled { border-color: #c9a84c; }
+    .dice-box.settled { border-color: #c9a84c; cursor: pointer; }
+    .dice-box.kept    { cursor: pointer; }
 
     .dice-face {
       width: 100%; height: 100%;
@@ -650,24 +651,19 @@
           <div class="dice-meta-tag">INTELLIGENCE BONUS +0 &nbsp;&nbsp; DIFFICULTY: 4</div>
           <div class="dice-row">
               <div class="dice-col">
-                <div class="dice-box" id="die0_1772172880412"><div class="dice-face" id="face0_1772172880412"></div></div>
-                <button class="keep-btn" id="keep0_1772172880412" disabled>LOCK</button>
+                <div class="dice-box" id="die0_1772172880412" onclick="toggleDie(0, 1772172880412)"><div class="dice-face" id="face0_1772172880412"></div></div>
               </div>
               <div class="dice-col">
-                <div class="dice-box" id="die1_1772172880412"><div class="dice-face" id="face1_1772172880412"></div></div>
-                <button class="keep-btn" id="keep1_1772172880412" disabled>LOCK</button>
+                <div class="dice-box" id="die1_1772172880412" onclick="toggleDie(1, 1772172880412)"><div class="dice-face" id="face1_1772172880412"></div></div>
               </div>
               <div class="dice-col">
-                <div class="dice-box" id="die2_1772172880412"><div class="dice-face" id="face2_1772172880412"></div></div>
-                <button class="keep-btn" id="keep2_1772172880412" disabled>LOCK</button>
+                <div class="dice-box" id="die2_1772172880412" onclick="toggleDie(2, 1772172880412)"><div class="dice-face" id="face2_1772172880412"></div></div>
               </div>
               <div class="dice-col">
-                <div class="dice-box" id="die3_1772172880412"><div class="dice-face" id="face3_1772172880412"></div></div>
-                <button class="keep-btn" id="keep3_1772172880412" disabled>LOCK</button>
+                <div class="dice-box" id="die3_1772172880412" onclick="toggleDie(3, 1772172880412)"><div class="dice-face" id="face3_1772172880412"></div></div>
               </div>
               <div class="dice-col">
-                <div class="dice-box" id="die4_1772172880412"><div class="dice-face" id="face4_1772172880412"></div></div>
-                <button class="keep-btn" id="keep4_1772172880412" disabled>LOCK</button>
+                <div class="dice-box" id="die4_1772172880412" onclick="toggleDie(4, 1772172880412)"><div class="dice-face" id="face4_1772172880412"></div></div>
               </div>
           </div>
           <div class="roll-section">
@@ -1140,24 +1136,18 @@ function showPanel(id) {
           kept2: 0
         };
         for (var i = 0; i < 5; i++) {
-          (function(idx, sectionId) {
-            var keepBtn = document.getElementById('keep' + idx + '_' + sectionId);
-            if (keepBtn) {
-              keepBtn.addEventListener('click', function() {
-                var state = diceState[sectionId];
-                if (state.isRolling || state.values[idx] === 0) return;
-                state.kept[idx] = !state.kept[idx];
-                keepBtn.classList.toggle('active', state.kept[idx]);
-                keepBtn.textContent = state.kept[idx] ? 'LOCKED' : 'LOCK';
-                document.getElementById('die' + idx + '_' + sectionId).classList.toggle('kept', state.kept[idx]);
-                updateChecklist(sectionId, false);
-              });
-            }
-          })(i, sid);
           renderFace(i, 0, sid);
         }
       }
       return diceState[sid];
+    }
+
+    function toggleDie(idx, sid) {
+      var state = getDiceState(sid);
+      if (state.isRolling || state.values[idx] === 0) return;
+      state.kept[idx] = !state.kept[idx];
+      document.getElementById('die' + idx + '_' + sid).classList.toggle('kept', state.kept[idx]);
+      updateChecklist(sid, false);
     }
 
     function renderFace(index, value, sid) {
@@ -1275,21 +1265,10 @@ function showPanel(id) {
       if (rl <= 0) {
         if (rollBtn) { rollBtn.disabled = true; rollBtn.textContent = 'NO ROLLS'; }
         if (rollsLeftTxt) rollsLeftTxt.textContent = 'TURN OVER';
-        for (var j = 0; j < 5; j++) {
-          var keepBtn = document.getElementById('keep' + j + '_' + sid);
-          if (keepBtn) keepBtn.disabled = true;
-        }
         updateChecklist(sid, true);
         finaliseDice(sid);
       } else {
         if (rollBtn) rollBtn.disabled = false;
-        // Enable keep buttons only for dice that have a value (settled this roll or previously kept)
-        for (var k = 0; k < 5; k++) {
-          if (state.values[k] > 0 && !state.kept[k]) {
-            var kbEnable = document.getElementById('keep' + k + '_' + sid);
-            if (kbEnable) kbEnable.disabled = false;
-          }
-        }
       }
     }
 
