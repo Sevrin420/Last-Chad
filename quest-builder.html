@@ -1095,6 +1095,19 @@
     // Music tracks loaded from music/manifest.json
     let musicTracks = [];
 
+    // Resize an image data URL to 2/3 of its original dimensions
+    function resizeImage(dataUrl, callback) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.naturalWidth  * 2 / 3);
+        canvas.height = Math.round(img.naturalHeight * 2 / 3);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        callback(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = dataUrl;
+    }
+
     // Initialize
     function init() {
       loadQuestData();
@@ -1109,11 +1122,13 @@
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
-          state.introPhoto = ev.target.result;
-          const preview = document.getElementById('introPhotoPreview');
-          preview.src = ev.target.result;
-          preview.classList.add('visible');
-          saveQuestAuto();
+          resizeImage(ev.target.result, (resized) => {
+            state.introPhoto = resized;
+            const preview = document.getElementById('introPhotoPreview');
+            preview.src = resized;
+            preview.classList.add('visible');
+            saveQuestAuto();
+          });
         };
         reader.readAsDataURL(file);
         e.target.value = '';
@@ -1465,15 +1480,17 @@
             }
             const reader = new FileReader();
             reader.onload = (event) => {
-              const sectionId = parseInt(e.target.dataset.sectionId);
-              const section = state.sections.find(s => s.id === sectionId);
-              if (section) {
-                section.photo = event.target.result;
-                const preview = document.querySelector(`.photo-preview[data-section-id="${sectionId}"]`);
-                preview.src = event.target.result;
-                preview.classList.add('visible');
-                saveQuestAuto();
-              }
+              resizeImage(event.target.result, (resized) => {
+                const sectionId = parseInt(e.target.dataset.sectionId);
+                const section = state.sections.find(s => s.id === sectionId);
+                if (section) {
+                  section.photo = resized;
+                  const preview = document.querySelector(`.photo-preview[data-section-id="${sectionId}"]`);
+                  preview.src = resized;
+                  preview.classList.add('visible');
+                  saveQuestAuto();
+                }
+              });
               e.target.value = ''; // allow re-selecting the same file
             };
             reader.readAsDataURL(file);
@@ -1541,13 +1558,15 @@
             }
             const reader = new FileReader();
             reader.onload = (event) => {
-              const sectionId = parseInt(e.target.dataset.sectionId);
-              const section = state.sections.find(s => s.id === sectionId);
-              if (section) {
-                section.diceImage = event.target.result;
-                renderSections();
-                saveQuestAuto();
-              }
+              resizeImage(event.target.result, (resized) => {
+                const sectionId = parseInt(e.target.dataset.sectionId);
+                const section = state.sections.find(s => s.id === sectionId);
+                if (section) {
+                  section.diceImage = resized;
+                  renderSections();
+                  saveQuestAuto();
+                }
+              });
               e.target.value = ''; // allow re-selecting the same file
             };
             reader.readAsDataURL(file);
@@ -1766,7 +1785,8 @@
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/create-landing-page-1qjhB');
 
         // Publish quest
-        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null)
+        const QUEST_REWARDS_ADDRESS = '0x1951fc58e80d85ef09e038861b2e6ba0514d9f28';
+        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, QUEST_REWARDS_ADDRESS)
           .then(data => {
             showPublishProgress(false);
             showQuestPublishedModal(questName, data.questUrl);

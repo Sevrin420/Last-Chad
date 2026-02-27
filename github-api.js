@@ -104,7 +104,7 @@ class GitHubAPI {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/git/blobs/${sha}`);
   }
 
-  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null) {
+  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null, questRewardsAddress = '') {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
     if (introPhoto) imageCount++;
@@ -157,33 +157,7 @@ class GitHubAPI {
         sha: item.sha
       }));
 
-      // Generate quest HTML
-      progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto);
-      const htmlBlob = await this.createBlob(questHTML, 'utf-8');
-      console.log(`✓ Quest HTML blob created`);
-      treeItems.push({
-        path: `${questPath}/index.html`,
-        mode: '100644',
-        type: 'blob',
-        sha: htmlBlob.sha
-      });
-
-      // Add quest data JSON (strip image data to keep it lean)
-      progress('Saving quest data...');
-      const cleanSections = sections.map(({ photo, diceImage, ...rest }) => rest);
-      const questDataBlob = await this.createBlob(
-        JSON.stringify({ name: questName, sections: cleanSections }, null, 2),
-        'utf-8'
-      );
-      treeItems.push({
-        path: `${questPath}/data.json`,
-        mode: '100644',
-        type: 'blob',
-        sha: questDataBlob.sha
-      });
-
-      // Update quests/index.json manifest
+      // Read quest index first to assign a stable on-chain questId
       progress('Updating quest manifest...');
       const indexJsonItem = treeItems.find(item => item.path === 'quests/index.json');
       let questIndex = [];
@@ -197,8 +171,11 @@ class GitHubAPI {
           questIndex = [];
         }
       }
-      if (!questIndex.find(q => q.slug === sanitized)) {
-        questIndex.push({ name: questName, slug: sanitized });
+      // Assign questId: reuse existing if re-publishing, otherwise next available slot
+      const existingEntry = questIndex.find(q => q.slug === sanitized);
+      const questId = existingEntry != null ? existingEntry.questId : questIndex.length;
+      if (!existingEntry) {
+        questIndex.push({ name: questName, slug: sanitized, questId });
       }
       const indexBlob = await this.createBlob(JSON.stringify(questIndex, null, 2), 'utf-8');
       const indexIdx = treeItems.findIndex(item => item.path === 'quests/index.json');
@@ -209,7 +186,33 @@ class GitHubAPI {
         type: 'blob',
         sha: indexBlob.sha
       });
-      console.log(`✓ Quest manifest updated`);
+      console.log(`✓ Quest manifest updated (questId=${questId})`);
+
+      // Generate quest HTML with the assigned questId
+      progress('Generating quest HTML...');
+      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress, questId);
+      const htmlBlob = await this.createBlob(questHTML, 'utf-8');
+      console.log(`✓ Quest HTML blob created`);
+      treeItems.push({
+        path: `${questPath}/index.html`,
+        mode: '100644',
+        type: 'blob',
+        sha: htmlBlob.sha
+      });
+
+      // Add quest data JSON (strip image data to keep it lean)
+      progress('Saving quest data...');
+      const cleanSections = sections.map(({ photo, diceImage, ...rest }) => rest);
+      const questDataBlob = await this.createBlob(
+        JSON.stringify({ name: questName, questId, sections: cleanSections }, null, 2),
+        'utf-8'
+      );
+      treeItems.push({
+        path: `${questPath}/data.json`,
+        mode: '100644',
+        type: 'blob',
+        sha: questDataBlob.sha
+      });
 
       // Process and add images
       let uploadedImages = 0;
@@ -325,7 +328,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false) {
+function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '', questId = 0) {
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -414,7 +417,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
         </div>`;
 
     } else if (section.selectedChoice === 'dice') {
-      // Full Ship-Captain-Crew dice section
+      // Full Ship-Captain-Score dice section
       const statLabelMap = {
         strength: 'STRENGTH', intelligence: 'INTELLIGENCE',
         dexterity: 'DEXTERITY', charisma: 'CHARISMA'
@@ -527,16 +530,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       <div class="panel" id="panel-complete">
         <div class="narrative">
           <p>You have reached the end of <span class="highlight">${escapeHtml(questName)}</span>.</p>
-          ${hasDice ? '<p>Your crew held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
+          ${hasDice ? '<p>Your score held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
         </div>
-        ${hasDice ? `
-        <div class="score-breakdown">
-          <div class="breakdown-title">AFTER ACTION REPORT</div>
-          <div class="breakdown-row total">
-            <span class="breakdown-label">TOTAL SCORE</span>
-            <span class="breakdown-val" id="finalScore">0</span>
-          </div>
-        </div>` : ''}
         <div class="claim-xp-section">
           <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM XP</button>
           <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
@@ -709,22 +704,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       color: #c9a84c;
       background: rgba(92, 68, 9, 0.2);
     }
-
-    /* Crew score tracker */
-    .crew-tracker {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(20, 14, 6, 0.7);
-      border: 2px solid #3d2e0a;
-      border-radius: 4px;
-      padding: 10px 16px;
-      margin-bottom: 20px;
-      width: 100%;
-      max-width: 560px;
-    }
-    .crew-tracker-label { font-size: 0.4rem; color: #8a7a5a; }
-    .crew-tracker-value { font-size: 0.8rem; color: #c9a84c; text-shadow: 0 0 8px rgba(201, 168, 76, 0.4); }
 
     /* Quest panel */
     .quest-panel {
@@ -953,21 +932,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     .dice-result-text { font-size: clamp(0.45rem, 1.8vw, 0.6rem); line-height: 2.2; color: #f5e6c8; margin-bottom: 16px; }
     .dice-result-text .highlight { color: #c9a84c; }
 
-    /* Score breakdown (quest complete panel) */
-    .score-breakdown {
-      background: rgba(20, 14, 6, 0.8);
-      border: 2px solid #3d2e0a;
-      border-radius: 4px;
-      padding: 18px 20px;
-      margin-bottom: 24px;
-    }
-    .breakdown-title { font-size: 0.42rem; color: #8a7a5a; letter-spacing: 0.12em; margin-bottom: 16px; }
-    .breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(61, 46, 10, 0.4); }
-    .breakdown-row:last-child { border-bottom: none; }
-    .breakdown-label { font-size: clamp(0.38rem, 1.5vw, 0.48rem); color: #8a7a5a; }
-    .breakdown-val { font-size: clamp(0.5rem, 2vw, 0.65rem); color: #c9a84c; }
-    .breakdown-row.total .breakdown-label { color: #f5e6c8; font-size: clamp(0.42rem, 1.8vw, 0.55rem); }
-    .breakdown-row.total .breakdown-val { font-size: clamp(0.8rem, 3vw, 1.1rem); color: #c9a84c; text-shadow: 0 0 10px rgba(201,168,76,0.5); }
 
     @media (max-width: 480px) {
       .header { padding: 12px 16px; }
@@ -1149,8 +1113,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       ${hasIntroPhoto ? `<img src="images/intro.png" alt="${escapeHtml(questName)}" style="width:100%;max-width:460px;height:auto;border-radius:4px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">` : ''}
       <div class="intro-title">${escapeHtml(questName)}</div>
       ${introLines.length > 0 ? '<div id="introText" class="intro-text" style="opacity:0;text-align:left;"></div>' : ''}
-      <div id="introWalletNote" style="font-size:0.38rem; color:#8a7a5a; margin-bottom:14px; line-height:2;">Connect wallet to save progress on-chain</div>
-      <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
+<div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
       <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()"${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
     </div>
   </div>
@@ -1170,11 +1133,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   <button class="music-toggle" id="musicToggleBtn" onclick="toggleQuestMusic()" title="Toggle music">♪</button>
 
   <main class="main">
-    ${hasDice ? `
-    <div class="crew-tracker" id="crewTracker">
-      <span class="crew-tracker-label">SCORE</span>
-      <span class="crew-tracker-value" id="crewScoreDisplay">0</span>
-    </div>` : ''}
 
     <div class="quest-panel">
 ${panelsHtml}
@@ -1227,7 +1185,6 @@ ${completePanelHtml}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"><\/script>
   <script src="../../nav.js"><\/script>
   <script>
-    var crewScore = 0;
     var _animGen = 0;
 
     // ===== IN-PROGRESS SESSION PERSISTENCE =====
@@ -1235,7 +1192,7 @@ ${completePanelHtml}
     function _progressKey() { return 'lc_qprog_' + QUEST_SLUG + '_' + chadId; }
     function _saveProgress() {
       if (!chadId) return;
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, score: crewScore }));
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1304,12 +1261,7 @@ ${completePanelHtml}
       });
     }
 
-    function updateCrewDisplay() {
-      var el = document.getElementById('crewScoreDisplay');
-      if (el) el.textContent = crewScore;
-    }
-
-    function showPanel(id) {
+function showPanel(id) {
       document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
       var panelId = id ? 'panel-' + id : 'panel-complete';
       var panel = document.getElementById(panelId);
@@ -1327,10 +1279,6 @@ ${completePanelHtml}
         if (old) old.remove();
       }
       if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
-      if (!id) {
-        var fs = document.getElementById('finalScore');
-        if (fs) fs.textContent = crewScore;
-      }
       panel.classList.add('active');
       playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1358,8 +1306,6 @@ ${completePanelHtml}
       var saved = _loadProgress();
       if (saved && !isQuestDone(chadId)) {
         if (saved.seed) _questSeed = saved.seed;
-        crewScore = saved.score || 0;
-        updateCrewDisplay();
         var resumeId = saved.sectionId || firstId;
         playQuestMusic(resumeId);
         animatePanel(resumeId);
@@ -1724,27 +1670,25 @@ ${completePanelHtml}
 
       var vals = state.values.slice();
       var i6 = vals.indexOf(6);
-      if (i6 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i6 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i6, 1);
       var i5 = vals.indexOf(5);
-      if (i5 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i5 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i5, 1);
       var i4 = vals.indexOf(4);
-      if (i4 === -1) { noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i4 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
       vals.splice(i4, 1);
 
-      var crew = vals[0] + vals[1];
+      var score = vals[0] + vals[1];
       // Stat bonus: +0 for custom quests (no on-chain read)
       var statBonusVal = 0;
-      var total = crew + statBonusVal;
+      var total = score + statBonusVal;
 
-      crewScore += crew;
-      updateCrewDisplay();
       _saveProgress();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'SCORE';
-      if (scoreValue) scoreValue.textContent = crew;
+      if (scoreValue) scoreValue.textContent = score;
 
       if (total >= difficulty) {
         if (resultText) resultText.innerHTML = '<span class="result-success">SUCCESS</span>';
@@ -1758,7 +1702,7 @@ ${completePanelHtml}
       }
     }
 
-    function noCrewResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
+    function noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
       if (scoreBox) scoreBox.className = 'score-box no-score';
       if (scoreLabel) scoreLabel.textContent = 'NO SCORE';
       if (scoreValue) scoreValue.textContent = '0';
@@ -1796,14 +1740,14 @@ ${diceInitJs}
       'function balanceOf(address account, uint256 id) external view returns (uint256)'
     ];
     var itemAwards = ${itemAwardsJson};
-    var QUEST_REWARDS_ADDRESS = ''; // set after deploying QuestRewards.sol
+    var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}';
     var QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
       'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
       'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
     ];
-    var QUEST_ID = 0;
+    var QUEST_ID = ${questId};
     var _questSeed = null; // set after startQuest confirmed on-chain
 
     // Mirror of QuestRewards._deriveDie: keccak256(seed, roll, dieIndex) % 6 + 1
@@ -1951,7 +1895,6 @@ ${diceInitJs}
     async function checkQuestCompletion() {
       var banner = document.getElementById('introCompletedBanner');
       var startBtn = document.getElementById('introStartBtn');
-      var note = document.getElementById('introWalletNote');
 
       if (!chadId) {
         if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'START'; }
@@ -1976,7 +1919,6 @@ ${diceInitJs}
         document.getElementById('introCompletedId').textContent = chadId;
         if (banner) banner.style.display = 'block';
         if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'COMPLETED'; }
-        if (note) note.style.display = 'none';
       } else {
         if (banner) banner.style.display = 'none';
         if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'START'; }

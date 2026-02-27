@@ -18,9 +18,6 @@ contract QuestRewards {
 
     uint256 public constant SESSION_DURATION = 1 hours;
 
-    // Increment this as new quests are added
-    uint8 public constant QUEST_COUNT = 1;
-
     struct QuestSession {
         bytes32 seed;
         uint8 questId;
@@ -64,7 +61,6 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     function startQuest(uint256 tokenId, uint8 questId) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(questId < QUEST_COUNT, "Invalid quest");
         require(!questStarted[tokenId][questId], "Quest already attempted");
 
         bytes32 seed = keccak256(abi.encodePacked(
