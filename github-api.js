@@ -388,9 +388,11 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     const isFirst = idx === 0;
     const sectionName = escapeHtml(section.name || `Section ${idx + 1}`);
     const dialogueHtml = formatDialogue(section.dialogue);
-    const imageHtml = section.photo
+    const topImageHtml = section.photo
       ? `<img src="images/${sid}.png" alt="${sectionName}" class="section-img">`
-      : '';
+      : (section.selectedChoice === 'dice' && section.diceImage
+          ? `<img src="images/dice-${sid}.png" alt="${sectionName}" class="section-img">`
+          : '');
 
     let actionHtml = '';
 
@@ -431,12 +433,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
                 <button class="keep-btn" id="keep${i}_${sid}" onclick="toggleDie(${i}, ${sid})">LOCK</button>
               </div>`).join('');
 
-      const diceImgHtml = section.diceImage
-        ? `<img src="images/dice-${sid}.png" alt="Dice visual" class="section-img">`
-        : '';
-
       actionHtml = `
-        <div class="quest-hud" id="questHud_${sid}" style="display:none;opacity:0">
+        <div class="quest-hud" id="questHud_${sid}" style="opacity:0">
           <div class="hud-portrait-row">
             <div class="hud-portrait-col">
               <div class="hud-portrait-frame">
@@ -454,8 +452,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
             <div class="hud-item-label">EQUIPPED</div>
           </div>
         </div>
-        <div class="dice-section">
-          ${diceImgHtml}
+        <div class="dice-section" style="opacity:0">
           <div class="dice-meta-tag">${statLabel} BONUS +0 &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
           <div class="dice-row">${diceColsHtml}
           </div>
@@ -510,7 +507,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     return `
       <!-- ${sectionName} -->
       <div class="panel${isFirst ? ' active' : ''}" id="panel-${sid}">
-        ${imageHtml}
+        ${topImageHtml}
         <div class="narrative">
           ${dialogueHtml}
         </div>
@@ -1129,9 +1126,47 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .skip-item-link { display: block; margin-top: 10px; width: 100%; background: none; border: none; font-family: 'Press Start 2P', monospace; font-size: 0.3rem; color: #5c4409; text-align: center; cursor: pointer; padding: 4px; }
     .skip-item-link:hover { color: #8a7a5a; }
+
+    /* Item info popup */
+    #itemPopupOverlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.80); z-index: 9999;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    #itemPopupOverlay.open { display: flex; }
+    #itemPopup {
+      background: #1a1208; border: 2px solid #c9a84c;
+      padding: 28px 20px 22px; max-width: 300px; width: 88%;
+      position: relative; box-shadow: 0 0 40px rgba(201,168,76,0.2);
+      cursor: default;
+    }
+    #itemPopupClose {
+      position: absolute; top: 8px; right: 10px;
+      background: none; border: none; color: #c9a84c;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem; cursor: pointer; line-height: 1; padding: 4px 6px;
+    }
+    #itemPopupClose:hover { color: #fff; }
+    #itemPopupImg { width: 100%; max-width: 180px; display: block; margin: 0 auto 14px; border: 1px solid #5c4409; }
+    #itemPopupName { font-family: 'Press Start 2P', monospace; font-size: 0.52rem; color: #c9a84c; text-align: center; margin-bottom: 12px; line-height: 1.8; }
+    #itemPopupDesc { font-family: 'Press Start 2P', monospace; font-size: 0.40rem; color: #f5e6c8; line-height: 2.2; margin-bottom: 12px; }
+    #itemPopupStats { font-family: 'Press Start 2P', monospace; font-size: 0.42rem; color: #4caf50; line-height: 2; }
+    .hud-item-badge { cursor: pointer; }
+    .hud-item-badge:hover img { opacity: 0.8; }
   </style>
 </head>
 <body>
+  <!-- Item info popup -->
+  <div id="itemPopupOverlay">
+    <div id="itemPopup">
+      <button id="itemPopupClose">X</button>
+      <img id="itemPopupImg" src="" alt="">
+      <div id="itemPopupName"></div>
+      <div id="itemPopupDesc"></div>
+      <div id="itemPopupStats"></div>
+    </div>
+  </div>
+
   <!-- Intro overlay — appears before any panel content loads -->
   <div id="intro-overlay">
     <div class="intro-box">
@@ -1295,6 +1330,8 @@ function showPanel(id) {
       var img = panel.querySelector('.section-img');
       var narrative = panel.querySelector('.narrative');
       var actionWrap = panel.querySelector('.action-wrap');
+      var hudEl = id ? panel.querySelector('.quest-hud') : null;
+      var diceSection = id ? panel.querySelector('.dice-section') : null;
       if (img) { img.style.transition = ''; img.style.opacity = '0'; }
       if (narrative) {
         narrative.style.transition = '';
@@ -1303,13 +1340,18 @@ function showPanel(id) {
         var old = narrative.querySelector('.typewriter-line');
         if (old) old.remove();
       }
-      if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
+      if (hudEl) {
+        // Dice panel: keep action-wrap visible; reset HUD and dice section independently
+        hudEl.style.transition = ''; hudEl.style.opacity = '0';
+        if (diceSection) { diceSection.style.transition = ''; diceSection.style.opacity = '0'; }
+        if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      } else {
+        if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
+      }
       panel.classList.add('active');
       playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
-      // Load HUD if this panel contains a dice section
-      if (id && panel.querySelector('.quest-hud')) loadQuestHUD(id);
     }
 
     function goToSection(id) {
@@ -1332,7 +1374,9 @@ function showPanel(id) {
       if (saved && !isQuestDone(chadId)) {
         if (saved.seed) _questSeed = saved.seed;
         var resumeId = saved.sectionId || firstId;
+        currentSectionId = resumeId;
         showPanel(resumeId);
+        if (!_questSeed) _startOnChainQuest();
         return;
       }
 
@@ -1340,7 +1384,7 @@ function showPanel(id) {
       currentSectionId = firstId;
       _saveProgress();
       showPanel(firstId);
-      _startOnChainQuest(); // fire-and-forget: seeds deterministic dice if QuestRewards is configured
+      _startOnChainQuest(); // fetch seed that was created by startQuest() on adventure.html
     }
 
     async function animateIntro() {
@@ -1393,6 +1437,11 @@ function showPanel(id) {
       '1': { str: 0, int: 1, dex: 0, cha: 0 } // Cindy's Code: +1 INT
     };
 
+    // Item descriptions for popup
+    var ITEM_DESCRIPTIONS = {
+      '1': "A flash drive containing Cindy's proprietary code. Whoever carries it feels their mind sharpen."
+    };
+
     async function loadQuestHUD(sid) {
       if (!chadId) return;
       var hudEl = document.getElementById('questHud_' + sid);
@@ -1414,6 +1463,7 @@ function showPanel(id) {
           activeItems.forEach(function(iid) {
             var badge = document.createElement('div');
             badge.className = 'hud-item-badge';
+            badge.onclick = function() { showItemPopup(iid); };
             var details = HUD_ITEM_DETAILS[iid];
             if (details && details.image) {
               var im = document.createElement('img');
@@ -1458,6 +1508,33 @@ function showPanel(id) {
       }
     }
 
+    function showItemPopup(iid) {
+      var details = HUD_ITEM_DETAILS[iid] || {};
+      var mod = ITEM_MODIFIERS[iid] || {};
+      document.getElementById('itemPopupName').textContent = knownItems[iid] || ('Item #' + iid);
+      document.getElementById('itemPopupDesc').textContent = ITEM_DESCRIPTIONS[iid] || '';
+      var imgEl = document.getElementById('itemPopupImg');
+      imgEl.src = details.image || '';
+      imgEl.style.display = details.image ? 'block' : 'none';
+      var bonuses = [];
+      if (mod.str) bonuses.push('STR +' + mod.str);
+      if (mod.int) bonuses.push('INT +' + mod.int);
+      if (mod.dex) bonuses.push('DEX +' + mod.dex);
+      if (mod.cha) bonuses.push('CHA +' + mod.cha);
+      var statsEl = document.getElementById('itemPopupStats');
+      statsEl.textContent = bonuses.join('   ');
+      statsEl.style.display = bonuses.length ? 'block' : 'none';
+      document.getElementById('itemPopupOverlay').classList.add('open');
+    }
+
+    function closeItemPopup() {
+      document.getElementById('itemPopupOverlay').classList.remove('open');
+    }
+
+    document.getElementById('itemPopupOverlay').addEventListener('click', closeItemPopup);
+    document.getElementById('itemPopup').addEventListener('click', function(e) { e.stopPropagation(); });
+    document.getElementById('itemPopupClose').addEventListener('click', closeItemPopup);
+
     async function animatePanel(sid) {
       var panelId = sid ? 'panel-' + sid : 'panel-complete';
       var panel = document.getElementById(panelId);
@@ -1469,6 +1546,8 @@ function showPanel(id) {
       var img = panel.querySelector('.section-img');
       var narrative = panel.querySelector('.narrative');
       var actionWrap = panel.querySelector('.action-wrap');
+      var hudEl = sid ? panel.querySelector('.quest-hud') : null;
+      var diceSection = sid ? panel.querySelector('.dice-section') : null;
 
       // Collect plain-text lines from narrative <p> tags
       var lines = [];
@@ -1534,8 +1613,25 @@ function showPanel(id) {
         narrative.classList.remove('typing');
       }
 
-      // Step 3: reveal action
-      if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      // Step 3: reveal action — dice panels sequence HUD then dice; others reveal action-wrap
+      if (hudEl && diceSection) {
+        // Step 3a: populate and fade in HUD
+        await loadQuestHUD(sid);
+        if (!alive()) return;
+        hudEl.style.transition = 'opacity 1.0s ease';
+        await wait(20);
+        if (!alive()) return;
+        hudEl.style.opacity = '1';
+        await wait(1200);
+        if (!alive()) return;
+        // Step 3b: fade in dice game controls
+        diceSection.style.transition = 'opacity 1.0s ease';
+        await wait(20);
+        if (!alive()) return;
+        diceSection.style.opacity = '1';
+      } else {
+        if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      }
     }
 
     /* ===== DICE SYSTEM ===== */
@@ -1792,39 +1888,23 @@ ${diceInitJs}
       return ethers.BigNumber.from(ethers.utils.keccak256(packed)).mod(6).toNumber() + 1;
     }
 
-    // Start on-chain quest session — seed is REQUIRED before dice can roll
+    // Fetch the session seed created by startQuest() on adventure.html
+    // This page never calls startQuest itself — that tx is signed before navigation.
     async function _startOnChainQuest() {
-      if (!QUEST_REWARDS_ADDRESS || !chadId || !walletSigner) return;
+      if (!QUEST_REWARDS_ADDRESS || !chadId) return;
       try {
-        var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-        var tx = await qr.startQuest(chadId, QUEST_ID);
-        await tx.wait();
         var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
         var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
         var session = await qrRead.getSession(chadId);
-        _questSeed = session[0]; // bytes32 seed
-        _saveProgress();
-        // Re-enable any roll buttons that were waiting for the seed
-        document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
-          if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
-        });
-      } catch(e) {
-        console.warn('startOnChainQuest failed:', e);
-        // Quest may have been started in a previous session — try to recover the seed
-        try {
-          var rp2 = new ethers.providers.JsonRpcProvider(READ_RPC);
-          var qrRead2 = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp2);
-          var session2 = await qrRead2.getSession(chadId);
-          var zero = '0x0000000000000000000000000000000000000000000000000000000000000000';
-          if (session2 && session2[0] && session2[0] !== zero) {
-            _questSeed = session2[0];
-            _saveProgress();
-            document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
-              if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
-            });
-          }
-        } catch(e2) { console.warn('Seed recovery failed:', e2); }
-      }
+        var zero = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        if (session && session[0] && session[0] !== zero) {
+          _questSeed = session[0];
+          _saveProgress();
+          document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
+            if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
+          });
+        }
+      } catch(e) { console.warn('Seed fetch failed:', e); }
     }
 
     var walletProvider = null;
@@ -1859,7 +1939,6 @@ ${diceInitJs}
       document.getElementById('walletBtn').classList.add('connected');
       document.getElementById('walletModal').classList.remove('show');
       checkQuestCompletion();
-      // If quest already started but seed not yet acquired (wallet connected after START click), retry
       if (currentSectionId && !_questSeed) _startOnChainQuest();
     }
 
