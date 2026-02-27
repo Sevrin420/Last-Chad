@@ -1167,7 +1167,7 @@
           // Re-render so dropdowns populate with the loaded tracks
           renderSections();
         })
-        .catch(() => { musicTracks = []; });
+        .catch(() => { musicTracks = []; console.warn('music/manifest.json not found — music dropdowns will be empty.'); });
     }
 
     // Load saved data
@@ -1310,7 +1310,7 @@
           <!-- Item Award -->
           <div class="form-group">
             <label>🎁 Item Award</label>
-            <select class="section-item-award-select section-music-select" data-section-id="${section.id}">
+            <select class="section-item-award-select" data-section-id="${section.id}">
               <option value="">-- No Item --</option>
               <option value="1" ${section.itemAward === '1' ? 'selected' : ''}>1: Cindy's Code</option>
             </select>
@@ -1319,7 +1319,7 @@
           <!-- Choice Options -->
           <div class="form-group">
             <label>Choose Action Type</label>
-            <select class="section-action-type-select section-music-select" data-section-id="${section.id}">
+            <select class="section-action-type-select" data-section-id="${section.id}">
               <option value="">-- Choose action type --</option>
               <option value="single" ${section.selectedChoice === 'single' ? 'selected' : ''}>🔘 Single Button → Next Section</option>
               <option value="double" ${section.selectedChoice === 'double' ? 'selected' : ''}>⚖️ Double Button → Branch</option>
