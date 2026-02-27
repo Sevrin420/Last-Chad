@@ -1438,7 +1438,7 @@
 
       try {
         const qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, signer);
-        const tx = await qr.startQuest(selectedTokenId, questId);
+        const tx = await qr.startQuest(selectedTokenId, questId, { gasLimit: 150000 });
         battleBtn.textContent = 'CONFIRMING...';
         if (statusEl) statusEl.textContent = 'Confirming on-chain...';
         await tx.wait();
