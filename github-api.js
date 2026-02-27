@@ -388,9 +388,11 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     const isFirst = idx === 0;
     const sectionName = escapeHtml(section.name || `Section ${idx + 1}`);
     const dialogueHtml = formatDialogue(section.dialogue);
-    const imageHtml = section.photo
+    const topImageHtml = section.photo
       ? `<img src="images/${sid}.png" alt="${sectionName}" class="section-img">`
-      : '';
+      : (section.selectedChoice === 'dice' && section.diceImage
+          ? `<img src="images/dice-${sid}.png" alt="${sectionName}" class="section-img">`
+          : '');
 
     let actionHtml = '';
 
@@ -431,12 +433,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
                 <button class="keep-btn" id="keep${i}_${sid}" onclick="toggleDie(${i}, ${sid})">LOCK</button>
               </div>`).join('');
 
-      const diceImgHtml = section.diceImage
-        ? `<img src="images/dice-${sid}.png" alt="Dice visual" class="section-img">`
-        : '';
-
       actionHtml = `
-        <div class="quest-hud" id="questHud_${sid}" style="display:none;opacity:0">
+        <div class="quest-hud" id="questHud_${sid}" style="opacity:0">
           <div class="hud-portrait-row">
             <div class="hud-portrait-col">
               <div class="hud-portrait-frame">
@@ -454,8 +452,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
             <div class="hud-item-label">EQUIPPED</div>
           </div>
         </div>
-        <div class="dice-section">
-          ${diceImgHtml}
+        <div class="dice-section" style="opacity:0">
           <div class="dice-meta-tag">${statLabel} BONUS +0 &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
           <div class="dice-row">${diceColsHtml}
           </div>
@@ -510,7 +507,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     return `
       <!-- ${sectionName} -->
       <div class="panel${isFirst ? ' active' : ''}" id="panel-${sid}">
-        ${imageHtml}
+        ${topImageHtml}
         <div class="narrative">
           ${dialogueHtml}
         </div>
@@ -1295,6 +1292,8 @@ function showPanel(id) {
       var img = panel.querySelector('.section-img');
       var narrative = panel.querySelector('.narrative');
       var actionWrap = panel.querySelector('.action-wrap');
+      var hudEl = id ? panel.querySelector('.quest-hud') : null;
+      var diceSection = id ? panel.querySelector('.dice-section') : null;
       if (img) { img.style.transition = ''; img.style.opacity = '0'; }
       if (narrative) {
         narrative.style.transition = '';
@@ -1303,13 +1302,18 @@ function showPanel(id) {
         var old = narrative.querySelector('.typewriter-line');
         if (old) old.remove();
       }
-      if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
+      if (hudEl) {
+        // Dice panel: keep action-wrap visible; reset HUD and dice section independently
+        hudEl.style.transition = ''; hudEl.style.opacity = '0';
+        if (diceSection) { diceSection.style.transition = ''; diceSection.style.opacity = '0'; }
+        if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      } else {
+        if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
+      }
       panel.classList.add('active');
       playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
-      // Load HUD if this panel contains a dice section
-      if (id && panel.querySelector('.quest-hud')) loadQuestHUD(id);
     }
 
     function goToSection(id) {
@@ -1469,6 +1473,8 @@ function showPanel(id) {
       var img = panel.querySelector('.section-img');
       var narrative = panel.querySelector('.narrative');
       var actionWrap = panel.querySelector('.action-wrap');
+      var hudEl = sid ? panel.querySelector('.quest-hud') : null;
+      var diceSection = sid ? panel.querySelector('.dice-section') : null;
 
       // Collect plain-text lines from narrative <p> tags
       var lines = [];
@@ -1534,8 +1540,25 @@ function showPanel(id) {
         narrative.classList.remove('typing');
       }
 
-      // Step 3: reveal action
-      if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      // Step 3: reveal action — dice panels sequence HUD then dice; others reveal action-wrap
+      if (hudEl && diceSection) {
+        // Step 3a: populate and fade in HUD
+        await loadQuestHUD(sid);
+        if (!alive()) return;
+        hudEl.style.transition = 'opacity 1.0s ease';
+        await wait(20);
+        if (!alive()) return;
+        hudEl.style.opacity = '1';
+        await wait(1200);
+        if (!alive()) return;
+        // Step 3b: fade in dice game controls
+        diceSection.style.transition = 'opacity 1.0s ease';
+        await wait(20);
+        if (!alive()) return;
+        diceSection.style.opacity = '1';
+      } else {
+        if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      }
     }
 
     /* ===== DICE SYSTEM ===== */
