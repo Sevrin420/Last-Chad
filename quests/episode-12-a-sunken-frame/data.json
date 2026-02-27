@@ -1,0 +1,24 @@
+{
+  "name": "Episode 12 A sunken frame",
+  "questId": 9,
+  "sections": [
+    {
+      "id": 1772232243092,
+      "name": "Section 1",
+      "dialogue": "Welp",
+      "selectedChoice": "single",
+      "buttonName": "End",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "music": "music/upbeat.mp3",
+      "itemAward": null
+    }
+  ]
+}

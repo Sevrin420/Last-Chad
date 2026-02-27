@@ -43,5 +43,10 @@
     "name": "Episode 11 new test",
     "slug": "episode-11-new-test",
     "questId": 8
+  },
+  {
+    "name": "Episode 12 A sunken frame",
+    "slug": "episode-12-a-sunken-frame",
+    "questId": 9
   }
 ]
