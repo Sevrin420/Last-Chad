@@ -1810,7 +1810,23 @@ ${diceInitJs}
         document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
           if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
         });
-      } catch(e) { console.warn('startOnChainQuest failed:', e); }
+      } catch(e) {
+        console.warn('startOnChainQuest failed:', e);
+        // Quest may have been started in a previous session — try to recover the seed
+        try {
+          var rp2 = new ethers.providers.JsonRpcProvider(READ_RPC);
+          var qrRead2 = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp2);
+          var session2 = await qrRead2.getSession(chadId);
+          var zero = '0x0000000000000000000000000000000000000000000000000000000000000000';
+          if (session2 && session2[0] && session2[0] !== zero) {
+            _questSeed = session2[0];
+            _saveProgress();
+            document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
+              if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
+            });
+          }
+        } catch(e2) { console.warn('Seed recovery failed:', e2); }
+      }
     }
 
     var walletProvider = null;
@@ -1845,6 +1861,8 @@ ${diceInitJs}
       document.getElementById('walletBtn').classList.add('connected');
       document.getElementById('walletModal').classList.remove('show');
       checkQuestCompletion();
+      // If quest already started but seed not yet acquired (wallet connected after START click), retry
+      if (currentSectionId && !_questSeed) _startOnChainQuest();
     }
 
     function onDisconnected() {
