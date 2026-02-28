@@ -382,13 +382,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     return lines.map(l => `<p>${escapeHtml(l)}</p>`).join('\n          ');
   }
 
-  // Pre-assign choice slots to double sections (1st double = slot 1, 2nd = slot 2)
-  let _dcSlot = 0;
-  const choiceSlots = {};
-  sections.forEach(s => {
-    if (s.selectedChoice === 'double') { _dcSlot++; choiceSlots[s.id] = _dcSlot; }
-  });
-
   // Generate HTML for all panels (one per section)
   const panelsHtml = sections.map((section, idx) => {
     const sid = section.id;
@@ -415,13 +408,12 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       const next2 = section.choice2NextSectionId || null;
       const btn1 = escapeHtml(section.button1Name || 'Choice A');
       const btn2 = escapeHtml(section.button2Name || 'Choice B');
-      const slot = choiceSlots[sid] || 1;
       actionHtml = `
         <div class="choices">
-          <button class="choice-btn" onclick="recordChoice(${slot}, 0); goToSection(${next1})">
+          <button class="choice-btn" onclick="goToSection(${next1})">
             <span class="choice-label">[ ${btn1} ]</span>
           </button>
-          <button class="choice-btn" onclick="recordChoice(${slot}, 1); goToSection(${next2})">
+          <button class="choice-btn" onclick="goToSection(${next2})">
             <span class="choice-label">[ ${btn2} ]</span>
           </button>
         </div>`;
@@ -1260,7 +1252,7 @@ ${completePanelHtml}
     function _progressKey() { return 'lc_qprog_' + QUEST_SLUG + '_' + chadId; }
     function _saveProgress() {
       if (!chadId) return;
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, choice1: _choice1, choice2: _choice2 }));
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1273,13 +1265,6 @@ ${completePanelHtml}
     var diceOutcomes = ${diceOutcomesJson};
     var sectionMusic = ${sectionMusicJson};
     var introLines = ${introLinesJson};
-    var _choice1 = 0, _choice2 = 0;
-
-    function recordChoice(slot, val) {
-      if (slot === 1) _choice1 = val;
-      else if (slot === 2) _choice2 = val;
-      _saveProgress();
-    }
 
     var musicMuted = false;
     var _currentMusicSrc = '';
@@ -1388,8 +1373,6 @@ function showPanel(id) {
       var saved = _loadProgress();
       if (saved && !isQuestDone(chadId)) {
         if (saved.seed) _questSeed = saved.seed;
-        if (saved.choice1 !== undefined) _choice1 = saved.choice1;
-        if (saved.choice2 !== undefined) _choice2 = saved.choice2;
         var resumeId = saved.sectionId || firstId;
         currentSectionId = resumeId;
         showPanel(resumeId);
@@ -2160,7 +2143,7 @@ ${diceInitJs}
           var _kept1 = _dsState ? _dsState.kept1 : 0;
           var _kept2 = _dsState ? _dsState.kept2 : 0;
           var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-          var tx = await qr.completeQuest(chadId, QUEST_ID, _choice1, _choice2, _kept1, _kept2);
+          var tx = await qr.completeQuest(chadId, QUEST_ID, 0, 0, _kept1, _kept2);
           statusEl.textContent = 'CONFIRMING...';
           await tx.wait();
         } catch(e) {
