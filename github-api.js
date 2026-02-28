@@ -453,7 +453,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           </div>
         </div>
         <div class="dice-section" style="opacity:0">
-          <div class="dice-meta-tag">${statLabel} BONUS +0 &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
+          <div class="dice-meta-tag">${statLabel} BONUS <span id="statBonusVal_${sid}" data-stat="${section.statBonus}">+0</span> &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
           <div class="dice-row">${diceColsHtml}
           </div>
           <div class="roll-section">
@@ -1252,7 +1252,11 @@ ${completePanelHtml}
     function _progressKey() { return 'lc_qprog_' + QUEST_SLUG + '_' + chadId; }
     function _saveProgress() {
       if (!chadId) return;
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId }));
+      var scores = {};
+      Object.keys(diceState).forEach(function(sid) {
+        if (diceState[sid].totalScore) scores[sid] = diceState[sid].totalScore;
+      });
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1373,6 +1377,11 @@ function showPanel(id) {
       var saved = _loadProgress();
       if (saved && !isQuestDone(chadId)) {
         if (saved.seed) _questSeed = saved.seed;
+        if (saved.scores) {
+          Object.keys(saved.scores).forEach(function(sid) {
+            getDiceState(Number(sid)).totalScore = saved.scores[sid];
+          });
+        }
         var resumeId = saved.sectionId || firstId;
         currentSectionId = resumeId;
         showPanel(resumeId);
@@ -1503,6 +1512,17 @@ function showPanel(id) {
         setStatEl('hudInt_' + sid, baseInt, modInt);
         setStatEl('hudDex_' + sid, baseDex, modDex);
         setStatEl('hudCha_' + sid, baseCha, modCha);
+        window._chadStats = {
+          strength: baseStr + modStr,
+          intelligence: baseInt + modInt,
+          dexterity: baseDex + modDex,
+          charisma: baseCha + modCha
+        };
+        var bonusEl = document.getElementById('statBonusVal_' + sid);
+        if (bonusEl) {
+          var stat = bonusEl.getAttribute('data-stat');
+          bonusEl.textContent = '+' + (window._chadStats[stat] || 0);
+        }
       } catch (e) {
         // HUD is cosmetic — silently fail if RPC unavailable
       }
@@ -1645,7 +1665,8 @@ function showPanel(id) {
           rollsLeft: 3,
           isRolling: false,
           kept1: 0,
-          kept2: 0
+          kept2: 0,
+          totalScore: 0
         };
         for (var i = 0; i < 5; i++) {
           renderFace(i, 0, sid);
@@ -1800,27 +1821,39 @@ function showPanel(id) {
       var outcome     = diceOutcomes[sid] || {};
       var difficulty  = outcome.difficulty !== undefined ? outcome.difficulty : 8;
 
+      // Compute stat bonus first — it applies regardless of 6,5,4 outcome
+      var statBonusVal = 0;
+      if (outcome.statBonus && window._chadStats) {
+        statBonusVal = window._chadStats[outcome.statBonus] || 0;
+      }
+
       var vals = state.values.slice();
       var i6 = vals.indexOf(6);
-      if (i6 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i6 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty, sid, statBonusVal); return; }
       vals.splice(i6, 1);
       var i5 = vals.indexOf(5);
-      if (i5 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i5 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty, sid, statBonusVal); return; }
       vals.splice(i5, 1);
       var i4 = vals.indexOf(4);
-      if (i4 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty); return; }
+      if (i4 === -1) { noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, outcome.failNextId, difficulty, sid, statBonusVal); return; }
       vals.splice(i4, 1);
 
       var score = vals[0] + vals[1];
-      // Stat bonus: +0 for custom quests (no on-chain read)
-      var statBonusVal = 0;
       var total = score + statBonusVal;
+      diceState[sid].totalScore = total;
 
       _saveProgress();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'SCORE';
-      if (scoreValue) scoreValue.textContent = score;
+      if (scoreValue) {
+        if (statBonusVal > 0) {
+          var statShort = outcome.statBonus.slice(0, 3).toUpperCase();
+          scoreValue.innerHTML = total + '<br><span style="color:#ff4444;font-size:0.6em">+' + statBonusVal + ' ' + statShort + '</span>';
+        } else {
+          scoreValue.textContent = total;
+        }
+      }
 
       if (total >= difficulty) {
         if (resultText) resultText.innerHTML = '<span class="result-success">SUCCESS</span>';
@@ -1834,10 +1867,23 @@ function showPanel(id) {
       }
     }
 
-    function noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty) {
+    function noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty, sid, statBonusVal) {
+      // Stat bonus still counts even when 6,5,4 aren't held
+      var bonus = statBonusVal || 0;
+      diceState[sid].totalScore = bonus;
+      _saveProgress();
+
       if (scoreBox) scoreBox.className = 'score-box no-score';
       if (scoreLabel) scoreLabel.textContent = 'NO SCORE';
-      if (scoreValue) scoreValue.textContent = '0';
+      if (scoreValue) {
+        if (bonus > 0) {
+          var outcome = diceOutcomes[sid] || {};
+          var statShort = (outcome.statBonus || '').slice(0, 3).toUpperCase();
+          scoreValue.innerHTML = bonus + '<br><span style="color:#ff4444;font-size:0.6em">+' + bonus + ' ' + statShort + '</span>';
+        } else {
+          scoreValue.textContent = '0';
+        }
+      }
       if (resultText) resultText.innerHTML = '<span class="result-fail">FAILURE</span>';
       if (continueWrap) continueWrap.classList.add('show');
       if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
@@ -1875,7 +1921,7 @@ ${diceInitJs}
     var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}';
     var QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
-      'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
+      'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount) external',
       'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
     ];
@@ -2122,13 +2168,12 @@ ${diceInitJs}
       if (QUEST_REWARDS_ADDRESS && walletSigner) {
         statusEl.textContent = 'CONFIRM IN WALLET...';
         try {
-          // Get kept bitmasks from the first dice section (if any)
-          var _dsIds = Object.keys(diceOutcomes);
-          var _dsState = _dsIds.length > 0 ? diceState[Number(_dsIds[0])] : null;
-          var _kept1 = _dsState ? _dsState.kept1 : 0;
-          var _kept2 = _dsState ? _dsState.kept2 : 0;
+          // Sum totalScore across all dice sections
+          var _totalXP = Object.keys(diceOutcomes).reduce(function(sum, sid) {
+            return sum + ((diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0);
+          }, 0);
           var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-          var tx = await qr.completeQuest(chadId, QUEST_ID, 0, 0, _kept1, _kept2);
+          var tx = await qr.completeQuest(chadId, QUEST_ID, _totalXP);
           statusEl.textContent = 'CONFIRMING...';
           await tx.wait();
         } catch(e) {
