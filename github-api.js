@@ -1503,6 +1503,12 @@ function showPanel(id) {
         setStatEl('hudInt_' + sid, baseInt, modInt);
         setStatEl('hudDex_' + sid, baseDex, modDex);
         setStatEl('hudCha_' + sid, baseCha, modCha);
+        window._chadStats = {
+          strength: baseStr + modStr,
+          intelligence: baseInt + modInt,
+          dexterity: baseDex + modDex,
+          charisma: baseCha + modCha
+        };
       } catch (e) {
         // HUD is cosmetic — silently fail if RPC unavailable
       }
@@ -1812,15 +1818,24 @@ function showPanel(id) {
       vals.splice(i4, 1);
 
       var score = vals[0] + vals[1];
-      // Stat bonus: +0 for custom quests (no on-chain read)
       var statBonusVal = 0;
+      if (outcome.statBonus && window._chadStats) {
+        statBonusVal = window._chadStats[outcome.statBonus] || 0;
+      }
       var total = score + statBonusVal;
 
       _saveProgress();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'SCORE';
-      if (scoreValue) scoreValue.textContent = score;
+      if (scoreValue) {
+        if (statBonusVal > 0) {
+          var statShort = outcome.statBonus.slice(0, 3).toUpperCase();
+          scoreValue.innerHTML = total + '<br><span style="color:#ff4444;font-size:0.6em">+' + statBonusVal + ' ' + statShort + '</span>';
+        } else {
+          scoreValue.textContent = total;
+        }
+      }
 
       if (total >= difficulty) {
         if (resultText) resultText.innerHTML = '<span class="result-success">SUCCESS</span>';
