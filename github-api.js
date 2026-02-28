@@ -453,7 +453,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           </div>
         </div>
         <div class="dice-section" style="opacity:0">
-          <div class="dice-meta-tag">${statLabel} BONUS +0 &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
+          <div class="dice-meta-tag">${statLabel} BONUS <span id="statBonusVal_${sid}" data-stat="${section.statBonus}">+0</span> &nbsp;&nbsp; DIFFICULTY: ${difficulty}</div>
           <div class="dice-row">${diceColsHtml}
           </div>
           <div class="roll-section">
@@ -1518,6 +1518,11 @@ function showPanel(id) {
           dexterity: baseDex + modDex,
           charisma: baseCha + modCha
         };
+        var bonusEl = document.getElementById('statBonusVal_' + sid);
+        if (bonusEl) {
+          var stat = bonusEl.getAttribute('data-stat');
+          bonusEl.textContent = '+' + (window._chadStats[stat] || 0);
+        }
       } catch (e) {
         // HUD is cosmetic — silently fail if RPC unavailable
       }
