@@ -229,3 +229,14 @@ npm install                           # Install dependencies
 |---------|---------|
 | Avalanche Mainnet | Production |
 | Fuji Testnet | Testing & deployment staging |
+
+---
+
+## Future Contract Notes (5555-token LastChad.sol)
+
+The current `LastChad.sol` extends plain `ERC721` (no `ERC721Enumerable`), so `tokenOfOwnerByIndex` is not available. The market's `populateSellTokens()` works around this with a `balanceOf` + `totalSupply` loop (max 70 calls on the test contract).
+
+**When deploying the 5555-token production contract**, add `ERC721Enumerable`:
+1. Change `ERC721` → `ERC721Enumerable` in the `is` clause
+2. Add the required override: `function supportsInterface(bytes4 id) public view override(ERC721Enumerable) returns (bool) { return super.supportsInterface(id); }`
+3. Update `market.html` `ERC721_ABI`: swap `totalSupply()` back to `tokenOfOwnerByIndex(address, uint256)` and rewrite `populateSellTokens()` to use `balanceOf` + `tokenOfOwnerByIndex` loop — O(owned) not O(totalSupply).

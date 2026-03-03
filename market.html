@@ -984,12 +984,11 @@
 
     const ERC721_ABI = [
       'function balanceOf(address owner) view returns (uint256)',
-      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
+      'function totalSupply() view returns (uint256)',
       'function isApprovedForAll(address owner, address operator) view returns (bool)',
       'function setApprovalForAll(address operator, bool approved)',
       'function getApproved(uint256 tokenId) view returns (address)',
       'function ownerOf(uint256 tokenId) view returns (address)',
-      'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)',
       'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
       'function getExperience(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
@@ -1687,15 +1686,26 @@
 
       const collAddr = COLLECTIONS.chads.address;
       try {
-        // Use signer.provider (wallet) instead of readProvider — public Fuji RPC
-        // rejects null-topic eth_getLogs, but the injected wallet provider supports it.
-        // This also scales to 5555+ tokens since we fetch events, not one call per token.
-        const nft = new ethers.Contract(collAddr, ERC721_ABI, signer.provider);
-        const received = await nft.queryFilter(nft.filters.Transfer(null, userAddress), 0, 'latest');
-        const candidates = [...new Set(received.map(e => e.args.tokenId.toString()))];
-        const owned = (await Promise.all(
-          candidates.map(tid => nft.ownerOf(tid).then(o => o.toLowerCase() === userAddress.toLowerCase() ? tid : null).catch(() => null))
-        )).filter(Boolean);
+        const nft   = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
+        const bal   = await nft.balanceOf(userAddress);
+        if (bal.eq(0)) {
+          sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
+          return;
+        }
+        // Loop over totalSupply (max 70 on test contract) to find owned tokens.
+        // No ERC721Enumerable needed. For 5555-token contract, add ERC721Enumerable
+        // to LastChad.sol so tokenOfOwnerByIndex is available instead.
+        const total = await nft.totalSupply();
+        const owned = [];
+        const checks = [];
+        for (let i = 1; i <= total.toNumber(); i++) {
+          checks.push(
+            nft.ownerOf(i)
+              .then(o => { if (o.toLowerCase() === userAddress.toLowerCase()) owned.push(i); })
+              .catch(() => {})
+          );
+        }
+        await Promise.all(checks);
 
         sellToken.innerHTML = '<option value="">Select token...</option>';
         for (const tid of owned) {
@@ -1708,7 +1718,8 @@
         if (owned.length === 0) {
           sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
         }
-      } catch {
+      } catch (err) {
+        console.error('populateSellTokens error:', err);
         sellToken.innerHTML = '<option value="">Error loading tokens</option>';
       }
     }
@@ -1785,6 +1796,7 @@
     }
 
     approveItemBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       approveItemBtn.disabled    = true;
       approveItemBtn.textContent = 'APPROVING...';
       try {
@@ -1803,6 +1815,7 @@
     });
 
     listItemBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       const tokenId = sellItemToken.value;
       const price   = sellItemPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
@@ -1883,6 +1896,7 @@
     }
 
     approveBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       approveBtn.disabled    = true;
       approveBtn.textContent = 'APPROVING...';
       try {
@@ -1901,6 +1915,7 @@
     });
 
     listBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       const tokenId = sellToken.value;
       const price   = sellPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
