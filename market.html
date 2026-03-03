@@ -1687,8 +1687,10 @@
 
       const collAddr = COLLECTIONS.chads.address;
       try {
-        const nft = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
-        // LastChad doesn't implement ERC721Enumerable — use Transfer events instead
+        // Use signer.provider (wallet) instead of readProvider — public Fuji RPC
+        // rejects null-topic eth_getLogs, but the injected wallet provider supports it.
+        // This also scales to 5555+ tokens since we fetch events, not one call per token.
+        const nft = new ethers.Contract(collAddr, ERC721_ABI, signer.provider);
         const received = await nft.queryFilter(nft.filters.Transfer(null, userAddress), 0, 'latest');
         const candidates = [...new Set(received.map(e => e.args.tokenId.toString()))];
         const owned = (await Promise.all(
