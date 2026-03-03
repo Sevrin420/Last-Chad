@@ -989,6 +989,7 @@
       'function setApprovalForAll(address operator, bool approved)',
       'function getApproved(uint256 tokenId) view returns (address)',
       'function ownerOf(uint256 tokenId) view returns (address)',
+      'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)',
       'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
       'function getExperience(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
@@ -1687,17 +1688,22 @@
       const collAddr = COLLECTIONS.chads.address;
       try {
         const nft = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
-        const bal = await nft.balanceOf(userAddress);
+        // LastChad doesn't implement ERC721Enumerable — use Transfer events instead
+        const received = await nft.queryFilter(nft.filters.Transfer(null, userAddress), 0, 'latest');
+        const candidates = [...new Set(received.map(e => e.args.tokenId.toString()))];
+        const owned = (await Promise.all(
+          candidates.map(tid => nft.ownerOf(tid).then(o => o.toLowerCase() === userAddress.toLowerCase() ? tid : null).catch(() => null))
+        )).filter(Boolean);
+
         sellToken.innerHTML = '<option value="">Select token...</option>';
-        for (let i = 0; i < bal.toNumber(); i++) {
-          const tokenId = await nft.tokenOfOwnerByIndex(userAddress, i);
-          const name    = await nft.tokenName(tokenId).catch(() => '');
-          const opt = document.createElement('option');
-          opt.value       = tokenId.toString();
-          opt.textContent = name || 'CHAD #' + tokenId.toString();
+        for (const tid of owned) {
+          const name = await nft.tokenName(tid).catch(() => '');
+          const opt  = document.createElement('option');
+          opt.value       = tid;
+          opt.textContent = name || 'CHAD #' + tid;
           sellToken.appendChild(opt);
         }
-        if (bal.toNumber() === 0) {
+        if (owned.length === 0) {
           sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
         }
       } catch {
