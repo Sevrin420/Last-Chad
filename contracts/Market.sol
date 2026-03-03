@@ -104,7 +104,8 @@ contract Market is Ownable, ReentrancyGuard {
         uint256 amount = accumulatedFees;
         require(amount > 0, "Market: nothing to withdraw");
         accumulatedFees = 0;
-        payable(owner()).transfer(amount);
+        (bool ok,) = payable(owner()).call{value: amount}("");
+        require(ok, "Market: transfer failed");
         emit FeesWithdrawn(amount);
     }
 
@@ -192,12 +193,12 @@ contract Market is Ownable, ReentrancyGuard {
         // Transfer NFT to buyer first (checks-effects-interactions pattern)
         IERC721(nftContract).safeTransferFrom(seller, msg.sender, tokenId);
 
-        // Pay seller
-        payable(seller).transfer(sellerAmount);
+        (bool ok1,) = payable(seller).call{value: sellerAmount}("");
+        require(ok1, "Market: seller payment failed");
 
-        // Refund overpayment
         if (msg.value > price) {
-            payable(msg.sender).transfer(msg.value - price);
+            (bool ok2,) = payable(msg.sender).call{value: msg.value - price}("");
+            require(ok2, "Market: refund failed");
         }
 
         emit Sold(nftContract, tokenId, msg.sender, seller, price);
@@ -206,12 +207,11 @@ contract Market is Ownable, ReentrancyGuard {
     // ========== ERC-1155 SELLER ==========
 
     /**
-     * @notice List ERC-1155 tokens for sale.
+     * @notice List one ERC-1155 token for sale (non-stackable, always lists 1).
      *         Caller must first approve this contract via setApprovalForAll.
      * @param nftContract Address of the ERC-1155 contract.
      * @param tokenId     Item ID to list.
-     * @param amount      Number of tokens to sell (1 for non-stackable items).
-     * @param price       Price per token in wei.
+     * @param price       Sale price in wei.
      */
     function list1155(address nftContract, uint256 tokenId, uint256 price) external {
         require(approvedContracts[nftContract], "Market: contract not approved");
@@ -266,10 +266,13 @@ contract Market is Ownable, ReentrancyGuard {
         accumulatedFees     += fee;
 
         IERC1155(nftContract).safeTransferFrom(_seller, msg.sender, tokenId, 1, "");
-        payable(_seller).transfer(sellerAmount);
+
+        (bool ok1,) = payable(_seller).call{value: sellerAmount}("");
+        require(ok1, "Market: seller payment failed");
 
         if (msg.value > _price) {
-            payable(msg.sender).transfer(msg.value - _price);
+            (bool ok2,) = payable(msg.sender).call{value: msg.value - _price}("");
+            require(ok2, "Market: refund failed");
         }
 
         emit Sold1155(nftContract, tokenId, msg.sender, _seller, 1, _price);
