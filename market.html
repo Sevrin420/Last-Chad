@@ -879,10 +879,34 @@
       <div id="sellConnectPrompt" class="connect-prompt" style="display:none">
         <p>Connect your wallet<br>to list an NFT for sale.</p>
       </div>
-      <div id="sellItemsMsg" class="coming-soon" style="display:none">
-        <span class="cs-icon">🎒</span>
-        <h3>ITEMS MARKETPLACE</h3>
-        <p>ERC-1155 item selling is not yet supported. Check back soon.</p>
+      <div class="sell-section" id="sellItemForm" style="display:none">
+        <h2>LIST AN ITEM</h2>
+
+        <div class="form-group">
+          <label>Your Item</label>
+          <select id="sellItemToken">
+            <option value="">Select item...</option>
+          </select>
+        </div>
+
+        <div id="sellItemPreview" class="nft-preview-row" style="display:none">
+          <img id="sellItemPreviewImg" src="" alt="Item Preview">
+          <div class="nft-preview-info">
+            <div><span class="label">Item: </span><span class="value" id="sellItemPreviewName">—</span></div>
+            <div><span class="label">Status: </span><span class="value" id="sellItemPreviewStatus">—</span></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Price (AVAX)</label>
+          <input type="number" id="sellItemPrice" placeholder="0.00" min="0" step="0.001">
+        </div>
+
+        <div class="fee-note" id="itemFeeNote"></div>
+
+        <button class="approve-btn" id="approveItemBtn" disabled>1. APPROVE MARKET</button>
+        <button class="list-btn"    id="listItemBtn"    disabled>2. LIST FOR SALE</button>
+        <div class="status-msg" id="sellItemStatus"></div>
       </div>
       <div class="sell-section" id="sellForm" style="display:none">
         <h2>LIST A CHAD</h2>
@@ -932,6 +956,7 @@
     // ====================================================================
     const MARKET_ABI = [
       'function feeBps() view returns (uint256)',
+      // ERC-721
       'function getListing(address nftContract, uint256 tokenId) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 price, bool active))',
       'function buy(address nftContract, uint256 tokenId) payable',
       'function list(address nftContract, uint256 tokenId, uint256 price)',
@@ -939,7 +964,23 @@
       'event Listed(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price)',
       'event Sold(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 price)',
       'event Delisted(address indexed nftContract, uint256 indexed tokenId, address seller)',
+      // ERC-1155
+      'function getListing1155(address nftContract, uint256 tokenId, address seller) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 amount, uint256 price, bool active))',
+      'function buy1155(address nftContract, uint256 tokenId, address seller) payable',
+      'function list1155(address nftContract, uint256 tokenId, uint256 price)',
+      'function delist1155(address nftContract, uint256 tokenId)',
+      'event Listed1155(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 amount, uint256 price)',
+      'event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice)',
+      'event Delisted1155(address indexed nftContract, uint256 indexed tokenId, address seller)',
     ];
+
+    const ERC1155_ABI = [
+      'function balanceOf(address account, uint256 id) view returns (uint256)',
+      'function isApprovedForAll(address account, address operator) view returns (bool)',
+      'function setApprovalForAll(address operator, bool approved)',
+    ];
+
+    const knownItems = { '1': "Cindy's Code" };
 
     const ERC721_ABI = [
       'function balanceOf(address owner) view returns (uint256)',
@@ -948,6 +989,7 @@
       'function setApprovalForAll(address operator, bool approved)',
       'function getApproved(uint256 tokenId) view returns (address)',
       'function ownerOf(uint256 tokenId) view returns (address)',
+      'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)',
       'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
       'function getExperience(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
@@ -963,6 +1005,7 @@
     let feeBps           = 500;
     let activeCollection = 'chads';
     let allListings      = [];
+    let allListings1155  = [];
 
     const statsCache    = new Map(); // tokenId -> { str, int, dex, cha, level, xp, name }
     const lastSaleCache = new Map(); // "contract:tokenId" (lowercase) -> priceAvax string
@@ -987,9 +1030,19 @@
     const filterLevel   = document.getElementById('filterLevel');
     const resetFiltersBtn = document.getElementById('resetFilters');
 
-    const sellConnectPrompt = document.getElementById('sellConnectPrompt');
-    const sellItemsMsg      = document.getElementById('sellItemsMsg');
-    const sellForm          = document.getElementById('sellForm');
+    const sellConnectPrompt   = document.getElementById('sellConnectPrompt');
+    const sellItemForm        = document.getElementById('sellItemForm');
+    const sellItemToken       = document.getElementById('sellItemToken');
+    const sellItemPrice       = document.getElementById('sellItemPrice');
+    const sellItemPreview     = document.getElementById('sellItemPreview');
+    const sellItemPreviewImg  = document.getElementById('sellItemPreviewImg');
+    const sellItemPreviewName = document.getElementById('sellItemPreviewName');
+    const sellItemPreviewStatus = document.getElementById('sellItemPreviewStatus');
+    const approveItemBtn      = document.getElementById('approveItemBtn');
+    const listItemBtn         = document.getElementById('listItemBtn');
+    const sellItemStatus      = document.getElementById('sellItemStatus');
+    const itemFeeNote         = document.getElementById('itemFeeNote');
+    const sellForm            = document.getElementById('sellForm');
     const sellToken         = document.getElementById('sellToken');
     const sellPrice         = document.getElementById('sellPrice');
     const sellPreview       = document.getElementById('sellPreview');
@@ -1080,19 +1133,23 @@
     // ====================================================================
     // Stat filter listeners
     // ====================================================================
+    function rerender() {
+      if (activeCollection === 'items') renderListings1155(allListings1155);
+      else renderListings(allListings);
+    }
     [filterStr, filterInt, filterDex, filterCha, filterLevel, filterSort].forEach(el => {
-      el.addEventListener('change', () => renderListings(allListings));
+      el.addEventListener('change', rerender);
     });
-    filterSearch.addEventListener('input', () => renderListings(allListings));
+    filterSearch.addEventListener('input', rerender);
     resetFiltersBtn.addEventListener('click', () => {
-      filterStr.value   = '0';
-      filterInt.value   = '0';
-      filterDex.value   = '0';
-      filterCha.value   = '0';
-      filterLevel.value = '1';
+      filterStr.value    = '0';
+      filterInt.value    = '0';
+      filterDex.value    = '0';
+      filterCha.value    = '0';
+      filterLevel.value  = '1';
       filterSearch.value = '';
-      filterSort.value  = 'price-asc';
-      renderListings(allListings);
+      filterSort.value   = 'price-asc';
+      rerender();
     });
 
     // ====================================================================
@@ -1115,9 +1172,7 @@
         return;
       }
       if (activeCollection === 'items') {
-        listingsGrid.innerHTML = '<div class="empty-state">Items marketplace coming soon.</div>';
-        allListings = [];
-        return;
+        return loadListings1155();
       }
 
       listingsGrid.innerHTML = '<div class="empty-state loading-dots">Loading listings</div>';
@@ -1148,6 +1203,122 @@
       } catch (e) {
         listingsGrid.innerHTML = '<div class="empty-state">Failed to load listings.</div>';
         console.error(e);
+      }
+    }
+
+    // ====================================================================
+    // Load ERC-1155 item listings
+    // ====================================================================
+    async function loadListings1155() {
+      listingsGrid.innerHTML = '<div class="empty-state loading-dots">Loading listings</div>';
+      try {
+        const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
+        const collAddr = COLLECTIONS.items.address;
+        const events   = await market.queryFilter(market.filters.Listed1155(collAddr), 0, 'latest');
+
+        const seen   = new Set();
+        const active = [];
+
+        for (const ev of events.reverse()) {
+          const key = ev.args.tokenId.toString() + ':' + ev.args.seller.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const listing = await market.getListing1155(ev.args.nftContract, ev.args.tokenId, ev.args.seller);
+          if (listing.active) active.push(listing);
+        }
+
+        allListings1155 = active;
+        renderListings1155(allListings1155);
+      } catch (e) {
+        listingsGrid.innerHTML = '<div class="empty-state">Failed to load listings.</div>';
+        console.error(e);
+      }
+    }
+
+    function renderListings1155(listings) {
+      const searchVal = filterSearch.value.trim().toLowerCase();
+      const sortVal   = filterSort.value;
+
+      let filtered = listings.filter(l => {
+        if (!searchVal) return true;
+        const name = (knownItems[l.tokenId.toString()] || 'Item #' + l.tokenId).toLowerCase();
+        return name.includes(searchVal);
+      });
+
+      filtered = [...filtered].sort((a, b) => {
+        const pa = parseFloat(ethers.utils.formatEther(a.price));
+        const pb = parseFloat(ethers.utils.formatEther(b.price));
+        if (sortVal === 'price-asc')  return pa - pb;
+        if (sortVal === 'price-desc') return pb - pa;
+        return 0;
+      });
+
+      if (filtered.length === 0) {
+        listingsGrid.innerHTML = '<div class="empty-state">No items listed yet.</div>';
+        return;
+      }
+
+      listingsGrid.innerHTML = filtered.map(l => {
+        const tid       = l.tokenId.toString();
+        const name      = knownItems[tid] || 'Item #' + tid;
+        const priceAvax = ethers.utils.formatEther(l.price);
+        const isOwn     = userAddress && l.seller.toLowerCase() === userAddress.toLowerCase();
+        const imgSrc    = `/items/${tid}/image.png`;
+
+        return `
+          <div class="listing-card">
+            <img src="${imgSrc}" class="card-img" alt="${name}" onerror="this.style.opacity='0.3'">
+            <div class="card-body">
+              <div class="card-name">${name}</div>
+              <div class="card-price">${priceAvax} AVAX</div>
+              <div class="card-seller">Seller: ${truncAddr(l.seller)}</div>
+              ${isOwn
+                ? `<button class="delist-btn" data-token="${tid}" data-contract="${COLLECTIONS.items.address}">DELIST</button>`
+                : `<button class="buy-btn" data-token="${tid}" data-contract="${COLLECTIONS.items.address}" data-seller="${l.seller}" data-price="${l.price}">BUY</button>`
+              }
+            </div>
+          </div>`;
+      }).join('');
+
+      listingsGrid.querySelectorAll('.buy-btn').forEach(btn => {
+        btn.addEventListener('click', () => buyItem(btn.dataset.contract, btn.dataset.token, btn.dataset.seller, btn.dataset.price, btn));
+      });
+      listingsGrid.querySelectorAll('.delist-btn').forEach(btn => {
+        btn.addEventListener('click', () => delistItem(btn.dataset.contract, btn.dataset.token, btn));
+      });
+    }
+
+    async function buyItem(nftContract, tokenId, seller, price, btn) {
+      if (!userAddress) { walletModal.classList.add('show'); return; }
+      btn.disabled = true;
+      btn.textContent = 'BUYING...';
+      try {
+        const market = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, signer);
+        const tx = await market.buy1155(nftContract, tokenId, seller, { value: price });
+        btn.textContent = 'CONFIRMING...';
+        await tx.wait();
+        btn.textContent = 'SOLD!';
+        loadListings1155();
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'BUY';
+        alert('Transaction failed: ' + (e.reason || e.message));
+      }
+    }
+
+    async function delistItem(nftContract, tokenId, btn) {
+      if (!userAddress) return;
+      btn.disabled = true;
+      btn.textContent = 'DELISTING...';
+      try {
+        const market = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, signer);
+        const tx = await market.delist1155(nftContract, tokenId);
+        await tx.wait();
+        loadListings1155();
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'DELIST';
+        alert('Transaction failed: ' + (e.reason || e.message));
       }
     }
 
@@ -1490,15 +1661,16 @@
     // ====================================================================
     function updateSellPanel() {
       sellConnectPrompt.style.display = 'none';
-      sellItemsMsg.style.display      = 'none';
+      sellItemForm.style.display      = 'none';
       sellForm.style.display          = 'none';
 
-      if (activeCollection === 'items') {
-        sellItemsMsg.style.display = 'block';
-        return;
-      }
       if (!userAddress) {
         sellConnectPrompt.style.display = 'block';
+        return;
+      }
+      if (activeCollection === 'items') {
+        sellItemForm.style.display = 'block';
+        populateSellItems();
         return;
       }
       sellForm.style.display = 'block';
@@ -1516,23 +1688,146 @@
       const collAddr = COLLECTIONS.chads.address;
       try {
         const nft = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
-        const bal = await nft.balanceOf(userAddress);
+        // LastChad doesn't implement ERC721Enumerable — use Transfer events instead
+        const received = await nft.queryFilter(nft.filters.Transfer(null, userAddress), 0, 'latest');
+        const candidates = [...new Set(received.map(e => e.args.tokenId.toString()))];
+        const owned = (await Promise.all(
+          candidates.map(tid => nft.ownerOf(tid).then(o => o.toLowerCase() === userAddress.toLowerCase() ? tid : null).catch(() => null))
+        )).filter(Boolean);
+
         sellToken.innerHTML = '<option value="">Select token...</option>';
-        for (let i = 0; i < bal.toNumber(); i++) {
-          const tokenId = await nft.tokenOfOwnerByIndex(userAddress, i);
-          const name    = await nft.tokenName(tokenId).catch(() => '');
-          const opt = document.createElement('option');
-          opt.value       = tokenId.toString();
-          opt.textContent = name || 'CHAD #' + tokenId.toString();
+        for (const tid of owned) {
+          const name = await nft.tokenName(tid).catch(() => '');
+          const opt  = document.createElement('option');
+          opt.value       = tid;
+          opt.textContent = name || 'CHAD #' + tid;
           sellToken.appendChild(opt);
         }
-        if (bal.toNumber() === 0) {
+        if (owned.length === 0) {
           sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
         }
       } catch {
         sellToken.innerHTML = '<option value="">Error loading tokens</option>';
       }
     }
+
+    async function populateSellItems() {
+      sellItemToken.innerHTML = '<option value="">Loading...</option>';
+      sellItemPreview.style.display = 'none';
+      approveItemBtn.disabled = true;
+      listItemBtn.disabled    = true;
+      if (!userAddress) return;
+      try {
+        const items = new ethers.Contract(COLLECTIONS.items.address, ERC1155_ABI, readProvider);
+        sellItemToken.innerHTML = '<option value="">Select item...</option>';
+        let found = false;
+        for (const [id, name] of Object.entries(knownItems)) {
+          const bal = await items.balanceOf(userAddress, id);
+          if (bal.toNumber() > 0) {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = name + ' (#' + id + ')';
+            sellItemToken.appendChild(opt);
+            found = true;
+          }
+        }
+        if (!found) sellItemToken.innerHTML = '<option value="">No items in wallet</option>';
+      } catch {
+        sellItemToken.innerHTML = '<option value="">Error loading items</option>';
+      }
+    }
+
+    sellItemToken.addEventListener('change', async () => {
+      const tokenId = sellItemToken.value;
+      approveItemBtn.disabled  = true;
+      listItemBtn.disabled     = true;
+      sellItemStatus.className = 'status-msg';
+      if (!tokenId) { sellItemPreview.style.display = 'none'; return; }
+
+      const name = knownItems[tokenId] || 'Item #' + tokenId;
+      sellItemPreviewImg.src              = `/items/${tokenId}/image.png`;
+      sellItemPreviewName.textContent     = name;
+      sellItemPreview.style.display       = 'flex';
+
+      try {
+        const items    = new ethers.Contract(COLLECTIONS.items.address, ERC1155_ABI, readProvider);
+        const approved = await items.isApprovedForAll(userAddress, MARKET_ADDRESS);
+        const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
+        const listing  = await market.getListing1155(COLLECTIONS.items.address, tokenId, userAddress);
+        if (listing.active) {
+          sellItemPreviewStatus.textContent = 'Listed at ' + ethers.utils.formatEther(listing.price) + ' AVAX';
+          showStatus('sellItemStatus', 'info', 'Already listed. Delist from Browse first.');
+          return;
+        }
+        sellItemPreviewStatus.textContent = approved ? 'Approved ✓' : 'Not approved';
+        approveItemBtn.disabled  = approved;
+        approveItemBtn.textContent = approved ? '1. APPROVED ✓' : '1. APPROVE MARKET';
+        listItemBtn.disabled     = !approved;
+        updateItemFeeNote();
+      } catch {
+        sellItemPreviewStatus.textContent = 'Error checking status';
+      }
+    });
+
+    sellItemPrice.addEventListener('input', updateItemFeeNote);
+
+    function updateItemFeeNote() {
+      const price = parseFloat(sellItemPrice.value);
+      if (price > 0) {
+        const fee    = price * feeBps / 10000;
+        const payout = price - fee;
+        itemFeeNote.textContent = `Fee: ${fee.toFixed(4)} AVAX (${feeBps / 100}%)  |  You receive: ${payout.toFixed(4)} AVAX`;
+      } else {
+        itemFeeNote.textContent = `Marketplace fee: ${feeBps / 100}%`;
+      }
+    }
+
+    approveItemBtn.addEventListener('click', async () => {
+      approveItemBtn.disabled    = true;
+      approveItemBtn.textContent = 'APPROVING...';
+      try {
+        const items = new ethers.Contract(COLLECTIONS.items.address, ERC1155_ABI, signer);
+        const tx    = await items.setApprovalForAll(MARKET_ADDRESS, true);
+        showStatus('sellItemStatus', 'info', 'Waiting for approval confirmation...');
+        await tx.wait();
+        approveItemBtn.textContent = '1. APPROVED ✓';
+        listItemBtn.disabled = false;
+        showStatus('sellItemStatus', 'ok', 'Approved! Set your price and list.');
+      } catch (e) {
+        approveItemBtn.disabled    = false;
+        approveItemBtn.textContent = '1. APPROVE MARKET';
+        showStatus('sellItemStatus', 'error', e.reason || e.message);
+      }
+    });
+
+    listItemBtn.addEventListener('click', async () => {
+      const tokenId = sellItemToken.value;
+      const price   = sellItemPrice.value;
+      if (!tokenId || !price || parseFloat(price) <= 0) {
+        showStatus('sellItemStatus', 'error', 'Select an item and enter a valid price.');
+        return;
+      }
+      listItemBtn.disabled    = true;
+      listItemBtn.textContent = 'LISTING...';
+      try {
+        const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, signer);
+        const priceWei = ethers.utils.parseEther(price);
+        const tx       = await market.list1155(COLLECTIONS.items.address, tokenId, priceWei);
+        showStatus('sellItemStatus', 'info', 'Waiting for confirmation...');
+        await tx.wait();
+        listItemBtn.textContent = '2. LIST FOR SALE';
+        showStatus('sellItemStatus', 'ok', 'Listed! Check the Browse tab.');
+        sellItemToken.value           = '';
+        sellItemPreview.style.display = 'none';
+        listItemBtn.disabled          = true;
+        approveItemBtn.disabled       = true;
+        loadListings1155();
+      } catch (e) {
+        listItemBtn.disabled    = false;
+        listItemBtn.textContent = '2. LIST FOR SALE';
+        showStatus('sellItemStatus', 'error', e.reason || e.message);
+      }
+    });
 
     sellToken.addEventListener('change', async () => {
       const tokenId  = sellToken.value;
