@@ -213,25 +213,24 @@ contract Market is Ownable, ReentrancyGuard {
      * @param amount      Number of tokens to sell (1 for non-stackable items).
      * @param price       Price per token in wei.
      */
-    function list1155(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external {
+    function list1155(address nftContract, uint256 tokenId, uint256 price) external {
         require(approvedContracts[nftContract], "Market: contract not approved");
         require(price > 0, "Market: price must be > 0");
-        require(amount > 0, "Market: amount must be > 0");
 
         IERC1155 nft = IERC1155(nftContract);
-        require(nft.balanceOf(msg.sender, tokenId) >= amount, "Market: insufficient balance");
+        require(nft.balanceOf(msg.sender, tokenId) >= 1, "Market: insufficient balance");
         require(nft.isApprovedForAll(msg.sender, address(this)), "Market: market not approved");
 
         listings1155[nftContract][tokenId][msg.sender] = Listing1155({
             seller:      msg.sender,
             nftContract: nftContract,
             tokenId:     tokenId,
-            amount:      amount,
+            amount:      1,
             price:       price,
             active:      true
         });
 
-        emit Listed1155(nftContract, tokenId, msg.sender, amount, price);
+        emit Listed1155(nftContract, tokenId, msg.sender, 1, price);
     }
 
     /**
@@ -247,40 +246,33 @@ contract Market is Ownable, ReentrancyGuard {
     // ========== ERC-1155 BUYER ==========
 
     /**
-     * @notice Purchase some or all of an ERC-1155 listing (partial buys supported).
-     *         Send exact total (price × quantity) or more — overpayment is refunded.
-     *         Listing persists with reduced amount until fully bought or delisted.
+     * @notice Purchase a non-stackable ERC-1155 listing (always buys 1 token).
+     *         Send exact price or more — overpayment is refunded.
      * @param nftContract Address of the ERC-1155 contract.
      * @param tokenId     Item ID to buy.
-     * @param seller      Address of the seller whose listing to purchase from.
-     * @param quantity    How many tokens to buy (must be ≤ listing amount).
+     * @param seller      Address of the seller whose listing to purchase.
      */
-    function buy1155(address nftContract, uint256 tokenId, address seller, uint256 quantity) external payable nonReentrant {
+    function buy1155(address nftContract, uint256 tokenId, address seller) external payable nonReentrant {
         Listing1155 storage l = listings1155[nftContract][tokenId][seller];
         require(l.active, "Market: not listed");
-        require(quantity > 0 && quantity <= l.amount, "Market: invalid quantity");
-
-        uint256 totalPrice = l.price * quantity;
-        require(msg.value >= totalPrice, "Market: insufficient payment");
+        require(msg.value >= l.price, "Market: insufficient payment");
 
         address _seller = l.seller;
         uint256 _price  = l.price;
+        l.active = false;
 
-        l.amount -= quantity;
-        if (l.amount == 0) l.active = false;
-
-        uint256 fee          = (totalPrice * feeBps) / 10000;
-        uint256 sellerAmount = totalPrice - fee;
+        uint256 fee          = (_price * feeBps) / 10000;
+        uint256 sellerAmount = _price - fee;
         accumulatedFees     += fee;
 
-        IERC1155(nftContract).safeTransferFrom(_seller, msg.sender, tokenId, quantity, "");
+        IERC1155(nftContract).safeTransferFrom(_seller, msg.sender, tokenId, 1, "");
         payable(_seller).transfer(sellerAmount);
 
-        if (msg.value > totalPrice) {
-            payable(msg.sender).transfer(msg.value - totalPrice);
+        if (msg.value > _price) {
+            payable(msg.sender).transfer(msg.value - _price);
         }
 
-        emit Sold1155(nftContract, tokenId, msg.sender, _seller, quantity, totalPrice);
+        emit Sold1155(nftContract, tokenId, msg.sender, _seller, 1, _price);
     }
 
     // ========== VIEW ==========
