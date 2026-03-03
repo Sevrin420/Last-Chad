@@ -247,35 +247,40 @@ contract Market is Ownable, ReentrancyGuard {
     // ========== ERC-1155 BUYER ==========
 
     /**
-     * @notice Purchase an ERC-1155 listing. Send exact total price or more (overpayment refunded).
+     * @notice Purchase some or all of an ERC-1155 listing (partial buys supported).
+     *         Send exact total (price × quantity) or more — overpayment is refunded.
+     *         Listing persists with reduced amount until fully bought or delisted.
      * @param nftContract Address of the ERC-1155 contract.
      * @param tokenId     Item ID to buy.
-     * @param seller      Address of the seller whose listing to purchase.
+     * @param seller      Address of the seller whose listing to purchase from.
+     * @param quantity    How many tokens to buy (must be ≤ listing amount).
      */
-    function buy1155(address nftContract, uint256 tokenId, address seller) external payable nonReentrant {
+    function buy1155(address nftContract, uint256 tokenId, address seller, uint256 quantity) external payable nonReentrant {
         Listing1155 storage l = listings1155[nftContract][tokenId][seller];
         require(l.active, "Market: not listed");
+        require(quantity > 0 && quantity <= l.amount, "Market: invalid quantity");
 
-        uint256 totalPrice = l.price * l.amount;
+        uint256 totalPrice = l.price * quantity;
         require(msg.value >= totalPrice, "Market: insufficient payment");
 
         address _seller = l.seller;
-        uint256 _amount = l.amount;
         uint256 _price  = l.price;
-        l.active = false;
+
+        l.amount -= quantity;
+        if (l.amount == 0) l.active = false;
 
         uint256 fee          = (totalPrice * feeBps) / 10000;
         uint256 sellerAmount = totalPrice - fee;
         accumulatedFees     += fee;
 
-        IERC1155(nftContract).safeTransferFrom(_seller, msg.sender, tokenId, _amount, "");
+        IERC1155(nftContract).safeTransferFrom(_seller, msg.sender, tokenId, quantity, "");
         payable(_seller).transfer(sellerAmount);
 
         if (msg.value > totalPrice) {
             payable(msg.sender).transfer(msg.value - totalPrice);
         }
 
-        emit Sold1155(nftContract, tokenId, msg.sender, _seller, _amount, totalPrice);
+        emit Sold1155(nftContract, tokenId, msg.sender, _seller, quantity, totalPrice);
     }
 
     // ========== VIEW ==========
