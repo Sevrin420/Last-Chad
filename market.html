@@ -602,6 +602,52 @@
     .sell-section { max-width: 520px; }
     .sell-section h2 { font-size: 0.75rem; color: #d4a017; margin-bottom: 20px; }
 
+    /* Sell grid */
+    .sell-nft-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .sell-grid-heading {
+      grid-column: 1 / -1;
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin: 8px 0 4px;
+    }
+    .sell-nft-card {
+      background: rgba(10,8,3,0.6);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      overflow: hidden;
+      text-align: center;
+    }
+    .sell-nft-card:hover { border-color: #8b6914; }
+    .sell-nft-card.selected { border-color: #d4a017; background: rgba(61,46,10,0.3); }
+    .sell-nft-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      image-rendering: pixelated;
+      display: block;
+      background: #0a0803;
+    }
+    .sell-card-name {
+      font-size: 0.38rem;
+      color: #f5e6c8;
+      padding: 6px 4px 2px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .sell-card-price {
+      font-size: 0.35rem;
+      padding: 2px 4px 6px;
+    }
+    .sell-card-price.listed { color: #d4a017; }
+    .sell-card-price.unlisted { color: #5c4409; }
+
     .form-group { margin-bottom: 18px; }
     .form-group label {
       display: block;
@@ -880,10 +926,14 @@
       <div id="sellConnectPrompt" class="connect-prompt" style="display:none">
         <p>Connect your wallet<br>to list an NFT for sale.</p>
       </div>
+
+      <!-- NFT grid: chads first, items below -->
+      <div class="sell-nft-grid" id="myNftGrid" style="display:none"></div>
+
       <div class="sell-section" id="sellItemForm" style="display:none">
         <h2>LIST AN ITEM</h2>
 
-        <div class="form-group">
+        <div class="form-group" style="display:none">
           <label>Your Item</label>
           <select id="sellItemToken">
             <option value="">Select item...</option>
@@ -912,7 +962,7 @@
       <div class="sell-section" id="sellForm" style="display:none">
         <h2>LIST A CHAD</h2>
 
-        <div class="form-group">
+        <div class="form-group" style="display:none">
           <label>Your Chad (Token ID)</label>
           <select id="sellToken">
             <option value="">Select token...</option>
@@ -1663,18 +1713,128 @@
       sellConnectPrompt.style.display = 'none';
       sellItemForm.style.display      = 'none';
       sellForm.style.display          = 'none';
+      const gridEl = document.getElementById('myNftGrid');
 
       if (!userAddress) {
         sellConnectPrompt.style.display = 'block';
+        gridEl.style.display = 'none';
         return;
       }
-      if (activeCollection === 'items') {
-        sellItemForm.style.display = 'block';
-        populateSellItems();
-        return;
-      }
-      sellForm.style.display = 'block';
+      gridEl.style.display = 'grid';
+      buildSellGrid();
+    }
+
+    async function buildSellGrid() {
+      const gridEl = document.getElementById('myNftGrid');
+      gridEl.innerHTML = '<div style="grid-column:1/-1;font-size:0.45rem;color:#8a7a5a;padding:12px 0">Loading your NFTs...</div>';
+
+      const chads = [];
+      const items = [];
+
+      // Load owned Chads
+      try {
+        const nft   = new ethers.Contract(COLLECTIONS.chads.address, ERC721_ABI, readProvider);
+        const bal   = await nft.balanceOf(userAddress);
+        if (bal.gt(0)) {
+          const total  = await nft.totalSupply();
+          const checks = [];
+          for (let i = 1; i <= total.toNumber(); i++) {
+            checks.push(
+              nft.ownerOf(i)
+                .then(async o => {
+                  if (o.toLowerCase() !== userAddress.toLowerCase()) return;
+                  const name = await nft.tokenName(i).catch(() => '');
+                  let price = null;
+                  if (market) {
+                    const lst = await market.getListing(COLLECTIONS.chads.address, i).catch(() => null);
+                    if (lst && lst.active) price = ethers.utils.formatEther(lst.price) + ' AVAX';
+                  }
+                  chads.push({ id: i, name: name || 'CHAD #' + i, price });
+                })
+                .catch(() => {})
+            );
+          }
+          await Promise.all(checks);
+          chads.sort((a, b) => a.id - b.id);
+        }
+      } catch (e) { console.error('buildSellGrid chads:', e); }
+
+      // Silently populate chad select for form use
       populateSellTokens();
+
+      // Load owned Items
+      try {
+        for (const [id, name] of Object.entries(knownItems)) {
+          const itemCt = new ethers.Contract(COLLECTIONS.items.address, ERC1155_ABI, readProvider);
+          const bal    = await itemCt.balanceOf(userAddress, id).catch(() => ethers.BigNumber.from(0));
+          if (bal.gt(0)) {
+            let price = null;
+            if (market) {
+              const lst = await market.getListing1155(COLLECTIONS.items.address, id, userAddress).catch(() => null);
+              if (lst && lst.active) price = ethers.utils.formatEther(lst.price) + ' AVAX';
+            }
+            items.push({ id, name, price });
+          }
+        }
+      } catch (e) { console.error('buildSellGrid items:', e); }
+
+      // Silently populate item select for form use
+      populateSellItems();
+
+      if (chads.length === 0 && items.length === 0) {
+        gridEl.innerHTML = '<div style="grid-column:1/-1;font-size:0.45rem;color:#8a7a5a;text-align:center;padding:20px 0">No NFTs in wallet</div>';
+        return;
+      }
+
+      let html = '';
+      if (chads.length > 0) {
+        html += '<div class="sell-grid-heading">YOUR CHADS</div>';
+        for (const c of chads) {
+          const priceHtml = c.price
+            ? `<div class="sell-card-price listed">Listed: ${c.price}</div>`
+            : '<div class="sell-card-price unlisted">Not listed</div>';
+          html += `<div class="sell-nft-card" data-type="chad" data-token="${c.id}">
+            <img src="${COLLECTIONS.chads.imageBase}${c.id}.png" alt="${c.name}">
+            <div class="sell-card-name">${c.name}</div>
+            ${priceHtml}
+          </div>`;
+        }
+      }
+      if (items.length > 0) {
+        html += '<div class="sell-grid-heading">YOUR ITEMS</div>';
+        for (const it of items) {
+          const priceHtml = it.price
+            ? `<div class="sell-card-price listed">Listed: ${it.price}</div>`
+            : '<div class="sell-card-price unlisted">Not listed</div>';
+          html += `<div class="sell-nft-card" data-type="item" data-token="${it.id}">
+            <img src="${COLLECTIONS.items.imageBase}${it.id}/image.png" alt="${it.name}">
+            <div class="sell-card-name">${it.name}</div>
+            ${priceHtml}
+          </div>`;
+        }
+      }
+      gridEl.innerHTML = html;
+
+      gridEl.querySelectorAll('.sell-nft-card').forEach(card => {
+        card.addEventListener('click', () => {
+          gridEl.querySelectorAll('.sell-nft-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          const type = card.dataset.type;
+          const tid  = card.dataset.token;
+          if (type === 'chad') {
+            sellItemForm.style.display = 'none';
+            sellForm.style.display     = 'block';
+            sellToken.value = tid;
+            sellToken.dispatchEvent(new Event('change'));
+          } else {
+            sellForm.style.display     = 'none';
+            sellItemForm.style.display = 'block';
+            sellItemToken.value = tid;
+            sellItemToken.dispatchEvent(new Event('change'));
+          }
+          sellForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+      });
     }
 
     async function populateSellTokens() {
