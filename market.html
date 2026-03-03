@@ -1728,6 +1728,10 @@
       const gridEl = document.getElementById('myNftGrid');
       gridEl.innerHTML = '<div style="grid-column:1/-1;font-size:0.45rem;color:#8a7a5a;padding:12px 0">Loading your NFTs...</div>';
 
+      const marketCt = MARKET_ADDRESS
+        ? new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider)
+        : null;
+
       const chads = [];
       const items = [];
 
@@ -1745,8 +1749,8 @@
                   if (o.toLowerCase() !== userAddress.toLowerCase()) return;
                   const name = await nft.tokenName(i).catch(() => '');
                   let price = null;
-                  if (market) {
-                    const lst = await market.getListing(COLLECTIONS.chads.address, i).catch(() => null);
+                  if (marketCt) {
+                    const lst = await marketCt.getListing(COLLECTIONS.chads.address, i).catch(() => null);
                     if (lst && lst.active) price = ethers.utils.formatEther(lst.price) + ' AVAX';
                   }
                   chads.push({ id: i, name: name || 'CHAD #' + i, price });
@@ -1769,8 +1773,8 @@
           const bal    = await itemCt.balanceOf(userAddress, id).catch(() => ethers.BigNumber.from(0));
           if (bal.gt(0)) {
             let price = null;
-            if (market) {
-              const lst = await market.getListing1155(COLLECTIONS.items.address, id, userAddress).catch(() => null);
+            if (marketCt) {
+              const lst = await marketCt.getListing1155(COLLECTIONS.items.address, id, userAddress).catch(() => null);
               if (lst && lst.active) price = ethers.utils.formatEther(lst.price) + ' AVAX';
             }
             items.push({ id, name, price });
