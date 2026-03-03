@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -22,6 +23,15 @@ contract Market is Ownable, ReentrancyGuard {
         bool    active;
     }
 
+    struct Listing1155 {
+        address seller;
+        address nftContract;
+        uint256 tokenId;
+        uint256 amount;  // tokens being sold (1 for non-stackable items)
+        uint256 price;   // per-token price in wei
+        bool    active;
+    }
+
     // ========== STATE ==========
 
     /// @notice Fee in basis points charged on each sale (default 5%)
@@ -33,8 +43,11 @@ contract Market is Ownable, ReentrancyGuard {
     /// @notice NFT contracts allowed to be listed on this market
     mapping(address => bool) public approvedContracts;
 
-    /// @notice All active and past listings: nftContract => tokenId => Listing
+    /// @notice ERC-721 listings: nftContract => tokenId => Listing
     mapping(address => mapping(uint256 => Listing)) public listings;
+
+    /// @notice ERC-1155 listings: nftContract => tokenId => seller => Listing1155
+    mapping(address => mapping(uint256 => mapping(address => Listing1155))) public listings1155;
 
     // ========== EVENTS ==========
 
@@ -44,6 +57,11 @@ contract Market is Ownable, ReentrancyGuard {
     event Listed(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price);
     event Delisted(address indexed nftContract, uint256 indexed tokenId, address seller);
     event Sold(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 price);
+
+    // ERC-1155 events
+    event Listed1155(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 amount, uint256 price);
+    event Delisted1155(address indexed nftContract, uint256 indexed tokenId, address seller);
+    event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice);
 
     // ========== CONSTRUCTOR ==========
 
@@ -91,13 +109,23 @@ contract Market is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Owner can delist any listing (e.g. if NFT was stolen or contract revoked).
+     * @notice Owner can delist any ERC-721 listing.
      */
     function adminDelist(address nftContract, uint256 tokenId) external onlyOwner {
         Listing storage l = listings[nftContract][tokenId];
         require(l.active, "Market: not listed");
         l.active = false;
         emit Delisted(nftContract, tokenId, l.seller);
+    }
+
+    /**
+     * @notice Owner can delist any ERC-1155 listing.
+     */
+    function adminDelist1155(address nftContract, uint256 tokenId, address seller) external onlyOwner {
+        Listing1155 storage l = listings1155[nftContract][tokenId][seller];
+        require(l.active, "Market: not listed");
+        l.active = false;
+        emit Delisted1155(nftContract, tokenId, seller);
     }
 
     // ========== SELLER ==========
@@ -175,12 +203,90 @@ contract Market is Ownable, ReentrancyGuard {
         emit Sold(nftContract, tokenId, msg.sender, seller, price);
     }
 
+    // ========== ERC-1155 SELLER ==========
+
+    /**
+     * @notice List ERC-1155 tokens for sale.
+     *         Caller must first approve this contract via setApprovalForAll.
+     * @param nftContract Address of the ERC-1155 contract.
+     * @param tokenId     Item ID to list.
+     * @param amount      Number of tokens to sell (1 for non-stackable items).
+     * @param price       Price per token in wei.
+     */
+    function list1155(address nftContract, uint256 tokenId, uint256 price) external {
+        require(approvedContracts[nftContract], "Market: contract not approved");
+        require(price > 0, "Market: price must be > 0");
+
+        IERC1155 nft = IERC1155(nftContract);
+        require(nft.balanceOf(msg.sender, tokenId) >= 1, "Market: insufficient balance");
+        require(nft.isApprovedForAll(msg.sender, address(this)), "Market: market not approved");
+
+        listings1155[nftContract][tokenId][msg.sender] = Listing1155({
+            seller:      msg.sender,
+            nftContract: nftContract,
+            tokenId:     tokenId,
+            amount:      1,
+            price:       price,
+            active:      true
+        });
+
+        emit Listed1155(nftContract, tokenId, msg.sender, 1, price);
+    }
+
+    /**
+     * @notice Remove your own ERC-1155 listing.
+     */
+    function delist1155(address nftContract, uint256 tokenId) external {
+        Listing1155 storage l = listings1155[nftContract][tokenId][msg.sender];
+        require(l.active, "Market: not listed");
+        l.active = false;
+        emit Delisted1155(nftContract, tokenId, msg.sender);
+    }
+
+    // ========== ERC-1155 BUYER ==========
+
+    /**
+     * @notice Purchase a non-stackable ERC-1155 listing (always buys 1 token).
+     *         Send exact price or more — overpayment is refunded.
+     * @param nftContract Address of the ERC-1155 contract.
+     * @param tokenId     Item ID to buy.
+     * @param seller      Address of the seller whose listing to purchase.
+     */
+    function buy1155(address nftContract, uint256 tokenId, address seller) external payable nonReentrant {
+        Listing1155 storage l = listings1155[nftContract][tokenId][seller];
+        require(l.active, "Market: not listed");
+        require(msg.value >= l.price, "Market: insufficient payment");
+
+        address _seller = l.seller;
+        uint256 _price  = l.price;
+        l.active = false;
+
+        uint256 fee          = (_price * feeBps) / 10000;
+        uint256 sellerAmount = _price - fee;
+        accumulatedFees     += fee;
+
+        IERC1155(nftContract).safeTransferFrom(_seller, msg.sender, tokenId, 1, "");
+        payable(_seller).transfer(sellerAmount);
+
+        if (msg.value > _price) {
+            payable(msg.sender).transfer(msg.value - _price);
+        }
+
+        emit Sold1155(nftContract, tokenId, msg.sender, _seller, 1, _price);
+    }
+
     // ========== VIEW ==========
 
     function getListing(address nftContract, uint256 tokenId)
         external view returns (Listing memory)
     {
         return listings[nftContract][tokenId];
+    }
+
+    function getListing1155(address nftContract, uint256 tokenId, address seller)
+        external view returns (Listing1155 memory)
+    {
+        return listings1155[nftContract][tokenId][seller];
     }
 
     function isApprovedContract(address nftContract) external view returns (bool) {

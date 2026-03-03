@@ -18,7 +18,6 @@
       overflow-x: hidden;
     }
 
-    /* --- Background --- */
     .bg {
       position: fixed;
       inset: 0;
@@ -125,16 +124,43 @@
       font-size: 0.55rem;
       color: #8a7a5a;
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
+    }
+
+    /* --- Collection Toggle --- */
+    .collection-toggle {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+    .coll-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      padding: 13px 32px;
+      background: rgba(10,8,3,0.6);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      color: #8a7a5a;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 150px;
+      text-align: center;
+    }
+    .coll-btn:hover { border-color: #d4a017; color: #d4a017; }
+    .coll-btn.active {
+      background: linear-gradient(180deg, #2a1e08 0%, #1a1005 100%);
+      border-color: #d4a017;
+      color: #d4a017;
+      box-shadow: 0 0 14px rgba(212,160,23,0.2);
     }
 
     /* --- Tabs --- */
     .tabs {
       display: flex;
       gap: 8px;
-      margin-bottom: 28px;
+      margin-bottom: 20px;
       border-bottom: 2px solid #5c4409;
-      padding-bottom: 0;
     }
     .tab-btn {
       font-family: 'Press Start 2P', monospace;
@@ -157,6 +183,52 @@
     }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
+
+    /* --- Stat filter bar --- */
+    .stat-filter-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      background: rgba(10,8,3,0.4);
+      border: 1px solid #3a2a0a;
+      border-radius: 4px;
+    }
+    .stat-filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-filter-group label {
+      font-size: 0.42rem;
+      color: #8a7a5a;
+      white-space: nowrap;
+    }
+    .stat-filter-group select {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      padding: 5px 8px;
+      background: rgba(10,8,3,0.8);
+      border: 1px solid #5c4409;
+      border-radius: 3px;
+      color: #f5e6c8;
+      outline: none;
+    }
+    .stat-filter-group select option { background: #1e1608; }
+    .reset-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem;
+      padding: 5px 9px;
+      background: transparent;
+      border: 1px solid #5c4409;
+      border-radius: 3px;
+      color: #8a7a5a;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .reset-btn:hover { color: #d4a017; border-color: #d4a017; }
 
     /* --- Filter bar --- */
     .filter-bar {
@@ -183,7 +255,7 @@
     /* --- NFT Grid --- */
     .nft-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
       gap: 16px;
     }
 
@@ -193,13 +265,14 @@
       border-radius: 6px;
       overflow: hidden;
       transition: border-color 0.2s, transform 0.2s;
+    }
+    .nft-card:hover { border-color: #d4a017; transform: translateY(-2px); }
+
+    .nft-card-thumb {
       cursor: pointer;
+      display: block;
     }
-    .nft-card:hover {
-      border-color: #d4a017;
-      transform: translateY(-2px);
-    }
-    .nft-card img {
+    .nft-card-thumb img {
       width: 100%;
       aspect-ratio: 1;
       object-fit: cover;
@@ -207,9 +280,10 @@
       image-rendering: pixelated;
       background: #0a0803;
     }
-    .nft-card-body {
-      padding: 10px 12px;
-    }
+    .nft-card-thumb:hover img { opacity: 0.85; }
+
+    .nft-card-body { padding: 10px 12px; }
+
     .nft-card-name {
       font-size: 0.55rem;
       color: #f5e6c8;
@@ -217,22 +291,45 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      cursor: pointer;
     }
-    .nft-card-collection {
-      font-size: 0.45rem;
-      color: #8a7a5a;
+    .nft-card-name:hover { color: #d4a017; }
+
+    /* Stat badges */
+    .stat-badges {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
       margin-bottom: 8px;
     }
+    .stat-badge {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.36rem;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+    .sb-str { background: rgba(200,50,50,0.2);  color: #e57373; border: 1px solid rgba(198,40,40,0.5); }
+    .sb-int { background: rgba(50,100,200,0.2); color: #90caf9; border: 1px solid rgba(21,101,192,0.5); }
+    .sb-dex { background: rgba(50,180,80,0.2);  color: #a5d6a7; border: 1px solid rgba(46,125,50,0.5); }
+    .sb-cha { background: rgba(150,50,200,0.2); color: #ce93d8; border: 1px solid rgba(123,31,162,0.5); }
+    .sb-lvl { background: rgba(212,160,23,0.15); color: #d4a017; border: 1px solid rgba(139,105,20,0.5); }
+
     .nft-card-price {
       font-size: 0.65rem;
       color: #d4a017;
-      margin-bottom: 10px;
+      margin-bottom: 3px;
+    }
+    .nft-last-sale {
+      font-size: 0.38rem;
+      color: #5c4409;
+      margin-bottom: 8px;
     }
     .nft-card-seller {
-      font-size: 0.4rem;
+      font-size: 0.38rem;
       color: #5c4409;
       margin-bottom: 10px;
     }
+
     .buy-btn {
       width: 100%;
       font-family: 'Press Start 2P', monospace;
@@ -246,19 +343,72 @@
       transition: all 0.2s;
     }
     .buy-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
-    .buy-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
+    .buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     .my-listing-badge {
-      font-size: 0.4rem;
+      font-size: 0.38rem;
       color: #4caf50;
       margin-bottom: 6px;
     }
+
+    .update-price-btn {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.48rem;
+      padding: 7px;
+      background: transparent;
+      border: 2px solid #5c8aaf;
+      border-radius: 4px;
+      color: #90caf9;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+    .update-price-btn:hover { background: rgba(90,138,175,0.15); }
+
+    .update-price-form { display: none; margin-top: 6px; }
+    .update-price-form.show { display: block; }
+    .update-price-input {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.48rem;
+      padding: 7px 10px;
+      background: rgba(10,8,3,0.8);
+      border: 2px solid #5c8aaf;
+      border-radius: 4px;
+      color: #f5e6c8;
+      outline: none;
+      margin-bottom: 5px;
+    }
+    .update-price-confirm {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.42rem;
+      padding: 7px;
+      background: linear-gradient(180deg, #1a3a5c 0%, #0e2340 100%);
+      border: 2px solid #5c8aaf;
+      border-radius: 4px;
+      color: #90caf9;
+      cursor: pointer;
+      margin-bottom: 4px;
+    }
+    .update-price-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+    .update-price-cancel {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem;
+      padding: 5px;
+      background: none;
+      border: 1px solid #5c4409;
+      border-radius: 4px;
+      color: #8a7a5a;
+      cursor: pointer;
+    }
+
     .delist-btn {
       width: 100%;
       font-family: 'Press Start 2P', monospace;
-      font-size: 0.5rem;
+      font-size: 0.48rem;
       padding: 7px;
       background: transparent;
       border: 2px solid #e53935;
@@ -270,7 +420,7 @@
     }
     .delist-btn:hover { background: rgba(229,57,53,0.15); }
 
-    /* --- Empty / loading states --- */
+    /* --- Empty / loading --- */
     .empty-state {
       text-align: center;
       padding: 60px 20px;
@@ -289,18 +439,170 @@
       75%  { content: '...'; }
     }
 
+    /* --- Detail Modal --- */
+    .detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: rgba(0,0,0,0.82);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .detail-overlay.show { display: flex; }
+
+    .detail-box {
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 2px solid #d4a017;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 700px;
+      max-height: 90vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #5c4409;
+      flex-shrink: 0;
+    }
+    .detail-title { font-size: 0.75rem; color: #d4a017; }
+    .detail-close {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      background: none;
+      border: none;
+      color: #8a7a5a;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    .detail-close:hover { color: #f5e6c8; }
+
+    .detail-body {
+      display: flex;
+      gap: 24px;
+      padding: 20px;
+      flex-wrap: wrap;
+    }
+
+    .detail-img-col { flex: 0 0 200px; }
+    .detail-img-col img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 4px;
+      image-rendering: pixelated;
+      background: #0a0803;
+      border: 2px solid #5c4409;
+      display: block;
+    }
+
+    .detail-info-col { flex: 1; min-width: 200px; }
+    .detail-name { font-size: 0.7rem; color: #f5e6c8; margin-bottom: 18px; }
+
+    .detail-stat-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .detail-stat-label {
+      font-size: 0.42rem;
+      width: 32px;
+      flex-shrink: 0;
+    }
+    .detail-stat-label.str { color: #e57373; }
+    .detail-stat-label.int { color: #90caf9; }
+    .detail-stat-label.dex { color: #a5d6a7; }
+    .detail-stat-label.cha { color: #ce93d8; }
+
+    .detail-stat-bar-wrap {
+      flex: 1;
+      height: 7px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .detail-stat-bar { height: 100%; border-radius: 2px; }
+    .detail-stat-bar.str { background: #e57373; }
+    .detail-stat-bar.int { background: #90caf9; }
+    .detail-stat-bar.dex { background: #a5d6a7; }
+    .detail-stat-bar.cha { background: #ce93d8; }
+
+    .detail-stat-val {
+      font-size: 0.48rem;
+      color: #f5e6c8;
+      width: 18px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .detail-divider { border: none; border-top: 1px solid #3a2a0a; margin: 14px 0; }
+
+    .detail-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 9px;
+    }
+    .detail-meta-label { font-size: 0.42rem; color: #8a7a5a; }
+    .detail-meta-val   { font-size: 0.48rem; color: #f5e6c8; }
+    .detail-meta-val.gold { color: #d4a017; }
+
+    .detail-footer {
+      padding: 14px 20px;
+      border-top: 1px solid #5c4409;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .detail-buy-btn {
+      flex: 1;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 11px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    .detail-buy-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
+    .detail-buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .detail-delist-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.48rem;
+      padding: 11px 16px;
+      background: transparent;
+      border: 2px solid #e53935;
+      border-radius: 4px;
+      color: #e53935;
+      cursor: pointer;
+    }
+    .detail-delist-btn:hover { background: rgba(229,57,53,0.15); }
+
+    /* --- Coming Soon --- */
+    .coming-soon {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    .coming-soon .cs-icon { font-size: 2.5rem; margin-bottom: 20px; display: block; }
+    .coming-soon h3 { font-size: 0.75rem; color: #d4a017; margin-bottom: 16px; }
+    .coming-soon p  { font-size: 0.5rem; color: #8a7a5a; line-height: 2.5; max-width: 380px; margin: 0 auto; }
+
     /* --- Sell Panel --- */
-    .sell-section {
-      max-width: 520px;
-    }
-    .sell-section h2 {
-      font-size: 0.75rem;
-      color: #d4a017;
-      margin-bottom: 20px;
-    }
-    .form-group {
-      margin-bottom: 18px;
-    }
+    .sell-section { max-width: 520px; }
+    .sell-section h2 { font-size: 0.75rem; color: #d4a017; margin-bottom: 20px; }
+
+    .form-group { margin-bottom: 18px; }
     .form-group label {
       display: block;
       font-size: 0.55rem;
@@ -334,8 +636,7 @@
       margin-bottom: 18px;
     }
     .nft-preview-row img {
-      width: 72px;
-      height: 72px;
+      width: 72px; height: 72px;
       object-fit: cover;
       border-radius: 4px;
       image-rendering: pixelated;
@@ -346,12 +647,7 @@
     .nft-preview-info .label { color: #8a7a5a; }
     .nft-preview-info .value { color: #f5e6c8; }
 
-    .fee-note {
-      font-size: 0.45rem;
-      color: #5c4409;
-      margin-bottom: 18px;
-      line-height: 2;
-    }
+    .fee-note { font-size: 0.45rem; color: #5c4409; margin-bottom: 18px; line-height: 2; }
 
     .approve-btn {
       width: 100%;
@@ -396,11 +692,7 @@
     .status-msg.ok    { display: block; background: rgba(76,175,80,0.1);  border: 1px solid #4caf50;  color: #a5d6a7; }
     .status-msg.error { display: block; background: rgba(229,57,53,0.1);  border: 1px solid #e53935;  color: #ef9a9a; }
 
-    /* --- Connect prompt --- */
-    .connect-prompt {
-      text-align: center;
-      padding: 60px 20px;
-    }
+    .connect-prompt { text-align: center; padding: 60px 20px; }
     .connect-prompt p { font-size: 0.6rem; color: #8a7a5a; line-height: 2.5; }
 
     /* --- Wallet modal --- */
@@ -422,12 +714,7 @@
       width: 90%;
       max-width: 360px;
     }
-    .modal-title {
-      font-size: 0.8rem;
-      color: #d4a017;
-      text-align: center;
-      margin-bottom: 24px;
-    }
+    .modal-title { font-size: 0.8rem; color: #d4a017; text-align: center; margin-bottom: 24px; }
     .wallet-option {
       width: 100%;
       display: flex;
@@ -462,7 +749,6 @@
 <body>
   <div class="bg"></div>
 
-  <!-- Header -->
   <header class="header">
     <div id="nav-placeholder"></div>
     <div class="wallet-wrapper">
@@ -484,10 +770,37 @@
     </div>
   </div>
 
-  <!-- Main -->
+  <!-- Detail Modal -->
+  <div class="detail-overlay" id="detailOverlay">
+    <div class="detail-box">
+      <div class="detail-header">
+        <div class="detail-title" id="detailTitle">—</div>
+        <button class="detail-close" id="detailClose">✕</button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-img-col">
+          <img id="detailImg" src="" alt="">
+        </div>
+        <div class="detail-info-col">
+          <div class="detail-name" id="detailName">—</div>
+          <div id="detailStats"></div>
+          <hr class="detail-divider">
+          <div id="detailMeta"></div>
+        </div>
+      </div>
+      <div class="detail-footer" id="detailFooter"></div>
+    </div>
+  </div>
+
   <main class="main">
     <div class="page-title">NFT MARKET</div>
     <div class="page-sub">Buy &amp; sell Last Chad NFTs on-chain</div>
+
+    <!-- Collection Toggle -->
+    <div class="collection-toggle">
+      <button class="coll-btn active" data-coll="chads">⚔ CHADS</button>
+      <button class="coll-btn" data-coll="items">🎒 ITEMS</button>
+    </div>
 
     <!-- Tabs -->
     <div class="tabs">
@@ -497,18 +810,65 @@
 
     <!-- Browse Tab -->
     <div class="tab-panel active" id="tab-browse">
+
+      <!-- Stat / XP filter bar (Chads only) -->
+      <div class="stat-filter-bar" id="statFilterBar">
+        <div class="stat-filter-group">
+          <label>STR ≥</label>
+          <select id="filterStr">
+            <option value="0">Any</option>
+            <option value="1">1+</option><option value="2">2+</option>
+            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
+          </select>
+        </div>
+        <div class="stat-filter-group">
+          <label>INT ≥</label>
+          <select id="filterInt">
+            <option value="0">Any</option>
+            <option value="1">1+</option><option value="2">2+</option>
+            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
+          </select>
+        </div>
+        <div class="stat-filter-group">
+          <label>DEX ≥</label>
+          <select id="filterDex">
+            <option value="0">Any</option>
+            <option value="1">1+</option><option value="2">2+</option>
+            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
+          </select>
+        </div>
+        <div class="stat-filter-group">
+          <label>CHA ≥</label>
+          <select id="filterCha">
+            <option value="0">Any</option>
+            <option value="1">1+</option><option value="2">2+</option>
+            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
+          </select>
+        </div>
+        <div class="stat-filter-group">
+          <label>LVL ≥</label>
+          <select id="filterLevel">
+            <option value="1">Any</option>
+            <option value="2">2+</option><option value="3">3+</option>
+            <option value="4">4+</option><option value="5">5+</option>
+          </select>
+        </div>
+        <button class="reset-btn" id="resetFilters">RESET</button>
+      </div>
+
       <div class="filter-bar">
-        <select id="filterCollection">
-          <option value="">All Collections</option>
-          <!-- populated from config -->
-        </select>
         <select id="filterSort">
           <option value="price-asc">Price: Low → High</option>
           <option value="price-desc">Price: High → Low</option>
-          <option value="newest">Newest First</option>
+          <option value="level-desc">Level: High → Low</option>
+          <option value="str-desc">STR: High → Low</option>
+          <option value="int-desc">INT: High → Low</option>
+          <option value="dex-desc">DEX: High → Low</option>
+          <option value="cha-desc">CHA: High → Low</option>
         </select>
         <input type="text" id="filterSearch" placeholder="Search by name or ID..." style="flex:1;min-width:160px;">
       </div>
+
       <div class="nft-grid" id="listingsGrid">
         <div class="empty-state loading-dots">Loading listings</div>
       </div>
@@ -519,18 +879,16 @@
       <div id="sellConnectPrompt" class="connect-prompt" style="display:none">
         <p>Connect your wallet<br>to list an NFT for sale.</p>
       </div>
+      <div id="sellItemsMsg" class="coming-soon" style="display:none">
+        <span class="cs-icon">🎒</span>
+        <h3>ITEMS MARKETPLACE</h3>
+        <p>ERC-1155 item selling is not yet supported. Check back soon.</p>
+      </div>
       <div class="sell-section" id="sellForm" style="display:none">
-        <h2>LIST AN NFT</h2>
+        <h2>LIST A CHAD</h2>
 
         <div class="form-group">
-          <label>Collection</label>
-          <select id="sellCollection">
-            <option value="">Select collection...</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Your NFT (Token ID)</label>
+          <label>Your Chad (Token ID)</label>
           <select id="sellToken">
             <option value="">Select token...</option>
           </select>
@@ -562,21 +920,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC, MARKET_ADDRESS } from './js/config.js';
+
+    const COLLECTIONS = {
+      chads: { label: 'Last Chad', address: CONTRACT_ADDRESS,       imageBase: '/chads/' },
+      items: { label: 'LC Items',  address: ITEMS_CONTRACT_ADDRESS, imageBase: '/items/' },
+    };
 
     // ====================================================================
-    // CONFIG — update MARKET_ADDRESS after deploying Market.sol
-    // ====================================================================
-    const MARKET_ADDRESS = '0x2e25c1e662ae976e97a308d50450e5d52f08dfe8';
-
-    // Supported NFT collections (add new ones here without redeploying)
-    const COLLECTIONS = [
-      { label: 'Last Chad (Chads)', address: CONTRACT_ADDRESS,       imageBase: '/chads/' },
-      // { label: 'New Collection',   address: '0x...',               imageBase: '/newcollection/' },
-    ];
-
-    // ====================================================================
-    // ABIs (minimal)
+    // ABIs
     // ====================================================================
     const MARKET_ABI = [
       'function feeBps() view returns (uint256)',
@@ -592,21 +944,28 @@
     const ERC721_ABI = [
       'function balanceOf(address owner) view returns (uint256)',
       'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
-      'function tokenURI(uint256 tokenId) view returns (string)',
-      'function name(address) external view returns (string)',
       'function isApprovedForAll(address owner, address operator) view returns (bool)',
       'function setApprovalForAll(address operator, bool approved)',
       'function getApproved(uint256 tokenId) view returns (address)',
       'function ownerOf(uint256 tokenId) view returns (address)',
+      'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
+      'function getExperience(uint256 tokenId) view returns (uint256)',
+      'function getLevel(uint256 tokenId) view returns (uint256)',
+      'function tokenName(uint256 tokenId) view returns (string)',
     ];
 
     // ====================================================================
     // State
     // ====================================================================
-    let userAddress  = null;
-    let signer       = null;
-    let readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
-    let feeBps       = 500;
+    let userAddress      = null;
+    let signer           = null;
+    let readProvider     = new ethers.providers.JsonRpcProvider(READ_RPC);
+    let feeBps           = 500;
+    let activeCollection = 'chads';
+    let allListings      = [];
+
+    const statsCache    = new Map(); // tokenId -> { str, int, dex, cha, level, xp, name }
+    const lastSaleCache = new Map(); // "contract:tokenId" (lowercase) -> priceAvax string
 
     // ====================================================================
     // DOM refs
@@ -617,25 +976,40 @@
     const walletModal        = document.getElementById('walletModal');
     const modalClose         = document.getElementById('modalClose');
 
-    const listingsGrid       = document.getElementById('listingsGrid');
-    const filterCollection   = document.getElementById('filterCollection');
-    const filterSort         = document.getElementById('filterSort');
-    const filterSearch       = document.getElementById('filterSearch');
+    const listingsGrid  = document.getElementById('listingsGrid');
+    const filterSort    = document.getElementById('filterSort');
+    const filterSearch  = document.getElementById('filterSearch');
+    const statFilterBar = document.getElementById('statFilterBar');
+    const filterStr     = document.getElementById('filterStr');
+    const filterInt     = document.getElementById('filterInt');
+    const filterDex     = document.getElementById('filterDex');
+    const filterCha     = document.getElementById('filterCha');
+    const filterLevel   = document.getElementById('filterLevel');
+    const resetFiltersBtn = document.getElementById('resetFilters');
 
-    const sellConnectPrompt  = document.getElementById('sellConnectPrompt');
-    const sellForm           = document.getElementById('sellForm');
-    const sellCollection     = document.getElementById('sellCollection');
-    const sellToken          = document.getElementById('sellToken');
-    const sellPrice          = document.getElementById('sellPrice');
-    const sellPreview        = document.getElementById('sellPreview');
-    const sellPreviewImg     = document.getElementById('sellPreviewImg');
-    const sellPreviewName    = document.getElementById('sellPreviewName');
-    const sellPreviewId      = document.getElementById('sellPreviewId');
-    const sellPreviewStatus  = document.getElementById('sellPreviewStatus');
-    const approveBtn         = document.getElementById('approveBtn');
-    const listBtn            = document.getElementById('listBtn');
-    const sellStatus         = document.getElementById('sellStatus');
-    const feeNote            = document.getElementById('feeNote');
+    const sellConnectPrompt = document.getElementById('sellConnectPrompt');
+    const sellItemsMsg      = document.getElementById('sellItemsMsg');
+    const sellForm          = document.getElementById('sellForm');
+    const sellToken         = document.getElementById('sellToken');
+    const sellPrice         = document.getElementById('sellPrice');
+    const sellPreview       = document.getElementById('sellPreview');
+    const sellPreviewImg    = document.getElementById('sellPreviewImg');
+    const sellPreviewName   = document.getElementById('sellPreviewName');
+    const sellPreviewId     = document.getElementById('sellPreviewId');
+    const sellPreviewStatus = document.getElementById('sellPreviewStatus');
+    const approveBtn        = document.getElementById('approveBtn');
+    const listBtn           = document.getElementById('listBtn');
+    const sellStatus        = document.getElementById('sellStatus');
+    const feeNote           = document.getElementById('feeNote');
+
+    const detailOverlay = document.getElementById('detailOverlay');
+    const detailClose   = document.getElementById('detailClose');
+    const detailTitle   = document.getElementById('detailTitle');
+    const detailImg     = document.getElementById('detailImg');
+    const detailName    = document.getElementById('detailName');
+    const detailStats   = document.getElementById('detailStats');
+    const detailMeta    = document.getElementById('detailMeta');
+    const detailFooter  = document.getElementById('detailFooter');
 
     // ====================================================================
     // Wallet
@@ -658,11 +1032,8 @@
     }
 
     walletBtn.addEventListener('click', () => {
-      if (userAddress) {
-        disconnectDropdown.classList.toggle('show');
-      } else {
-        walletModal.classList.add('show');
-      }
+      if (userAddress) disconnectDropdown.classList.toggle('show');
+      else walletModal.classList.add('show');
     });
     disconnectBtn.addEventListener('click', () => {
       disconnect();
@@ -693,51 +1064,72 @@
     });
 
     // ====================================================================
-    // Populate collection dropdowns
+    // Collection toggle
     // ====================================================================
-    COLLECTIONS.forEach(c => {
-      const opt1 = document.createElement('option');
-      opt1.value = c.address;
-      opt1.textContent = c.label;
-      filterCollection.appendChild(opt1);
-
-      const opt2 = document.createElement('option');
-      opt2.value = c.address;
-      opt2.textContent = c.label;
-      sellCollection.appendChild(opt2);
+    document.querySelectorAll('.coll-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.coll-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeCollection = btn.dataset.coll;
+        statFilterBar.style.display = activeCollection === 'chads' ? 'flex' : 'none';
+        updateSellPanel();
+        loadListings();
+      });
     });
 
     // ====================================================================
-    // Load marketplace fee
+    // Stat filter listeners
+    // ====================================================================
+    [filterStr, filterInt, filterDex, filterCha, filterLevel, filterSort].forEach(el => {
+      el.addEventListener('change', () => renderListings(allListings));
+    });
+    filterSearch.addEventListener('input', () => renderListings(allListings));
+    resetFiltersBtn.addEventListener('click', () => {
+      filterStr.value   = '0';
+      filterInt.value   = '0';
+      filterDex.value   = '0';
+      filterCha.value   = '0';
+      filterLevel.value = '1';
+      filterSearch.value = '';
+      filterSort.value  = 'price-asc';
+      renderListings(allListings);
+    });
+
+    // ====================================================================
+    // Marketplace fee
     // ====================================================================
     async function loadFee() {
       if (!MARKET_ADDRESS) return;
       try {
         const market = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
         feeBps = (await market.feeBps()).toNumber();
-        feeNote.textContent = `Marketplace fee: ${feeBps / 100}% deducted from sale price.`;
       } catch (_) {}
     }
 
     // ====================================================================
-    // Browse — load all listings from events
+    // Load listings from events
     // ====================================================================
     async function loadListings() {
       if (!MARKET_ADDRESS) {
         listingsGrid.innerHTML = '<div class="empty-state">Market contract not yet deployed.</div>';
         return;
       }
+      if (activeCollection === 'items') {
+        listingsGrid.innerHTML = '<div class="empty-state">Items marketplace coming soon.</div>';
+        allListings = [];
+        return;
+      }
+
       listingsGrid.innerHTML = '<div class="empty-state loading-dots">Loading listings</div>';
 
       try {
-        const market    = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
-        const filter    = market.filters.Listed();
-        const events    = await market.queryFilter(filter, 0, 'latest');
+        const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
+        const collAddr = COLLECTIONS.chads.address;
+        const events   = await market.queryFilter(market.filters.Listed(collAddr), 0, 'latest');
 
-        const seen      = new Set();
-        const active    = [];
+        const seen   = new Set();
+        const active = [];
 
-        // Deduplicate by nftContract+tokenId and check still active
         for (const ev of events.reverse()) {
           const key = ev.args.nftContract + ':' + ev.args.tokenId.toString();
           if (seen.has(key)) continue;
@@ -746,26 +1138,103 @@
           if (listing.active) active.push(listing);
         }
 
-        renderListings(active);
+        await Promise.all([
+          loadStatsForListings(active),
+          loadLastSales(market, collAddr),
+        ]);
+
+        allListings = active;
+        renderListings(allListings);
       } catch (e) {
         listingsGrid.innerHTML = '<div class="empty-state">Failed to load listings.</div>';
         console.error(e);
       }
     }
 
+    // ====================================================================
+    // Batch load stats for all listed Chads
+    // ====================================================================
+    async function loadStatsForListings(listings) {
+      const nft = new ethers.Contract(COLLECTIONS.chads.address, ERC721_ABI, readProvider);
+      await Promise.all(listings.map(async l => {
+        const tid = l.tokenId.toString();
+        if (statsCache.has(tid)) return;
+        try {
+          const [stats, xp, level, name] = await Promise.all([
+            nft.getStats(l.tokenId),
+            nft.getExperience(l.tokenId),
+            nft.getLevel(l.tokenId),
+            nft.tokenName(l.tokenId),
+          ]);
+          statsCache.set(tid, {
+            str:   stats.strength.toNumber(),
+            int:   stats.intelligence.toNumber(),
+            dex:   stats.dexterity.toNumber(),
+            cha:   stats.charisma.toNumber(),
+            xp:    xp.toNumber(),
+            level: level.toNumber(),
+            name:  name || '',
+          });
+        } catch (_) {
+          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, name: '' });
+        }
+      }));
+    }
+
+    // ====================================================================
+    // Load last sale prices from Sold events
+    // ====================================================================
+    async function loadLastSales(market, collAddr) {
+      try {
+        const soldEvents = await market.queryFilter(market.filters.Sold(collAddr), 0, 'latest');
+        // Iterate oldest→newest so the last write wins (= most recent sale)
+        for (const ev of soldEvents) {
+          const key = ev.args.nftContract.toLowerCase() + ':' + ev.args.tokenId.toString();
+          lastSaleCache.set(key, ethers.utils.formatEther(ev.args.price));
+        }
+      } catch (_) {}
+    }
+
+    // ====================================================================
+    // Render listings with filters + sort
+    // ====================================================================
     function renderListings(listings) {
-      // Apply filters
-      const collectionFilter = filterCollection.value.toLowerCase();
-      const sortBy           = filterSort.value;
-      const search           = filterSearch.value.toLowerCase();
+      const sortBy   = filterSort.value;
+      const search   = filterSearch.value.toLowerCase().trim();
+      const minStr   = parseInt(filterStr.value)   || 0;
+      const minInt   = parseInt(filterInt.value)   || 0;
+      const minDex   = parseInt(filterDex.value)   || 0;
+      const minCha   = parseInt(filterCha.value)   || 0;
+      const minLevel = parseInt(filterLevel.value) || 1;
 
       let filtered = listings.filter(l => {
-        if (collectionFilter && l.nftContract.toLowerCase() !== collectionFilter) return false;
+        const tid = l.tokenId.toString();
+        const s   = statsCache.get(tid) || { str: 0, int: 0, dex: 0, cha: 0, level: 1, name: '' };
+
+        if (s.str   < minStr)   return false;
+        if (s.int   < minInt)   return false;
+        if (s.dex   < minDex)   return false;
+        if (s.cha   < minCha)   return false;
+        if (s.level < minLevel) return false;
+
+        if (search) {
+          const nameHit = s.name.toLowerCase().includes(search);
+          const idHit   = ('chad #' + tid).includes(search) || tid.includes(search);
+          if (!nameHit && !idHit) return false;
+        }
+
         return true;
       });
 
-      if (sortBy === 'price-asc')  filtered.sort((a, b) => a.price.sub(b.price).gt(0) ? 1 : -1);
-      if (sortBy === 'price-desc') filtered.sort((a, b) => b.price.sub(a.price).gt(0) ? 1 : -1);
+      // Sort
+      const stat = key => l => (statsCache.get(l.tokenId.toString()) || {})[key] || 0;
+      if (sortBy === 'price-asc')   filtered.sort((a, b) => a.price.lt(b.price) ? -1 : 1);
+      if (sortBy === 'price-desc')  filtered.sort((a, b) => b.price.lt(a.price) ? -1 : 1);
+      if (sortBy === 'level-desc')  filtered.sort((a, b) => stat('level')(b) - stat('level')(a));
+      if (sortBy === 'str-desc')    filtered.sort((a, b) => stat('str')(b) - stat('str')(a));
+      if (sortBy === 'int-desc')    filtered.sort((a, b) => stat('int')(b) - stat('int')(a));
+      if (sortBy === 'dex-desc')    filtered.sort((a, b) => stat('dex')(b) - stat('dex')(a));
+      if (sortBy === 'cha-desc')    filtered.sort((a, b) => stat('cha')(b) - stat('cha')(a));
 
       if (filtered.length === 0) {
         listingsGrid.innerHTML = '<div class="empty-state">No listings found.</div>';
@@ -774,43 +1243,83 @@
 
       listingsGrid.innerHTML = '';
       filtered.forEach(l => {
-        const col       = COLLECTIONS.find(c => c.address.toLowerCase() === l.nftContract.toLowerCase());
-        const imgSrc    = col ? col.imageBase + l.tokenId.toString() + '.png' : '';
+        const tid       = l.tokenId.toString();
+        const imgSrc    = COLLECTIONS.chads.imageBase + tid + '.png';
         const priceAvax = ethers.utils.formatEther(l.price);
         const isOwn     = userAddress && l.seller.toLowerCase() === userAddress.toLowerCase();
-
-        if (search && !('chad #' + l.tokenId).includes(search) && !l.tokenId.toString().includes(search)) return;
+        const s         = statsCache.get(tid) || { str: 0, int: 0, dex: 0, cha: 0, level: 1, name: '' };
+        const lastSale  = lastSaleCache.get(l.nftContract.toLowerCase() + ':' + tid) || null;
+        const displayName = s.name ? s.name : 'CHAD #' + tid;
 
         const card = document.createElement('div');
         card.className = 'nft-card';
         card.innerHTML = `
-          <img src="${imgSrc}" alt="Chad #${l.tokenId}" onerror="this.style.display='none'">
+          <div class="nft-card-thumb" data-token="${tid}">
+            <img src="${imgSrc}" alt="${displayName}" onerror="this.style.display='none'">
+          </div>
           <div class="nft-card-body">
             ${isOwn ? '<div class="my-listing-badge">YOUR LISTING</div>' : ''}
-            <div class="nft-card-name">CHAD #${l.tokenId}</div>
-            <div class="nft-card-collection">${col ? col.label : truncAddr(l.nftContract)}</div>
+            <div class="nft-card-name" data-token="${tid}">${displayName}</div>
+            <div class="stat-badges">
+              <span class="stat-badge sb-str">STR ${s.str}</span>
+              <span class="stat-badge sb-int">INT ${s.int}</span>
+              <span class="stat-badge sb-dex">DEX ${s.dex}</span>
+              <span class="stat-badge sb-cha">CHA ${s.cha}</span>
+              <span class="stat-badge sb-lvl">LV${s.level}</span>
+            </div>
             <div class="nft-card-price">${priceAvax} AVAX</div>
+            <div class="nft-last-sale">${lastSale ? 'Last: ' + lastSale + ' AVAX' : 'No prior sales'}</div>
             <div class="nft-card-seller">Seller: ${truncAddr(l.seller)}</div>
-            ${isOwn
-              ? `<button class="delist-btn" data-contract="${l.nftContract}" data-token="${l.tokenId}">DELIST</button>`
-              : `<button class="buy-btn" data-contract="${l.nftContract}" data-token="${l.tokenId}" data-price="${l.price}">${userAddress ? 'BUY' : 'CONNECT TO BUY'}</button>`
-            }
+            ${isOwn ? `
+              <button class="update-price-btn" data-contract="${l.nftContract}" data-token="${tid}">UPDATE PRICE</button>
+              <div class="update-price-form" id="upf-${tid}">
+                <input class="update-price-input" type="number" placeholder="New price (AVAX)" min="0.001" step="0.001" id="upi-${tid}">
+                <button class="update-price-confirm" data-contract="${l.nftContract}" data-token="${tid}">CONFIRM</button>
+                <button class="update-price-cancel" data-token="${tid}">CANCEL</button>
+              </div>
+              <button class="delist-btn" data-contract="${l.nftContract}" data-token="${tid}">DELIST</button>
+            ` : `
+              <button class="buy-btn" data-contract="${l.nftContract}" data-token="${tid}" data-price="${l.price}">
+                ${userAddress ? 'BUY' : 'CONNECT TO BUY'}
+              </button>
+            `}
           </div>`;
+
         listingsGrid.appendChild(card);
       });
 
-      // Buy handlers
+      // Buy / delist / update handlers
       listingsGrid.querySelectorAll('.buy-btn').forEach(btn => {
         btn.addEventListener('click', () => buyNFT(btn.dataset.contract, btn.dataset.token, btn.dataset.price, btn));
       });
       listingsGrid.querySelectorAll('.delist-btn').forEach(btn => {
         btn.addEventListener('click', () => delistNFT(btn.dataset.contract, btn.dataset.token, btn));
       });
-    }
+      listingsGrid.querySelectorAll('.update-price-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('upf-' + btn.dataset.token).classList.toggle('show');
+        });
+      });
+      listingsGrid.querySelectorAll('.update-price-confirm').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = document.getElementById('upi-' + btn.dataset.token).value;
+          updatePrice(btn.dataset.contract, btn.dataset.token, val, btn);
+        });
+      });
+      listingsGrid.querySelectorAll('.update-price-cancel').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('upf-' + btn.dataset.token).classList.remove('show');
+        });
+      });
 
-    filterCollection.addEventListener('change', loadListings);
-    filterSort.addEventListener('change',       loadListings);
-    filterSearch.addEventListener('input',      loadListings);
+      // Click image or name → detail modal
+      listingsGrid.querySelectorAll('.nft-card-thumb, .nft-card-name').forEach(el => {
+        el.addEventListener('click', () => {
+          const listing = filtered.find(l => l.tokenId.toString() === el.dataset.token);
+          if (listing) openDetailModal(listing);
+        });
+      });
+    }
 
     // ====================================================================
     // Buy
@@ -825,6 +1334,7 @@
         btn.textContent = 'CONFIRMING...';
         await tx.wait();
         btn.textContent = 'SOLD!';
+        statsCache.clear();
         loadListings();
       } catch (e) {
         btn.disabled = false;
@@ -853,89 +1363,212 @@
     }
 
     // ====================================================================
-    // Sell panel
+    // Update Price  (delist → relist, 2 transactions)
     // ====================================================================
-    function updateSellPanel() {
-      if (!userAddress) {
-        sellConnectPrompt.style.display = 'block';
-        sellForm.style.display = 'none';
-      } else {
-        sellConnectPrompt.style.display = 'none';
-        sellForm.style.display = 'block';
-        populateSellTokens();
+    async function updatePrice(nftContract, tokenId, newPriceStr, btn) {
+      if (!userAddress) return;
+      const newPrice = parseFloat(newPriceStr);
+      if (!newPrice || newPrice <= 0) { alert('Enter a valid price greater than 0.'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'DELISTING...';
+      try {
+        const market = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, signer);
+        const tx1 = await market.delist(nftContract, tokenId);
+        await tx1.wait();
+
+        btn.textContent = 'RELISTING...';
+        const priceWei = ethers.utils.parseEther(newPriceStr);
+        const tx2 = await market.list(nftContract, tokenId, priceWei);
+        await tx2.wait();
+
+        loadListings();
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'CONFIRM';
+        alert('Transaction failed: ' + (e.reason || e.message));
       }
     }
 
-    sellCollection.addEventListener('change', populateSellTokens);
+    // ====================================================================
+    // Detail Modal
+    // ====================================================================
+    function openDetailModal(listing) {
+      const tid         = listing.tokenId.toString();
+      const s           = statsCache.get(tid) || { str: 0, int: 0, dex: 0, cha: 0, level: 1, xp: 0, name: '' };
+      const priceAvax   = ethers.utils.formatEther(listing.price);
+      const isOwn       = userAddress && listing.seller.toLowerCase() === userAddress.toLowerCase();
+      const lastSale    = lastSaleCache.get(listing.nftContract.toLowerCase() + ':' + tid) || null;
+      const displayName = s.name ? s.name : 'CHAD #' + tid;
+      const maxStat     = Math.max(s.str, s.int, s.dex, s.cha, 1);
+
+      detailTitle.textContent = 'CHAD #' + tid;
+      detailImg.src = COLLECTIONS.chads.imageBase + tid + '.png';
+      detailImg.alt = displayName;
+      detailName.textContent = displayName;
+
+      detailStats.innerHTML = [
+        statBarRow('STR', s.str, maxStat, 'str'),
+        statBarRow('INT', s.int, maxStat, 'int'),
+        statBarRow('DEX', s.dex, maxStat, 'dex'),
+        statBarRow('CHA', s.cha, maxStat, 'cha'),
+      ].join('');
+
+      detailMeta.innerHTML = `
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">LEVEL</span>
+          <span class="detail-meta-val gold">${s.level}</span>
+        </div>
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">EXPERIENCE</span>
+          <span class="detail-meta-val">${s.xp} XP</span>
+        </div>
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">LIST PRICE</span>
+          <span class="detail-meta-val gold">${priceAvax} AVAX</span>
+        </div>
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">LAST SALE</span>
+          <span class="detail-meta-val">${lastSale ? lastSale + ' AVAX' : '—'}</span>
+        </div>
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">SELLER</span>
+          <span class="detail-meta-val">${truncAddr(listing.seller)}</span>
+        </div>`;
+
+      if (isOwn) {
+        detailFooter.innerHTML = `<button class="detail-delist-btn" id="ddBtn">DELIST</button>`;
+        document.getElementById('ddBtn').addEventListener('click', () => {
+          detailOverlay.classList.remove('show');
+          listingsGrid.querySelector(`.delist-btn[data-token="${tid}"]`)?.click();
+        });
+      } else {
+        detailFooter.innerHTML = `<button class="detail-buy-btn" id="dbBtn">BUY — ${priceAvax} AVAX</button>`;
+        document.getElementById('dbBtn').addEventListener('click', async e => {
+          if (!userAddress) { walletModal.classList.add('show'); return; }
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          btn.textContent = 'BUYING...';
+          try {
+            const market = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, signer);
+            const tx = await market.buy(listing.nftContract, listing.tokenId, { value: listing.price });
+            btn.textContent = 'CONFIRMING...';
+            await tx.wait();
+            detailOverlay.classList.remove('show');
+            statsCache.clear();
+            loadListings();
+          } catch (err) {
+            btn.disabled = false;
+            btn.textContent = 'BUY — ' + priceAvax + ' AVAX';
+            alert('Transaction failed: ' + (err.reason || err.message));
+          }
+        });
+      }
+
+      detailOverlay.classList.add('show');
+    }
+
+    function statBarRow(label, val, max, cls) {
+      const pct = Math.max(4, Math.round((val / max) * 100));
+      return `
+        <div class="detail-stat-row">
+          <span class="detail-stat-label ${cls}">${label}</span>
+          <div class="detail-stat-bar-wrap">
+            <div class="detail-stat-bar ${cls}" style="width:${pct}%"></div>
+          </div>
+          <span class="detail-stat-val">${val}</span>
+        </div>`;
+    }
+
+    detailClose.addEventListener('click', () => detailOverlay.classList.remove('show'));
+    detailOverlay.addEventListener('click', e => {
+      if (e.target === detailOverlay) detailOverlay.classList.remove('show');
+    });
+
+    // ====================================================================
+    // Sell panel
+    // ====================================================================
+    function updateSellPanel() {
+      sellConnectPrompt.style.display = 'none';
+      sellItemsMsg.style.display      = 'none';
+      sellForm.style.display          = 'none';
+
+      if (activeCollection === 'items') {
+        sellItemsMsg.style.display = 'block';
+        return;
+      }
+      if (!userAddress) {
+        sellConnectPrompt.style.display = 'block';
+        return;
+      }
+      sellForm.style.display = 'block';
+      populateSellTokens();
+    }
 
     async function populateSellTokens() {
       sellToken.innerHTML = '<option value="">Loading...</option>';
       sellPreview.style.display = 'none';
       approveBtn.disabled = true;
-      listBtn.disabled = true;
+      listBtn.disabled    = true;
 
-      const collAddr = sellCollection.value;
-      if (!collAddr || !userAddress) {
-        sellToken.innerHTML = '<option value="">Select collection first</option>';
-        return;
-      }
+      if (!userAddress) return;
 
+      const collAddr = COLLECTIONS.chads.address;
       try {
         const nft = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
         const bal = await nft.balanceOf(userAddress);
         sellToken.innerHTML = '<option value="">Select token...</option>';
         for (let i = 0; i < bal.toNumber(); i++) {
           const tokenId = await nft.tokenOfOwnerByIndex(userAddress, i);
+          const name    = await nft.tokenName(tokenId).catch(() => '');
           const opt = document.createElement('option');
-          opt.value = tokenId.toString();
-          opt.textContent = 'Chad #' + tokenId.toString();
+          opt.value       = tokenId.toString();
+          opt.textContent = name || 'CHAD #' + tokenId.toString();
           sellToken.appendChild(opt);
         }
-        if (bal.toNumber() === 0) sellToken.innerHTML = '<option value="">No NFTs in this collection</option>';
-      } catch (e) {
+        if (bal.toNumber() === 0) {
+          sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
+        }
+      } catch {
         sellToken.innerHTML = '<option value="">Error loading tokens</option>';
       }
     }
 
     sellToken.addEventListener('change', async () => {
       const tokenId  = sellToken.value;
-      const collAddr = sellCollection.value;
-      approveBtn.disabled = true;
-      listBtn.disabled    = true;
+      const collAddr = COLLECTIONS.chads.address;
+      approveBtn.disabled  = true;
+      listBtn.disabled     = true;
       sellStatus.className = 'status-msg';
 
-      if (!tokenId || !collAddr) { sellPreview.style.display = 'none'; return; }
+      if (!tokenId) { sellPreview.style.display = 'none'; return; }
 
-      const col = COLLECTIONS.find(c => c.address === collAddr);
-      sellPreviewImg.src      = col ? col.imageBase + tokenId + '.png' : '';
-      sellPreviewName.textContent = 'CHAD #' + tokenId;
-      sellPreviewId.textContent   = tokenId;
-      sellPreview.style.display   = 'flex';
+      sellPreviewImg.src             = COLLECTIONS.chads.imageBase + tokenId + '.png';
+      sellPreviewName.textContent    = 'CHAD #' + tokenId;
+      sellPreviewId.textContent      = tokenId;
+      sellPreview.style.display      = 'flex';
 
-      // Check approval & listing status
       try {
-        const nft       = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
-        const approved  = await nft.isApprovedForAll(userAddress, MARKET_ADDRESS);
-        const singleApp = await nft.getApproved(tokenId);
+        const nft        = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
+        const approved   = await nft.isApprovedForAll(userAddress, MARKET_ADDRESS);
+        const singleApp  = await nft.getApproved(tokenId);
         const isApproved = approved || singleApp.toLowerCase() === MARKET_ADDRESS.toLowerCase();
 
-        if (MARKET_ADDRESS) {
-          const market = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
-          const listing = await market.getListing(collAddr, tokenId);
-          if (listing.active) {
-            sellPreviewStatus.textContent = 'Already listed at ' + ethers.utils.formatEther(listing.price) + ' AVAX';
-            showStatus('sellStatus', 'info', 'This token is already listed. Delist it from the Browse tab first.');
-            return;
-          }
+        const market  = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
+        const listing = await market.getListing(collAddr, tokenId);
+        if (listing.active) {
+          sellPreviewStatus.textContent = 'Listed at ' + ethers.utils.formatEther(listing.price) + ' AVAX';
+          showStatus('sellStatus', 'info', 'Already listed. Delist from Browse first.');
+          return;
         }
 
-        sellPreviewStatus.textContent = isApproved ? 'Approved' : 'Not approved';
-        approveBtn.disabled = isApproved;
+        sellPreviewStatus.textContent = isApproved ? 'Approved ✓' : 'Not approved';
+        approveBtn.disabled  = isApproved;
         approveBtn.textContent = isApproved ? '1. APPROVED ✓' : '1. APPROVE MARKET';
-        listBtn.disabled = !isApproved;
+        listBtn.disabled     = !isApproved;
         updateFeeNote();
-      } catch (e) {
-        sellPreviewStatus.textContent = 'Error';
+      } catch {
+        sellPreviewStatus.textContent = 'Error checking status';
       }
     });
 
@@ -953,51 +1586,47 @@
     }
 
     approveBtn.addEventListener('click', async () => {
-      if (!MARKET_ADDRESS) { showStatus('sellStatus', 'error', 'Market contract not deployed yet.'); return; }
-      approveBtn.disabled = true;
+      approveBtn.disabled    = true;
       approveBtn.textContent = 'APPROVING...';
       try {
-        const collAddr = sellCollection.value;
-        const nft      = new ethers.Contract(collAddr, ERC721_ABI, signer);
-        const tx       = await nft.setApprovalForAll(MARKET_ADDRESS, true);
+        const nft = new ethers.Contract(COLLECTIONS.chads.address, ERC721_ABI, signer);
+        const tx  = await nft.setApprovalForAll(MARKET_ADDRESS, true);
         showStatus('sellStatus', 'info', 'Waiting for approval confirmation...');
         await tx.wait();
         approveBtn.textContent = '1. APPROVED ✓';
         listBtn.disabled = false;
-        showStatus('sellStatus', 'ok', 'Approved! Now set your price and list.');
+        showStatus('sellStatus', 'ok', 'Approved! Set your price and list.');
       } catch (e) {
-        approveBtn.disabled = false;
+        approveBtn.disabled    = false;
         approveBtn.textContent = '1. APPROVE MARKET';
         showStatus('sellStatus', 'error', e.reason || e.message);
       }
     });
 
     listBtn.addEventListener('click', async () => {
-      if (!MARKET_ADDRESS) { showStatus('sellStatus', 'error', 'Market contract not deployed yet.'); return; }
-      const collAddr = sellCollection.value;
-      const tokenId  = sellToken.value;
-      const price    = sellPrice.value;
-      if (!collAddr || !tokenId || !price || parseFloat(price) <= 0) {
-        showStatus('sellStatus', 'error', 'Fill in all fields with a valid price.');
+      const tokenId = sellToken.value;
+      const price   = sellPrice.value;
+      if (!tokenId || !price || parseFloat(price) <= 0) {
+        showStatus('sellStatus', 'error', 'Select a token and enter a valid price.');
         return;
       }
-      listBtn.disabled = true;
+      listBtn.disabled    = true;
       listBtn.textContent = 'LISTING...';
       try {
-        const market    = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, signer);
-        const priceWei  = ethers.utils.parseEther(price);
-        const tx        = await market.list(collAddr, tokenId, priceWei);
+        const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, signer);
+        const priceWei = ethers.utils.parseEther(price);
+        const tx       = await market.list(COLLECTIONS.chads.address, tokenId, priceWei);
         showStatus('sellStatus', 'info', 'Waiting for confirmation...');
         await tx.wait();
         listBtn.textContent = '2. LIST FOR SALE';
-        showStatus('sellStatus', 'ok', 'Listed successfully! Check the Browse tab.');
-        sellToken.value = '';
+        showStatus('sellStatus', 'ok', 'Listed! Check the Browse tab.');
+        sellToken.value           = '';
         sellPreview.style.display = 'none';
-        listBtn.disabled = true;
-        approveBtn.disabled = true;
+        listBtn.disabled          = true;
+        approveBtn.disabled       = true;
         loadListings();
       } catch (e) {
-        listBtn.disabled = false;
+        listBtn.disabled    = false;
         listBtn.textContent = '2. LIST FOR SALE';
         showStatus('sellStatus', 'error', e.reason || e.message);
       }
@@ -1012,7 +1641,7 @@
 
     function showStatus(id, type, msg) {
       const el = document.getElementById(id);
-      el.className = 'status-msg ' + type;
+      el.className  = 'status-msg ' + type;
       el.textContent = msg;
     }
 
@@ -1022,8 +1651,6 @@
     loadListings();
     loadFee();
     autoReconnect({ onConnected, onDisconnected });
-
-    // Show sell connect prompt by default (no wallet)
     sellConnectPrompt.style.display = 'block';
     sellForm.style.display = 'none';
   </script>
