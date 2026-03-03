@@ -1796,6 +1796,7 @@
     }
 
     approveItemBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       approveItemBtn.disabled    = true;
       approveItemBtn.textContent = 'APPROVING...';
       try {
@@ -1814,6 +1815,7 @@
     });
 
     listItemBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       const tokenId = sellItemToken.value;
       const price   = sellItemPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
@@ -1894,6 +1896,7 @@
     }
 
     approveBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       approveBtn.disabled    = true;
       approveBtn.textContent = 'APPROVING...';
       try {
@@ -1912,6 +1915,7 @@
     });
 
     listBtn.addEventListener('click', async () => {
+      if (!signer) { walletModal.classList.add('show'); return; }
       const tokenId = sellToken.value;
       const price   = sellPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
