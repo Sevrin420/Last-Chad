@@ -1056,6 +1056,8 @@
     let activeCollection = 'chads';
     let allListings      = [];
     let allListings1155  = [];
+    let selectedChadId   = null;
+    let selectedItemId   = null;
 
     const statsCache    = new Map(); // tokenId -> { str, int, dex, cha, level, xp, name }
     const lastSaleCache = new Map(); // "contract:tokenId" (lowercase) -> priceAvax string
@@ -1826,17 +1828,20 @@
           const type = card.dataset.type;
           const tid  = card.dataset.token;
           if (type === 'chad') {
+            selectedChadId = tid;
             sellItemForm.style.display = 'none';
             sellForm.style.display     = 'block';
             sellToken.value = tid;
             sellToken.dispatchEvent(new Event('change'));
+            sellForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           } else {
+            selectedItemId = tid;
             sellForm.style.display     = 'none';
             sellItemForm.style.display = 'block';
             sellItemToken.value = tid;
             sellItemToken.dispatchEvent(new Event('change'));
+            sellItemForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
-          sellForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
       });
     }
@@ -1916,7 +1921,7 @@
     }
 
     sellItemToken.addEventListener('change', async () => {
-      const tokenId = sellItemToken.value;
+      const tokenId = sellItemToken.value || selectedItemId;
       approveItemBtn.disabled  = true;
       listItemBtn.disabled     = true;
       sellItemStatus.className = 'status-msg';
@@ -1981,7 +1986,7 @@
 
     listItemBtn.addEventListener('click', async () => {
       if (!signer) { walletModal.classList.add('show'); return; }
-      const tokenId = sellItemToken.value;
+      const tokenId = sellItemToken.value || selectedItemId;
       const price   = sellItemPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
         showStatus('sellItemStatus', 'error', 'Select an item and enter a valid price.');
@@ -2010,7 +2015,7 @@
     });
 
     sellToken.addEventListener('change', async () => {
-      const tokenId  = sellToken.value;
+      const tokenId  = sellToken.value || selectedChadId;
       const collAddr = COLLECTIONS.chads.address;
       approveBtn.disabled  = true;
       listBtn.disabled     = true;
@@ -2081,7 +2086,7 @@
 
     listBtn.addEventListener('click', async () => {
       if (!signer) { walletModal.classList.add('show'); return; }
-      const tokenId = sellToken.value;
+      const tokenId = sellToken.value || selectedChadId;
       const price   = sellPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
         showStatus('sellStatus', 'error', 'Select a token and enter a valid price.');
