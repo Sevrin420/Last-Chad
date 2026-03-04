@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 
-const MARKET_ADDRESS       = '0x84a0d4c155070655be75e355c9058f74eaca38dd';
+const MARKET_ADDRESS       = '0x2648fce03fe383c4a1d1a4c21fa59a0b9f35243d';
 const LASTCHAD_ADDRESS     = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
 const ITEMS_ADDRESS        = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
 
