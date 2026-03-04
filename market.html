@@ -994,7 +994,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
-    import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
+    import { connectWallet, autoReconnect, disconnect, truncateAddress, getSigner } from './js/wallet.js';
     import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC, MARKET_ADDRESS } from './js/config.js';
 
     const COLLECTIONS = {
@@ -1119,9 +1119,9 @@
     // ====================================================================
     // Wallet
     // ====================================================================
-    function onConnected(addr, sgn) {
+    function onConnected(addr) {
       userAddress = addr;
-      signer      = sgn;
+      signer      = getSigner();
       walletBtn.textContent = truncateAddress(addr);
       walletBtn.classList.add('connected');
       updateSellPanel();
