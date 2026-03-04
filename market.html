@@ -998,8 +998,8 @@
     import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC, MARKET_ADDRESS } from './js/config.js';
 
     const COLLECTIONS = {
-      chads: { label: 'Last Chad', address: CONTRACT_ADDRESS,       imageBase: '/chads/' },
-      items: { label: 'LC Items',  address: ITEMS_CONTRACT_ADDRESS, imageBase: '/items/' },
+      chads: { label: 'Last Chad', address: CONTRACT_ADDRESS,       imageBase: '/assets/chads/' },
+      items: { label: 'LC Items',  address: ITEMS_CONTRACT_ADDRESS, imageBase: '/assets/items/' },
     };
 
     // ====================================================================
@@ -1313,7 +1313,7 @@
         const name      = knownItems[tid] || 'Item #' + tid;
         const priceAvax = ethers.utils.formatEther(l.price);
         const isOwn     = userAddress && l.seller.toLowerCase() === userAddress.toLowerCase();
-        const imgSrc    = `/items/${tid}/image.png`;
+        const imgSrc    = `/assets/items/${tid}.jpg`;
 
         return `
           <div class="listing-card">
@@ -1811,7 +1811,7 @@
             ? `<div class="sell-card-price listed">Listed: ${it.price}</div>`
             : '<div class="sell-card-price unlisted">Not listed</div>';
           html += `<div class="sell-nft-card" data-type="item" data-token="${it.id}">
-            <img src="${COLLECTIONS.items.imageBase}${it.id}/image.png" alt="${it.name}">
+            <img src="${COLLECTIONS.items.imageBase}${it.id}.jpg" alt="${it.name}">
             <div class="sell-card-name">${it.name}</div>
             ${priceHtml}
           </div>`;
@@ -1923,7 +1923,7 @@
       if (!tokenId) { sellItemPreview.style.display = 'none'; return; }
 
       const name = knownItems[tokenId] || 'Item #' + tokenId;
-      sellItemPreviewImg.src              = `/items/${tokenId}/image.png`;
+      sellItemPreviewImg.src              = `/assets/items/${tokenId}.jpg`;
       sellItemPreviewName.textContent     = name;
       sellItemPreview.style.display       = 'flex';
 
