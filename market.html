@@ -1009,20 +1009,18 @@
       'function feeBps() view returns (uint256)',
       // ERC-721
       'function getListing(address nftContract, uint256 tokenId) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 price, bool active))',
+      'function getActiveListings(address nftContract, uint256 offset, uint256 limit) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 price, bool active)[] results, uint256 total)',
       'function buy(address nftContract, uint256 tokenId) payable',
       'function list(address nftContract, uint256 tokenId, uint256 price)',
       'function delist(address nftContract, uint256 tokenId)',
-      'event Listed(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price)',
       'event Sold(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 price)',
-      'event Delisted(address indexed nftContract, uint256 indexed tokenId, address seller)',
       // ERC-1155
       'function getListing1155(address nftContract, uint256 tokenId, address seller) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 amount, uint256 price, bool active))',
+      'function getActiveListings1155(address nftContract, uint256 offset, uint256 limit) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 amount, uint256 price, bool active)[] results, uint256 total)',
       'function buy1155(address nftContract, uint256 tokenId, address seller) payable',
       'function list1155(address nftContract, uint256 tokenId, uint256 price)',
       'function delist1155(address nftContract, uint256 tokenId)',
-      'event Listed1155(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 amount, uint256 price)',
       'event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice)',
-      'event Delisted1155(address indexed nftContract, uint256 indexed tokenId, address seller)',
     ];
 
     const ERC1155_ABI = [
@@ -1217,34 +1215,13 @@
 
     // ====================================================================
     // queryFilter that paginates in 2000-block chunks if the RPC
-    // rejects a wide range (Fuji public node limits eth_getLogs)
     // ====================================================================
-    async function queryFilterSafe(contract, filter) {
-      try {
-        return await contract.queryFilter(filter, 0, 'latest');
-      } catch (_) {}
-      // Paginate the last ~30 days (1 300 000 blocks at 2 s/block on Fuji)
-      const latest    = await contract.provider.getBlockNumber();
-      const fromBlock = Math.max(0, latest - 1_300_000);
-      const PAGE      = 2000;
-      const ranges    = [];
-      for (let b = fromBlock; b <= latest; b += PAGE) {
-        ranges.push([b, Math.min(b + PAGE - 1, latest)]);
-      }
-      // Send in parallel groups of 20 to avoid hammering the RPC
-      const events = [];
-      for (let i = 0; i < ranges.length; i += 20) {
-        const group = ranges.slice(i, i + 20).map(([from, to]) =>
-          contract.queryFilter(filter, from, to).catch(() => [])
-        );
-        events.push(...(await Promise.all(group)).flat());
-      }
-      return events;
-    }
+    // Load listings via on-chain enumeration (getActiveListings / getActiveListings1155).
+    // Pages through all results in chunks of PAGE_SIZE so a single view call
+    // is never too large.  No event-log scanning → no block-range RPC issues.
+    // ====================================================================
+    const PAGE_SIZE = 500;
 
-    // ====================================================================
-    // Load listings from events
-    // ====================================================================
     async function loadListings() {
       if (!MARKET_ADDRESS) {
         listingsGrid.innerHTML = '<div class="empty-state">Market contract not yet deployed.</div>';
@@ -1259,17 +1236,15 @@
       try {
         const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
         const collAddr = COLLECTIONS.chads.address;
-        const events   = await queryFilterSafe(market, market.filters.Listed(collAddr));
+        const active   = [];
+        let   offset   = 0;
 
-        const seen   = new Set();
-        const active = [];
-
-        for (const ev of events.reverse()) {
-          const key = ev.args.nftContract + ':' + ev.args.tokenId.toString();
-          if (seen.has(key)) continue;
-          seen.add(key);
-          const listing = await market.getListing(ev.args.nftContract, ev.args.tokenId);
-          if (listing.active) active.push(listing);
+        // Page through until we have fetched everything
+        while (true) {
+          const [page, total] = await market.getActiveListings(collAddr, offset, PAGE_SIZE);
+          for (const l of page) active.push(l);
+          offset += page.length;
+          if (offset >= total.toNumber()) break;
         }
 
         await Promise.all([
@@ -1286,24 +1261,21 @@
     }
 
     // ====================================================================
-    // Load ERC-1155 item listings
+    // Load ERC-1155 item listings via on-chain enumeration
     // ====================================================================
     async function loadListings1155() {
       listingsGrid.innerHTML = '<div class="empty-state loading-dots">Loading listings</div>';
       try {
         const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
         const collAddr = COLLECTIONS.items.address;
-        const events   = await queryFilterSafe(market, market.filters.Listed1155(collAddr));
+        const active   = [];
+        let   offset   = 0;
 
-        const seen   = new Set();
-        const active = [];
-
-        for (const ev of events.reverse()) {
-          const key = ev.args.tokenId.toString() + ':' + ev.args.seller.toLowerCase();
-          if (seen.has(key)) continue;
-          seen.add(key);
-          const listing = await market.getListing1155(ev.args.nftContract, ev.args.tokenId, ev.args.seller);
-          if (listing.active) active.push(listing);
+        while (true) {
+          const [page, total] = await market.getActiveListings1155(collAddr, offset, PAGE_SIZE);
+          for (const l of page) active.push(l);
+          offset += page.length;
+          if (offset >= total.toNumber()) break;
         }
 
         allListings1155 = active;
@@ -1432,12 +1404,15 @@
     }
 
     // ====================================================================
-    // Load last sale prices from Sold events
+    // Load last sale prices from Sold events (best-effort, non-critical)
     // ====================================================================
     async function loadLastSales(market, collAddr) {
       try {
-        const soldEvents = await queryFilterSafe(market, market.filters.Sold(collAddr));
-        // Iterate oldest→newest so the last write wins (= most recent sale)
+        // Try a recent window (last 500 k blocks ≈ 11 days on Fuji).
+        // Sold events are historical and nice-to-have; we silently skip on failure.
+        const latest = await market.provider.getBlockNumber();
+        const from   = Math.max(0, latest - 500_000);
+        const soldEvents = await market.queryFilter(market.filters.Sold(collAddr), from, 'latest');
         for (const ev of soldEvents) {
           const key = ev.args.nftContract.toLowerCase() + ':' + ev.args.tokenId.toString();
           lastSaleCache.set(key, ethers.utils.formatEther(ev.args.price));
