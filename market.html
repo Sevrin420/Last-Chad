@@ -1216,6 +1216,33 @@
     }
 
     // ====================================================================
+    // queryFilter that paginates in 2000-block chunks if the RPC
+    // rejects a wide range (Fuji public node limits eth_getLogs)
+    // ====================================================================
+    async function queryFilterSafe(contract, filter) {
+      try {
+        return await contract.queryFilter(filter, 0, 'latest');
+      } catch (_) {}
+      // Paginate the last ~30 days (1 300 000 blocks at 2 s/block on Fuji)
+      const latest    = await contract.provider.getBlockNumber();
+      const fromBlock = Math.max(0, latest - 1_300_000);
+      const PAGE      = 2000;
+      const ranges    = [];
+      for (let b = fromBlock; b <= latest; b += PAGE) {
+        ranges.push([b, Math.min(b + PAGE - 1, latest)]);
+      }
+      // Send in parallel groups of 20 to avoid hammering the RPC
+      const events = [];
+      for (let i = 0; i < ranges.length; i += 20) {
+        const group = ranges.slice(i, i + 20).map(([from, to]) =>
+          contract.queryFilter(filter, from, to).catch(() => [])
+        );
+        events.push(...(await Promise.all(group)).flat());
+      }
+      return events;
+    }
+
+    // ====================================================================
     // Load listings from events
     // ====================================================================
     async function loadListings() {
@@ -1232,7 +1259,7 @@
       try {
         const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
         const collAddr = COLLECTIONS.chads.address;
-        const events   = await market.queryFilter(market.filters.Listed(collAddr), 0, 'latest');
+        const events   = await queryFilterSafe(market, market.filters.Listed(collAddr));
 
         const seen   = new Set();
         const active = [];
@@ -1266,7 +1293,7 @@
       try {
         const market   = new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider);
         const collAddr = COLLECTIONS.items.address;
-        const events   = await market.queryFilter(market.filters.Listed1155(collAddr), 0, 'latest');
+        const events   = await queryFilterSafe(market, market.filters.Listed1155(collAddr));
 
         const seen   = new Set();
         const active = [];
@@ -1409,7 +1436,7 @@
     // ====================================================================
     async function loadLastSales(market, collAddr) {
       try {
-        const soldEvents = await market.queryFilter(market.filters.Sold(collAddr), 0, 'latest');
+        const soldEvents = await queryFilterSafe(market, market.filters.Sold(collAddr));
         // Iterate oldest→newest so the last write wins (= most recent sale)
         for (const ev of soldEvents) {
           const key = ev.args.nftContract.toLowerCase() + ':' + ev.args.tokenId.toString();
