@@ -47,9 +47,10 @@
       box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05);
       animation: den-pulse 2s ease-in-out infinite;
       transition: transform 0.15s ease;
+      outline: none;
+      text-decoration: none;
     }
     #enter-btn:hover { transform: scale(1.06); }
-    #enter-btn:focus { outline: none; }
     @keyframes den-pulse {
       0%, 100% { box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05); }
       50%       { box-shadow: 0 0 40px rgba(255,150,30,0.6), inset 0 0 30px rgba(255,150,30,0.12); }
@@ -337,7 +338,6 @@
     const choicesDiv   = document.getElementById('choices');
     const walletBtn    = document.getElementById('wallet-btn');
     const walletDrop   = document.getElementById('wallet-dropdown');
-    const bg           = document.getElementById('bg');
 
     // ── Wallet ──
     window.toggleWalletDropdown = () => walletDrop.classList.toggle('open');
