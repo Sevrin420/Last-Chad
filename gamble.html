@@ -20,7 +20,7 @@
     /* ── Background ── */
     #bg {
       position: fixed; inset: 0; z-index: 0;
-      background: url('assets/oldjipt/oldjiptcoin.jpg') center/cover no-repeat;
+      background: url('oldjipt/oldjiptcoin.jpg') center/cover no-repeat;
       filter: blur(12px) brightness(0.6);
       transition: filter 1.2s ease;
     }
@@ -59,7 +59,10 @@
     /* ── Wallet button ── */
     #wallet-bar {
       position: fixed; top: 12px; right: 12px; z-index: 300;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.6s ease;
     }
+    #wallet-bar.visible { opacity: 1; pointer-events: auto; }
     #wallet-btn {
       font-family: 'Press Start 2P', monospace;
       font-size: 0.6rem; color: #ffe96a;
@@ -94,6 +97,13 @@
       border-top: 2px solid #c9a84c;
       display: flex; flex-direction: column;
       padding: 1.5em 2em; overflow: hidden;
+      opacity: 0; pointer-events: none;
+      transform: translateY(20px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    #dialogue-box.visible {
+      opacity: 1; pointer-events: auto;
+      transform: translateY(0);
     }
 
     #dialogue-text {
@@ -270,7 +280,7 @@
   <!-- Video overlay -->
   <div id="video-overlay">
     <video id="flip-video" playsinline>
-      <source src="assets/oldjipt/oldjiptvid.mp4" type="video/mp4" />
+      <source src="oldjipt/oldjiptvid.mp4" type="video/mp4" />
     </video>
   </div>
 
@@ -296,12 +306,22 @@
     const bg         = document.getElementById('bg');
     const bgMusic    = document.getElementById('bg-music');
     const enterOverlay = document.getElementById('enter-overlay');
+    const dialogueBox = document.getElementById('dialogue-box');
     bgMusic.volume = 0.45;
+    let hasEntered = false;
 
-    document.getElementById('enter-btn').addEventListener('click', () => {
+    document.getElementById('enter-btn').addEventListener('click', async () => {
       bg.classList.add('revealed');
       enterOverlay.classList.add('hidden');
       bgMusic.play().catch(() => {});
+      hasEntered = true;
+
+      // Wait for background fade-in, then show wallet + dialogue
+      await delay(1000);
+      document.getElementById('wallet-bar').classList.add('visible');
+      dialogueBox.classList.add('visible');
+      await delay(300);
+      showIntro();
     });
 
     function duckMusic(targetVol = 0.08, ms = 400) {
@@ -710,15 +730,11 @@
     autoReconnect({
       onConnected: (addr) => {
         walletBtn.textContent = truncateAddress(addr);
-        showIntro();
+        // If already entered the den, refresh intro with wallet context
+        if (hasEntered) showIntro();
       },
       onDisconnected: () => { walletBtn.textContent = 'CONNECT'; }
     });
-
-    // Show intro even without wallet
-    if (!getUserAddress()) {
-      showIntro();
-    }
   </script>
   <script src="nav.js"></script>
 </body>
