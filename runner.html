@@ -95,6 +95,7 @@ let flashTimer = 0;
 let deathFlash = 0;
 let particles = [];
 let startTime = 0;
+let wallDeathTimer = 0;
 
 
 // ── Keys ──
@@ -141,7 +142,7 @@ function getDifficulty() {
 }
 
 function getObstacleSprite() {
-  const obstNames = spriteNames.filter(n => n !== 'Character');
+  const obstNames = spriteNames.filter(n => n !== 'Character' && !n.startsWith('Enemy'));
   return obstNames[Math.floor(Math.random() * obstNames.length)];
 }
 
@@ -194,20 +195,20 @@ function spawnObstacle() {
       x: laneToX(lane),
       y: -SPRITE_SIZE,
       lane: lane,
-      sprite: spriteName,
-      driftSpeed: diff.sideSpeed > 0 ? (Math.random() - 0.5) * diff.sideSpeed : 0,
-      driftDir: 1
+      sprite: spriteName
     });
   }
 }
 
+// Gap = center lane (lane 2), one lane wide
+const WALL_GAP_X = ROAD_LEFT + 2 * LANE_WIDTH;
+const WALL_GAP_W = LANE_WIDTH;
+const WALL_THICK = 18;
+
 function spawnSewer() {
   sewerSpawned = true;
   sewerObj = {
-    x: W / 2 - 40,
-    y: -80,
-    w: 80,
-    h: 60,
+    y: -120,     // top of the whole structure
     glow: 0
   };
 }
@@ -311,44 +312,74 @@ function drawBackground(dt, scrollSpeed) {
 function drawSewer() {
   if (!sewerObj) return;
   const s = sewerObj;
-  // Glow pulse
   s.glow = (s.glow + 0.05) % (Math.PI * 2);
   const glowAlpha = 0.3 + Math.sin(s.glow) * 0.2;
-  // Red glow aura
-  const grad = ctx.createRadialGradient(s.x + s.w/2, s.y + s.h/2, 10, s.x + s.w/2, s.y + s.h/2, 60);
-  grad.addColorStop(0, `rgba(255, 30, 0, ${glowAlpha})`);
-  grad.addColorStop(1, 'rgba(255, 0, 0, 0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(s.x - 30, s.y - 30, s.w + 60, s.h + 60);
-  // Tunnel arch
-  ctx.fillStyle = '#1a0000';
+
+  const wallY = s.y + 60;           // Y of the wall bar
+  const gapCX = WALL_GAP_X + WALL_GAP_W / 2;  // center X of gap
+  const archW = WALL_GAP_W / 2;
+  const archH = 60;
+
+  // ── Tunnel arch above the gap (drawn before wall) ──
+  // Red glow halo
+  const halo = ctx.createRadialGradient(gapCX, wallY, 4, gapCX, wallY, 55);
+  halo.addColorStop(0, `rgba(255,40,0,${glowAlpha})`);
+  halo.addColorStop(1, 'rgba(180,0,0,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(gapCX - 60, wallY - 70, 120, 80);
+
+  // Arch body (dark)
+  ctx.fillStyle = '#150000';
   ctx.beginPath();
-  ctx.ellipse(s.x + s.w/2, s.y + s.h, s.w/2, s.h * 0.8, 0, Math.PI, 0);
+  ctx.ellipse(gapCX, wallY, archW, archH, 0, Math.PI, 0);
   ctx.fill();
-  // Tunnel dark interior
-  ctx.fillStyle = '#0a0000';
+
+  // Arch interior glow
+  const innerG = ctx.createRadialGradient(gapCX, wallY - 10, 4, gapCX, wallY - 10, archW - 4);
+  innerG.addColorStop(0, `rgba(255,60,0,${0.35 + Math.sin(s.glow * 2) * 0.15})`);
+  innerG.addColorStop(1, 'rgba(80,0,0,0)');
+  ctx.fillStyle = innerG;
   ctx.beginPath();
-  ctx.ellipse(s.x + s.w/2, s.y + s.h, s.w/2 - 6, s.h * 0.65, 0, Math.PI, 0);
+  ctx.ellipse(gapCX, wallY, archW - 5, archH - 8, 0, Math.PI, 0);
   ctx.fill();
-  // Brick border
-  ctx.strokeStyle = '#600';
-  ctx.lineWidth = 4;
+
+  // Arch border
+  ctx.strokeStyle = `rgba(220,60,0,${0.6 + glowAlpha * 0.4})`;
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.ellipse(s.x + s.w/2, s.y + s.h, s.w/2, s.h * 0.8, 0, Math.PI, 0);
+  ctx.ellipse(gapCX, wallY, archW, archH, 0, Math.PI, 0);
   ctx.stroke();
-  // Red glow from inside
-  const innerGrad = ctx.createRadialGradient(s.x + s.w/2, s.y + s.h - 10, 5, s.x + s.w/2, s.y + s.h - 10, 30);
-  innerGrad.addColorStop(0, `rgba(255, 50, 0, ${0.4 + Math.sin(s.glow * 2) * 0.2})`);
-  innerGrad.addColorStop(1, 'rgba(100, 0, 0, 0)');
-  ctx.fillStyle = innerGrad;
-  ctx.beginPath();
-  ctx.ellipse(s.x + s.w/2, s.y + s.h, s.w/2 - 6, s.h * 0.6, 0, Math.PI, 0);
-  ctx.fill();
-  // Label
-  ctx.fillStyle = '#f33';
-  ctx.font = 'bold 10px monospace';
+
+  // ── Full-road wall bar ──
+  // Left block: ROAD_LEFT → gap start
+  ctx.fillStyle = '#2a0000';
+  ctx.fillRect(ROAD_LEFT, wallY, WALL_GAP_X - ROAD_LEFT, WALL_THICK);
+  // Right block: gap end → ROAD_RIGHT
+  ctx.fillRect(WALL_GAP_X + WALL_GAP_W, wallY, ROAD_RIGHT - (WALL_GAP_X + WALL_GAP_W), WALL_THICK);
+
+  // Brick pattern on wall blocks
+  ctx.fillStyle = '#3d0000';
+  for (let bx = ROAD_LEFT; bx < WALL_GAP_X; bx += 16) {
+    ctx.fillRect(bx, wallY, 14, WALL_THICK / 2 - 1);
+    ctx.fillRect(bx + 8, wallY + WALL_THICK / 2, 14, WALL_THICK / 2 - 1);
+  }
+  for (let bx = WALL_GAP_X + WALL_GAP_W; bx < ROAD_RIGHT; bx += 16) {
+    ctx.fillRect(bx, wallY, 14, WALL_THICK / 2 - 1);
+    ctx.fillRect(bx + 8, wallY + WALL_THICK / 2, 14, WALL_THICK / 2 - 1);
+  }
+
+  // Wall top highlight
+  ctx.fillStyle = 'rgba(255,80,0,0.25)';
+  ctx.fillRect(ROAD_LEFT, wallY, WALL_GAP_X - ROAD_LEFT, 2);
+  ctx.fillRect(WALL_GAP_X + WALL_GAP_W, wallY, ROAD_RIGHT - (WALL_GAP_X + WALL_GAP_W), 2);
+
+  // "SEWER" label above arch
+  ctx.font = 'bold 11px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('SEWER', s.x + s.w/2, s.y - 5);
+  ctx.fillStyle = '#000';
+  ctx.fillText('SEWER', gapCX + 1, s.y + 1);
+  ctx.fillStyle = '#f55';
+  ctx.fillText('SEWER', gapCX, s.y);
 }
 
 function drawSprite(name, x, y, size) {
@@ -400,6 +431,14 @@ function drawHUD() {
 let lastSpawnTime = 0;
 
 function update(dt) {
+  // Auto-restart after wall death
+  if (state === 'wall_death') {
+    wallDeathTimer -= dt;
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
+    particles = particles.filter(p => p.life > 0);
+    if (wallDeathTimer <= 0) startGame();
+    return;
+  }
   if (state !== 'playing') return;
 
   gameTime += dt;
@@ -434,16 +473,8 @@ function update(dt) {
     spawnObstacle();
   }
 
-  // Update obstacles
-  obstacles.forEach(o => {
-    o.y += diff.scrollSpeed * dt;
-    // Lateral drift for later difficulty
-    if (o.driftSpeed) {
-      o.x += o.driftSpeed * o.driftDir * dt;
-      if (o.x < ROAD_LEFT) { o.x = ROAD_LEFT; o.driftDir = 1; }
-      if (o.x > ROAD_RIGHT - SPRITE_SIZE) { o.x = ROAD_RIGHT - SPRITE_SIZE; o.driftDir = -1; }
-    }
-  });
+  // Update obstacles (no drift - stay in lanes)
+  obstacles.forEach(o => { o.y += diff.scrollSpeed * dt; });
   obstacles = obstacles.filter(o => o.y < H + 50);
 
   // Sewer spawning at 2 minutes
@@ -452,18 +483,18 @@ function update(dt) {
     // Stop spawning obstacles
   }
 
-  // Update sewer
+  // Update sewer wall (scrolls down at half speed so player can reach it)
   if (sewerObj) {
-    sewerObj.y += diff.scrollSpeed * dt * 0.4; // Slower so player can reach it
+    sewerObj.y += diff.scrollSpeed * dt * 0.45;
   }
 
-  // Collision with obstacles
   const pBox = { x: player.x + 8, y: player.y + 8, w: SPRITE_SIZE - 16, h: SPRITE_SIZE - 16 };
+
+  // Collision with obstacles
   for (const o of obstacles) {
     const oBox = { x: o.x + 8, y: o.y + 8, w: SPRITE_SIZE - 16, h: SPRITE_SIZE - 16 };
     if (pBox.x < oBox.x + oBox.w && pBox.x + pBox.w > oBox.x &&
         pBox.y < oBox.y + oBox.h && pBox.y + pBox.h > oBox.y) {
-      // Death!
       state = 'dead';
       deathCount++;
       deathFlash = 0.5;
@@ -472,14 +503,22 @@ function update(dt) {
     }
   }
 
-  // Collision with sewer (win!)
-  if (sewerObj) {
-    const sx = sewerObj.x;
-    const sy = sewerObj.y;
-    if (pBox.x < sx + sewerObj.w - 10 && pBox.x + pBox.w > sx + 10 &&
-        pBox.y < sy + sewerObj.h && pBox.y + pBox.h > sy) {
-      state = 'win';
-      music.pause();
+  // Wall collision — player must enter the gap to win, hits the wall = auto-restart
+  if (sewerObj && state === 'playing') {
+    const wallTop = sewerObj.y + 60;  // tunnel arch sits above the wall line
+    const wallBot = wallTop + WALL_THICK;
+    const pCX = pBox.x + pBox.w / 2;
+    const inGap = pCX >= WALL_GAP_X && pCX <= WALL_GAP_X + WALL_GAP_W;
+    if (pBox.y < wallBot && pBox.y + pBox.h > wallTop) {
+      if (inGap) {
+        state = 'win';
+        music.pause();
+      } else {
+        state = 'wall_death';
+        wallDeathTimer = 1.2;
+        deathCount++;
+        spawnDeathParticles(player.x, player.y);
+      }
     }
   }
 
@@ -500,7 +539,8 @@ function render() {
   const scrollSpeed = state === 'playing' ? getDifficulty().scrollSpeed : 100;
   const dt = 1 / 60;
 
-  drawBackground(dt, state === 'playing' || state === 'dead' ? scrollSpeed : (state === 'title' ? 50 : 0));
+  const isActive = state === 'playing' || state === 'dead' || state === 'wall_death';
+  drawBackground(dt, isActive ? scrollSpeed : (state === 'title' ? 50 : 0));
 
   if (state === 'title') {
     // Darken
@@ -520,29 +560,23 @@ function render() {
     return;
   }
 
-  if (state === 'playing' || state === 'dead') {
-    // Draw sewer
+  if (state === 'playing' || state === 'dead' || state === 'wall_death') {
     drawSewer();
 
-    // Draw obstacles
-    obstacles.forEach(o => {
-      drawSprite(o.sprite, o.x, o.y, SPRITE_SIZE);
-    });
+    obstacles.forEach(o => { drawSprite(o.sprite, o.x, o.y, SPRITE_SIZE); });
 
-    // Draw player (flash when recently died)
     if (state === 'playing') {
       drawSprite('Character', player.x, player.y, SPRITE_SIZE);
     }
 
-    // Death particles
+    // Particles
     particles.forEach(p => {
-      ctx.globalAlpha = p.life;
+      ctx.globalAlpha = Math.max(0, p.life);
       ctx.fillStyle = p.color;
       ctx.fillRect(p.x, p.y, p.size, p.size);
     });
     ctx.globalAlpha = 1;
 
-    // Death flash
     if (deathFlash > 0) {
       ctx.fillStyle = `rgba(255, 0, 0, ${deathFlash * 0.6})`;
       ctx.fillRect(0, 0, W, H);
@@ -550,12 +584,21 @@ function render() {
 
     drawHUD();
 
-    // Death overlay
     if (state === 'dead') {
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(0, H / 2 - 60, W, 120);
       drawPixelText('WASTED', W / 2, H / 2 - 20, 36, '#f33');
       drawPixelText('Press ENTER or Tap to respawn', W / 2, H / 2 + 25, 13, '#ccc');
+    }
+
+    if (state === 'wall_death') {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, H / 2 - 50, W, 100);
+      drawPixelText('YOU HIT THE WALL', W / 2, H / 2 - 15, 26, '#f33');
+      const restartPulse = Math.sin(performance.now() / 150) * 0.3 + 0.7;
+      ctx.globalAlpha = restartPulse;
+      drawPixelText('RESTARTING...', W / 2, H / 2 + 25, 16, '#fa0');
+      ctx.globalAlpha = 1;
     }
   }
 
