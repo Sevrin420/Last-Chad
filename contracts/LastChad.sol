@@ -58,6 +58,7 @@ contract LastChad is ERC721, Ownable {
         for (uint256 i = 0; i < quantity; i++) {
             totalSupply++;
             _safeMint(msg.sender, totalSupply);
+            _tokenCells[totalSupply] = 5;
         }
     }
 

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ol' Jipt's Gamble — Last Chad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 100vw; height: 100vh; overflow: hidden;
+      background: #0a0a0f;
+      font-family: 'Press Start 2P', monospace;
+      color: #ffe96a;
+    }
+
+    /* ── Background ── */
+    #bg {
+      position: fixed; inset: 0; z-index: 0;
+      background: url('assets/oldjipt/oldjiptcoin.jpg') center/cover no-repeat;
+      filter: blur(12px) brightness(0.6);
+      transition: filter 1.2s ease;
+    }
+    #bg.revealed { filter: blur(0px) brightness(1); }
+    #bg.dimmed    { filter: blur(0px) brightness(0.35); }
+
+    /* ── Enter The Den overlay ── */
+    #enter-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.8s ease;
+    }
+    #enter-overlay.hidden { opacity: 0; pointer-events: none; }
+
+    #enter-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+      color: #ffaa40;
+      background: rgba(10, 10, 15, 0.75);
+      border: 2px solid #ffaa40;
+      padding: 1.2em 2em; cursor: pointer;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 12px #ffaa40, 0 0 24px rgba(255,150,30,0.5);
+      box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05);
+      animation: den-pulse 2s ease-in-out infinite;
+      transition: transform 0.15s ease;
+    }
+    #enter-btn:hover { transform: scale(1.06); }
+    @keyframes den-pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05); }
+      50%       { box-shadow: 0 0 40px rgba(255,150,30,0.6), inset 0 0 30px rgba(255,150,30,0.12); }
+    }
+
+    /* ── Wallet button ── */
+    #wallet-bar {
+      position: fixed; top: 12px; right: 12px; z-index: 300;
+    }
+    #wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem; color: #ffe96a;
+      background: rgba(10,10,15,0.85); border: 1px solid #ffe96a;
+      padding: 0.6em 1em; cursor: pointer;
+      text-shadow: 0 0 6px #ffe96a;
+    }
+    #wallet-btn:hover { background: rgba(255,233,106,0.15); }
+
+    /* Wallet dropdown */
+    #wallet-dropdown {
+      display: none; position: absolute; top: 100%; right: 0;
+      margin-top: 4px; background: rgba(10,10,15,0.95);
+      border: 1px solid #ffe96a; min-width: 160px; z-index: 301;
+    }
+    #wallet-dropdown.open { display: block; }
+    .wallet-option {
+      display: block; width: 100%; padding: 0.6em 0.8em;
+      font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
+      color: #ffe96a; background: transparent; border: none;
+      border-bottom: 1px solid rgba(255,233,106,0.2);
+      cursor: pointer; text-align: left;
+    }
+    .wallet-option:hover { background: rgba(255,233,106,0.15); }
+    .wallet-option:last-child { border-bottom: none; }
+
+    /* ── Dialogue box — bottom third ── */
+    #dialogue-box {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 33.33vh; z-index: 100;
+      background: linear-gradient(180deg, rgba(15,10,5,0.92) 0%, rgba(10,8,4,0.98) 100%);
+      border-top: 2px solid #c9a84c;
+      display: flex; flex-direction: column;
+      padding: 1.5em 2em; overflow: hidden;
+    }
+
+    #dialogue-text {
+      flex: 1; overflow-y: auto;
+      font-size: clamp(0.55rem, 1.4vw, 0.75rem);
+      line-height: 2;
+      color: #ffe96a;
+      text-shadow: 0 0 8px rgba(255,233,106,0.4);
+    }
+
+    #dialogue-text .npc-name {
+      color: #ffaa40; font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+      margin-bottom: 0.4em; display: block;
+    }
+
+    /* ── Choice buttons ── */
+    #choices {
+      display: flex; gap: 1em; margin-top: 0.8em;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .choice-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.45rem, 1.1vw, 0.6rem);
+      color: #ffe96a; background: rgba(201,168,76,0.12);
+      border: 1px solid #c9a84c; padding: 0.8em 1.4em;
+      cursor: pointer;
+      text-shadow: 0 0 6px rgba(201,168,76,0.5);
+      box-shadow: 0 0 12px rgba(201,168,76,0.2);
+      transition: all 0.2s ease;
+    }
+    .choice-btn:hover {
+      background: rgba(201,168,76,0.25);
+      box-shadow: 0 0 20px rgba(201,168,76,0.4);
+      transform: scale(1.04);
+    }
+
+    /* ── NFT selection grid ── */
+    #nft-grid {
+      display: flex; gap: 0.8em; flex-wrap: wrap;
+      justify-content: center; margin-top: 0.6em;
+      max-height: 18vh; overflow-y: auto;
+    }
+    .nft-card {
+      width: 80px; height: 100px; border: 2px solid #555;
+      border-radius: 6px; cursor: pointer; position: relative;
+      overflow: hidden; transition: all 0.2s ease;
+      background: rgba(0,0,0,0.5);
+    }
+    .nft-card img {
+      width: 100%; height: 70%; object-fit: cover;
+      image-rendering: pixelated;
+    }
+    .nft-card .nft-id {
+      font-size: 0.4rem; text-align: center;
+      padding: 2px; color: #ffe96a;
+    }
+    .nft-card:hover { border-color: #ffaa40; transform: scale(1.06); }
+    .nft-card.selected {
+      border-color: #ffaa40;
+      box-shadow: 0 0 14px rgba(255,170,64,0.5);
+    }
+
+    /* ── Selected Chad display ── */
+    #selected-chad {
+      display: flex; align-items: center; gap: 1.2em;
+      margin-top: 0.6em;
+    }
+    #selected-chad img {
+      width: 90px; height: 90px; border: 2px solid #c9a84c;
+      border-radius: 6px; image-rendering: pixelated;
+      object-fit: cover;
+    }
+    #chad-info {
+      font-size: clamp(0.5rem, 1.2vw, 0.65rem);
+      line-height: 2.2;
+    }
+    #chad-info .cells-count {
+      color: #6dffaa;
+      font-size: clamp(0.6rem, 1.4vw, 0.75rem);
+    }
+
+    /* ── Wager slider ── */
+    #wager-section {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0.5em; margin-top: 0.6em;
+    }
+    #wager-label {
+      font-size: clamp(0.5rem, 1.2vw, 0.65rem);
+      color: #ffaa40;
+    }
+    #wager-slider {
+      width: 60%; max-width: 400px;
+      accent-color: #ffaa40;
+    }
+    #wager-amount {
+      font-size: clamp(0.65rem, 1.6vw, 0.85rem);
+      color: #6dffaa;
+    }
+
+    /* ── Video overlay ── */
+    #video-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.95);
+      align-items: center; justify-content: center;
+    }
+    #video-overlay.active { display: flex; }
+    #video-overlay video {
+      max-width: 80vw; max-height: 70vh;
+      border: 2px solid #c9a84c;
+    }
+
+    /* ── Result text ── */
+    #result-overlay {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      align-items: center; justify-content: center;
+      flex-direction: column;
+      background: rgba(0,0,0,0.9);
+    }
+    #result-overlay.active { display: flex; }
+    #result-text {
+      font-size: clamp(2rem, 8vw, 5rem);
+      text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+      animation: result-pulse 0.6s ease-in-out infinite alternate;
+    }
+    #result-text.win { color: #6dffaa; }
+    #result-text.lose { color: #e53935; }
+    @keyframes result-pulse {
+      from { transform: scale(1); }
+      to   { transform: scale(1.08); }
+    }
+
+    /* ── Loading spinner ── */
+    .loading {
+      color: #ffaa40; font-size: 0.6rem;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* ── Nav ── */
+    .nav-wrapper { position: fixed; top: 12px; left: 12px; z-index: 300; }
+  </style>
+</head>
+<body>
+
+  <div id="bg"></div>
+
+  <!-- Enter The Den overlay -->
+  <div id="enter-overlay">
+    <button id="enter-btn">ENTER THE DEN</button>
+  </div>
+
+  <!-- Background music -->
+  <audio id="bg-music" src="music/adventure.mp3" loop></audio>
+
+  <!-- Wallet -->
+  <div id="wallet-bar">
+    <button id="wallet-btn" onclick="toggleWalletDropdown()">CONNECT</button>
+    <div id="wallet-dropdown">
+      <button class="wallet-option" onclick="doConnect('rabby')">Rabby</button>
+      <button class="wallet-option" onclick="doConnect('core')">Core</button>
+      <button class="wallet-option" onclick="doConnect('metamask')">MetaMask</button>
+      <button class="wallet-option" onclick="doConnect('walletconnect')">WalletConnect</button>
+    </div>
+  </div>
+
+  <!-- Dialogue -->
+  <div id="dialogue-box">
+    <div id="dialogue-text"></div>
+    <div id="choices"></div>
+  </div>
+
+  <!-- Video overlay -->
+  <div id="video-overlay">
+    <video id="flip-video" playsinline>
+      <source src="assets/oldjipt/oldjiptvid.mp4" type="video/mp4" />
+    </video>
+  </div>
+
+  <!-- Result overlay -->
+  <div id="result-overlay">
+    <div id="result-text"></div>
+  </div>
+
+  <!-- Sound effects -->
+  <audio id="sfx-win" src="sound effects/youwin.wav" preload="auto"></audio>
+  <audio id="sfx-lose" src="sound effects/youlose.wav" preload="auto"></audio>
+
+  <!-- Nav -->
+  <div id="nav-placeholder"></div>
+
+  <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+  <script type="module">
+    import { connectWallet, autoReconnect, disconnect,
+             getSigner, getUserAddress, truncateAddress } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC } from './js/config.js';
+
+    // ── Music & Enter ──
+    const bgMusic    = document.getElementById('bg-music');
+    const enterOverlay = document.getElementById('enter-overlay');
+    bgMusic.volume = 0.45;
+
+    document.getElementById('enter-btn').addEventListener('click', () => {
+      bg.classList.add('revealed');
+      enterOverlay.classList.add('hidden');
+      bgMusic.play().catch(() => {});
+    });
+
+    function duckMusic(targetVol = 0.08, ms = 400) {
+      const step = (bgMusic.volume - targetVol) / (ms / 30);
+      const t = setInterval(() => {
+        bgMusic.volume = Math.max(targetVol, +(bgMusic.volume - step).toFixed(3));
+        if (bgMusic.volume <= targetVol) clearInterval(t);
+      }, 30);
+    }
+
+    function restoreMusic(targetVol = 0.45, ms = 800) {
+      const step = (targetVol - bgMusic.volume) / (ms / 30);
+      const t = setInterval(() => {
+        bgMusic.volume = Math.min(targetVol, +(bgMusic.volume + step).toFixed(3));
+        if (bgMusic.volume >= targetVol) clearInterval(t);
+      }, 30);
+    }
+
+    // ── State ──
+    let selectedTokenId = null;
+    let selectedCells   = 0;
+    let wagerAmount     = 0;
+
+    const CONTRACT_ABI = [
+      ...LASTCHAD_ABI,
+      'function totalSupply() view returns (uint256)',
+      'function ownerOf(uint256 tokenId) view returns (address)',
+      'function tokenURI(uint256 tokenId) view returns (string)',
+      'function balanceOf(address owner) view returns (uint256)',
+    ];
+
+    // ── DOM refs ──
+    const dialogueText = document.getElementById('dialogue-text');
+    const choicesDiv   = document.getElementById('choices');
+    const walletBtn    = document.getElementById('wallet-btn');
+    const walletDrop   = document.getElementById('wallet-dropdown');
+    const bg           = document.getElementById('bg');
+
+    // ── Wallet ──
+    window.toggleWalletDropdown = () => walletDrop.classList.toggle('open');
+    window.doConnect = async (name) => {
+      walletDrop.classList.remove('open');
+      await connectWallet(name, {
+        onConnected: (addr) => {
+          walletBtn.textContent = truncateAddress(addr);
+          showIntro();
+        },
+        onDisconnected: () => {
+          walletBtn.textContent = 'CONNECT';
+        }
+      });
+    };
+
+    // ── Typewriter ──
+    function typewrite(el, text, speed = 40) {
+      return new Promise(resolve => {
+        let i = 0;
+        el.textContent = '';
+        const timer = setInterval(() => {
+          el.textContent += text[i];
+          i++;
+          if (i >= text.length) { clearInterval(timer); resolve(); }
+        }, speed);
+      });
+    }
+
+    // ── Dialogue helpers ──
+    function clearDialogue() {
+      dialogueText.innerHTML = '';
+      choicesDiv.innerHTML = '';
+    }
+
+    async function showNpcText(lines) {
+      clearDialogue();
+      const nameEl = document.createElement('span');
+      nameEl.className = 'npc-name';
+      nameEl.textContent = "Ol' Jipt:";
+      dialogueText.appendChild(nameEl);
+
+      for (const line of lines) {
+        const p = document.createElement('p');
+        dialogueText.appendChild(p);
+        await typewrite(p, line, 35);
+        await delay(300);
+      }
+    }
+
+    function showChoices(options) {
+      choicesDiv.innerHTML = '';
+      for (const opt of options) {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = opt.label;
+        btn.addEventListener('click', opt.action);
+        choicesDiv.appendChild(btn);
+      }
+    }
+
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ── Flow: Intro ──
+    async function showIntro() {
+      bg.classList.remove('dimmed');
+      await showNpcText([
+        "So you've come to see ol' Jipt eh?",
+        "How's about we play a game o' chance?"
+      ]);
+      showChoices([
+        { label: "Let's flip old man", action: startCoinFlip },
+        { label: "Let's shoot dice ya crazy bastard", action: () => {
+          clearDialogue();
+          const p = document.createElement('p');
+          p.style.color = '#ffaa40';
+          p.textContent = "Dice comin' soon... pick a flip for now!";
+          dialogueText.appendChild(p);
+          showChoices([
+            { label: "Let's flip old man", action: startCoinFlip },
+          ]);
+        }}
+      ]);
+    }
+
+    // ── Flow: Select NFT ──
+    async function startCoinFlip() {
+      clearDialogue();
+      const addr = getUserAddress();
+      if (!addr) {
+        const p = document.createElement('p');
+        p.textContent = 'Connect your wallet first!';
+        p.style.color = '#e53935';
+        dialogueText.appendChild(p);
+        return;
+      }
+
+      const loadMsg = document.createElement('p');
+      loadMsg.className = 'loading';
+      loadMsg.textContent = 'Loading your Chads...';
+      dialogueText.appendChild(loadMsg);
+
+      // Fetch owned NFTs
+      const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+
+      let totalSupply;
+      try {
+        totalSupply = (await contract.totalSupply()).toNumber();
+      } catch (e) {
+        loadMsg.textContent = 'Error loading NFTs: ' + e.message;
+        loadMsg.style.color = '#e53935';
+        return;
+      }
+
+      const ownedTokens = [];
+      for (let id = 1; id <= totalSupply; id++) {
+        try {
+          const owner = await contract.ownerOf(id);
+          if (owner.toLowerCase() === addr.toLowerCase()) {
+            const cells = (await contract.getCells(id)).toNumber();
+            ownedTokens.push({ id, cells });
+          }
+        } catch (e) { /* burned or error */ }
+      }
+
+      loadMsg.remove();
+
+      if (ownedTokens.length === 0) {
+        const p = document.createElement('p');
+        p.textContent = "You don't own any Chads! Go mint one first.";
+        p.style.color = '#e53935';
+        dialogueText.appendChild(p);
+        return;
+      }
+
+      if (ownedTokens.every(t => t.cells <= 0)) {
+        await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
+        return;
+      }
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'npc-name';
+      nameEl.textContent = "Ol' Jipt:";
+      dialogueText.appendChild(nameEl);
+
+      const prompt = document.createElement('p');
+      await typewrite(prompt, "Pick your Chad, brave soul...", 35);
+      dialogueText.appendChild(prompt);
+
+      // Show NFT grid
+      const grid = document.createElement('div');
+      grid.id = 'nft-grid';
+      dialogueText.appendChild(grid);
+
+      for (const token of ownedTokens) {
+        const card = document.createElement('div');
+        card.className = 'nft-card';
+        card.innerHTML = `
+          <img src="assets/chads/${token.id}.png" alt="Chad #${token.id}" />
+          <div class="nft-id">#${token.id} (${token.cells} cells)</div>
+        `;
+        card.addEventListener('click', () => selectChad(token, ownedTokens));
+        grid.appendChild(card);
+      }
+    }
+
+    // ── Flow: Chad selected → show wager ──
+    function selectChad(token, allTokens) {
+      selectedTokenId = token.id;
+      selectedCells = token.cells;
+
+      // Highlight selected card
+      document.querySelectorAll('.nft-card').forEach((c, i) => {
+        c.classList.toggle('selected', allTokens[i].id === token.id);
+      });
+
+      // Remove old selected-chad and wager sections
+      const oldSel = document.getElementById('selected-chad');
+      if (oldSel) oldSel.remove();
+      const oldWager = document.getElementById('wager-section');
+      if (oldWager) oldWager.remove();
+      choicesDiv.innerHTML = '';
+
+      if (token.cells <= 0) {
+        await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
+        return;
+      }
+
+      // Show selected chad
+      const sel = document.createElement('div');
+      sel.id = 'selected-chad';
+      sel.innerHTML = `
+        <img src="assets/chads/${token.id}.png" alt="Chad #${token.id}" />
+        <div id="chad-info">
+          <div>Chad #${token.id}</div>
+          <div class="cells-count">${token.cells} cells</div>
+        </div>
+      `;
+      dialogueText.appendChild(sel);
+
+      // Show wager slider
+      const wagerSec = document.createElement('div');
+      wagerSec.id = 'wager-section';
+      wagerSec.innerHTML = `
+        <div id="wager-label">WAGER CELLS</div>
+        <input type="range" id="wager-slider" min="1" max="${token.cells}" value="1" />
+        <div id="wager-amount">1 cell</div>
+      `;
+      dialogueText.appendChild(wagerSec);
+
+      const slider = document.getElementById('wager-slider');
+      const amountDisplay = document.getElementById('wager-amount');
+      slider.addEventListener('input', () => {
+        wagerAmount = parseInt(slider.value);
+        amountDisplay.textContent = wagerAmount + (wagerAmount === 1 ? ' cell' : ' cells');
+      });
+      wagerAmount = 1;
+
+      showChoices([
+        { label: "LET'S FLIP!", action: recordWagerAndFlip }
+      ]);
+    }
+
+    // ── Flow: Record wager on-chain → flip ──
+    async function recordWagerAndFlip() {
+      choicesDiv.innerHTML = '';
+      const signer = getSigner();
+      if (!signer) { alert('Wallet not connected!'); return; }
+
+      const statusEl = document.createElement('p');
+      statusEl.className = 'loading';
+      statusEl.textContent = 'Recording wager on-chain...';
+      dialogueText.appendChild(statusEl);
+
+      try {
+        // Spend cells for the wager (escrow them)
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        const tx = await contract.spendCells(selectedTokenId, wagerAmount);
+        statusEl.textContent = 'Waiting for confirmation...';
+        await tx.wait();
+        statusEl.remove();
+
+        // Show "here goes nothing"
+        clearDialogue();
+        const nameEl = document.createElement('span');
+        nameEl.className = 'npc-name';
+        nameEl.textContent = "Ol' Jipt:";
+        dialogueText.appendChild(nameEl);
+        const hereGoes = document.createElement('p');
+        dialogueText.appendChild(hereGoes);
+        await typewrite(hereGoes, "Here goes nothing...", 50);
+        await delay(800);
+
+        // Play coin flip video
+        bg.classList.add('dimmed');
+        const videoOverlay = document.getElementById('video-overlay');
+        const video = document.getElementById('flip-video');
+        videoOverlay.classList.add('active');
+        video.currentTime = 0;
+        video.play();
+        duckMusic(0.08);
+
+        // Determine result using on-chain tx hash + local crypto nonce (same pattern as QuestRewards server nonce)
+        // On-chain entropy: tx hash (includes block.hash, nonce, gas data)
+        // Local entropy: crypto.getRandomValues — unpredictable by miner
+        const localNonce = crypto.getRandomValues(new Uint8Array(32));
+        const localHex = Array.from(localNonce).map(b => b.toString(16).padStart(2, '0')).join('');
+        const combined = tx.hash.slice(2) + localHex; // strip 0x then concat
+        // Hash the combined seed with TextEncoder → SHA-256 for uniform distribution
+        const msgBuf = new TextEncoder().encode(combined);
+        const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
+        const hashArr = new Uint8Array(hashBuf);
+        // Take first 4 bytes as uint32, mod 100 → 40% win threshold
+        const roll = ((hashArr[0] << 24) | (hashArr[1] << 16) | (hashArr[2] << 8) | hashArr[3]) >>> 0;
+        const win = (roll % 100) < 40; // 40% win, 60% lose
+
+        video.addEventListener('ended', async () => {
+          videoOverlay.classList.remove('active');
+          restoreMusic(0.45, 200); // brief restore before SFX immediately ducks again
+          await showResult(win);
+        }, { once: true });
+
+        // Fallback if video fails to load
+        video.addEventListener('error', async () => {
+          videoOverlay.classList.remove('active');
+          restoreMusic(0.45, 200);
+          await delay(1500);
+          await showResult(win);
+        }, { once: true });
+
+      } catch (err) {
+        statusEl.remove();
+        const errP = document.createElement('p');
+        errP.textContent = 'Transaction failed: ' + (err.reason || err.message);
+        errP.style.color = '#e53935';
+        dialogueText.appendChild(errP);
+        showChoices([
+          { label: "Try again", action: recordWagerAndFlip },
+          { label: "Pick another Chad", action: startCoinFlip },
+        ]);
+      }
+    }
+
+    // ── Flow: Show result ──
+    async function showResult(win) {
+      const resultOverlay = document.getElementById('result-overlay');
+      const resultText = document.getElementById('result-text');
+
+      if (win) {
+        // Award double cells (wager was already spent, so award 2x)
+        try {
+          const signer = getSigner();
+          const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+          const tx = await contract.awardCells(selectedTokenId, wagerAmount * 2);
+          await tx.wait();
+        } catch (e) {
+          console.error('Failed to award cells:', e);
+        }
+
+        resultText.textContent = 'YOU WIN!';
+        resultText.className = 'win';
+        duckMusic(0.06);
+        const sfxWin = document.getElementById('sfx-win');
+        sfxWin.play().catch(() => {});
+        sfxWin.onended = () => restoreMusic();
+      } else {
+        // Cells already spent — they just don't come back
+        resultText.textContent = 'YOU LOSE';
+        resultText.className = 'lose';
+        duckMusic(0.06);
+        const sfxLose = document.getElementById('sfx-lose');
+        sfxLose.play().catch(() => {});
+        sfxLose.onended = () => restoreMusic();
+      }
+
+      resultOverlay.classList.add('active');
+      await delay(3000);
+      resultOverlay.classList.remove('active');
+
+      // Return to Jipt
+      await showPlayAgain(win);
+    }
+
+    // ── Flow: Play again ──
+    async function showPlayAgain(lastWin) {
+      bg.classList.remove('dimmed');
+      await showNpcText([
+        "Well that was fun...",
+        "Play again?"
+      ]);
+      showChoices([
+        { label: "Let's flip old man", action: startCoinFlip },
+        { label: "Let's shoot dice ya crazy bastard", action: () => {
+          clearDialogue();
+          const p = document.createElement('p');
+          p.style.color = '#ffaa40';
+          p.textContent = "Dice comin' soon... pick a flip for now!";
+          dialogueText.appendChild(p);
+          showChoices([
+            { label: "Let's flip old man", action: startCoinFlip },
+          ]);
+        }}
+      ]);
+    }
+
+    // ── Init ──
+    autoReconnect({
+      onConnected: (addr) => {
+        walletBtn.textContent = truncateAddress(addr);
+        showIntro();
+      },
+      onDisconnected: () => { walletBtn.textContent = 'CONNECT'; }
+    });
+
+    // Show intro even without wallet
+    if (!getUserAddress()) {
+      showIntro();
+    }
+  </script>
+  <script src="nav.js"></script>
+</body>
+</html>

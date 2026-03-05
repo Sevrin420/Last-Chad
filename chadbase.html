@@ -210,6 +210,21 @@
       0%, 100% { opacity: 0.55; }
       50%       { opacity: 1.0; }
     }
+
+    /* ── Bottom-right — Gamble — ORANGE ── */
+    .zone-gamble { right: 1%; bottom: 4%; width: 24%; height: 26%; }
+    .zone-gamble .zone-label { color: #ffaa40; }
+    .zone-gamble::before {
+      background: radial-gradient(ellipse at center,
+        rgba(255, 150, 30, 0.58) 0%,
+        rgba(255, 150, 30, 0.22) 45%,
+        transparent 70%);
+      animation: pulse-orange 2.4s ease-in-out infinite;
+    }
+    @keyframes pulse-orange {
+      0%, 100% { opacity: 0.55; }
+      50%       { opacity: 1.0; }
+    }
   </style>
 </head>
 <body>
@@ -239,6 +254,11 @@
     <!-- Boxes left of pot — Docs -->
     <a class="zone zone-docs" href="docs.html">
       <span class="zone-label">DOCS</span>
+    </a>
+
+    <!-- Bottom-right — Gamble -->
+    <a class="zone zone-gamble" href="gamble.html">
+      <span class="zone-label">GAMBLE</span>
     </a>
   </div>
 
