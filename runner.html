@@ -85,6 +85,8 @@ const SPRITE_SIZE = 48;
 let state = 'title'; // title, playing, dead, win
 let player = { lane: 2, x: 0, y: 0, targetX: 0, moveSpeed: 8 };
 let obstacles = [];
+let enemies = [];
+let lastEnemySpawnTime = 0;
 let bgOffset = 0;
 let gameTime = 0;
 let lastTime = 0;
@@ -154,12 +156,14 @@ function startGame() {
   player.y = H - 90;
   player.targetX = player.x;
   obstacles = [];
+  enemies = [];
   gameTime = 0;
   sewerSpawned = false;
   sewerObj = null;
   deathCount = 0;
   particles = [];
   lastSpawnTime = 0;
+  lastEnemySpawnTime = 0;
   music.currentTime = 0;
   music.play().catch(() => {});
   startTime = performance.now();
@@ -172,8 +176,8 @@ function respawn() {
   player.y = H - 90;
   player.targetX = player.x;
   deathFlash = 0;
-  // Clear nearby obstacles so player doesn't instantly die
   obstacles = obstacles.filter(o => o.y < H - 180);
+  enemies = enemies.filter(e => e.y < H - 180);
 }
 
 function spawnObstacle() {
@@ -211,6 +215,17 @@ function spawnSewer() {
     y: -120,     // top of the whole structure
     glow: 0
   };
+}
+
+const ENEMY_SPRITES = ['Enemy_01', 'Enemy_02', 'Enemy_03'];
+function spawnEnemy() {
+  const lane = Math.floor(Math.random() * LANE_COUNT);
+  enemies.push({
+    x: laneToX(lane),
+    y: -SPRITE_SIZE,
+    sprite: ENEMY_SPRITES[Math.floor(Math.random() * ENEMY_SPRITES.length)],
+    chaseSpeed: 55 + Math.random() * 45   // px/s lateral chase speed
+  });
 }
 
 // ── Particles ──
@@ -473,9 +488,29 @@ function update(dt) {
     spawnObstacle();
   }
 
+  // Spawn enemies (one at a time, every 6s early → 3s late)
+  lastEnemySpawnTime += dt;
+  const enemySpawnRate = Math.max(3, 6 - (gameTime / GAME_DURATION) * 3);
+  if (lastEnemySpawnTime >= enemySpawnRate && !sewerSpawned) {
+    lastEnemySpawnTime = 0;
+    spawnEnemy();
+  }
+
   // Update obstacles (no drift - stay in lanes)
   obstacles.forEach(o => { o.y += diff.scrollSpeed * dt; });
   obstacles = obstacles.filter(o => o.y < H + 50);
+
+  // Update enemies — scroll down and home toward player X
+  enemies.forEach(e => {
+    e.y += diff.scrollSpeed * dt;
+    const targetX = player.x;
+    const edx = targetX - e.x;
+    const step = e.chaseSpeed * dt;
+    e.x += Math.abs(edx) > step ? Math.sign(edx) * step : edx;
+    // clamp to road
+    e.x = Math.max(ROAD_LEFT, Math.min(ROAD_RIGHT - SPRITE_SIZE, e.x));
+  });
+  enemies = enemies.filter(e => e.y < H + 50);
 
   // Sewer spawning at 2 minutes
   if (gameTime >= GAME_DURATION && !sewerSpawned) {
@@ -500,6 +535,21 @@ function update(dt) {
       deathFlash = 0.5;
       spawnDeathParticles(player.x, player.y);
       break;
+    }
+  }
+
+  // Enemy collision
+  if (state === 'playing') {
+    for (const e of enemies) {
+      const eBox = { x: e.x + 6, y: e.y + 6, w: SPRITE_SIZE - 12, h: SPRITE_SIZE - 12 };
+      if (pBox.x < eBox.x + eBox.w && pBox.x + pBox.w > eBox.x &&
+          pBox.y < eBox.y + eBox.h && pBox.y + pBox.h > eBox.y) {
+        state = 'dead';
+        deathCount++;
+        deathFlash = 0.5;
+        spawnDeathParticles(player.x, player.y);
+        break;
+      }
     }
   }
 
@@ -564,6 +614,18 @@ function render() {
     drawSewer();
 
     obstacles.forEach(o => { drawSprite(o.sprite, o.x, o.y, SPRITE_SIZE); });
+
+    // Draw enemies with a red tint indicator
+    enemies.forEach(e => {
+      ctx.save();
+      // Red overlay to distinguish from obstacles
+      ctx.globalCompositeOperation = 'source-over';
+      drawSprite(e.sprite, e.x, e.y, SPRITE_SIZE);
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = 'rgba(255, 80, 80, 0.45)';
+      ctx.fillRect(e.x, e.y, SPRITE_SIZE, SPRITE_SIZE);
+      ctx.restore();
+    });
 
     if (state === 'playing') {
       drawSprite('Character', player.x, player.y, SPRITE_SIZE);
