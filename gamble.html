@@ -12,25 +12,39 @@
 
     body {
       width: 100vw; height: 100vh; overflow: hidden;
-      background: #0a0a0f;
+      background-color: #3b2a14;
+      background-image:
+        linear-gradient(45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
+        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
       font-family: 'Press Start 2P', monospace;
       color: #ffe96a;
     }
 
-    /* ── Background ── */
-    #bg {
-      position: fixed; inset: 0; z-index: 0;
-      background: url('oldjipt/oldjiptcoin.jpg') center/cover no-repeat;
-      filter: blur(12px) brightness(0.6);
-      transition: filter 1.2s ease;
+    /* ── Jipt portrait image ── */
+    #jipt-image {
+      position: fixed;
+      bottom: 43vh;
+      left: 50%;
+      transform: translateX(-50%);
+      max-height: 52vh;
+      max-width: 88vw;
+      object-fit: contain;
+      z-index: 50;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+      image-rendering: pixelated;
     }
-    #bg.revealed { filter: blur(0px) brightness(1); }
-    #bg.dimmed    { filter: blur(0px) brightness(0.35); }
+    #jipt-image.visible { opacity: 1; }
 
     /* ── Enter The Den overlay ── */
     #enter-overlay {
       position: fixed; inset: 0; z-index: 500;
       display: flex; align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
       transition: opacity 0.8s ease;
     }
     #enter-overlay.hidden { opacity: 0; pointer-events: none; }
@@ -89,10 +103,10 @@
     .wallet-option:hover { background: rgba(255,233,106,0.15); }
     .wallet-option:last-child { border-bottom: none; }
 
-    /* ── Dialogue box — bottom third ── */
+    /* ── Dialogue box — bottom section ── */
     #dialogue-box {
       position: fixed; bottom: 0; left: 0; right: 0;
-      height: 33.33vh; z-index: 100;
+      height: 42vh; z-index: 100;
       background: linear-gradient(180deg, rgba(15,10,5,0.92) 0%, rgba(10,8,4,0.98) 100%);
       border-top: 2px solid #c9a84c;
       display: flex; flex-direction: column;
@@ -250,7 +264,8 @@
 </head>
 <body>
 
-  <div id="bg"></div>
+  <!-- Jipt portrait — fades in after entering -->
+  <img id="jipt-image" src="assets/oldjipt/oldjiptcoin.jpg" alt="Ol' Jipt" />
 
   <!-- Enter The Den overlay -->
   <div id="enter-overlay">
@@ -303,7 +318,7 @@
     import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC } from './js/config.js';
 
     // ── Music & Enter ──
-    const bg         = document.getElementById('bg');
+    const jiptImage  = document.getElementById('jipt-image');
     const bgMusic    = document.getElementById('bg-music');
     const enterOverlay = document.getElementById('enter-overlay');
     const dialogueBox = document.getElementById('dialogue-box');
@@ -311,16 +326,18 @@
     let hasEntered = false;
 
     document.getElementById('enter-btn').addEventListener('click', async () => {
-      bg.classList.add('revealed');
       enterOverlay.classList.add('hidden');
       bgMusic.play().catch(() => {});
       hasEntered = true;
 
-      // Wait for background fade-in, then show wallet + dialogue
-      await delay(1000);
+      // Fade in jipt image immediately
+      jiptImage.classList.add('visible');
+
+      // After image fades in, show wallet + dialogue
+      await delay(900);
       document.getElementById('wallet-bar').classList.add('visible');
       dialogueBox.classList.add('visible');
-      await delay(300);
+      await delay(400);
       showIntro();
     });
 
@@ -423,7 +440,6 @@
 
     // ── Flow: Intro ──
     async function showIntro() {
-      bg.classList.remove('dimmed');
       await showNpcText([
         "So you've come to see ol' Jipt eh?",
         "How's about we play a game o' chance?"
@@ -615,7 +631,6 @@
         await delay(800);
 
         // Play coin flip video
-        bg.classList.add('dimmed');
         const videoOverlay = document.getElementById('video-overlay');
         const video = document.getElementById('flip-video');
         videoOverlay.classList.add('active');
@@ -706,7 +721,6 @@
 
     // ── Flow: Play again ──
     async function showPlayAgain(lastWin) {
-      bg.classList.remove('dimmed');
       await showNpcText([
         "Well that was fun...",
         "Play again?"
