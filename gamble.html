@@ -49,6 +49,7 @@
       transition: transform 0.15s ease;
     }
     #enter-btn:hover { transform: scale(1.06); }
+    #enter-btn:focus { outline: none; }
     @keyframes den-pulse {
       0%, 100% { box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05); }
       50%       { box-shadow: 0 0 40px rgba(255,150,30,0.6), inset 0 0 30px rgba(255,150,30,0.12); }
@@ -291,6 +292,7 @@
     import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC } from './js/config.js';
 
     // ── Music & Enter ──
+    const bg         = document.getElementById('bg');
     const bgMusic    = document.getElementById('bg-music');
     const enterOverlay = document.getElementById('enter-overlay');
     bgMusic.volume = 0.45;
