@@ -24,6 +24,21 @@
       color: #ffe96a;
     }
 
+    /* ── Jipt portrait image ── */
+    #jipt-image {
+      position: fixed;
+      bottom: 43vh;
+      left: 50%;
+      transform: translateX(-50%);
+      max-height: 52vh;
+      max-width: 88vw;
+      object-fit: contain;
+      z-index: 50;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    #jipt-image.visible { opacity: 1; }
+
     /* ── Enter The Den overlay ── */
     #enter-overlay {
       position: fixed; inset: 0; z-index: 500;
@@ -248,6 +263,8 @@
 </head>
 <body>
 
+  <img id="jipt-image" src="assets/Oldjipt/oldjiptcoin.jpg" alt="" />
+
   <!-- Enter The Den overlay -->
   <div id="enter-overlay">
     <button id="enter-btn">ENTER THE DEN</button>
@@ -299,6 +316,7 @@
     import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC } from './js/config.js';
 
     // ── Music & Enter ──
+    const jiptImage  = document.getElementById('jipt-image');
     const bgMusic    = document.getElementById('bg-music');
     const enterOverlay = document.getElementById('enter-overlay');
     const dialogueBox = document.getElementById('dialogue-box');
@@ -309,6 +327,9 @@
       enterOverlay.classList.add('hidden');
       bgMusic.play().catch(() => {});
       hasEntered = true;
+
+      // Fade in jipt image immediately
+      jiptImage.classList.add('visible');
 
       // Show wallet + dialogue
       await delay(900);
