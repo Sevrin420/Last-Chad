@@ -472,6 +472,12 @@
         return;
       }
 
+      if (ownedTokens.every(t => t.cells <= 0)) {
+        await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
+        return;
+      }
+
       const nameEl = document.createElement('span');
       nameEl.className = 'npc-name';
       nameEl.textContent = "Ol' Jipt:";
@@ -516,10 +522,8 @@
       choicesDiv.innerHTML = '';
 
       if (token.cells <= 0) {
-        const p = document.createElement('p');
-        p.textContent = "This Chad has no cells to wager!";
-        p.style.color = '#e53935';
-        dialogueText.appendChild(p);
+        await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
         return;
       }
 
