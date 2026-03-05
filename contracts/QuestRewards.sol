@@ -18,14 +18,17 @@ contract QuestRewards {
     ILastChadItems public immutable lastChadItems;
     address        public immutable gameOwner;
 
-    uint256 public constant SESSION_DURATION = 1 hours;
+    uint256 public constant SESSION_DURATION   = 1 hours;
+    uint256 public constant SEED_REVEAL_TIMEOUT = 5 minutes;
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     struct QuestSession {
-        bytes32 seed;
+        bytes32 partialSeed;  // keccak256(tokenId, questId, prevrandao, timestamp, sender)
+        bytes32 seed;         // final seed = keccak256(partialSeed, serverNonce); zero until revealSeed()
         uint8   questId;
         uint40  startTime;
         bool    active;
+        bool    seedRevealed;
     }
 
     mapping(uint256 => QuestSession) public pendingSessions;
@@ -41,7 +44,9 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     // Events
     // -------------------------------------------------------------------------
-    event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt);
+    event QuestStarted(uint256 indexed tokenId, uint8 questId, uint256 expiresAt, uint256 revealDeadline);
+    event SeedRevealed(uint256 indexed tokenId, uint8 questId, bytes32 seed);
+    event QuestCancelled(uint256 indexed tokenId, uint8 questId, address indexed player);
     event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded);
     event QuestFailed(uint256 indexed tokenId, uint8 questId);
     event NFTBurned(uint256 indexed tokenId, address indexed originalOwner);
@@ -72,7 +77,7 @@ contract QuestRewards {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!questStarted[tokenId][questId], "Quest already attempted");
 
-        bytes32 seed = keccak256(abi.encodePacked(
+        bytes32 partialSeed = keccak256(abi.encodePacked(
             tokenId, questId, block.prevrandao, block.timestamp, msg.sender
         ));
 
@@ -81,13 +86,66 @@ contract QuestRewards {
         lastChad.transferFrom(msg.sender, address(this), tokenId);
 
         pendingSessions[tokenId] = QuestSession({
-            seed:      seed,
-            questId:   questId,
-            startTime: uint40(block.timestamp),
-            active:    true
+            partialSeed:  partialSeed,
+            seed:         bytes32(0),
+            questId:      questId,
+            startTime:    uint40(block.timestamp),
+            active:       true,
+            seedRevealed: false
         });
 
-        emit QuestStarted(tokenId, questId, seed, block.timestamp + SESSION_DURATION);
+        emit QuestStarted(
+            tokenId,
+            questId,
+            block.timestamp + SESSION_DURATION,
+            block.timestamp + SEED_REVEAL_TIMEOUT
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // revealSeed — game owner contributes server nonce to finalise the seed
+    // Called by server immediately after startQuest confirms on-chain.
+    // finalSeed = keccak256(partialSeed, serverNonce)
+    // The serverNonce is logged off-chain for public verifiability.
+    // -------------------------------------------------------------------------
+    function revealSeed(uint256 tokenId, bytes32 serverNonce) external {
+        require(msg.sender == gameOwner, "Not game owner");
+        require(lockedBy[tokenId] != address(0), "Token not locked");
+
+        QuestSession storage session = pendingSessions[tokenId];
+        require(session.active, "No active session");
+        require(!session.seedRevealed, "Seed already revealed");
+
+        bytes32 finalSeed = keccak256(abi.encodePacked(session.partialSeed, serverNonce));
+        session.seed = finalSeed;
+        session.seedRevealed = true;
+
+        emit SeedRevealed(tokenId, session.questId, finalSeed);
+    }
+
+    // -------------------------------------------------------------------------
+    // cancelQuest — player reclaims NFT if server fails to reveal seed in time
+    // Only callable after SEED_REVEAL_TIMEOUT expires without a revealSeed call.
+    // Clears questStarted so the player can retry the quest.
+    // -------------------------------------------------------------------------
+    function cancelQuest(uint256 tokenId) external {
+        require(lockedBy[tokenId] == msg.sender, "Not quest participant");
+
+        QuestSession memory session = pendingSessions[tokenId];
+        require(session.active, "No active session");
+        require(!session.seedRevealed, "Quest already seeded");
+        require(
+            block.timestamp > uint256(session.startTime) + SEED_REVEAL_TIMEOUT,
+            "Reveal window still open"
+        );
+
+        uint8 qId = session.questId;
+        delete pendingSessions[tokenId];
+        delete lockedBy[tokenId];
+        questStarted[tokenId][qId] = false;
+
+        lastChad.transferFrom(address(this), msg.sender, tokenId);
+        emit QuestCancelled(tokenId, qId, msg.sender);
     }
 
     // -------------------------------------------------------------------------
@@ -103,6 +161,7 @@ contract QuestRewards {
 
         QuestSession memory session = pendingSessions[tokenId];
         require(session.active, "No active session");
+        require(session.seedRevealed, "Seed not revealed");
         require(session.questId == questId, "Wrong quest");
         require(
             block.timestamp <= uint256(session.startTime) + SESSION_DURATION,
@@ -218,10 +277,10 @@ contract QuestRewards {
     // View helpers
     // -------------------------------------------------------------------------
     function getSession(uint256 tokenId) external view returns (
-        bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active
+        bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active, bool seedRevealed
     ) {
         QuestSession memory s = pendingSessions[tokenId];
-        return (s.seed, s.questId, s.startTime, uint256(s.startTime) + SESSION_DURATION, s.active);
+        return (s.seed, s.questId, s.startTime, uint256(s.startTime) + SESSION_DURATION, s.active, s.seedRevealed);
     }
 
     function isSessionExpired(uint256 tokenId) external view returns (bool) {
