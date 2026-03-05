@@ -54,7 +54,13 @@ const spriteNames = [
 ];
 const sprites = {};
 let loadedCount = 0;
-const totalAssets = spriteNames.length;
+const totalAssets = spriteNames.length + 1; // +1 for bg image
+
+// Background image
+const bgImg = new Image();
+bgImg.onload = () => { loadedCount++; };
+bgImg.onerror = () => { loadedCount++; }; // graceful fallback if missing
+bgImg.src = 'endless runner/bg.png';
 
 spriteNames.forEach(name => {
   const img = new Image();
@@ -90,10 +96,6 @@ let deathFlash = 0;
 let particles = [];
 let startTime = 0;
 
-// Background elements - ruined buildings, debris
-let bgBuildings = [];
-let bgDebris = [];
-let bgCracks = [];
 
 // ── Keys ──
 const keys = {};
@@ -122,59 +124,6 @@ canvas.addEventListener('touchmove', e => {
 });
 canvas.addEventListener('touchend', () => { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; });
 
-// ── Background Generation ──
-function generateBackground() {
-  bgBuildings = [];
-  bgDebris = [];
-  bgCracks = [];
-  // Left side buildings
-  for (let y = -200; y < H + 400; y += 80 + Math.random() * 60) {
-    bgBuildings.push({
-      x: ROAD_LEFT - 60 - Math.random() * 40,
-      y: y,
-      w: 50 + Math.random() * 30,
-      h: 60 + Math.random() * 50,
-      shade: 20 + Math.random() * 30,
-      broken: Math.random() > 0.4,
-      windowRows: 1 + Math.floor(Math.random() * 3),
-      side: 'left'
-    });
-  }
-  // Right side buildings
-  for (let y = -200; y < H + 400; y += 80 + Math.random() * 60) {
-    bgBuildings.push({
-      x: ROAD_RIGHT + 10 + Math.random() * 20,
-      y: y,
-      w: 50 + Math.random() * 30,
-      h: 60 + Math.random() * 50,
-      shade: 20 + Math.random() * 30,
-      broken: Math.random() > 0.4,
-      windowRows: 1 + Math.floor(Math.random() * 3),
-      side: 'right'
-    });
-  }
-  // Road cracks
-  for (let i = 0; i < 40; i++) {
-    bgCracks.push({
-      x: ROAD_LEFT + Math.random() * (ROAD_RIGHT - ROAD_LEFT),
-      y: Math.random() * (H + 400) - 200,
-      len: 10 + Math.random() * 30,
-      angle: Math.random() * Math.PI,
-      width: 1 + Math.random() * 2
-    });
-  }
-  // Debris on road edges
-  for (let i = 0; i < 25; i++) {
-    const side = Math.random() > 0.5 ? 'left' : 'right';
-    bgDebris.push({
-      x: side === 'left' ? ROAD_LEFT + Math.random() * 25 : ROAD_RIGHT - 25 + Math.random() * 25,
-      y: Math.random() * (H + 400) - 200,
-      size: 3 + Math.random() * 8,
-      shade: 30 + Math.random() * 40
-    });
-  }
-}
-generateBackground();
 
 // ── Helper Functions ──
 function laneToX(lane) {
@@ -210,7 +159,6 @@ function startGame() {
   deathCount = 0;
   particles = [];
   lastSpawnTime = 0;
-  generateBackground();
   music.currentTime = 0;
   music.play().catch(() => {});
   startTime = performance.now();
@@ -319,74 +267,45 @@ function drawChunkyTitle(text, x, y, size) {
 }
 
 function drawBackground(dt, scrollSpeed) {
-  // Sky/ground base
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(0, 0, W, H);
+  bgOffset = (bgOffset + scrollSpeed * dt) % H;
 
-  // Sidewalks
-  ctx.fillStyle = '#2a2a2a';
-  ctx.fillRect(ROAD_LEFT - 20, 0, 20, H);
-  ctx.fillRect(ROAD_RIGHT, 0, 20, H);
+  // ── Scrolling background image ──
+  if (bgImg.complete && bgImg.naturalWidth > 0) {
+    // Scale image to cover full canvas width, preserving aspect ratio
+    const imgAspect = bgImg.naturalWidth / bgImg.naturalHeight;
+    const drawW = W;
+    const drawH = Math.round(W / imgAspect);
 
-  // Road
-  ctx.fillStyle = '#333';
+    // Tile vertically: draw enough copies to fill the canvas
+    const tileH = drawH;
+    const startY = (bgOffset % tileH) - tileH;
+    for (let y = startY; y < H + tileH; y += tileH) {
+      ctx.drawImage(bgImg, 0, y, drawW, drawH);
+    }
+  } else {
+    // Fallback solid color
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ── Road overlay on top of background image ──
+  // Semi-transparent dark tint over road area to make lanes readable
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
   ctx.fillRect(ROAD_LEFT, 0, ROAD_RIGHT - ROAD_LEFT, H);
 
-  // Road lines (scrolling)
-  bgOffset = (bgOffset + scrollSpeed * dt) % 40;
-  ctx.fillStyle = '#555';
+  // Lane dividers (scrolling dashes)
+  ctx.fillStyle = 'rgba(200, 190, 120, 0.6)';
   for (let lane = 1; lane < LANE_COUNT; lane++) {
     const lx = ROAD_LEFT + lane * LANE_WIDTH;
-    for (let y = -40 + bgOffset; y < H + 40; y += 40) {
+    for (let y = -40 + (bgOffset % 40); y < H + 40; y += 40) {
       ctx.fillRect(lx - 1, y, 2, 20);
     }
   }
 
-  // Road edges
-  ctx.fillStyle = '#666';
+  // Road edge lines
+  ctx.fillStyle = 'rgba(220, 210, 140, 0.7)';
   ctx.fillRect(ROAD_LEFT, 0, 2, H);
   ctx.fillRect(ROAD_RIGHT - 2, 0, 2, H);
-
-  // Buildings (scroll slower for parallax)
-  const buildScroll = (bgOffset * 0.3) % 140;
-  bgBuildings.forEach(b => {
-    const by = ((b.y + buildScroll) % (H + 600)) - 200;
-    ctx.fillStyle = `rgb(${b.shade},${b.shade},${b.shade + 5})`;
-    ctx.fillRect(b.x, by, b.w, b.h);
-    // Broken top
-    if (b.broken) {
-      ctx.fillStyle = '#1a1a1a';
-      const cutW = b.w * 0.3 + Math.random() * b.w * 0.2;
-      ctx.fillRect(b.x + b.w - cutW, by, cutW, 10 + Math.random() * 15);
-    }
-    // Dark windows
-    for (let row = 0; row < b.windowRows; row++) {
-      for (let col = 0; col < 2; col++) {
-        const wx = b.x + 6 + col * (b.w / 2 - 4);
-        const wy = by + 10 + row * 18;
-        ctx.fillStyle = Math.random() > 0.85 ? '#553' : '#111';
-        ctx.fillRect(wx, wy, 8, 6);
-      }
-    }
-  });
-
-  // Road cracks
-  ctx.strokeStyle = '#222';
-  bgCracks.forEach(c => {
-    const cy = ((c.y + bgOffset) % (H + 400)) - 200;
-    ctx.lineWidth = c.width;
-    ctx.beginPath();
-    ctx.moveTo(c.x, cy);
-    ctx.lineTo(c.x + Math.cos(c.angle) * c.len, cy + Math.sin(c.angle) * c.len);
-    ctx.stroke();
-  });
-
-  // Debris
-  bgDebris.forEach(d => {
-    const dy = ((d.y + bgOffset) % (H + 400)) - 200;
-    ctx.fillStyle = `rgb(${d.shade},${d.shade},${d.shade - 5})`;
-    ctx.fillRect(d.x, dy, d.size, d.size * 0.7);
-  });
 }
 
 function drawSewer() {
