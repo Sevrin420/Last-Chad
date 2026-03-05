@@ -18,16 +18,21 @@ export const LASTCHAD_ABI = [
 ];
 
 export const QUEST_REWARDS_ABI = [
+  // Player
   'function startQuest(uint256 tokenId, uint8 questId)',
-  'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount, uint256 cellsAmount)',
   'function purchaseItem(uint256 tokenId, uint256 itemId)',
+  // Game owner
+  'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount)',
+  'function awardCells(uint256 tokenId, uint256 amount)',
+  'function awardItem(uint256 tokenId, uint256 itemId)',
   'function setItemPrice(uint256 itemId, uint256 cellCost)',
-  'function itemPrices(uint256 itemId) view returns (uint256)',
-  'function getSession(uint256 tokenId) view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
-  'function isSessionExpired(uint256 tokenId) view returns (bool)',
-  'function lockedBy(uint256 tokenId) view returns (address)',
   'function burnLocked(uint256 tokenId)',
   'function releaseLocked(uint256 tokenId)',
+  // View
+  'function itemPrices(uint256 itemId) view returns (uint256)',
+  'function lockedBy(uint256 tokenId) view returns (address)',
+  'function getSession(uint256 tokenId) view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
+  'function isSessionExpired(uint256 tokenId) view returns (bool)',
 ];
 
 export const MARKET_ABI = [
