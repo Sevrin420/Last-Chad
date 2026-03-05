@@ -36,7 +36,6 @@
       z-index: 50;
       opacity: 0;
       transition: opacity 1.2s ease;
-      image-rendering: pixelated;
     }
     #jipt-image.visible { opacity: 1; }
 
@@ -264,8 +263,7 @@
 </head>
 <body>
 
-  <!-- Jipt portrait — fades in after entering -->
-  <img id="jipt-image" src="assets/oldjipt/oldjiptcoin.jpg" alt="Ol' Jipt" />
+  <img id="jipt-image" src="assets/Oldjipt/oldjiptcoin.jpg" alt="" />
 
   <!-- Enter The Den overlay -->
   <div id="enter-overlay">
@@ -295,7 +293,7 @@
   <!-- Video overlay -->
   <div id="video-overlay">
     <video id="flip-video" playsinline>
-      <source src="oldjipt/oldjiptvid.mp4" type="video/mp4" />
+      <source src="assets/Oldjipt/oldjiptvid.mp4" type="video/mp4" />
     </video>
   </div>
 
@@ -333,7 +331,7 @@
       // Fade in jipt image immediately
       jiptImage.classList.add('visible');
 
-      // After image fades in, show wallet + dialogue
+      // Show wallet + dialogue
       await delay(900);
       document.getElementById('wallet-bar').classList.add('visible');
       dialogueBox.classList.add('visible');
@@ -412,11 +410,6 @@
 
     async function showNpcText(lines) {
       clearDialogue();
-      const nameEl = document.createElement('span');
-      nameEl.className = 'npc-name';
-      nameEl.textContent = "Ol' Jipt:";
-      dialogueText.appendChild(nameEl);
-
       for (const line of lines) {
         const p = document.createElement('p');
         dialogueText.appendChild(p);
@@ -515,11 +508,6 @@
         showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
         return;
       }
-
-      const nameEl = document.createElement('span');
-      nameEl.className = 'npc-name';
-      nameEl.textContent = "Ol' Jipt:";
-      dialogueText.appendChild(nameEl);
 
       const prompt = document.createElement('p');
       await typewrite(prompt, "Pick your Chad, brave soul...", 35);
@@ -621,10 +609,6 @@
 
         // Show "here goes nothing"
         clearDialogue();
-        const nameEl = document.createElement('span');
-        nameEl.className = 'npc-name';
-        nameEl.textContent = "Ol' Jipt:";
-        dialogueText.appendChild(nameEl);
         const hereGoes = document.createElement('p');
         dialogueText.appendChild(hereGoes);
         await typewrite(hereGoes, "Here goes nothing...", 50);
