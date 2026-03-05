@@ -4,12 +4,15 @@ pragma solidity ^0.8.20;
 interface ILastChad {
     function ownerOf(uint256 tokenId) external view returns (address);
     function awardExperience(uint256 tokenId, uint256 amount) external;
+    function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
 contract QuestRewards {
     ILastChad public immutable lastChad;
+    address public immutable gameOwner;
 
     uint256 public constant SESSION_DURATION = 1 hours;
+    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     struct QuestSession {
         bytes32 seed;
@@ -18,14 +21,17 @@ contract QuestRewards {
         bool active;
     }
 
-    // tokenId => active session (overwritten on each new quest start)
+    // tokenId => active session
     mapping(uint256 => QuestSession) public pendingSessions;
 
-    // tokenId => questId => started (set once on startQuest, never cleared)
+    // tokenId => questId => started (one attempt ever)
     mapping(uint256 => mapping(uint8 => bool)) public questStarted;
 
-    // tokenId => questId => completed (set on successful completeQuest)
+    // tokenId => questId => completed
     mapping(uint256 => mapping(uint8 => bool)) public questCompleted;
+
+    // tokenId => original owner (set while NFT is held in escrow)
+    mapping(uint256 => address) public lockedBy;
 
     event QuestStarted(
         uint256 indexed tokenId,
@@ -40,17 +46,26 @@ contract QuestRewards {
         uint256 xpAwarded
     );
 
+    event QuestFailed(
+        uint256 indexed tokenId,
+        uint8 questId
+    );
+
+    event NFTBurned(uint256 indexed tokenId, address indexed originalOwner);
+    event NFTReleased(uint256 indexed tokenId, address indexed returnedTo);
+
     constructor(address lastChadAddress) {
         lastChad = ILastChad(lastChadAddress);
+        gameOwner = msg.sender;
     }
 
     // -------------------------------------------------------------------------
     // startQuest
     //
     // - Caller must own the token
-    // - Quest must not have been started before by this token (one attempt ever)
+    // - Quest must not have been started before (one attempt ever)
+    // - NFT is transferred into this contract (player must approve first)
     // - Generates a deterministic seed from on-chain entropy
-    // - Marks questStarted permanently; stores active session
     // -------------------------------------------------------------------------
     function startQuest(uint256 tokenId, uint8 questId) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
@@ -65,6 +80,10 @@ contract QuestRewards {
         ));
 
         questStarted[tokenId][questId] = true;
+        lockedBy[tokenId] = msg.sender;
+
+        // Pull NFT into escrow — player must have approved this contract first
+        lastChad.transferFrom(msg.sender, address(this), tokenId);
 
         pendingSessions[tokenId] = QuestSession({
             seed: seed,
@@ -79,20 +98,15 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     // completeQuest
     //
-    // Parameters:
-    //   xpAmount — total XP computed by the frontend from all dice sections.
-    //              Each dice section score = sum of all 5 dice + the section's
-    //              assigned stat bonus. Scores accumulate across all dice
-    //              sections in the quest.
-    //
-    // Session guards prevent double-claiming and expired sessions.
+    // xpAmount > 0 → success: NFT returned, XP awarded
+    // xpAmount == 0 → fail: NFT stays locked until owner calls burnLocked
     // -------------------------------------------------------------------------
     function completeQuest(
         uint256 tokenId,
         uint8 questId,
         uint256 xpAmount
     ) external {
-        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(lockedBy[tokenId] == msg.sender, "Not quest participant");
 
         QuestSession memory session = pendingSessions[tokenId];
         require(session.active, "No active session");
@@ -103,20 +117,61 @@ contract QuestRewards {
         );
         require(!questCompleted[tokenId][questId], "Already completed");
 
-        // Mark complete and clear session before external call
-        questCompleted[tokenId][questId] = true;
         delete pendingSessions[tokenId];
 
-        // Award XP — LastChad handles level-up logic internally
         if (xpAmount > 0) {
-            lastChad.awardExperience(tokenId, xpAmount);
-        }
+            // Success — return NFT and award XP
+            questCompleted[tokenId][questId] = true;
+            delete lockedBy[tokenId];
 
-        emit QuestCompleted(tokenId, questId, xpAmount);
+            lastChad.transferFrom(address(this), msg.sender, tokenId);
+
+            lastChad.awardExperience(tokenId, xpAmount);
+            emit QuestCompleted(tokenId, questId, xpAmount);
+        } else {
+            // Fail — NFT stays locked, lockedBy preserved for burn reference
+            emit QuestFailed(tokenId, questId);
+        }
     }
 
     // -------------------------------------------------------------------------
-    // View helpers (used by the frontend to determine page state on load)
+    // burnLocked — owner only
+    // Sends a failed/locked NFT to the burn address
+    // -------------------------------------------------------------------------
+    function burnLocked(uint256 tokenId) external {
+        require(msg.sender == gameOwner, "Not game owner");
+        address original = lockedBy[tokenId];
+        require(original != address(0), "Token not locked");
+
+        delete lockedBy[tokenId];
+        lastChad.transferFrom(address(this), BURN_ADDRESS, tokenId);
+
+        emit NFTBurned(tokenId, original);
+    }
+
+    // -------------------------------------------------------------------------
+    // releaseLocked — owner only
+    // Returns a stuck NFT to its original owner (mercy / error recovery)
+    // -------------------------------------------------------------------------
+    function releaseLocked(uint256 tokenId) external {
+        require(msg.sender == gameOwner, "Not game owner");
+        address original = lockedBy[tokenId];
+        require(original != address(0), "Token not locked");
+
+        delete lockedBy[tokenId];
+        delete pendingSessions[tokenId];
+        lastChad.transferFrom(address(this), original, tokenId);
+
+        emit NFTReleased(tokenId, original);
+    }
+
+    // Required to receive ERC-721 tokens
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    // -------------------------------------------------------------------------
+    // View helpers
     // -------------------------------------------------------------------------
 
     function getSession(uint256 tokenId) external view returns (
