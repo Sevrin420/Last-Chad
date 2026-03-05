@@ -20,7 +20,7 @@
     /* ── Background ── */
     #bg {
       position: fixed; inset: 0; z-index: 0;
-      background: url('assets/oldjipt/oldjiptcoin.png') center/cover no-repeat;
+      background: url('assets/oldjipt/oldjiptcoin.jpg') center/cover no-repeat;
     }
     #bg.dimmed { filter: brightness(0.35); }
 
@@ -531,9 +531,19 @@
         video.currentTime = 0;
         video.play();
 
-        // Determine result (50/50 using block-inspired randomness)
-        // We use the tx hash for fairness seed
-        const win = parseInt(tx.hash.slice(-1), 16) % 2 === 0;
+        // Determine result using on-chain tx hash + local crypto nonce (same pattern as QuestRewards server nonce)
+        // On-chain entropy: tx hash (includes block.hash, nonce, gas data)
+        // Local entropy: crypto.getRandomValues — unpredictable by miner
+        const localNonce = crypto.getRandomValues(new Uint8Array(32));
+        const localHex = Array.from(localNonce).map(b => b.toString(16).padStart(2, '0')).join('');
+        const combined = tx.hash.slice(2) + localHex; // strip 0x then concat
+        // Hash the combined seed with TextEncoder → SHA-256 for uniform distribution
+        const msgBuf = new TextEncoder().encode(combined);
+        const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
+        const hashArr = new Uint8Array(hashBuf);
+        // Take first 4 bytes as uint32, mod 100 → 40% win threshold
+        const roll = ((hashArr[0] << 24) | (hashArr[1] << 16) | (hashArr[2] << 8) | hashArr[3]) >>> 0;
+        const win = (roll % 100) < 40; // 40% win, 60% lose
 
         video.addEventListener('ended', async () => {
           videoOverlay.classList.remove('active');
