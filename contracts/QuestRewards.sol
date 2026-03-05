@@ -4,21 +4,28 @@ pragma solidity ^0.8.20;
 interface ILastChad {
     function ownerOf(uint256 tokenId) external view returns (address);
     function awardExperience(uint256 tokenId, uint256 amount) external;
+    function awardCells(uint256 tokenId, uint256 amount) external;
+    function spendCells(uint256 tokenId, uint256 amount) external;
     function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
+interface ILastChadItems {
+    function mintTo(address to, uint256 itemId, uint256 quantity) external;
+}
+
 contract QuestRewards {
-    ILastChad public immutable lastChad;
-    address public immutable gameOwner;
+    ILastChad     public immutable lastChad;
+    ILastChadItems public immutable lastChadItems;
+    address        public immutable gameOwner;
 
     uint256 public constant SESSION_DURATION = 1 hours;
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     struct QuestSession {
         bytes32 seed;
-        uint8 questId;
-        uint40 startTime;
-        bool active;
+        uint8   questId;
+        uint40  startTime;
+        bool    active;
     }
 
     // tokenId => active session
@@ -33,6 +40,9 @@ contract QuestRewards {
     // tokenId => original owner (set while NFT is held in escrow)
     mapping(uint256 => address) public lockedBy;
 
+    // itemId => cell cost (0 = not available in quest shops)
+    mapping(uint256 => uint256) public itemPrices;
+
     event QuestStarted(
         uint256 indexed tokenId,
         uint8 questId,
@@ -43,29 +53,29 @@ contract QuestRewards {
     event QuestCompleted(
         uint256 indexed tokenId,
         uint8 questId,
-        uint256 xpAwarded
+        uint256 xpAwarded,
+        uint256 cellsAwarded
     );
 
-    event QuestFailed(
-        uint256 indexed tokenId,
-        uint8 questId
-    );
-
+    event QuestFailed(uint256 indexed tokenId, uint8 questId);
     event NFTBurned(uint256 indexed tokenId, address indexed originalOwner);
     event NFTReleased(uint256 indexed tokenId, address indexed returnedTo);
+    event ItemPriceSet(uint256 indexed itemId, uint256 cellCost);
+    event ItemPurchased(
+        uint256 indexed tokenId,
+        uint256 indexed itemId,
+        address indexed buyer,
+        uint256 cellCost
+    );
 
-    constructor(address lastChadAddress) {
-        lastChad = ILastChad(lastChadAddress);
-        gameOwner = msg.sender;
+    constructor(address lastChadAddress, address lastChadItemsAddress) {
+        lastChad      = ILastChad(lastChadAddress);
+        lastChadItems = ILastChadItems(lastChadItemsAddress);
+        gameOwner     = msg.sender;
     }
 
     // -------------------------------------------------------------------------
     // startQuest
-    //
-    // - Caller must own the token
-    // - Quest must not have been started before (one attempt ever)
-    // - NFT is transferred into this contract (player must approve first)
-    // - Generates a deterministic seed from on-chain entropy
     // -------------------------------------------------------------------------
     function startQuest(uint256 tokenId, uint8 questId) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
@@ -82,14 +92,13 @@ contract QuestRewards {
         questStarted[tokenId][questId] = true;
         lockedBy[tokenId] = msg.sender;
 
-        // Pull NFT into escrow — player must have approved this contract first
         lastChad.transferFrom(msg.sender, address(this), tokenId);
 
         pendingSessions[tokenId] = QuestSession({
-            seed: seed,
-            questId: questId,
+            seed:      seed,
+            questId:   questId,
             startTime: uint40(block.timestamp),
-            active: true
+            active:    true
         });
 
         emit QuestStarted(tokenId, questId, seed, block.timestamp + SESSION_DURATION);
@@ -98,13 +107,15 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     // completeQuest
     //
-    // xpAmount > 0 → success: NFT returned, XP awarded
+    // xpAmount > 0 → success: NFT returned, XP + cells awarded
     // xpAmount == 0 → fail: NFT stays locked until owner calls burnLocked
+    // cellsAmount is ignored on failure
     // -------------------------------------------------------------------------
     function completeQuest(
         uint256 tokenId,
-        uint8 questId,
-        uint256 xpAmount
+        uint8   questId,
+        uint256 xpAmount,
+        uint256 cellsAmount
     ) external {
         require(lockedBy[tokenId] == msg.sender, "Not quest participant");
 
@@ -120,23 +131,50 @@ contract QuestRewards {
         delete pendingSessions[tokenId];
 
         if (xpAmount > 0) {
-            // Success — return NFT and award XP
             questCompleted[tokenId][questId] = true;
             delete lockedBy[tokenId];
 
             lastChad.transferFrom(address(this), msg.sender, tokenId);
-
             lastChad.awardExperience(tokenId, xpAmount);
-            emit QuestCompleted(tokenId, questId, xpAmount);
+
+            if (cellsAmount > 0) {
+                lastChad.awardCells(tokenId, cellsAmount);
+            }
+
+            emit QuestCompleted(tokenId, questId, xpAmount, cellsAmount);
         } else {
-            // Fail — NFT stays locked, lockedBy preserved for burn reference
             emit QuestFailed(tokenId, questId);
         }
     }
 
     // -------------------------------------------------------------------------
+    // purchaseItem — spend cells mid-quest to receive an ERC-1155 item
+    // Requires an active session so players can only shop while questing
+    // -------------------------------------------------------------------------
+    function purchaseItem(uint256 tokenId, uint256 itemId) external {
+        require(lockedBy[tokenId] == msg.sender, "Not quest participant");
+        require(pendingSessions[tokenId].active, "No active session");
+
+        uint256 cost = itemPrices[itemId];
+        require(cost > 0, "Item not available in shop");
+
+        lastChad.spendCells(tokenId, cost);
+        lastChadItems.mintTo(msg.sender, itemId, 1);
+
+        emit ItemPurchased(tokenId, itemId, msg.sender, cost);
+    }
+
+    // -------------------------------------------------------------------------
+    // setItemPrice — owner only; set cell cost for a shop item (0 = remove)
+    // -------------------------------------------------------------------------
+    function setItemPrice(uint256 itemId, uint256 cellCost) external {
+        require(msg.sender == gameOwner, "Not game owner");
+        itemPrices[itemId] = cellCost;
+        emit ItemPriceSet(itemId, cellCost);
+    }
+
+    // -------------------------------------------------------------------------
     // burnLocked — owner only
-    // Sends a failed/locked NFT to the burn address
     // -------------------------------------------------------------------------
     function burnLocked(uint256 tokenId) external {
         require(msg.sender == gameOwner, "Not game owner");
@@ -150,8 +188,7 @@ contract QuestRewards {
     }
 
     // -------------------------------------------------------------------------
-    // releaseLocked — owner only
-    // Returns a stuck NFT to its original owner (mercy / error recovery)
+    // releaseLocked — owner only (mercy / error recovery)
     // -------------------------------------------------------------------------
     function releaseLocked(uint256 tokenId) external {
         require(msg.sender == gameOwner, "Not game owner");
@@ -173,13 +210,12 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     // View helpers
     // -------------------------------------------------------------------------
-
     function getSession(uint256 tokenId) external view returns (
         bytes32 seed,
-        uint8 questId,
+        uint8   questId,
         uint256 startTime,
         uint256 expiresAt,
-        bool active
+        bool    active
     ) {
         QuestSession memory s = pendingSessions[tokenId];
         return (

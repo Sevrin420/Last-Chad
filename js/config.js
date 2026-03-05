@@ -13,11 +13,16 @@ export const LASTCHAD_ABI = [
   'function getLevel(uint256 tokenId) view returns (uint256)',
   'function getExperience(uint256 tokenId) view returns (uint256)',
   'function getCells(uint256 tokenId) view returns (uint256)',
+  'function awardCells(uint256 tokenId, uint256 amount)',
+  'function spendCells(uint256 tokenId, uint256 amount)',
 ];
 
 export const QUEST_REWARDS_ABI = [
   'function startQuest(uint256 tokenId, uint8 questId)',
-  'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount)',
+  'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount, uint256 cellsAmount)',
+  'function purchaseItem(uint256 tokenId, uint256 itemId)',
+  'function setItemPrice(uint256 itemId, uint256 cellCost)',
+  'function itemPrices(uint256 itemId) view returns (uint256)',
   'function getSession(uint256 tokenId) view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
   'function isSessionExpired(uint256 tokenId) view returns (bool)',
   'function lockedBy(uint256 tokenId) view returns (address)',
