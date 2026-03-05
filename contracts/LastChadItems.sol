@@ -29,11 +29,18 @@ contract LastChadItems is ERC1155, Ownable {
     uint256 public nextItemId = 1;
 
     mapping(uint256 => ItemDef) private _items;
+    mapping(address => bool) public authorizedGame;
 
     event ItemCreated(uint256 indexed itemId, string name, uint256 maxSupply, uint256 price, bool stackable);
     event ItemMinted(uint256 indexed itemId, address indexed to, uint256 quantity);
     event ItemActiveSet(uint256 indexed itemId, bool active);
     event ItemPriceSet(uint256 indexed itemId, uint256 price);
+    event GameContractSet(address indexed game, bool enabled);
+
+    modifier onlyAuthorized() {
+        require(authorizedGame[msg.sender] || msg.sender == owner(), "Not authorized");
+        _;
+    }
 
     string private _baseTokenURI;
 
@@ -116,6 +123,21 @@ contract LastChadItems is ERC1155, Ownable {
      * @notice Airdrop items directly to a player. Owner only, ignores price.
      *         Still respects maxSupply and non-stackable rules.
      */
+    function setGameContract(address game, bool enabled) external onlyOwner {
+        require(game != address(0), "Invalid address");
+        authorizedGame[game] = enabled;
+        emit GameContractSet(game, enabled);
+    }
+
+    /**
+     * @notice Mint an item directly to a player. Authorized game contracts only.
+     *         Ignores AVAX price — cell-cost is enforced by the calling contract.
+     *         Still respects maxSupply and non-stackable rules.
+     */
+    function mintTo(address to, uint256 itemId, uint256 quantity) external onlyAuthorized {
+        _mintItem(to, itemId, quantity);
+    }
+
     function airdrop(address to, uint256 itemId, uint256 quantity) external onlyOwner {
         _mintItem(to, itemId, quantity);
     }

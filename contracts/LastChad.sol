@@ -24,6 +24,7 @@ contract LastChad is ERC721, Ownable {
     mapping(uint256 => string) public tokenName;
     mapping(uint256 => uint256) private _tokenExperience;
     mapping(uint256 => uint256) private _pendingStatPoints;
+    mapping(uint256 => uint256) private _tokenCells;
     mapping(address => bool) public authorizedGame;
     mapping(address => uint256) public mintedPerWallet;
 
@@ -35,6 +36,8 @@ contract LastChad is ERC721, Ownable {
     event LevelUp(uint256 indexed tokenId, uint256 newLevel, uint256 statPointsAwarded);
     event StatPointSpent(uint256 indexed tokenId, uint8 statIndex, uint32 newValue);
     event GameContractSet(address indexed game, bool enabled);
+    event CellsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalCells);
+    event CellsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingCells);
 
     modifier onlyGameOrOwner() {
         require(authorizedGame[msg.sender] || msg.sender == owner(), "Not authorized");
@@ -149,6 +152,24 @@ contract LastChad is ERC721, Ownable {
     function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned) {
         Stats memory s = _tokenStats[tokenId];
         return (s.strength, s.intelligence, s.dexterity, s.charisma, s.assigned);
+    }
+
+    function awardCells(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        require(amount > 0, "Amount must be > 0");
+        _tokenCells[tokenId] += amount;
+        emit CellsAwarded(tokenId, amount, _tokenCells[tokenId]);
+    }
+
+    function spendCells(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
+        require(amount > 0, "Amount must be > 0");
+        require(_tokenCells[tokenId] >= amount, "Insufficient cells");
+        _tokenCells[tokenId] -= amount;
+        emit CellsSpent(tokenId, amount, _tokenCells[tokenId]);
+    }
+
+    function getCells(uint256 tokenId) external view returns (uint256) {
+        return _tokenCells[tokenId];
     }
 
     function _baseURI() internal view override returns (string memory) {
