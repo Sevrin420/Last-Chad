@@ -158,7 +158,12 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     function purchaseItem(uint256 tokenId, uint256 itemId) external {
         require(lockedBy[tokenId] == msg.sender, "Not quest participant");
-        require(pendingSessions[tokenId].active, "No active session");
+        QuestSession memory session = pendingSessions[tokenId];
+        require(session.active, "No active session");
+        require(
+            block.timestamp <= uint256(session.startTime) + SESSION_DURATION,
+            "Session expired"
+        );
 
         uint256 cost = itemPrices[itemId];
         require(cost > 0, "Item not in shop");
