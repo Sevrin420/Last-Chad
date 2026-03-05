@@ -646,6 +646,74 @@
       0%, 100% { opacity: 1; }
       50%       { opacity: 0; }
     }
+
+    /* --- Warning Modal --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0,0,0,0.88);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: #080402;
+      border: 3px solid #8e0000;
+      border-radius: 6px;
+      padding: 32px 24px;
+      max-width: 360px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(142,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.6);
+    }
+    .modal-title {
+      font-size: 0.85rem;
+      color: #e53935;
+      text-shadow: 0 0 14px rgba(229,57,53,0.7);
+      margin-bottom: 22px;
+      letter-spacing: 2px;
+    }
+    .modal-text {
+      font-size: 0.36rem;
+      color: #c9a84c;
+      line-height: 2.6;
+      margin-bottom: 26px;
+    }
+    .modal-text .danger { color: #e53935; }
+    .modal-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .modal-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      padding: 11px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 2px solid;
+      transition: opacity 0.2s;
+    }
+    .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .modal-btn.cancel {
+      color: #8a7a5a;
+      background: transparent;
+      border-color: #5c4409;
+    }
+    .modal-btn.confirm {
+      color: #fff;
+      background: linear-gradient(180deg, #8e0000, #5a0000);
+      border-color: #c62828;
+    }
+    .modal-status {
+      font-size: 0.32rem;
+      color: #8a7a5a;
+      margin-top: 16px;
+      min-height: 1.4em;
+      line-height: 2;
+    }
   </style>
 </head>
 <body>
@@ -758,6 +826,7 @@
       </div>
 
       <div class="roll-section">
+        <button class="roll-btn" id="beginQuestBtn" style="display:none">BEGIN QUEST</button>
         <button class="roll-btn" id="rollBtn">ROLL</button>
         <div class="rolls-left" id="rollsLeft">3 ROLLS LEFT</div>
       </div>
@@ -786,12 +855,32 @@
     </div>
   </main>
 
+  <!-- Quest Warning Modal -->
+  <div class="modal-overlay" id="questModal">
+    <div class="modal-box">
+      <div class="modal-title">!! WARNING !!</div>
+      <div class="modal-text">
+        YOUR CHAD NFT WILL BE<br>
+        <span class="danger">LOCKED IN A SMART CONTRACT.</span><br><br>
+        IF YOU FAIL THIS QUEST,<br>
+        <span class="danger">YOUR NFT WILL BE BURNED.</span><br><br>
+        THIS CANNOT BE UNDONE.
+      </div>
+      <div class="modal-btns">
+        <button class="modal-btn cancel" id="modalCancel">RETREAT</button>
+        <button class="modal-btn confirm" id="modalConfirm">ACCEPT RISK</button>
+      </div>
+      <div class="modal-status" id="modalStatus"></div>
+    </div>
+  </div>
+
   <script type="module">
-    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, READ_RPC } from './js/config.js';
 
     // ========== GET CHAD FROM URL ==========
     const params = new URLSearchParams(window.location.search);
     const chadId = params.get('chad');
+    const questId = params.get('questId'); // optional; if absent, dice work immediately (demo mode)
     if (!chadId) { window.location.replace('quest.html'); }
     const chadImg = 'assets/chads/' + chadId + '.png';
 
@@ -926,15 +1015,82 @@
 
     loadItems();
 
+    // ========== QUEST ESCROW FLOW ==========
+    const rollBtn = document.getElementById('rollBtn');
+    const rollsLeftText = document.getElementById('rollsLeft');
+    const beginQuestBtn = document.getElementById('beginQuestBtn');
+
+    if (questId !== null) {
+      // Real quest mode — lock dice until NFT is secured on-chain
+      rollBtn.disabled = true;
+      rollBtn.textContent = 'AWAITING LOCK';
+      beginQuestBtn.style.display = '';
+      beginQuestBtn.addEventListener('click', () => {
+        document.getElementById('questModal').classList.add('active');
+      });
+    }
+
+    document.getElementById('modalCancel').addEventListener('click', () => {
+      document.getElementById('questModal').classList.remove('active');
+      document.getElementById('modalStatus').textContent = '';
+    });
+
+    document.getElementById('modalConfirm').addEventListener('click', beginQuestOnChain);
+
+    async function beginQuestOnChain() {
+      const status = document.getElementById('modalStatus');
+      const confirmBtn = document.getElementById('modalConfirm');
+      confirmBtn.disabled = true;
+      status.textContent = '';
+
+      try {
+        if (!window.ethereum) throw new Error('No wallet detected');
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send('eth_requestAccounts', []);
+        const signer = provider.getSigner();
+
+        // Step 1: Approve QuestRewards to transfer the NFT
+        status.textContent = 'STEP 1/2: APPROVING...';
+        const chadContract = new ethers.Contract(
+          CONTRACT_ADDRESS,
+          ['function approve(address to, uint256 tokenId)'],
+          signer
+        );
+        const approveTx = await chadContract.approve(QUEST_REWARDS_ADDRESS, chadId);
+        status.textContent = 'CONFIRMING APPROVAL...';
+        await approveTx.wait();
+
+        // Step 2: Lock NFT in QuestRewards contract
+        status.textContent = 'STEP 2/2: LOCKING NFT...';
+        const questContract = new ethers.Contract(
+          QUEST_REWARDS_ADDRESS,
+          ['function startQuest(uint256 tokenId, uint8 questId)'],
+          signer
+        );
+        const startTx = await questContract.startQuest(chadId, questId);
+        status.textContent = 'SECURING IN CONTRACT...';
+        await startTx.wait();
+
+        // Success — close modal and unlock dice
+        document.getElementById('questModal').classList.remove('active');
+        beginQuestBtn.style.display = 'none';
+        rollBtn.disabled = false;
+        rollBtn.textContent = 'ROLL';
+        status.textContent = '';
+
+      } catch (err) {
+        const msg = err.reason || err.data?.message || err.message || 'Transaction failed';
+        status.textContent = 'ERROR: ' + msg.toUpperCase().slice(0, 60);
+        confirmBtn.disabled = false;
+      }
+    }
+
     // ========== DICE STATE ==========
     const NUM_DICE = 5;
     let diceValues = [0, 0, 0, 0, 0];
     let kept = [false, false, false, false, false];
     let rollsLeft = 3;
     let isRolling = false;
-
-    const rollBtn = document.getElementById('rollBtn');
-    const rollsLeftText = document.getElementById('rollsLeft');
 
     // ========== DOT LAYOUTS ==========
     // 3x3 grid positions: top-left, top-center, top-right, mid-left, mid-center, mid-right, bot-left, bot-center, bot-right
