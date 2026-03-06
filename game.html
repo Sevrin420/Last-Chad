@@ -205,6 +205,48 @@
     /* Make stats-panel share space evenly with items panel */
     .stats-panel { min-width: 0; }
 
+    /* --- Stats column (stats + cells stacked) --- */
+    .stats-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    /* --- Cells panel --- */
+    .cells-panel {
+      background: rgba(10, 8, 4, 0.75);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .cells-panel img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    .cells-label {
+      font-size: 0.38rem;
+      color: #c9a84c;
+      text-shadow: 0 0 8px rgba(201, 168, 76, 0.35);
+      text-align: center;
+    }
+
+    .cells-value {
+      font-size: 0.45rem;
+      color: #f5e6c8;
+      text-align: center;
+    }
+
     /* --- Items panel --- */
     .items-panel {
       flex: 1;
@@ -734,7 +776,8 @@
       </div>
 
       <div class="right-panels">
-        <!-- Stats column -->
+        <!-- Stats + Cells column -->
+        <div class="stats-col">
         <div class="stats-panel" id="statsPanel">
           <div class="stats-panel-header" id="chadLabel">CHAD #—</div>
           <div class="stat-level-row">
@@ -771,6 +814,14 @@
 
           <div class="stats-loading" id="statsLoading">Loading stats...</div>
         </div>
+
+        <!-- Cells panel -->
+        <div class="cells-panel">
+          <img src="assets/cells.png" alt="cells">
+          <div class="cells-label">CELLS</div>
+          <div class="cells-value" id="cellsValue">—</div>
+        </div>
+        </div><!-- end stats-col -->
 
         <!-- Items column -->
         <div class="items-panel">
@@ -892,7 +943,8 @@
     const STATS_ABI = [
       'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
       'function getLevel(uint256 tokenId) external view returns (uint256)',
-      'function getExperience(uint256 tokenId) external view returns (uint256)'
+      'function getExperience(uint256 tokenId) external view returns (uint256)',
+      'function getCells(uint256 tokenId) external view returns (uint256)'
     ];
     const MAX_STAT = 10;
 
@@ -908,9 +960,10 @@
         const contract = new ethers.Contract(CONTRACT_ADDRESS, STATS_ABI, provider);
 
         // Fire requests in parallel
-        const [statsResult, levelResult] = await Promise.all([
+        const [statsResult, levelResult, cellsResult] = await Promise.all([
           contract.getStats(chadId),
-          contract.getLevel(chadId)
+          contract.getLevel(chadId),
+          contract.getCells(chadId)
         ]);
 
         str   = statsResult.strength.toNumber();
@@ -938,6 +991,9 @@
         setBar('barInt', intel);
         setBar('barDex', dex);
         setBar('barCha', cha);
+
+        const cellsNum = cellsResult.toNumber ? cellsResult.toNumber() : Number(cellsResult);
+        document.getElementById('cellsValue').textContent = cellsNum;
 
         document.getElementById('statsLoading').style.display = 'none';
       } catch (err) {
