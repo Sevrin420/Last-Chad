@@ -216,36 +216,44 @@
 
     #dialogue-text {
       flex: 1; overflow-y: auto;
-      font-size: clamp(0.55rem, 1.4vw, 0.75rem);
-      line-height: 2;
-      color: #ffe96a;
-      text-shadow: 0 0 8px rgba(255,233,106,0.4);
+      font-size: 0.65rem;
+      line-height: 2.2;
+      color: #c9a84c;
     }
 
     #dialogue-text .npc-name {
-      color: #ffaa40; font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+      color: #e8c060; font-size: 0.7rem;
       margin-bottom: 0.4em; display: block;
     }
 
     /* ── Choice buttons ── */
     #choices {
-      display: flex; gap: 1em; margin-top: 0.8em;
-      flex-wrap: wrap; justify-content: center;
+      display: flex; flex-direction: column; gap: 10px;
+      align-items: center; margin-top: 0.8em;
     }
     .choice-btn {
       font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.65rem, 1.8vw, 0.85rem);
-      color: #ffe96a; background: rgba(201,168,76,0.12);
-      border: 1px solid #c9a84c; padding: 0.8em 1.4em;
+      font-size: clamp(0.55rem, 1.5vw, 0.65rem);
+      color: #0a0a0f;
+      background: #c9a84c;
+      border: none;
+      border-bottom: 5px solid #7a6020;
+      border-right: 5px solid #7a6020;
+      padding: 14px 20px;
       cursor: pointer;
-      text-shadow: 0 0 6px rgba(201,168,76,0.5);
-      box-shadow: 0 0 12px rgba(201,168,76,0.2);
-      transition: all 0.2s ease;
+      letter-spacing: 0.04em;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
     }
     .choice-btn:hover {
-      background: rgba(201,168,76,0.25);
-      box-shadow: 0 0 20px rgba(201,168,76,0.4);
-      transform: scale(1.04);
+      background: #e8c060;
+      border-color: #5c4409;
+    }
+    .choice-btn:active {
+      border-bottom-width: 2px;
+      border-right-width: 2px;
+      transform: translate(3px, 3px);
     }
 
     /* ── NFT selection grid ── */
