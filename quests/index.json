@@ -48,5 +48,10 @@
     "name": "Episode 12 A sunken frame",
     "slug": "episode-12-a-sunken-frame",
     "questId": 9
+  },
+  {
+    "name": "13 doozy",
+    "slug": "13-doozy",
+    "questId": 10
   }
 ]
