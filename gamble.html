@@ -807,11 +807,24 @@
         await new Promise(resolve => {
           showChoices([{ label: 'FLIP THE COIN', action: () => {
             choicesDiv.innerHTML = '';
-            // Unlock audio elements NOW while we're in a user gesture
+            // Unlock Web Audio on iOS — silent buffer is the most reliable technique
+            try {
+              const ACtx = window.AudioContext || window.webkitAudioContext;
+              if (ACtx) {
+                const ctx = new ACtx();
+                const buf = ctx.createBuffer(1, 1, 22050);
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                src.connect(ctx.destination);
+                src.start(0);
+                ctx.resume().catch(() => {});
+              }
+            } catch (_) {}
+            // Secondary: force-load + unlock each sfx element
             const sfxWin  = document.getElementById('sfx-win');
             const sfxLose = document.getElementById('sfx-lose');
-            sfxWin.play().then(() => sfxWin.pause()).catch(() => {});
-            sfxLose.play().then(() => sfxLose.pause()).catch(() => {});
+            sfxWin.load();  sfxWin.play().then(() => sfxWin.pause()).catch(() => {});
+            sfxLose.load(); sfxLose.play().then(() => sfxLose.pause()).catch(() => {});
             videoOverlay.classList.add('active');
             video.currentTime = 0;
             duckMusic(0.08);
