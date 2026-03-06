@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  const lastChadAddress = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
+  const lastChadAddress = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
 
   const QuestRewards = await hre.ethers.getContractFactory("QuestRewards");
   const questRewards = await QuestRewards.deploy(lastChadAddress);
