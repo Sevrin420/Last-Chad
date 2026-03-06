@@ -1785,7 +1785,7 @@
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/create-landing-page-1qjhB');
 
         // Publish quest
-        const QUEST_REWARDS_ADDRESS = '0x527a40a897ae10f00235b058731cf36e863503e0';
+        const QUEST_REWARDS_ADDRESS = '0x24e80b24aecd3e4230f294c932fb5e63b6bd3650';
         github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, QUEST_REWARDS_ADDRESS)
           .then(data => {
             showPublishProgress(false);
