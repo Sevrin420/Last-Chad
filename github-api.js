@@ -1754,6 +1754,7 @@ function showPanel(id) {
         state.rollsLeft++;
         var waitBtn = document.getElementById('rollBtn_' + sid);
         if (waitBtn) { waitBtn.textContent = 'AWAITING SEED'; waitBtn.disabled = false; }
+        _startOnChainQuest();
         return;
       }
 
@@ -1969,6 +1970,7 @@ ${diceInitJs}
           // session[0] = seed (non-zero once startQuest has confirmed)
           if (session && session[0] !== ethers.constants.HashZero) {
             _questSeed = session[0];
+            _seedFetchPending = false;
             _saveProgress();
             document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
               if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
@@ -1980,6 +1982,7 @@ ${diceInitJs}
         if (attempts < MAX_ATTEMPTS) {
           setTimeout(fetchSeed, RETRY_MS);
         } else {
+          _seedFetchPending = false;
           console.error('Could not retrieve quest seed after ' + MAX_ATTEMPTS + ' attempts.');
         }
       })();
