@@ -827,17 +827,8 @@
       const resultOverlay = document.getElementById('result-overlay');
       const resultText = document.getElementById('result-text');
 
+      // Show win/lose immediately — no blockchain wait
       if (win) {
-        // Award double cells (wager was already spent, so award 2x)
-        try {
-          const signer = getSigner();
-          const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-          const tx = await contract.awardCells(selectedTokenId, wagerAmount * 2);
-          await tx.wait();
-        } catch (e) {
-          console.error('Failed to award cells:', e);
-        }
-
         resultText.textContent = 'YOU WIN!';
         resultText.className = 'win';
         duckMusic(0.06);
@@ -845,7 +836,6 @@
         sfxWin.play().catch(() => {});
         sfxWin.onended = () => restoreMusic();
       } else {
-        // Cells already spent — they just don't come back
         resultText.textContent = 'YOU LOSE';
         resultText.className = 'lose';
         duckMusic(0.06);
@@ -858,7 +848,28 @@
       await delay(3000);
       resultOverlay.classList.remove('active');
 
-      // Return to Jipt
+      // Award cells after visuals — only if player won
+      if (win) {
+        clearDialogue();
+        const claimMsg = document.createElement('p');
+        claimMsg.className = 'loading';
+        claimMsg.textContent = 'Claiming your winnings...';
+        dialogueText.appendChild(claimMsg);
+        try {
+          const signer = getSigner();
+          const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+          const tx = await contract.awardCells(selectedTokenId, wagerAmount * 2);
+          claimMsg.textContent = 'Confirming...';
+          await tx.wait();
+          claimMsg.remove();
+        } catch (e) {
+          claimMsg.textContent = 'Failed to claim cells: ' + (e.reason || e.message);
+          claimMsg.style.color = '#e53935';
+          await delay(2000);
+          claimMsg.remove();
+        }
+      }
+
       await showPlayAgain(win);
     }
 
