@@ -807,6 +807,11 @@
         await new Promise(resolve => {
           showChoices([{ label: 'FLIP THE COIN', action: () => {
             choicesDiv.innerHTML = '';
+            // Unlock audio elements NOW while we're in a user gesture
+            const sfxWin  = document.getElementById('sfx-win');
+            const sfxLose = document.getElementById('sfx-lose');
+            sfxWin.play().then(() => sfxWin.pause()).catch(() => {});
+            sfxLose.play().then(() => sfxLose.pause()).catch(() => {});
             videoOverlay.classList.add('active');
             video.currentTime = 0;
             duckMusic(0.08);
@@ -858,6 +863,7 @@
         resultText.className = 'win';
         duckMusic(0.06);
         const sfxWin = document.getElementById('sfx-win');
+        sfxWin.currentTime = 0;
         sfxWin.play().catch(() => {});
         sfxWin.onended = () => restoreMusic();
       } else {
@@ -865,6 +871,7 @@
         resultText.className = 'lose';
         duckMusic(0.06);
         const sfxLose = document.getElementById('sfx-lose');
+        sfxLose.currentTime = 0;
         sfxLose.play().catch(() => {});
         sfxLose.onended = () => restoreMusic();
       }
