@@ -1438,28 +1438,10 @@
         console.warn('questStarted check failed:', e);
       }
 
-      battleBtn.textContent = 'VALIDATING...';
-      if (statusEl) statusEl.textContent = 'Checking eligibility...';
-
-      // Simulate via direct RPC (not WalletConnect) so we get the actual revert reason
-      try {
-        const rp = new ethers.providers.JsonRpcProvider(READ_RPC);
-        const qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
-        await qrStatic.callStatic.startQuest(selectedTokenId, questId, { from: userAddress });
-      } catch (simErr) {
-        battleBtn.disabled = false;
-        battleBtn.textContent = 'BEGIN QUEST';
-        const simMsg = (simErr.reason || simErr.error?.message || simErr.message || '').toLowerCase();
-        let display = 'Cannot start quest.';
-        if (simMsg.includes('already')) display = 'CHAD #' + selectedTokenId + ' has already attempted this quest.';
-        else if (simMsg.includes('owner')) display = 'Wallet does not own Chad #' + selectedTokenId + '.';
-        else if (simErr.reason || simErr.message) display = 'Cannot start: ' + (simErr.reason || simErr.message).slice(0, 80);
-        if (statusEl) statusEl.textContent = display;
-        console.warn('startQuest simulation failed:', simErr);
-        return;
-      }
-
-      // Check NFT approval — QuestRewards needs transferFrom permission
+      // Check NFT approval first — QuestRewards needs transferFrom permission
+      // This must happen BEFORE the simulation, because startQuest() calls transferFrom internally
+      battleBtn.textContent = 'CHECKING...';
+      if (statusEl) statusEl.textContent = 'Checking approval...';
       try {
         const rp = new ethers.providers.JsonRpcProvider(READ_RPC);
         const nft = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, rp);
@@ -1485,6 +1467,27 @@
         } else {
           if (statusEl) statusEl.textContent = 'Approval failed: ' + msg.slice(0, 80);
         }
+        return;
+      }
+
+      battleBtn.textContent = 'VALIDATING...';
+      if (statusEl) statusEl.textContent = 'Checking eligibility...';
+
+      // Simulate via direct RPC (not WalletConnect) so we get the actual revert reason
+      try {
+        const rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        await qrStatic.callStatic.startQuest(selectedTokenId, questId, { from: userAddress });
+      } catch (simErr) {
+        battleBtn.disabled = false;
+        battleBtn.textContent = 'BEGIN QUEST';
+        const simMsg = (simErr.reason || simErr.error?.message || simErr.message || '').toLowerCase();
+        let display = 'Cannot start quest.';
+        if (simMsg.includes('already')) display = 'CHAD #' + selectedTokenId + ' has already attempted this quest.';
+        else if (simMsg.includes('owner')) display = 'Wallet does not own Chad #' + selectedTokenId + '.';
+        else if (simErr.reason || simErr.message) display = 'Cannot start: ' + (simErr.reason || simErr.message).slice(0, 80);
+        if (statusEl) statusEl.textContent = display;
+        console.warn('startQuest simulation failed:', simErr);
         return;
       }
 
