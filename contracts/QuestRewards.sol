@@ -25,18 +25,20 @@ contract QuestRewards {
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     struct QuestSession {
-        bytes32 seed;      // keccak256(tokenId, questId, prevrandao, timestamp, sender) — set immediately
+        bytes32 seed;      // keccak256(tokenId, questId, prevrandao, timestamp, sender)
         uint8   questId;
         uint40  startTime;
         bool    active;
     }
 
-    // Per-quest choice XP rewards, set by game owner
+    // Per-quest reward config — set once by game owner, applied automatically on completeQuest
     struct QuestConfig {
-        uint8 choice1A;  // XP bonus when choice1 = 0
-        uint8 choice1B;  // XP bonus when choice1 = 1
-        uint8 choice2A;  // XP bonus when choice2 = 0
-        uint8 choice2B;  // XP bonus when choice2 = 1
+        uint8  choice1A;    // XP bonus when choice1 = 0
+        uint8  choice1B;    // XP bonus when choice1 = 1
+        uint8  choice2A;    // XP bonus when choice2 = 0
+        uint8  choice2B;    // XP bonus when choice2 = 1
+        uint16 cellReward;  // cells awarded on completion (0 = none)
+        uint16 itemReward;  // item ID minted on completion (0 = none)
     }
 
     mapping(uint256 => QuestSession) public pendingSessions;
@@ -49,19 +51,22 @@ contract QuestRewards {
     // itemId => cell cost for the in-quest shop (0 = not for sale)
     mapping(uint256 => uint256) public itemPrices;
 
-    // questId => choice XP config
+    // questId => reward config
     mapping(uint8 => QuestConfig) internal _questConfig;
+
+    // Locked token enumeration — required for burnAllLocked()
+    uint256[] private _lockedTokenIds;
+    mapping(uint256 => uint256) private _lockedIndex; // tokenId => 1-based position in array
 
     // -------------------------------------------------------------------------
     // Events
     // -------------------------------------------------------------------------
     event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt);
-    event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded);
-    event QuestFailed(uint256 indexed tokenId, uint8 questId);
+    event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded, uint256 cellsAwarded, uint256 itemAwarded);
     event NFTBurned(uint256 indexed tokenId, address indexed originalOwner);
     event NFTReleased(uint256 indexed tokenId, address indexed returnedTo);
 
-    // Mid/end-quest awards (called by game owner)
+    // Mid-quest awards (called by game owner for dynamic events)
     event CellsAwarded(uint256 indexed tokenId, address indexed player, uint256 amount);
     event ItemAwarded(uint256 indexed tokenId, address indexed player, uint256 itemId);
 
@@ -69,7 +74,7 @@ contract QuestRewards {
     event ItemPurchased(uint256 indexed tokenId, uint256 indexed itemId, address indexed buyer, uint256 cellCost);
 
     event ItemPriceSet(uint256 indexed itemId, uint256 cellCost);
-    event QuestConfigSet(uint8 indexed questId, uint8 c1a, uint8 c1b, uint8 c2a, uint8 c2b);
+    event QuestConfigSet(uint8 indexed questId, uint8 c1a, uint8 c1b, uint8 c2a, uint8 c2b, uint16 cellReward, uint16 itemReward);
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -79,25 +84,36 @@ contract QuestRewards {
         gameOwner = msg.sender;
     }
 
-    // -------------------------------------------------------------------------
-    // setLastChadItems — owner sets the items contract (optional, for item awards)
-    // -------------------------------------------------------------------------
-    function setLastChadItems(address itemsAddress) external {
+    modifier onlyGameOwner() {
         require(msg.sender == gameOwner, "Not game owner");
+        _;
+    }
+
+    // -------------------------------------------------------------------------
+    // setLastChadItems
+    // -------------------------------------------------------------------------
+    function setLastChadItems(address itemsAddress) external onlyGameOwner {
         lastChadItems = ILastChadItems(itemsAddress);
     }
 
     // -------------------------------------------------------------------------
-    // setQuestConfig — owner sets choice XP bonuses for a quest
+    // setQuestConfig — defines XP choice bonuses + automatic end-of-quest rewards
+    // cellReward: cells minted to player on completion (0 = none)
+    // itemReward: item ID minted to player on completion (0 = none)
     // -------------------------------------------------------------------------
-    function setQuestConfig(uint8 questId, uint8 c1a, uint8 c1b, uint8 c2a, uint8 c2b) external {
-        require(msg.sender == gameOwner, "Not game owner");
-        _questConfig[questId] = QuestConfig(c1a, c1b, c2a, c2b);
-        emit QuestConfigSet(questId, c1a, c1b, c2a, c2b);
+    function setQuestConfig(
+        uint8  questId,
+        uint8  c1a, uint8 c1b,
+        uint8  c2a, uint8 c2b,
+        uint16 cellReward,
+        uint16 itemReward
+    ) external onlyGameOwner {
+        _questConfig[questId] = QuestConfig(c1a, c1b, c2a, c2b, cellReward, itemReward);
+        emit QuestConfigSet(questId, c1a, c1b, c2a, c2b, cellReward, itemReward);
     }
 
     // -------------------------------------------------------------------------
-    // startQuest — player locks NFT into escrow; seed is generated immediately
+    // startQuest — player locks NFT into escrow; seed generated immediately
     // -------------------------------------------------------------------------
     function startQuest(uint256 tokenId, uint8 questId) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
@@ -110,6 +126,7 @@ contract QuestRewards {
         questStarted[tokenId][questId] = true;
         lockedBy[tokenId] = msg.sender;
         lastChad.transferFrom(msg.sender, address(this), tokenId);
+        _addLocked(tokenId);
 
         pendingSessions[tokenId] = QuestSession({
             seed:      seed,
@@ -122,15 +139,13 @@ contract QuestRewards {
     }
 
     // -------------------------------------------------------------------------
-    // completeQuest — player submits choices + kept-dice bitmasks; XP is
-    //                 computed on-chain from the seed (no trusted server needed)
+    // completeQuest — player submits choices + kept-dice bitmasks.
+    //                 XP, cells, and item rewards are all computed/awarded
+    //                 automatically from on-chain config. No server required.
     //
-    // choice1, choice2: narrative choices (0 or 1), mapped to XP via QuestConfig
-    // kept1: 5-bit bitmask — which dice the player kept after roll 1
-    // kept2: 5-bit bitmask — which dice the player kept after roll 2
-    //        (must be a superset of kept1)
-    //
-    // XP = choiceBonus1 + cargoScore + choiceBonus2 + dexBonus
+    // choice1, choice2 : narrative choices (0 or 1), mapped to XP via QuestConfig
+    // kept1            : 5-bit bitmask of dice kept after roll 1
+    // kept2            : 5-bit bitmask of dice kept after roll 2 (superset of kept1)
     // -------------------------------------------------------------------------
     function completeQuest(
         uint256 tokenId,
@@ -153,66 +168,73 @@ contract QuestRewards {
         );
         require(!questCompleted[tokenId][questId], "Already completed");
 
-        // Validate inputs
         require(choice1 <= 1, "Invalid choice1");
         require(choice2 <= 1, "Invalid choice2");
-        require(kept1 < 32, "Invalid kept1");
-        require(kept2 < 32, "Invalid kept2");
+        require(kept1 < 32,   "Invalid kept1");
+        require(kept2 < 32,   "Invalid kept2");
         require((kept1 & kept2) == kept1, "kept2 must include all of kept1");
 
-        // Compute cargo score on-chain from seed + kept bitmasks
+        // On-chain dice scoring
         uint8 cargo = _calculateCargo(session.seed, kept1, kept2);
 
-        // Look up choice XP bonuses
+        // XP from choices + dice + dex
         QuestConfig memory qc = _questConfig[questId];
-        uint256 c1Bonus = choice1 == 0 ? uint256(qc.choice1A) : uint256(qc.choice1B);
-        uint256 c2Bonus = choice2 == 0 ? uint256(qc.choice2A) : uint256(qc.choice2B);
-
-        // DEX bonus: dex >= 2 gives (dex - 1) bonus XP
+        uint256 c1Bonus  = choice1 == 0 ? uint256(qc.choice1A) : uint256(qc.choice1B);
+        uint256 c2Bonus  = choice2 == 0 ? uint256(qc.choice2A) : uint256(qc.choice2B);
         (, , uint32 dex, , ) = lastChad.getStats(tokenId);
         uint256 dexBonus = dex >= 2 ? uint256(dex) - 1 : 0;
-
         uint256 xpAmount = c1Bonus + uint256(cargo) + c2Bonus + dexBonus;
 
+        // Settle state before external calls
         questCompleted[tokenId][questId] = true;
         delete pendingSessions[tokenId];
         delete lockedBy[tokenId];
+        _removeLocked(tokenId);
 
+        // Return NFT
         lastChad.transferFrom(address(this), player, tokenId);
-        lastChad.awardExperience(tokenId, xpAmount);
-        emit QuestCompleted(tokenId, questId, xpAmount);
+
+        // Award XP (guard against zero — awardExperience requires > 0)
+        if (xpAmount > 0) {
+            lastChad.awardExperience(tokenId, xpAmount);
+        }
+
+        // Award cells from quest config
+        uint256 cellsAwarded = 0;
+        if (qc.cellReward > 0) {
+            cellsAwarded = uint256(qc.cellReward);
+            lastChad.awardCells(tokenId, cellsAwarded);
+        }
+
+        // Award item from quest config
+        uint256 itemAwarded = 0;
+        if (qc.itemReward > 0 && address(lastChadItems) != address(0)) {
+            itemAwarded = uint256(qc.itemReward);
+            lastChadItems.mintTo(player, itemAwarded, 1);
+        }
+
+        emit QuestCompleted(tokenId, questId, xpAmount, cellsAwarded, itemAwarded);
     }
 
     // -------------------------------------------------------------------------
-    // On-chain dice derivation — mirrors _deriveDieJS in quest frontend
+    // On-chain dice derivation
     // keccak256(seed, roll, dieIndex) % 6 + 1
     // -------------------------------------------------------------------------
     function _deriveDie(bytes32 seed, uint8 roll, uint8 dieIndex) internal pure returns (uint8) {
         return uint8(uint256(keccak256(abi.encodePacked(seed, roll, dieIndex))) % 6) + 1;
     }
 
-    // -------------------------------------------------------------------------
-    // Ship Captain Crew scoring — finds 6+5+4, returns sum of remaining 2 dice
-    // Returns 0 if the full set (6, 5, 4) is not present
-    // -------------------------------------------------------------------------
+    // Ship Captain Crew: needs 6 + 5 + 4; cargo = sum of remaining 2 dice
     function _calculateCargo(bytes32 seed, uint8 kept1, uint8 kept2) internal pure returns (uint8) {
-        // Determine final die values based on which roll they were kept on
         uint8[5] memory values;
         for (uint8 i = 0; i < 5; i++) {
-            if ((kept1 & (1 << i)) != 0) {
-                values[i] = _deriveDie(seed, 1, i);   // kept after roll 1
-            } else if ((kept2 & (1 << i)) != 0) {
-                values[i] = _deriveDie(seed, 2, i);   // kept after roll 2
-            } else {
-                values[i] = _deriveDie(seed, 3, i);   // settled on roll 3
-            }
+            if      ((kept1 & (1 << i)) != 0) values[i] = _deriveDie(seed, 1, i);
+            else if ((kept2 & (1 << i)) != 0) values[i] = _deriveDie(seed, 2, i);
+            else                               values[i] = _deriveDie(seed, 3, i);
         }
 
-        // Find ship (6), captain (5), mate (4) — one of each
         bool[5] memory used;
-        bool has6;
-        bool has5;
-        bool has4;
+        bool has6; bool has5; bool has4;
 
         for (uint8 i = 0; i < 5; i++) {
             if (!has6 && values[i] == 6) { used[i] = true; has6 = true; break; }
@@ -226,7 +248,6 @@ contract QuestRewards {
 
         if (!has6 || !has5 || !has4) return 0;
 
-        // Cargo = sum of remaining 2 dice
         uint8 cargo = 0;
         for (uint8 i = 0; i < 5; i++) {
             if (!used[i]) cargo += values[i];
@@ -235,36 +256,26 @@ contract QuestRewards {
     }
 
     // -------------------------------------------------------------------------
-    // awardCells — game owner grants cells mid-quest or at end
-    // Can be called multiple times (e.g. after each minigame section)
+    // Mid-quest awards — game owner only, for dynamic in-quest events
+    // These are optional; standard rewards come from QuestConfig automatically
     // -------------------------------------------------------------------------
-    function awardCells(uint256 tokenId, uint256 amount) external {
-        require(msg.sender == gameOwner, "Not game owner");
+    function awardCells(uint256 tokenId, uint256 amount) external onlyGameOwner {
         address player = lockedBy[tokenId];
         require(player != address(0), "Token not locked");
-
         lastChad.awardCells(tokenId, amount);
         emit CellsAwarded(tokenId, player, amount);
     }
 
-    // -------------------------------------------------------------------------
-    // awardItem — game owner mints an item to the original owner
-    // Use for: good dice rolls, minigame scores, XP thresholds, quest rewards
-    // Call before completeQuest so lockedBy is still set
-    // -------------------------------------------------------------------------
-    function awardItem(uint256 tokenId, uint256 itemId) external {
-        require(msg.sender == gameOwner, "Not game owner");
+    function awardItem(uint256 tokenId, uint256 itemId) external onlyGameOwner {
         require(address(lastChadItems) != address(0), "Items contract not set");
         address player = lockedBy[tokenId];
         require(player != address(0), "Token not locked");
-
         lastChadItems.mintTo(player, itemId, 1);
         emit ItemAwarded(tokenId, player, itemId);
     }
 
     // -------------------------------------------------------------------------
-    // purchaseItem — player spends cells to buy an item mid-quest
-    // Requires an active session (no shopping after the quest ends)
+    // purchaseItem — player spends cells to buy from in-quest shop
     // -------------------------------------------------------------------------
     function purchaseItem(uint256 tokenId, uint256 itemId) external {
         require(lockedBy[tokenId] == msg.sender, "Not quest participant");
@@ -275,7 +286,6 @@ contract QuestRewards {
             block.timestamp <= uint256(session.startTime) + SESSION_DURATION,
             "Session expired"
         );
-
         uint256 cost = itemPrices[itemId];
         require(cost > 0, "Item not in shop");
 
@@ -285,44 +295,98 @@ contract QuestRewards {
     }
 
     // -------------------------------------------------------------------------
-    // setItemPrice — owner sets cell cost for a shop item (0 = remove)
+    // setItemPrice
     // -------------------------------------------------------------------------
-    function setItemPrice(uint256 itemId, uint256 cellCost) external {
-        require(msg.sender == gameOwner, "Not game owner");
+    function setItemPrice(uint256 itemId, uint256 cellCost) external onlyGameOwner {
         itemPrices[itemId] = cellCost;
         emit ItemPriceSet(itemId, cellCost);
     }
 
     // -------------------------------------------------------------------------
-    // burnLocked — owner only; burn a failed/forfeited NFT
+    // Release — return NFTs to their original owners
     // -------------------------------------------------------------------------
-    function burnLocked(uint256 tokenId) external {
-        require(msg.sender == gameOwner, "Not game owner");
+    function releaseLocked(uint256 tokenId) external onlyGameOwner {
         address original = lockedBy[tokenId];
         require(original != address(0), "Token not locked");
-
-        delete lockedBy[tokenId];
-        lastChad.transferFrom(address(this), BURN_ADDRESS, tokenId);
-        emit NFTBurned(tokenId, original);
-    }
-
-    // -------------------------------------------------------------------------
-    // releaseLocked — owner only; mercy release / error recovery
-    // -------------------------------------------------------------------------
-    function releaseLocked(uint256 tokenId) external {
-        require(msg.sender == gameOwner, "Not game owner");
-        address original = lockedBy[tokenId];
-        require(original != address(0), "Token not locked");
-
-        delete lockedBy[tokenId];
-        delete pendingSessions[tokenId];
-        lastChad.transferFrom(address(this), original, tokenId);
+        _doRelease(tokenId, original);
         emit NFTReleased(tokenId, original);
     }
 
-    // Required to receive ERC-721 tokens
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
+    function batchReleaseLocked(uint256[] calldata tokenIds) external onlyGameOwner {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            address original = lockedBy[tokenId];
+            if (original == address(0)) continue; // skip unlocked
+            _doRelease(tokenId, original);
+            emit NFTReleased(tokenId, original);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Burn — send NFTs to the dead address
+    // -------------------------------------------------------------------------
+    function burnLocked(uint256 tokenId) external onlyGameOwner {
+        address original = lockedBy[tokenId];
+        require(original != address(0), "Token not locked");
+        _doBurn(tokenId, original);
+        emit NFTBurned(tokenId, original);
+    }
+
+    function batchBurnLocked(uint256[] calldata tokenIds) external onlyGameOwner {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            address original = lockedBy[tokenId];
+            if (original == address(0)) continue; // skip unlocked
+            _doBurn(tokenId, original);
+            emit NFTBurned(tokenId, original);
+        }
+    }
+
+    // Burn every NFT currently held in escrow
+    function burnAllLocked() external onlyGameOwner {
+        // Iterate in reverse so swap-and-pop removals don't skip tokens
+        for (uint256 i = _lockedTokenIds.length; i > 0; i--) {
+            uint256 tokenId = _lockedTokenIds[i - 1];
+            address original = lockedBy[tokenId];
+            _doBurn(tokenId, original);
+            emit NFTBurned(tokenId, original);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+    function _doRelease(uint256 tokenId, address original) internal {
+        delete lockedBy[tokenId];
+        delete pendingSessions[tokenId];
+        _removeLocked(tokenId);
+        lastChad.transferFrom(address(this), original, tokenId);
+    }
+
+    function _doBurn(uint256 tokenId, address original) internal {
+        delete lockedBy[tokenId];
+        delete pendingSessions[tokenId];
+        _removeLocked(tokenId);
+        lastChad.transferFrom(address(this), BURN_ADDRESS, tokenId);
+    }
+
+    // O(1) add to locked set
+    function _addLocked(uint256 tokenId) internal {
+        _lockedIndex[tokenId] = _lockedTokenIds.length + 1; // 1-based
+        _lockedTokenIds.push(tokenId);
+    }
+
+    // O(1) remove from locked set via swap-and-pop
+    function _removeLocked(uint256 tokenId) internal {
+        uint256 idx = _lockedIndex[tokenId];
+        if (idx == 0) return; // not tracked
+
+        uint256 arrayIdx = idx - 1;
+        uint256 last = _lockedTokenIds[_lockedTokenIds.length - 1];
+        _lockedTokenIds[arrayIdx] = last;
+        _lockedIndex[last] = idx;
+        _lockedTokenIds.pop();
+        delete _lockedIndex[tokenId];
     }
 
     // -------------------------------------------------------------------------
@@ -339,5 +403,26 @@ contract QuestRewards {
         QuestSession memory s = pendingSessions[tokenId];
         if (!s.active) return false;
         return block.timestamp > uint256(s.startTime) + SESSION_DURATION;
+    }
+
+    // Returns all token IDs currently locked in escrow
+    function getLockedTokenIds() external view returns (uint256[] memory) {
+        return _lockedTokenIds;
+    }
+
+    function getLockedCount() external view returns (uint256) {
+        return _lockedTokenIds.length;
+    }
+
+    function getQuestConfig(uint8 questId) external view returns (
+        uint8 c1a, uint8 c1b, uint8 c2a, uint8 c2b, uint16 cellReward, uint16 itemReward
+    ) {
+        QuestConfig memory qc = _questConfig[questId];
+        return (qc.choice1A, qc.choice1B, qc.choice2A, qc.choice2B, qc.cellReward, qc.itemReward);
+    }
+
+    // Required to receive ERC-721 tokens
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }
