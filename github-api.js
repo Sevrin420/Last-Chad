@@ -350,6 +350,18 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       };
     }
   });
+
+  // Build double-choice map for choice tracking (choice1/choice2 for completeQuest)
+  // Maps sectionId → { next1, next2 } so goToSection can record which branch was taken
+  const doubleChoiceMap = {};
+  sections.forEach(s => {
+    if (s.selectedChoice === 'double') {
+      doubleChoiceMap[s.id] = {
+        next1: s.choice1NextSectionId || null,
+        next2: s.choice2NextSectionId || null
+      };
+    }
+  });
   const diceSectionIds = sections.filter(s => s.selectedChoice === 'dice').map(s => s.id);
 
   // Build section → music map (paths are relative to site root; prefix ../../ for quests subfolder)
@@ -536,6 +548,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       </div>`;
 
   const diceOutcomesJson = JSON.stringify(diceOutcomes);
+  const doubleChoiceMapJson = JSON.stringify(doubleChoiceMap);
   const diceInitJs = diceSectionIds.map(id => `    getDiceState(${id});`).join('\n');
 
   return `<!DOCTYPE html>
@@ -1268,6 +1281,11 @@ ${completePanelHtml}
       localStorage.removeItem(_progressKey());
     }
     var diceOutcomes = ${diceOutcomesJson};
+    // Maps sectionId → { next1, next2 } for double-choice sections
+    var doubleChoiceMap = ${doubleChoiceMapJson};
+    // Tracks which branch the player chose (0 or 1) for the first two double-choice sections,
+    // in encounter order. Passed as choice1/choice2 to QuestRewards.completeQuest.
+    var _choiceRecord = [];
     var sectionMusic = ${sectionMusicJson};
     var introLines = ${introLinesJson};
 
@@ -1373,6 +1391,11 @@ function showPanel(id) {
     }
 
     function goToSection(id) {
+      // Record narrative choices for completeQuest (first two double-choice sections only)
+      if (currentSectionId !== null && doubleChoiceMap[currentSectionId] && _choiceRecord.length < 2) {
+        var dc = doubleChoiceMap[currentSectionId];
+        _choiceRecord.push(id === dc.next1 ? 0 : 1);
+      }
       currentSectionId = id || null;
       _saveProgress();
       showPanel(id || null);
@@ -1936,7 +1959,7 @@ ${diceInitJs}
     var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}';
     var QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
-      'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount) external',
+      'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
       'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
       'function lockedBy(uint256 tokenId) external view returns (address)'
@@ -2205,12 +2228,16 @@ ${diceInitJs}
       if (QUEST_REWARDS_ADDRESS && walletSigner) {
         statusEl.textContent = 'CONFIRM IN WALLET...';
         try {
-          // Sum totalScore across all dice sections
-          var _totalXP = Object.keys(diceOutcomes).reduce(function(sum, sid) {
-            return sum + ((diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0);
-          }, 0);
+          // Collect kept bitmasks from the first dice section (on-chain verification)
+          var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
+          var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
+          var _kept1 = (_ds && _ds.kept1) || 0;
+          var _kept2 = (_ds && _ds.kept2) || 0;
+          // Narrative choices recorded in order of encounter (0 = first option, 1 = second option)
+          var _choice1 = _choiceRecord[0] !== undefined ? _choiceRecord[0] : 0;
+          var _choice2 = _choiceRecord[1] !== undefined ? _choiceRecord[1] : 0;
           var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-          var tx = await qr.completeQuest(chadId, QUEST_ID, _totalXP);
+          var tx = await qr.completeQuest(chadId, QUEST_ID, _choice1, _choice2, _kept1, _kept2);
           statusEl.textContent = 'CONFIRMING...';
           await tx.wait();
         } catch(e) {

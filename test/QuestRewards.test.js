@@ -68,6 +68,9 @@ describe("QuestRewards", function () {
     // Authorize QuestRewards to call awardExperience on LastChad
     await lastChad.setGameContract(await questRewards.getAddress(), true);
 
+    // Configure quest 0: choice1 = [1, 3], choice2 = [2, 3]
+    await questRewards.setQuestConfig(QUEST_ID, 1, 3, 2, 3);
+
     // Mint token 1 to player
     await lastChad.connect(player).mint(1, { value: PRICE });
   });
