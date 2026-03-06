@@ -395,7 +395,7 @@
 
   <!-- Video overlay -->
   <div id="video-overlay">
-    <video id="flip-video" playsinline>
+    <video id="flip-video" playsinline muted>
       <source src="assets/Oldjipt/oldjiptvid.mp4" type="video/mp4" />
     </video>
   </div>
@@ -773,7 +773,12 @@
         const video = document.getElementById('flip-video');
         videoOverlay.classList.add('active');
         video.currentTime = 0;
-        video.play();
+        video.play().catch(() => {
+          // Autoplay still blocked — skip video and go straight to result
+          videoOverlay.classList.remove('active');
+          restoreMusic(0.45, 200);
+          showResult(win);
+        });
         duckMusic(0.08);
 
         // Determine result using on-chain tx hash + local crypto nonce (same pattern as QuestRewards server nonce)
