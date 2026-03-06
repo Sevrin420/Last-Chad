@@ -1,21 +1,103 @@
+/**
+ * deployQuestRewards.js
+ *
+ * Deploys the new QuestRewards contract, wires it to LastChad + LastChadItems,
+ * and patches js/config.js with the new address automatically.
+ *
+ * Usage:
+ *   npx hardhat run scripts/deployQuestRewards.js --network fuji
+ *   npx hardhat run scripts/deployQuestRewards.js --network avalanche
+ *
+ * Required env vars:
+ *   PRIVATE_KEY  — deployer / game-owner wallet
+ */
+
 const hre = require("hardhat");
+const fs  = require("fs");
+const path = require("path");
+
+// ── Existing contract addresses ────────────────────────────────────────────
+const LAST_CHAD_ADDRESS       = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
+const LAST_CHAD_ITEMS_ADDRESS = '0x0ef84248f58be2ac72b8d2e4229fc4e8575d5947';
+
+// ── Minimal ABIs needed just for the wiring calls ─────────────────────────
+const SET_GAME_CONTRACT_ABI = [
+  'function setGameContract(address gameContract, bool approved) external',
+];
 
 async function main() {
-  const lastChadAddress      = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
-  const lastChadItemsAddress = '0x0ef84248f58be2ac72b8d2e4229fc4e8575d5947';
+  const [deployer] = await hre.ethers.getSigners();
+  const network = hre.network.name;
 
+  console.log(`\nDeploying QuestRewards on [${network}]`);
+  console.log(`Deployer / game owner: ${deployer.address}`);
+  console.log(`LastChad:              ${LAST_CHAD_ADDRESS}`);
+  console.log(`LastChadItems:         ${LAST_CHAD_ITEMS_ADDRESS}\n`);
+
+  // ── 1. Deploy QuestRewards ─────────────────────────────────────────────
   const QuestRewards = await hre.ethers.getContractFactory("QuestRewards");
-  const questRewards = await QuestRewards.deploy(lastChadAddress, lastChadItemsAddress);
+  const questRewards = await QuestRewards.deploy(LAST_CHAD_ADDRESS);
   await questRewards.waitForDeployment();
 
-  const address = await questRewards.getAddress();
-  console.log("QuestRewards deployed to:", address);
-  console.log("Linked to LastChad:", lastChadAddress);
-  console.log("");
-  console.log("Next steps:");
-  console.log("  1. Set QUEST_REWARDS_ADDRESS =", `'${address}'`, "in js/config.js");
-  console.log("  2. Authorize QuestRewards in LastChad:");
-  console.log(`     lastChad.setGameContract('${address}', true)`);
+  const questRewardsAddress = await questRewards.getAddress();
+  console.log("QuestRewards deployed to:", questRewardsAddress);
+
+  // ── 2. Wire LastChadItems into QuestRewards ────────────────────────────
+  console.log("\nWiring LastChadItems into QuestRewards...");
+  let tx = await questRewards.setLastChadItems(LAST_CHAD_ITEMS_ADDRESS);
+  await tx.wait();
+  console.log("  setLastChadItems ✓");
+
+  // ── 3. Authorize QuestRewards in LastChad ─────────────────────────────
+  console.log("Authorizing QuestRewards in LastChad...");
+  const lastChad = new hre.ethers.Contract(
+    LAST_CHAD_ADDRESS, SET_GAME_CONTRACT_ABI, deployer
+  );
+  tx = await lastChad.setGameContract(questRewardsAddress, true);
+  await tx.wait();
+  console.log("  lastChad.setGameContract ✓");
+
+  // ── 4. Authorize QuestRewards in LastChadItems ────────────────────────
+  console.log("Authorizing QuestRewards in LastChadItems...");
+  const lastChadItems = new hre.ethers.Contract(
+    LAST_CHAD_ITEMS_ADDRESS, SET_GAME_CONTRACT_ABI, deployer
+  );
+  tx = await lastChadItems.setGameContract(questRewardsAddress, true);
+  await tx.wait();
+  console.log("  lastChadItems.setGameContract ✓");
+
+  // ── 5. Seed quest configs ──────────────────────────────────────────────
+  // setQuestConfig(questId, c1a, c1b, c2a, c2b, cellReward, itemReward)
+  // Quest 1: choice1 bonus 1 or 3, choice2 bonus 2 or 3, 50 cells, no item
+  console.log("\nSeeding quest configs...");
+  tx = await questRewards.setQuestConfig(1, 1, 3, 2, 3, 50, 0);
+  await tx.wait();
+  console.log("  Quest 1 config set ✓  (XP bonuses: 1|3 + 2|3, 50 cells reward)");
+
+  // ── 6. Patch js/config.js with the new address ────────────────────────
+  const configPath = path.join(__dirname, '..', 'js', 'config.js');
+  if (fs.existsSync(configPath)) {
+    let config = fs.readFileSync(configPath, 'utf8');
+    config = config.replace(
+      /export const QUEST_REWARDS_ADDRESS\s*=\s*'[^']*'/,
+      `export const QUEST_REWARDS_ADDRESS    = '${questRewardsAddress}'`
+    );
+    fs.writeFileSync(configPath, config, 'utf8');
+    console.log("\nPatched js/config.js → QUEST_REWARDS_ADDRESS =", questRewardsAddress);
+  } else {
+    console.warn("\nWarning: js/config.js not found — update QUEST_REWARDS_ADDRESS manually.");
+  }
+
+  // ── 7. Summary ────────────────────────────────────────────────────────
+  console.log("\n══════════════════════════════════════════════════");
+  console.log("Deployment complete!");
+  console.log("  Network:       ", network);
+  console.log("  QuestRewards:  ", questRewardsAddress);
+  console.log("  LastChad auth: ✓");
+  console.log("  Items auth:    ✓");
+  console.log("  Quest 1 cfg:   ✓");
+  console.log("══════════════════════════════════════════════════\n");
+  console.log("js/config.js has been updated. Commit and push to go live.");
 }
 
 main().catch((err) => {

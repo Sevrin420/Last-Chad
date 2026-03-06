@@ -20,19 +20,34 @@ export const LASTCHAD_ABI = [
 export const QUEST_REWARDS_ABI = [
   // Player
   'function startQuest(uint256 tokenId, uint8 questId)',
+  'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2)',
   'function purchaseItem(uint256 tokenId, uint256 itemId)',
-  // Game owner
-  'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount)',
+  // Game owner — awards
   'function awardCells(uint256 tokenId, uint256 amount)',
   'function awardItem(uint256 tokenId, uint256 itemId)',
   'function setItemPrice(uint256 itemId, uint256 cellCost)',
-  'function burnLocked(uint256 tokenId)',
+  'function setQuestConfig(uint8 questId, uint8 c1a, uint8 c1b, uint8 c2a, uint8 c2b, uint16 cellReward, uint16 itemReward)',
+  'function setLastChadItems(address itemsAddress)',
+  // Game owner — release
   'function releaseLocked(uint256 tokenId)',
+  'function batchReleaseLocked(uint256[] tokenIds)',
+  // Game owner — burn
+  'function burnLocked(uint256 tokenId)',
+  'function batchBurnLocked(uint256[] tokenIds)',
+  'function burnAllLocked()',
   // View
   'function itemPrices(uint256 itemId) view returns (uint256)',
   'function lockedBy(uint256 tokenId) view returns (address)',
   'function getSession(uint256 tokenId) view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
   'function isSessionExpired(uint256 tokenId) view returns (bool)',
+  'function getLockedTokenIds() view returns (uint256[])',
+  'function getLockedCount() view returns (uint256)',
+  'function getQuestConfig(uint8 questId) view returns (uint8 c1a, uint8 c1b, uint8 c2a, uint8 c2b, uint16 cellReward, uint16 itemReward)',
+  // Events
+  'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
+  'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded, uint256 cellsAwarded, uint256 itemAwarded)',
+  'event NFTBurned(uint256 indexed tokenId, address indexed originalOwner)',
+  'event NFTReleased(uint256 indexed tokenId, address indexed returnedTo)',
 ];
 
 export const MARKET_ABI = [
