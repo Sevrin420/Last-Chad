@@ -1936,8 +1936,7 @@ ${diceInitJs}
     var QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
       'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount) external',
-      'function cancelQuest(uint256 tokenId) external',
-      'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active, bool seedRevealed)',
+      'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
       'function lockedBy(uint256 tokenId) external view returns (address)'
     ];
@@ -1950,77 +1949,40 @@ ${diceInitJs}
       return ethers.BigNumber.from(ethers.utils.keccak256(packed)).mod(6).toNumber() + 1;
     }
 
-    // Poll for the server-revealed seed (created by revealSeed() after startQuest confirms).
-    // Runs every 3 seconds until seed arrives, then stops.
-    // After SEED_REVEAL_TIMEOUT (5 min) without a seed, shows a Cancel Quest button.
-    var _seedPollTimer = null;
-    var SEED_REVEAL_TIMEOUT_MS = 5 * 60 * 1000;
+    // Fetch the on-chain seed after startQuest() confirms (seed is available immediately).
+    // adventure.html already awaits tx.wait() before navigating here, so the first
+    // fetch should succeed. Retry up to 5 times with 2-second backoff in case of RPC lag.
+    var _seedFetchPending = false;
 
     async function _startOnChainQuest() {
       if (!QUEST_REWARDS_ADDRESS || !chadId) return;
-      if (_seedPollTimer) return; // already polling
-      _seedPollTimer = setInterval(async function() {
+      if (_seedFetchPending) return;
+      _seedFetchPending = true;
+      var attempts = 0;
+      var MAX_ATTEMPTS = 5;
+      var RETRY_MS = 2000;
+      (async function fetchSeed() {
         try {
           var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
           var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
           var session = await qrRead.getSession(chadId);
-          // session[5] = seedRevealed bool
-          if (session && session[5] === true) {
+          // session[0] = seed (non-zero once startQuest has confirmed)
+          if (session && session[0] !== ethers.constants.HashZero) {
             _questSeed = session[0];
             _saveProgress();
-            clearInterval(_seedPollTimer);
-            _seedPollTimer = null;
-            _hideCancelBtn();
             document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
               if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
             });
             return;
           }
-          // Show cancel button if reveal window has expired
-          if (session && session[2]) {
-            var startTime = Number(session[2]) * 1000; // convert seconds to ms
-            if (Date.now() - startTime > SEED_REVEAL_TIMEOUT_MS) {
-              _showCancelBtn();
-            }
-          }
-        } catch(e) { console.warn('Seed poll failed:', e); }
-      }, 3000);
-    }
-
-    function _showCancelBtn() {
-      if (document.getElementById('_cancelQuestBtn')) return;
-      var btn = document.createElement('button');
-      btn.id = '_cancelQuestBtn';
-      btn.textContent = 'CANCEL QUEST (server timeout — reclaim NFT)';
-      btn.style.cssText = 'display:block;margin:20px auto;padding:12px 20px;background:rgba(200,60,60,0.2);border:2px solid #e05555;color:#e05555;font-family:"Press Start 2P",monospace;font-size:0.28rem;cursor:pointer;border-radius:4px;';
-      btn.onclick = _cancelQuest;
-      document.querySelectorAll('[id^="rollBtn_"]').forEach(function(rb) {
-        rb.parentNode && rb.parentNode.insertAdjacentElement('afterend', btn.cloneNode(true));
-      });
-      document.querySelectorAll('#_cancelQuestBtn').forEach(function(b) { b.onclick = _cancelQuest; });
-    }
-
-    function _hideCancelBtn() {
-      document.querySelectorAll('#_cancelQuestBtn').forEach(function(b) { b.parentNode && b.parentNode.removeChild(b); });
-    }
-
-    async function _cancelQuest() {
-      if (!walletSigner || !chadId) { alert('Connect wallet first.'); return; }
-      try {
-        var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-        var tx = await qr.cancelQuest(chadId);
-        var btn = document.getElementById('_cancelQuestBtn');
-        if (btn) btn.textContent = 'Cancelling... (waiting for tx)';
-        await tx.wait();
-        clearInterval(_seedPollTimer);
-        _seedPollTimer = null;
-        _hideCancelBtn();
-        alert('Quest cancelled. Your NFT has been returned. You can retry the quest.');
-        window.location.href = '../../enter.html';
-      } catch(e) {
-        console.error('Cancel failed:', e);
-        alert('Cancel failed: ' + (e.reason || e.message));
-      }
+        } catch(e) { console.warn('Seed fetch failed:', e); }
+        attempts++;
+        if (attempts < MAX_ATTEMPTS) {
+          setTimeout(fetchSeed, RETRY_MS);
+        } else {
+          console.error('Could not retrieve quest seed after ' + MAX_ATTEMPTS + ' attempts.');
+        }
+      })();
     }
 
     var walletProvider = null;
