@@ -950,6 +950,11 @@
       'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
     ];
+    const ERC721_APPROVE_ABI = [
+      'function getApproved(uint256 tokenId) view returns (address)',
+      'function isApprovedForAll(address owner, address operator) view returns (bool)',
+      'function approve(address to, uint256 tokenId) external'
+    ];
     // Known ERC-1155 items — add entries here when new items are created
     const KNOWN_ITEMS = { '1': "Cindy's Code" };
     let questIndexData = [];
@@ -1451,6 +1456,35 @@
         else if (simErr.reason || simErr.message) display = 'Cannot start: ' + (simErr.reason || simErr.message).slice(0, 80);
         if (statusEl) statusEl.textContent = display;
         console.warn('startQuest simulation failed:', simErr);
+        return;
+      }
+
+      // Check NFT approval — QuestRewards needs transferFrom permission
+      try {
+        const rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const nft = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, rp);
+        const [approved, approvedAll] = await Promise.all([
+          nft.getApproved(selectedTokenId),
+          nft.isApprovedForAll(userAddress, QUEST_REWARDS_ADDRESS)
+        ]);
+        const needsApproval = !approvedAll && approved.toLowerCase() !== QUEST_REWARDS_ADDRESS.toLowerCase();
+        if (needsApproval) {
+          battleBtn.textContent = 'APPROVING...';
+          if (statusEl) statusEl.textContent = 'Step 1 of 2: Approve NFT transfer in your wallet.';
+          const nftWrite = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, signer);
+          const approveTx = await nftWrite.approve(QUEST_REWARDS_ADDRESS, selectedTokenId);
+          if (statusEl) statusEl.textContent = 'Confirming approval...';
+          await approveTx.wait();
+        }
+      } catch (approveErr) {
+        battleBtn.disabled = false;
+        battleBtn.textContent = 'BEGIN QUEST';
+        const msg = approveErr.reason || approveErr.message || '';
+        if (approveErr.code === 4001 || msg.toLowerCase().includes('rejected') || msg.toLowerCase().includes('denied')) {
+          if (statusEl) statusEl.textContent = 'Approval rejected.';
+        } else {
+          if (statusEl) statusEl.textContent = 'Approval failed: ' + msg.slice(0, 80);
+        }
         return;
       }
 
