@@ -526,6 +526,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           ${hasDice ? '<p>Your score held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
         </div>
         <div class="claim-xp-section">
+          <div id="xpPreview" style="margin-bottom:12px;font-size:1.1em;color:#ffd700;display:none;">XP EARNED: <span id="xpPreviewValue">0</span></div>
           <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM XP</button>
           <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
         </div>
@@ -1356,6 +1357,19 @@ function showPanel(id) {
       playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
+
+      // When reaching the complete panel, show total XP that will be claimed
+      if (!id) {
+        var _xpTotal = Object.keys(diceOutcomes).reduce(function(sum, sid) {
+          return sum + ((diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0);
+        }, 0);
+        var xpPreviewEl = document.getElementById('xpPreview');
+        var xpPreviewVal = document.getElementById('xpPreviewValue');
+        if (xpPreviewEl && _xpTotal > 0) {
+          xpPreviewVal.textContent = _xpTotal;
+          xpPreviewEl.style.display = 'block';
+        }
+      }
     }
 
     function goToSection(id) {
@@ -1924,7 +1938,8 @@ ${diceInitJs}
       'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount) external',
       'function cancelQuest(uint256 tokenId) external',
       'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active, bool seedRevealed)',
-      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
+      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
+      'function lockedBy(uint256 tokenId) external view returns (address)'
     ];
     var QUEST_ID = ${questId};
     var _questSeed = null; // set after startQuest confirmed on-chain
@@ -2206,18 +2221,20 @@ ${diceInitJs}
       btn.textContent = 'CLAIMING...';
       statusEl.textContent = '';
 
-      // Try to verify ownership
-      try {
-        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
-        var readContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
-        var owner = await readContract.ownerOf(chadId);
-        if (owner.toLowerCase() !== userAddress.toLowerCase()) {
-          statusEl.textContent = 'You do not own CHAD #' + chadId;
-          btn.disabled = false;
-          btn.textContent = 'CLAIM XP';
-          return;
-        }
-      } catch(e) { /* ownership check failed — proceed */ }
+      // Verify the caller is the quest participant (NFT is in escrow, so check lockedBy not ownerOf)
+      if (QUEST_REWARDS_ADDRESS) {
+        try {
+          var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+          var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
+          var lockedByAddr = await qrRead.lockedBy(chadId);
+          if (lockedByAddr.toLowerCase() !== userAddress.toLowerCase()) {
+            statusEl.textContent = 'This wallet did not start the quest for CHAD #' + chadId;
+            btn.disabled = false;
+            btn.textContent = 'CLAIM XP';
+            return;
+          }
+        } catch(e) { /* check failed — proceed */ }
+      }
 
       // Award XP on-chain via QuestRewards if configured, otherwise localStorage only
       if (QUEST_REWARDS_ADDRESS && walletSigner) {
