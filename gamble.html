@@ -69,38 +69,133 @@
       50%       { box-shadow: 0 0 40px rgba(255,150,30,0.6), inset 0 0 30px rgba(255,150,30,0.12); }
     }
 
-    /* ── Wallet button ── */
-    #wallet-bar {
-      position: fixed; top: 12px; right: 12px; z-index: 300;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.6s ease;
+    /* ── Header ── */
+    .game-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(10, 10, 15, 0.9);
+      border-bottom: 2px solid #3d2e0a;
+      backdrop-filter: blur(8px);
     }
-    #wallet-bar.visible { opacity: 1; pointer-events: auto; }
-    #wallet-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.6rem; color: #ffe96a;
-      background: rgba(10,10,15,0.85); border: 1px solid #ffe96a;
-      padding: 0.6em 1em; cursor: pointer;
-      text-shadow: 0 0 6px #ffe96a;
-    }
-    #wallet-btn:hover { background: rgba(255,233,106,0.15); }
 
-    /* Wallet dropdown */
-    #wallet-dropdown {
-      display: none; position: absolute; top: 100%; right: 0;
-      margin-top: 4px; background: rgba(10,10,15,0.95);
-      border: 1px solid #ffe96a; min-width: 160px; z-index: 301;
+    /* ── Wallet button ── */
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5);
     }
-    #wallet-dropdown.open { display: block; }
+    .wallet-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.5), 0 2px 10px rgba(201, 168, 76, 0.4);
+    }
+    .wallet-btn.connected {
+      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
+      border-color: #4caf50;
+      color: #a5d6a7;
+      font-size: 0.5rem;
+    }
+    .wallet-wrapper { position: relative; }
+    .disconnect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      z-index: 110;
+      min-width: 160px;
+    }
+    .disconnect-dropdown.show { display: block; }
+    .disconnect-btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #e53935;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s;
+    }
+    .disconnect-btn:hover { background: rgba(229, 57, 53, 0.15); }
+
+    /* ── Wallet Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 3px solid #5c4409;
+      border-radius: 8px;
+      padding: 28px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(139, 105, 20, 0.15);
+    }
+    .modal-title {
+      font-size: 0.7rem;
+      color: #c9a84c;
+      text-align: center;
+      margin-bottom: 24px;
+    }
     .wallet-option {
-      display: block; width: 100%; padding: 0.6em 0.8em;
-      font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
-      color: #ffe96a; background: transparent; border: none;
-      border-bottom: 1px solid rgba(255,233,106,0.2);
-      cursor: pointer; text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      background: rgba(61, 46, 10, 0.3);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
     }
-    .wallet-option:hover { background: rgba(255,233,106,0.15); }
-    .wallet-option:last-child { border-bottom: none; }
+    .wallet-option:hover {
+      border-color: #8b6914;
+      background: rgba(92, 68, 9, 0.3);
+      box-shadow: 0 0 10px rgba(139, 105, 20, 0.2);
+    }
+    .wallet-option:active { transform: scale(0.97); }
+    .wallet-icon {
+      width: 32px; height: 32px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .modal-close {
+      display: block;
+      margin: 16px auto 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #5c4409;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .modal-close:hover { color: #c9a84c; }
 
     /* ── Dialogue box — bottom section ── */
     #dialogue-box {
@@ -139,7 +234,7 @@
     }
     .choice-btn {
       font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.45rem, 1.1vw, 0.6rem);
+      font-size: clamp(0.65rem, 1.8vw, 0.85rem);
       color: #ffe96a; background: rgba(201,168,76,0.12);
       border: 1px solid #c9a84c; padding: 0.8em 1.4em;
       cursor: pointer;
@@ -258,7 +353,7 @@
     }
 
     /* ── Nav ── */
-    .nav-wrapper { position: fixed; top: 12px; left: 12px; z-index: 300; }
+    .nav-wrapper { position: static; }
   </style>
 </head>
 <body>
@@ -273,16 +368,16 @@
   <!-- Background music -->
   <audio id="bg-music" src="music/adventure.mp3" loop></audio>
 
-  <!-- Wallet -->
-  <div id="wallet-bar">
-    <button id="wallet-btn" onclick="toggleWalletDropdown()">CONNECT</button>
-    <div id="wallet-dropdown">
-      <button class="wallet-option" onclick="doConnect('rabby')">Rabby</button>
-      <button class="wallet-option" onclick="doConnect('core')">Core</button>
-      <button class="wallet-option" onclick="doConnect('metamask')">MetaMask</button>
-      <button class="wallet-option" onclick="doConnect('walletconnect')">WalletConnect</button>
+  <!-- Header -->
+  <header class="game-header">
+    <div id="nav-placeholder"></div>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
     </div>
-  </div>
+  </header>
 
   <!-- Dialogue -->
   <div id="dialogue-box">
@@ -306,13 +401,34 @@
   <audio id="sfx-win" src="sound effects/youwin.wav" preload="auto"></audio>
   <audio id="sfx-lose" src="sound effects/youlose.wav" preload="auto"></audio>
 
-  <!-- Nav -->
-  <div id="nav-placeholder"></div>
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
+        Rabby
+      </button>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9889;</span>
+        Core
+      </button>
+      <button class="wallet-option" data-wallet="metamask">
+        <span class="wallet-icon" style="background:#f6851b;">&#129418;</span>
+        MetaMask
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
+        WalletConnect
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
 
-  <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect,
-             getSigner, getUserAddress, truncateAddress } from './js/wallet.js';
+             getSigner, truncateAddress } from './js/wallet.js';
     import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC } from './js/config.js';
 
     // ── Music & Enter ──
@@ -331,9 +447,8 @@
       // Fade in jipt image immediately
       jiptImage.classList.add('visible');
 
-      // Show wallet + dialogue
+      // Show dialogue
       await delay(900);
-      document.getElementById('wallet-bar').classList.add('visible');
       dialogueBox.classList.add('visible');
       await delay(400);
       showIntro();
@@ -369,25 +484,56 @@
     ];
 
     // ── DOM refs ──
-    const dialogueText = document.getElementById('dialogue-text');
-    const choicesDiv   = document.getElementById('choices');
-    const walletBtn    = document.getElementById('wallet-btn');
-    const walletDrop   = document.getElementById('wallet-dropdown');
+    const dialogueText      = document.getElementById('dialogue-text');
+    const choicesDiv        = document.getElementById('choices');
+    const walletBtn         = document.getElementById('walletBtn');
+    const walletModal       = document.getElementById('walletModal');
+    const modalClose        = document.getElementById('modalClose');
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+    const disconnectBtn     = document.getElementById('disconnectBtn');
 
-    // ── Wallet ──
-    window.toggleWalletDropdown = () => walletDrop.classList.toggle('open');
-    window.doConnect = async (name) => {
-      walletDrop.classList.remove('open');
-      await connectWallet(name, {
-        onConnected: (addr) => {
-          walletBtn.textContent = truncateAddress(addr);
-          showIntro();
-        },
-        onDisconnected: () => {
-          walletBtn.textContent = 'CONNECT';
-        }
+    let userAddress = null;
+
+    function onConnected(addr) {
+      userAddress = addr;
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      walletModal.classList.remove('show');
+      if (hasEntered) showIntro();
+    }
+
+    function onDisconnected() {
+      userAddress = null;
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+    }
+
+    // ── Wallet modal events ──
+    walletBtn.addEventListener('click', () => {
+      if (userAddress) { disconnectDropdown.classList.toggle('show'); return; }
+      walletModal.classList.add('show');
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      disconnectDropdown.classList.remove('show');
+      disconnect(onDisconnected);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
+    });
+
+    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
+    walletModal.addEventListener('click', (e) => {
+      if (e.target === walletModal) walletModal.classList.remove('show');
+    });
+
+    document.querySelectorAll('.wallet-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        walletModal.classList.remove('show');
+        connectWallet(opt.dataset.wallet, { onConnected, onDisconnected });
       });
-    };
+    });
 
     // ── Typewriter ──
     function typewrite(el, text, speed = 40) {
@@ -455,7 +601,7 @@
     // ── Flow: Select NFT ──
     async function startCoinFlip() {
       clearDialogue();
-      const addr = getUserAddress();
+      const addr = userAddress;
       if (!addr) {
         const p = document.createElement('p');
         p.textContent = 'Connect your wallet first!';
@@ -725,14 +871,7 @@
     }
 
     // ── Init ──
-    autoReconnect({
-      onConnected: (addr) => {
-        walletBtn.textContent = truncateAddress(addr);
-        // If already entered the den, refresh intro with wallet context
-        if (hasEntered) showIntro();
-      },
-      onDisconnected: () => { walletBtn.textContent = 'CONNECT'; }
-    });
+    autoReconnect({ onConnected, onDisconnected });
   </script>
   <script src="nav.js"></script>
 </body>
