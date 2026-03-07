@@ -5,7 +5,7 @@ export const CONTRACT_ADDRESS         = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe8
 export const ITEMS_CONTRACT_ADDRESS   = '0x00906C5b4a5943E212FD59d227e995F3390cf86d';
 export const QUEST_REWARDS_ADDRESS    = '0x0CcA830784D13F4E9B606F914eB0c1deecA925eB';
 export const MARKET_ADDRESS           = '0x2648fce03fe383c4a1d1a4c21fa59a0b9f35243d';
-export const GAMBLE_ADDRESS           = '';
+export const GAMBLE_ADDRESS           = '0x9034A1B8F64d58E9e372C9aebBD64BFE6Bd294f1';
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
 
 export const LASTCHAD_ABI = [
