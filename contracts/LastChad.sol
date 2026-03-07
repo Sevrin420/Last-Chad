@@ -28,6 +28,8 @@ contract LastChad is ERC721, Ownable {
     mapping(uint256 => uint256) private _pendingStatPoints;
     mapping(address => bool) public authorizedGame;
     mapping(address => uint256) public mintedPerWallet;
+    mapping(uint256 => bool) public eliminated;
+    uint256 public eliminationPercent = 20;
 
     event StatsAssigned(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
     event StatsUpdated(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
@@ -39,6 +41,9 @@ contract LastChad is ERC721, Ownable {
     event GameContractSet(address indexed game, bool enabled);
     event CellsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalOpenCells);
     event CellsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingOpenCells);
+    event Eliminated(uint256 indexed tokenId, uint256 closedCells);
+    event Reinstated(uint256 indexed tokenId);
+    event EliminationPercentSet(uint256 newPercent);
 
     modifier onlyGameOrOwner() {
         require(authorizedGame[msg.sender] || msg.sender == owner(), "Not authorized");
@@ -107,9 +112,43 @@ contract LastChad is ERC721, Ownable {
         emit GameContractSet(game, enabled);
     }
 
+    // -------------------------------------------------------------------------
+    // Elimination — owner flags the bottom eliminationPercent% each month
+    // -------------------------------------------------------------------------
+    function setEliminationPercent(uint256 percent) external onlyOwner {
+        require(percent > 0 && percent <= 100, "Invalid percent");
+        eliminationPercent = percent;
+        emit EliminationPercentSet(percent);
+    }
+
+    function eliminate(uint256 tokenId) external onlyOwner {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        require(!eliminated[tokenId], "Already eliminated");
+        eliminated[tokenId] = true;
+        emit Eliminated(tokenId, _closedCells[tokenId]);
+    }
+
+    // Call in chunks of ~500 for large supplies to stay under block gas limit
+    function batchEliminate(uint256[] calldata tokenIds) external onlyOwner {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tid = tokenIds[i];
+            if (eliminated[tid]) continue;
+            if (ownerOf(tid) == address(0)) continue;
+            eliminated[tid] = true;
+            emit Eliminated(tid, _closedCells[tid]);
+        }
+    }
+
+    function reinstate(uint256 tokenId) external onlyOwner {
+        require(eliminated[tokenId], "Not eliminated");
+        eliminated[tokenId] = false;
+        emit Reinstated(tokenId);
+    }
+
     // Lock open cells into closed cells. Leveling: 100 closed = level 2, 200 = level 3, etc.
     function lockCells(uint256 tokenId, uint256 amount) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!eliminated[tokenId], "Chad eliminated");
         require(amount > 0, "Amount must be > 0");
         require(_openCells[tokenId] >= amount, "Insufficient open cells");
 
@@ -132,6 +171,7 @@ contract LastChad is ERC721, Ownable {
     // statIndex: 0=strength, 1=intelligence, 2=dexterity, 3=charisma
     function spendStatPoint(uint256 tokenId, uint8 statIndex) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!eliminated[tokenId], "Chad eliminated");
         require(_pendingStatPoints[tokenId] > 0, "No stat points available");
         require(statIndex <= 3, "Invalid stat index");
 
