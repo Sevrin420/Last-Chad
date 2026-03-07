@@ -116,17 +116,24 @@ async function handleDie(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /session/win  { tokenId, questId }
+// POST /session/win  { tokenId, questId, xpAmount }
 // Called when the player reaches the end of the map.
 // Checks:
 //   1. No death recorded (died == false)
 //   2. elapsed >= WIN_THRESHOLD_MS since runStartedAt
-// On success, signs keccak256(tokenId, questId, player) with the oracle key
-// and returns the signature. The player passes this to completeQuest().
+//   3. xpAmount is within the allowed range for this game type
+// On success, signs keccak256(tokenId, questId, player, xpAmount) with the
+// oracle key and returns the signature. The player passes this to
+// completeQuest(tokenId, questId, xpAmount, signature).
+//
+// xpAmount must be provided by the game. The Worker validates it is within
+// the configured max for this questId before signing.
 // ---------------------------------------------------------------------------
 async function handleWin(request, env) {
-  const { tokenId, questId } = await parseBody(request);
-  if (!tokenId || questId == null) return json({ error: 'Missing tokenId or questId' }, 400);
+  const { tokenId, questId, xpAmount } = await parseBody(request);
+  if (!tokenId || questId == null || xpAmount == null) {
+    return json({ error: 'Missing tokenId, questId, or xpAmount' }, 400);
+  }
 
   const key = kvKey(tokenId, questId);
   const session = await getSession(env, key);
@@ -143,16 +150,25 @@ async function handleWin(request, env) {
     return json({ ok: false, reason: 'too_fast', elapsed, required: WIN_THRESHOLD_MS }, 403);
   }
 
-  // Sign: keccak256(abi.encodePacked(tokenId, questId, player))
+  // Validate xpAmount is a non-negative integer within the allowed max.
+  // MAX_XP_PER_QUEST caps what the Worker will ever sign — prevents the
+  // game client from inflating xpAmount even if it constructs the request.
+  const MAX_XP_PER_QUEST = 50;
+  const xp = Number(xpAmount);
+  if (!Number.isInteger(xp) || xp < 0 || xp > MAX_XP_PER_QUEST) {
+    return json({ ok: false, reason: 'invalid_xp' }, 400);
+  }
+
+  // Sign: keccak256(abi.encodePacked(tokenId, questId, player, xpAmount))
   // Must match what QuestRewards.sol verifies on-chain.
   const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
   const messageHash = ethers.solidityPackedKeccak256(
-    ['uint256', 'uint8', 'address'],
-    [BigInt(tokenId), Number(questId), session.player]
+    ['uint256', 'uint8', 'address', 'uint256'],
+    [BigInt(tokenId), Number(questId), session.player, BigInt(xp)]
   );
   const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
 
-  return json({ ok: true, signature, elapsed });
+  return json({ ok: true, signature, xpAmount: xp, elapsed });
 }
 
 // ---------------------------------------------------------------------------

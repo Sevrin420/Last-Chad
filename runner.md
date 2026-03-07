@@ -38,7 +38,7 @@ The Worker holds a private key (`ORACLE_PRIVATE_KEY` Cloudflare secret).
 On a verified win, it signs:
 
 ```
-keccak256(abi.encodePacked(tokenId, questId, playerAddress))
+keccak256(abi.encodePacked(tokenId, questId, playerAddress, xpAmount))
 ```
 
 using `ethers.Wallet.signMessage()` (Ethereum personal sign / EIP-191).
@@ -47,6 +47,10 @@ The contract recovers the signer from this signature in `completeQuest()` and
 requires it to equal the stored `oracle` address. No valid signature = tx reverts.
 The oracle private key never leaves Cloudflare. The player passes the signature
 as the `oracleSig` parameter but cannot forge it.
+
+Crucially, `xpAmount` is committed into the signature. The player cannot pass a
+different `xpAmount` to `completeQuest()` — the signature would no longer verify.
+Only the Worker decides what XP was legitimately earned.
 
 ### KV State Tracking (closes the reload-to-retry exploit)
 
@@ -78,10 +82,10 @@ TTL: 1 hour (matches the on-chain session window)
    → Worker signs keccak256(tokenId, questId, player) with oracle key
    → Returns { ok: true, signature }
 
-4. Player calls completeQuest(tokenId, questId, choice1, choice2, kept1, kept2, signature)
-   → Contract recovers signer from signature
+4. Player calls completeQuest(tokenId, questId, xpAmount, signature)
+   → Contract recovers signer from keccak256(tokenId, questId, player, xpAmount)
    → Requires signer == oracle address
-   → Awards XP, cells, item — returns NFT
+   → Awards exactly xpAmount XP + quest config cells/item — returns NFT
 ```
 
 ### Lose Flow
