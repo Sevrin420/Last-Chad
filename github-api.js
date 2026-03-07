@@ -400,11 +400,14 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     const isFirst = idx === 0;
     const sectionName = escapeHtml(section.name || `Section ${idx + 1}`);
     const dialogueHtml = formatDialogue(section.dialogue);
-    const topImageHtml = section.photo
+    const rawImgHtml = section.photo
       ? `<img src="images/${sid}.png" alt="${sectionName}" class="section-img">`
       : (section.selectedChoice === 'dice' && section.diceImage
           ? `<img src="images/dice-${sid}.png" alt="${sectionName}" class="section-img">`
           : '');
+    const topImageHtml = rawImgHtml
+      ? `<div class="dialogue-frame">${rawImgHtml}</div>`
+      : '';
 
     let actionHtml = '';
 
@@ -571,20 +574,14 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       overflow-x: hidden;
     }
 
-    /* Background — checkerboard wood texture */
     .bg {
       position: fixed;
       inset: 0;
       z-index: 0;
-      background-color: #3b2a14;
-      background-image:
-        linear-gradient(45deg, #4a3520 25%, transparent 25%),
-        linear-gradient(-45deg, #4a3520 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #2e1e0e 75%),
-        linear-gradient(-45deg, transparent 75%, #2e1e0e 75%);
-      background-size: 16px 16px;
-      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-      image-rendering: pixelated;
+      background-image: url('../../assets/mainbg.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
     .bg::after {
       content: '';
@@ -623,13 +620,18 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       padding: 90px 16px 60px;
     }
 
+    .dialogue-frame {
+      display: block;
+      position: relative;
+      width: 100%;
+      max-width: 310px;
+      margin-bottom: 20px;
+      background: url('../../assets/dialogue.jpg') no-repeat center / 100% 100%;
+      padding: 28px;
+    }
     .section-img {
       width: 100%;
-      max-width: 250px;
       height: auto;
-      border: 2px solid #5c4409;
-      border-radius: 4px;
-      margin-bottom: 20px;
       display: block;
       opacity: 0;
     }
