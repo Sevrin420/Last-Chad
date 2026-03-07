@@ -103,6 +103,20 @@ async function main() {
     console.warn("\nWarning: js/config.js not found — update QUEST_REWARDS_ADDRESS manually.");
   }
 
+  // ── 7b. Patch js/quest-globals.js with the new address ─────────────────
+  const globalsPath = path.join(__dirname, '..', 'js', 'quest-globals.js');
+  if (fs.existsSync(globalsPath)) {
+    let globals = fs.readFileSync(globalsPath, 'utf8');
+    globals = globals.replace(
+      /var QUEST_REWARDS_ADDRESS\s*=\s*'[^']*'/,
+      `var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}'`
+    );
+    fs.writeFileSync(globalsPath, globals, 'utf8');
+    console.log("Patched js/quest-globals.js → QUEST_REWARDS_ADDRESS =", questRewardsAddress);
+  } else {
+    console.warn("Warning: js/quest-globals.js not found — update QUEST_REWARDS_ADDRESS manually.");
+  }
+
   // ── 8. Summary ────────────────────────────────────────────────────────
   console.log("\n══════════════════════════════════════════════════");
   console.log("Deployment complete!");
@@ -117,7 +131,7 @@ async function main() {
     console.log("Next: ORACLE_ADDRESS=<address> npx hardhat run scripts/deployQuestRewards.js");
     console.log("  Or call questRewards.setOracle(<address>) from admin.html\n");
   }
-  console.log("js/config.js has been updated. Commit and push to go live.");
+  console.log("js/config.js + js/quest-globals.js updated. Commit and push to go live.");
 }
 
 main().catch((err) => {
