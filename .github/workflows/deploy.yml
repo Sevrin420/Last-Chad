@@ -15,6 +15,7 @@ on:
           - quest-only       # Deploy QuestRewards only (LastChad + Items already deployed)
           - worker           # Cloudflare Worker only
           - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
+          - verify           # Verify all contracts on Snowtrace (no deploy)
       network:
         description: 'Network (ignored if target=worker)'
         required: true
@@ -34,6 +35,9 @@ on:
 #   ORACLE_PRIVATE_KEY    — oracle private key stored inside the Worker
 #   KV_NAMESPACE_ID       — RUNNER_KV production namespace ID
 #   KV_PREVIEW_ID         — RUNNER_KV preview namespace ID
+#   SNOWTRACE_API_KEY     — Snowtrace API key for contract verification
+#                           (free key from https://snowtrace.io/myapikey)
+#                           Fuji testnet works without a real key
 # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
@@ -155,3 +159,27 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/authorizeContracts.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4: Verify contracts on Snowtrace
+  # Reads addresses from js/config.js — no private key needed
+  # ───────────────────────────────────────────────────────────────────────────
+  verify-contracts:
+    name: Verify Contracts (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'verify'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Verify all contracts on Snowtrace
+        env:
+          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
+        run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
