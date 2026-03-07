@@ -1095,6 +1095,9 @@
     // Music tracks loaded from music/manifest.json
     let musicTracks = [];
 
+    // Games loaded from games/manifest.json
+    let gameFiles = [];
+
     // Resize an image data URL to 2/3 of its original dimensions
     function resizeImage(dataUrl, callback) {
       const img = new Image();
@@ -1168,6 +1171,15 @@
           renderSections();
         })
         .catch(() => { musicTracks = []; console.warn('music/manifest.json not found — music dropdowns will be empty.'); });
+
+      // Load game list from games/manifest.json
+      fetch('games/manifest.json')
+        .then(r => r.json())
+        .then(games => {
+          gameFiles = games || [];
+          renderSections();
+        })
+        .catch(() => { gameFiles = []; console.warn('games/manifest.json not found — game dropdowns will be empty.'); });
     }
 
     // Load saved data
@@ -1197,7 +1209,8 @@
             statBonus: section.statBonus || null,
             difficulty: section.difficulty !== undefined ? section.difficulty : 8,
             music: section.music || null,
-            itemAward: section.itemAward || null
+            itemAward: section.itemAward || null,
+            gameFile: section.gameFile || null
           }));
           document.getElementById('questName').value = state.questName;
           document.getElementById('introDialogue').value = state.introDialogue;
@@ -1250,7 +1263,8 @@
         statBonus: null,
         difficulty: 8,
         music: null,
-        itemAward: null
+        itemAward: null,
+        gameFile: null
       };
       state.sections.push(newSection);
       renderSections();
@@ -1313,6 +1327,15 @@
             <select class="section-item-award-select" data-section-id="${section.id}">
               <option value="">-- No Item --</option>
               <option value="1" ${section.itemAward === '1' ? 'selected' : ''}>1: Cindy's Code</option>
+            </select>
+          </div>
+
+          <!-- Embedded Game -->
+          <div class="form-group">
+            <label>🎮 Embedded Game</label>
+            <select class="section-game-select" data-section-id="${section.id}">
+              <option value="">-- No Game --</option>
+              ${gameFiles.map(g => `<option value="${escAttr(g.file)}" ${section.gameFile === g.file ? 'selected' : ''}>${escContent(g.name)}</option>`).join('')}
             </select>
           </div>
 
@@ -1686,6 +1709,18 @@
           const section = state.sections.find(s => s.id === sectionId);
           if (section) {
             section.itemAward = e.target.value || null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      // Game select
+      document.querySelectorAll('.section-game-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.gameFile = e.target.value || null;
             saveQuestAuto();
           }
         });

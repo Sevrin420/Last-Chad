@@ -405,9 +405,12 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       : (section.selectedChoice === 'dice' && section.diceImage
           ? `<img src="images/dice-${sid}.png" alt="${sectionName}" class="section-img">`
           : '');
-    const topImageHtml = rawImgHtml
-      ? `<div class="dialogue-frame">${rawImgHtml}</div>`
+    const gameIframeHtml = section.gameFile
+      ? `<div class="dialogue-frame"><iframe src="../../games/${escapeHtml(section.gameFile)}" class="section-game-frame" allowfullscreen></iframe></div>`
       : '';
+    const topImageHtml = gameIframeHtml || (rawImgHtml
+      ? `<div class="dialogue-frame">${rawImgHtml}</div>`
+      : '');
 
     let actionHtml = '';
 
@@ -634,6 +637,12 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       height: auto;
       display: block;
       opacity: 0;
+    }
+    .section-game-frame {
+      width: 100%;
+      height: 480px;
+      border: none;
+      display: block;
     }
 
     /* Quest HUD — adventure.html style: portrait (left) + stats (right), items row below */

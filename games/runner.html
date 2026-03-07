@@ -82,7 +82,7 @@ const ROAD_LEFT = (W - LANE_COUNT * LANE_WIDTH) / 2;
 const ROAD_RIGHT = ROAD_LEFT + LANE_COUNT * LANE_WIDTH;
 const SPRITE_SIZE = 48;
 
-let state = 'title'; // title, playing, dead, win
+let state = 'title'; // title, playing, dead, wall_death, game_over, win
 let player = { lane: 2, x: 0, y: 0, targetX: 0, moveSpeed: 8 };
 let obstacles = [];
 let enemies = [];
@@ -91,6 +91,7 @@ let bgOffset = 0;
 let gameTime = 0;
 let lastTime = 0;
 let deathCount = 0;
+let lives = 20;
 let sewerSpawned = false;
 let sewerObj = null;
 let flashTimer = 0;
@@ -107,6 +108,7 @@ window.addEventListener('keydown', e => {
   if (state === 'title' && (e.key === 'Enter' || e.key === ' ')) startGame();
   if (state === 'dead' && (e.key === 'Enter' || e.key === ' ')) respawn();
   if (state === 'win' && (e.key === 'Enter' || e.key === ' ')) { state = 'title'; }
+  if (state === 'game_over' && (e.key === 'Enter' || e.key === ' ')) { state = 'title'; }
 });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
 
@@ -118,6 +120,7 @@ canvas.addEventListener('touchstart', e => {
   if (state === 'title') startGame();
   if (state === 'dead') respawn();
   if (state === 'win') { state = 'title'; }
+  if (state === 'game_over') { state = 'title'; }
 });
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
@@ -161,6 +164,7 @@ function startGame() {
   sewerSpawned = false;
   sewerObj = null;
   deathCount = 0;
+  lives = 20;
   particles = [];
   lastSpawnTime = 0;
   lastEnemySpawnTime = 0;
@@ -433,7 +437,8 @@ function drawHUD() {
   ctx.fillRect(W - 18, 10, 6, 12);
 
   drawPixelText(timeStr, W / 2, 16, 14, '#fff');
-  drawPixelText(`Deaths: ${deathCount}`, 60, 16, 11, '#f88', 'center');
+  const livesColor = lives > 10 ? '#4f4' : lives > 5 ? '#fa0' : '#f44';
+  drawPixelText(`LIVES: ${lives}`, 60, 16, 11, livesColor, 'center');
 
   // Difficulty indicator
   const diff = getDifficulty();
@@ -451,9 +456,13 @@ function update(dt) {
     wallDeathTimer -= dt;
     particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
     particles = particles.filter(p => p.life > 0);
-    if (wallDeathTimer <= 0) startGame();
+    if (wallDeathTimer <= 0) {
+      if (lives <= 0) { state = 'game_over'; }
+      else { respawn(); }
+    }
     return;
   }
+  if (state === 'game_over') return;
   if (state !== 'playing') return;
 
   gameTime += dt;
@@ -530,10 +539,12 @@ function update(dt) {
     const oBox = { x: o.x + 8, y: o.y + 8, w: SPRITE_SIZE - 16, h: SPRITE_SIZE - 16 };
     if (pBox.x < oBox.x + oBox.w && pBox.x + pBox.w > oBox.x &&
         pBox.y < oBox.y + oBox.h && pBox.y + pBox.h > oBox.y) {
-      state = 'dead';
       deathCount++;
+      lives--;
       deathFlash = 0.5;
       spawnDeathParticles(player.x, player.y);
+      state = lives <= 0 ? 'game_over' : 'dead';
+      if (lives <= 0) music.pause();
       break;
     }
   }
@@ -544,16 +555,18 @@ function update(dt) {
       const eBox = { x: e.x + 6, y: e.y + 6, w: SPRITE_SIZE - 12, h: SPRITE_SIZE - 12 };
       if (pBox.x < eBox.x + eBox.w && pBox.x + pBox.w > eBox.x &&
           pBox.y < eBox.y + eBox.h && pBox.y + pBox.h > eBox.y) {
-        state = 'dead';
         deathCount++;
+        lives--;
         deathFlash = 0.5;
         spawnDeathParticles(player.x, player.y);
+        state = lives <= 0 ? 'game_over' : 'dead';
+        if (lives <= 0) music.pause();
         break;
       }
     }
   }
 
-  // Wall collision — player must enter the gap to win, hits the wall = auto-restart
+  // Wall collision — player must enter the gap to win, hits the wall = lose a life
   if (sewerObj && state === 'playing') {
     const wallTop = sewerObj.y + 60;  // tunnel arch sits above the wall line
     const wallBot = wallTop + WALL_THICK;
@@ -564,10 +577,12 @@ function update(dt) {
         state = 'win';
         music.pause();
       } else {
+        deathCount++;
+        lives--;
+        spawnDeathParticles(player.x, player.y);
         state = 'wall_death';
         wallDeathTimer = 1.2;
-        deathCount++;
-        spawnDeathParticles(player.x, player.y);
+        if (lives <= 0) music.pause();
       }
     }
   }
@@ -589,7 +604,7 @@ function render() {
   const scrollSpeed = state === 'playing' ? getDifficulty().scrollSpeed : 100;
   const dt = 1 / 60;
 
-  const isActive = state === 'playing' || state === 'dead' || state === 'wall_death';
+  const isActive = state === 'playing' || state === 'dead' || state === 'wall_death' || state === 'game_over';
   drawBackground(dt, isActive ? scrollSpeed : (state === 'title' ? 50 : 0));
 
   if (state === 'title') {
@@ -610,7 +625,7 @@ function render() {
     return;
   }
 
-  if (state === 'playing' || state === 'dead' || state === 'wall_death') {
+  if (state === 'playing' || state === 'dead' || state === 'wall_death' || state === 'game_over') {
     drawSewer();
 
     obstacles.forEach(o => { drawSprite(o.sprite, o.x, o.y, SPRITE_SIZE); });
@@ -659,7 +674,19 @@ function render() {
       drawPixelText('YOU HIT THE WALL', W / 2, H / 2 - 15, 26, '#f33');
       const restartPulse = Math.sin(performance.now() / 150) * 0.3 + 0.7;
       ctx.globalAlpha = restartPulse;
-      drawPixelText('RESTARTING...', W / 2, H / 2 + 25, 16, '#fa0');
+      drawPixelText(lives <= 0 ? 'GAME OVER...' : 'RESTARTING...', W / 2, H / 2 + 25, 16, '#fa0');
+      ctx.globalAlpha = 1;
+    }
+
+    if (state === 'game_over') {
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(0, 0, W, H);
+      drawChunkyTitle('GAME OVER', W / 2, H / 2 - 60, 40);
+      drawPixelText('No lives remaining', W / 2, H / 2, 14, '#f88');
+      drawPixelText(`Deaths: ${deathCount}`, W / 2, H / 2 + 35, 12, '#888');
+      const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
+      ctx.globalAlpha = pulse;
+      drawPixelText('[ PRESS ENTER OR TAP ]', W / 2, H / 2 + 80, 13, '#aaa');
       ctx.globalAlpha = 1;
     }
   }
