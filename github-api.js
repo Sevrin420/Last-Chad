@@ -1298,7 +1298,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
 <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
       <div id="escrowBox" style="margin:18px 0 10px;font-size:0.48rem;color:#c9a84c;text-align:center;line-height:1.8;">
         <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking escrow status…</div>
-        <button class="intro-start-btn" id="lockEscrowBtn" onclick="lockChadInEscrow()" style="display:none;background:rgba(201,168,76,0.15);border-color:#c9a84c;color:#c9a84c;">🔒 LOCK CHAD IN ESCROW</button>
+        <a href="../../adventure.html" id="goAdventureBtn" style="display:none;font-family:'Press Start 2P',monospace;font-size:0.48rem;color:#c9a84c;text-decoration:underline;cursor:pointer;">← Start quest from the Adventure page</a>
       </div>
       <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()" disabled${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
     </div>
@@ -1584,15 +1584,14 @@ function showPanel(id) {
       btn.style.pointerEvents = enabled ? 'auto' : 'none';
     }
     async function checkEscrowStatus() {
-      var statusEl = document.getElementById('escrowStatus');
-      var lockBtn  = document.getElementById('lockEscrowBtn');
-      var startBtn = document.getElementById('introStartBtn');
+      var statusEl  = document.getElementById('escrowStatus');
+      var advBtn    = document.getElementById('goAdventureBtn');
       if (!statusEl) return;
 
       if (!QUEST_REWARDS_ADDRESS || !chadId) {
-        // No contract configured — let the player proceed without on-chain check
+        // No contract configured — proceed without on-chain check
         if (statusEl) statusEl.style.display = 'none';
-        if (lockBtn)  lockBtn.style.display  = 'none';
+        if (advBtn)   advBtn.style.display   = 'none';
         _setStartEnabled(true);
         return;
       }
@@ -1605,98 +1604,29 @@ function showPanel(id) {
         var lockerIsSet = locker !== ethers.constants.AddressZero;
         var lockerMatchesUser = userAddress && locker.toLowerCase() === userAddress.toLowerCase();
         if (lockerIsSet && (!userAddress || lockerMatchesUser)) {
-          // Locked — either wallet not yet connected (trust on-chain state) or locked by this user
+          // Locked by this user (or wallet not yet connected — trust on-chain state)
           statusEl.textContent = '✅ CHAD #' + chadId + ' is locked in escrow';
-          if (lockBtn) lockBtn.style.display = 'none';
+          if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(true);
         } else if (lockerIsSet && !lockerMatchesUser) {
           // Locked by a different wallet
           statusEl.textContent = '⚠️ This Chad is locked by a different wallet';
-          if (lockBtn) lockBtn.style.display = 'none';
+          if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(false);
         } else {
-          statusEl.textContent = '🔒 Your Chad NFT must be locked in escrow to begin';
-          if (lockBtn) lockBtn.style.display = '';
+          // Not locked — user must go through adventure.html first
+          statusEl.textContent = '🔒 Start this quest from the Adventure page';
+          if (advBtn) advBtn.style.display = '';
           _setStartEnabled(false);
         }
       } catch(e) {
         // RPC error — don't block the player
         statusEl.textContent = '⚠️ Could not verify escrow (network error)';
-        if (lockBtn) lockBtn.style.display = 'none';
+        if (advBtn) advBtn.style.display = 'none';
         _setStartEnabled(true);
       }
     }
 
-    async function lockChadInEscrow() {
-      var lockBtn  = document.getElementById('lockEscrowBtn');
-      var statusEl = document.getElementById('escrowStatus');
-      var startBtn = document.getElementById('introStartBtn');
-      if (!chadId) { alert('Add ?chad=TOKEN_ID to the URL first.'); return; }
-      if (!walletSigner) { alert('Connect your wallet first.'); return; }
-
-      var ERC721_APPROVE_ABI = [
-        'function getApproved(uint256 tokenId) view returns (address)',
-        'function isApprovedForAll(address owner, address operator) view returns (bool)',
-        'function approve(address to, uint256 tokenId) external',
-      ];
-
-      if (lockBtn) { lockBtn.disabled = true; _setText(lockBtn, 'CHECKING…'); }
-      _setText(statusEl, 'Checking approval…');
-      try {
-        var rp = _getReadProvider();
-        var nft = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, rp);
-        var [approved, approvedAll] = await Promise.all([
-          nft.getApproved(chadId),
-          nft.isApprovedForAll(userAddress, QUEST_REWARDS_ADDRESS)
-        ]);
-        var needsApproval = !approvedAll && approved.toLowerCase() !== QUEST_REWARDS_ADDRESS.toLowerCase();
-        if (needsApproval) {
-          if (lockBtn) _setText(lockBtn, 'APPROVING…');
-          _setText(statusEl, 'Step 1 of 2: Approve NFT transfer in your wallet…');
-          var nftWrite = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, walletSigner);
-          var approveTx = await nftWrite.approve(QUEST_REWARDS_ADDRESS, chadId);
-          _setText(statusEl, 'Confirming approval…');
-          await approveTx.wait();
-        }
-        // Simulate first via RPC for clear revert reasons
-        if (lockBtn) _setText(lockBtn, 'VALIDATING…');
-        _setText(statusEl, 'Checking eligibility…');
-        try {
-          var qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
-          await qrStatic.callStatic.startQuest(chadId, QUEST_ID, { from: userAddress });
-        } catch (simErr) {
-          var simMsg = (simErr.reason || (simErr.error && simErr.error.message) || simErr.message || '').toLowerCase();
-          var display = 'Cannot start quest.';
-          if (simMsg.includes('already')) display = 'CHAD #' + chadId + ' has already attempted this quest.';
-          else if (simMsg.includes('owner')) display = 'Wallet does not own CHAD #' + chadId + '.';
-          else if (simMsg.includes('eliminated')) display = 'CHAD #' + chadId + ' is eliminated.';
-          else if (simErr.reason) display = simErr.reason;
-          _setText(statusEl, display);
-          if (lockBtn) { lockBtn.disabled = false; _setText(lockBtn, '🔒 LOCK CHAD IN ESCROW'); }
-          return;
-        }
-        if (lockBtn) _setText(lockBtn, 'LOCKING…');
-        _setText(statusEl, 'Lock CHAD in escrow — confirm in wallet…');
-        var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-        var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 300000 });
-        _setText(statusEl, 'Confirming on-chain…');
-        await tx.wait();
-        // Success
-        _setText(statusEl, '✅ CHAD #' + chadId + ' locked in escrow');
-        if (lockBtn) { lockBtn.style.display = 'none'; }
-        _setStartEnabled(true);
-      } catch(err) {
-        var reason = (err.reason || (err.error && err.error.message) || err.message || '').toLowerCase();
-        var msg;
-        if (err.code === 4001 || reason.includes('rejected') || reason.includes('denied')) {
-          msg = 'Transaction rejected.';
-        } else {
-          msg = _cleanRpcError(err);
-        }
-        _setText(statusEl, 'Failed: ' + msg);
-        if (lockBtn) { lockBtn.disabled = false; _setText(lockBtn, '🔒 LOCK CHAD IN ESCROW'); }
-      }
-    }
     // ────────────────────────────────────────────────────────────────────────
 
     function startQuest() {
