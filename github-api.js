@@ -2217,7 +2217,7 @@ ${diceInitJs}
     var READ_RPC_FALLBACK = 'https://rpc.ankr.com/avalanche_fuji';
     function _getReadProvider() {
       return new ethers.providers.FallbackProvider([
-        { provider: _getReadProvider(), priority: 1, stallTimeout: 2500 },
+        { provider: new ethers.providers.JsonRpcProvider(READ_RPC), priority: 1, stallTimeout: 2500 },
         { provider: new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK), priority: 2, stallTimeout: 2500 },
       ], 1);
     }
