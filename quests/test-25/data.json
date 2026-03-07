@@ -1,0 +1,27 @@
+{
+  "name": "Test 25",
+  "questId": 24,
+  "sections": [
+    {
+      "id": 1772925376905,
+      "name": "Section 1",
+      "dialogue": "Nothing to dochere",
+      "selectedChoice": "single",
+      "buttonName": "End quest",
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "nextSectionId": null,
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "minigameFile": "runner.html",
+      "minigameWinNextSectionId": null,
+      "music": null,
+      "itemAward": null,
+      "gameFile": null
+    }
+  ]
+}
