@@ -1,0 +1,16 @@
+name = "last-chad-runner"
+main = "runner-worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "RUNNER_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+
+[vars]
+# No env vars needed — all config is in the Worker source
+
+# To create the KV namespace:
+#   npx wrangler kv:namespace create RUNNER_KV
+#   npx wrangler kv:namespace create RUNNER_KV --preview
+# Then paste the returned IDs above.
