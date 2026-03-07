@@ -1010,8 +1010,6 @@
       <img class="photo-preview" id="introPhotoPreview" src="" alt="Intro image">
       <h1 style="margin-top: 24px;">🗺️ Intro Dialogue</h1>
       <textarea id="introDialogue" placeholder="Opening text shown on the START screen before the quest begins... (optional)"></textarea>
-      <h1 style="margin-top: 24px;">⚙️ Worker URL</h1>
-      <input type="text" id="workerUrl" placeholder="https://last-chad-runner.YOUR-ACCOUNT.workers.dev" style="font-size:0.45rem;">
     </div>
 
     <!-- Sections Container -->
@@ -1836,7 +1834,7 @@
 
         // Publish quest
         const QUEST_REWARDS_ADDRESS = '0x24e80b24aecd3e4230f294c932fb5e63b6bd3650';
-        const WORKER_URL = (document.getElementById('workerUrl')?.value || '').trim() || 'https://last-chad-runner.severin20.workers.dev';
+        const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
         github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, QUEST_REWARDS_ADDRESS, WORKER_URL)
           .then(data => {
             showPublishProgress(false);
