@@ -93,5 +93,10 @@
     "name": "19 test",
     "slug": "19-test",
     "questId": 18
+  },
+  {
+    "name": "20 test",
+    "slug": "20-test",
+    "questId": 19
   }
 ]
