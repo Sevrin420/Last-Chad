@@ -14,6 +14,7 @@ on:
           - worker           # Cloudflare Worker only
           - contract         # QuestRewards contract only
           - both             # Contract + Worker (full redeploy)
+          - authorize        # Authorize already-deployed QuestRewards in LastChad + LastChadItems
       network:
         description: 'Contract network (ignored if target=worker)'
         required: true
@@ -125,3 +126,28 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           ORACLE_PRIVATE_KEY:    ${{ secrets.ORACLE_PRIVATE_KEY }}
         run: echo "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 3: Authorize an already-deployed QuestRewards contract
+  # Calls setGameContract(questRewardsAddress, true) on LastChad + LastChadItems
+  # ───────────────────────────────────────────────────────────────────────────
+  authorize-contracts:
+    name: Authorize Contracts (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'authorize'
+    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Authorize QuestRewards in LastChad + LastChadItems
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/authorizeContracts.js --network ${{ inputs.network }}
