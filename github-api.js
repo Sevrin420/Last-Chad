@@ -1639,8 +1639,8 @@ function showPanel(id) {
         'function approve(address to, uint256 tokenId) external',
       ];
 
-      if (lockBtn) { lockBtn.disabled = true; lockBtn.textContent = 'CHECKING…'; }
-      if (statusEl) statusEl.textContent = 'Checking approval…';
+      if (lockBtn) { lockBtn.disabled = true; _setText(lockBtn, 'CHECKING…'); }
+      _setText(statusEl, 'Checking approval…');
       try {
         var rp = _getReadProvider();
         var nft = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, rp);
@@ -1650,27 +1650,27 @@ function showPanel(id) {
         ]);
         var needsApproval = !approvedAll && approved.toLowerCase() !== QUEST_REWARDS_ADDRESS.toLowerCase();
         if (needsApproval) {
-          if (lockBtn) lockBtn.textContent = 'APPROVING…';
-          if (statusEl) statusEl.textContent = 'Step 1 of 2: Approve NFT transfer in your wallet…';
+          if (lockBtn) _setText(lockBtn, 'APPROVING…');
+          _setText(statusEl, 'Step 1 of 2: Approve NFT transfer in your wallet…');
           var nftWrite = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, walletSigner);
           var approveTx = await nftWrite.approve(QUEST_REWARDS_ADDRESS, chadId);
-          if (statusEl) statusEl.textContent = 'Confirming approval…';
+          _setText(statusEl, 'Confirming approval…');
           await approveTx.wait();
         }
-        if (lockBtn) lockBtn.textContent = 'LOCKING…';
-        if (statusEl) statusEl.textContent = 'Step 2 of 2: Lock CHAD in escrow — confirm in wallet…';
+        if (lockBtn) _setText(lockBtn, 'LOCKING…');
+        _setText(statusEl, 'Step 2 of 2: Lock CHAD in escrow — confirm in wallet…');
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
         var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 300000 });
-        if (statusEl) statusEl.textContent = 'Confirming on-chain…';
+        _setText(statusEl, 'Confirming on-chain…');
         await tx.wait();
         // Success
-        if (statusEl) statusEl.textContent = '✅ CHAD #' + chadId + ' locked in escrow';
+        _setText(statusEl, '✅ CHAD #' + chadId + ' locked in escrow');
         if (lockBtn) { lockBtn.style.display = 'none'; }
         _setStartEnabled(true);
       } catch(err) {
         var msg = _cleanRpcError(err);
-        if (statusEl) statusEl.textContent = 'Failed: ' + msg;
-        if (lockBtn) { lockBtn.disabled = false; lockBtn.textContent = '🔒 LOCK CHAD IN ESCROW'; }
+        _setText(statusEl, 'Failed: ' + msg);
+        if (lockBtn) { lockBtn.disabled = false; _setText(lockBtn, '🔒 LOCK CHAD IN ESCROW'); }
       }
     }
     // ────────────────────────────────────────────────────────────────────────
@@ -2225,6 +2225,22 @@ ${diceInitJs}
       ], 1);
       return _cachedReadProvider;
     }
+    // Animated waiting-dots helper.
+    // _setText(el, 'CONFIRMING...') — cycles . → .. → ... every 400ms until next _setText call
+    // _setText(el, 'DONE')          — stops animation, sets plain text
+    var _dotsTimers = new WeakMap();
+    function _setText(el, text) {
+      if (!el) return;
+      if (_dotsTimers.has(el)) { clearInterval(_dotsTimers.get(el)); _dotsTimers.delete(el); }
+      var base = text.replace(/(?:\.\.\.|…)$/, '');
+      if (base !== text) {
+        var d = 0;
+        el.textContent = base + '.';
+        _dotsTimers.set(el, setInterval(function() { d = (d + 1) % 3; el.textContent = base + ['.', '..', '...'][d]; }, 400));
+      } else {
+        el.textContent = text;
+      }
+    }
     function _cleanRpcError(err) {
       var msg = err && (err.reason || err.message || '');
       if (!msg || msg.toLowerCase().includes('rpc request failed') || msg.toLowerCase().includes('request failed') || msg.toLowerCase().includes('network error') || msg.toLowerCase().includes('could not detect network')) {
@@ -2544,7 +2560,7 @@ ${diceInitJs}
       }
 
       btn.disabled = true;
-      btn.textContent = 'CLAIMING...';
+      _setText(btn, 'CLAIMING...');
       statusEl.textContent = '';
 
       // Verify the caller is the quest participant (NFT is in escrow, so check lockedBy not ownerOf)
@@ -2554,9 +2570,9 @@ ${diceInitJs}
           var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
           var lockedByAddr = await qrRead.lockedBy(chadId);
           if (lockedByAddr.toLowerCase() !== userAddress.toLowerCase()) {
-            statusEl.textContent = 'This wallet did not start the quest for CHAD #' + chadId;
+            _setText(statusEl, 'This wallet did not start the quest for CHAD #' + chadId);
             btn.disabled = false;
-            btn.textContent = 'CLAIM CELLS';
+            _setText(btn, 'CLAIM CELLS');
             return;
           }
         } catch(e) { /* check failed — proceed */ }
@@ -2566,7 +2582,7 @@ ${diceInitJs}
       var workerCells = null;
       var workerSig = null;
       if (WORKER_URL && chadId) {
-        statusEl.textContent = 'CALCULATING CELLS...';
+        _setText(statusEl, 'CALCULATING CELLS...');
         try {
           var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
           var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
@@ -2581,8 +2597,8 @@ ${diceInitJs}
             workerSig   = winResp.signature;
           } else if (winResp && !winResp.ok) {
             btn.disabled = false;
-            btn.textContent = 'CLAIM CELLS';
-            statusEl.textContent = 'Cell verification failed: ' + (winResp.reason || 'unknown');
+            _setText(btn, 'CLAIM CELLS');
+            _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
             return;
           }
         } catch(e) { /* worker unavailable — proceed without signed cells */ }
@@ -2590,27 +2606,27 @@ ${diceInitJs}
 
       // Step 2: Award cells on-chain via QuestRewards if configured, otherwise localStorage only
       if (QUEST_REWARDS_ADDRESS && walletSigner) {
-        statusEl.textContent = 'CONFIRM IN WALLET...';
+        _setText(statusEl, 'CONFIRM IN WALLET...');
         try {
           var _cellReward = workerCells != null ? workerCells : 0;
           var _oracleSig  = workerSig   != null ? workerSig   : '0x';
           var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
           var tx = await qr.completeQuest(chadId, QUEST_ID, _cellReward, _oracleSig);
-          statusEl.textContent = 'CONFIRMING...';
+          _setText(statusEl, 'CONFIRMING...');
           await tx.wait();
         } catch(e) {
           btn.disabled = false;
-          btn.textContent = 'CLAIM CELLS';
-          statusEl.textContent = 'Failed: ' + (e.reason || e.message || String(e));
+          _setText(btn, 'CLAIM CELLS');
+          _setText(statusEl, 'Failed: ' + (e.reason || e.message || String(e)));
           return;
         }
       }
 
       markQuestDone(chadId);
       _clearProgress();
-      btn.textContent = 'CELLS CLAIMED — CHAD #' + chadId;
+      _setText(btn, 'CELLS CLAIMED — CHAD #' + chadId);
       var cellMsg = workerCells != null ? (workerCells + ' cells awarded!') : (QUEST_REWARDS_ADDRESS ? 'Cells awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).');
-      statusEl.textContent = cellMsg;
+      _setText(statusEl, cellMsg);
       checkQuestCompletion();
 
       // Check for pending stat points from level-up
@@ -2643,24 +2659,24 @@ ${diceInitJs}
       if (!userAddress || !chadId) return;
       var statusEl = document.getElementById('luStatus');
       statusEl.style.display = 'block';
-      statusEl.textContent = 'SIGNING...';
+      _setText(statusEl, 'SIGNING...');
       document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = true; });
       try {
         var contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, walletSigner);
         var tx = await contract.spendStatPoint(chadId, statIndex);
-        statusEl.textContent = 'CONFIRMING...';
+        _setText(statusEl, 'CONFIRMING...');
         await tx.wait();
         _luPending--;
         if (_luPending > 0) {
           document.getElementById('luPointsLeft').textContent = _luPending + ' POINT' + (_luPending !== 1 ? 'S' : '') + ' TO ASSIGN';
-          statusEl.textContent = 'ASSIGNED! CHOOSE NEXT STAT.';
+          _setText(statusEl, 'ASSIGNED! CHOOSE NEXT STAT.');
           document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
         } else {
-          statusEl.textContent = 'ALL STATS ASSIGNED!';
+          _setText(statusEl, 'ALL STATS ASSIGNED!');
           setTimeout(function() { document.getElementById('levelUpModal').classList.remove('show'); }, 1500);
         }
       } catch(err) {
-        statusEl.textContent = err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED';
+        _setText(statusEl, err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED');
         document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
       }
     }
@@ -2690,7 +2706,7 @@ ${diceInitJs}
       }
 
       btn.disabled = true;
-      btn.textContent = 'MINTING...';
+      _setText(btn, 'MINTING...');
       if (statusEl) statusEl.textContent = '';
 
       try {
@@ -2698,15 +2714,15 @@ ${diceInitJs}
         var itemInfo = await itemsContract.getItem(itemId);
         var price = itemInfo.price || itemInfo[3];
         var tx = await itemsContract.mint(itemId, 1, { value: price });
-        if (statusEl) statusEl.textContent = 'CONFIRMING...';
+        if (statusEl) _setText(statusEl, 'CONFIRMING...');
         await tx.wait();
-        btn.textContent = 'CLAIMED!';
-        if (statusEl) statusEl.textContent = 'ITEM ADDED TO YOUR WALLET';
+        _setText(btn, 'CLAIMED!');
+        if (statusEl) _setText(statusEl, 'ITEM ADDED TO YOUR WALLET');
         setTimeout(function() { revealSectionAction(sectionId); }, 1200);
       } catch(err) {
-        if (statusEl) statusEl.textContent = err.code === 4001 ? 'CANCELLED' : 'ERROR: ' + (err.reason || err.message || 'Failed');
+        if (statusEl) _setText(statusEl, err.code === 4001 ? 'CANCELLED' : 'ERROR: ' + (err.reason || err.message || 'Failed'));
         btn.disabled = false;
-        btn.textContent = 'CLAIM ITEM';
+        _setText(btn, 'CLAIM ITEM');
       }
     }
   <\/script>
