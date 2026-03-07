@@ -1,22 +1,22 @@
 name: Deploy
 
-# Trigger manually from GitHub mobile app:
-# Repo → Actions → "Deploy" → Run workflow → pick what to deploy
+# Trigger manually from GitHub Actions tab:
+# Repo → Actions → "Deploy" → Run workflow → pick target + network
 on:
   workflow_dispatch:
     inputs:
       target:
         description: 'What to deploy'
         required: true
-        default: 'worker'
+        default: 'all-contracts'
         type: choice
         options:
+          - all-contracts    # Deploy LastChad + LastChadItems + QuestRewards (full redeploy)
+          - quest-only       # Deploy QuestRewards only (LastChad + Items already deployed)
           - worker           # Cloudflare Worker only
-          - contract         # QuestRewards contract only
-          - both             # Contract + Worker (full redeploy)
-          - authorize        # Authorize already-deployed QuestRewards in LastChad + LastChadItems
+          - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
       network:
-        description: 'Contract network (ignored if target=worker)'
+        description: 'Network (ignored if target=worker)'
         required: true
         default: 'fuji'
         type: choice
@@ -25,27 +25,25 @@ on:
           - avalanche
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Required GitHub secrets:
+# Required GitHub secrets (Repo → Settings → Secrets and variables → Actions):
 #
-#   DEPLOYER_PRIVATE_KEY  — wallet private key (hex, no 0x) for contract deploy
-#   ORACLE_ADDRESS        — oracle wallet address (for setOracle on-chain)
+#   DEPLOYER_PRIVATE_KEY  — deployer wallet private key (hex, no 0x prefix)
+#   ORACLE_ADDRESS        — oracle wallet public address (for setOracle on-chain)
 #   CF_API_TOKEN          — Cloudflare API token (Workers:Edit permission)
 #   CF_ACCOUNT_ID         — Cloudflare account ID
-#   ORACLE_PRIVATE_KEY    — oracle private key (hex, no 0x) stored in Worker
+#   ORACLE_PRIVATE_KEY    — oracle private key stored inside the Worker
 #   KV_NAMESPACE_ID       — RUNNER_KV production namespace ID
 #   KV_PREVIEW_ID         — RUNNER_KV preview namespace ID
-#
-# Set secrets at: Repo → Settings → Secrets and variables → Actions
 # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 1: Deploy QuestRewards contract
+  # Job 1: Deploy contracts
   # ───────────────────────────────────────────────────────────────────────────
   deploy-contract:
-    name: Deploy Contract (${{ inputs.network }})
+    name: Deploy Contracts (${{ inputs.network }})
     runs-on: ubuntu-latest
-    if: inputs.target == 'contract' || inputs.target == 'both'
+    if: inputs.target == 'all-contracts' || inputs.target == 'quest-only'
     environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
 
     steps:
@@ -60,12 +58,19 @@ jobs:
 
       - run: npm ci
 
-      - name: Deploy QuestRewards
+      - name: Deploy all contracts (LastChad + Items + QuestRewards)
+        if: inputs.target == 'all-contracts'
         env:
           PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: |
-          npx hardhat run scripts/deployQuestRewards.js --network ${{ inputs.network }}
+        run: npx hardhat run scripts/deployAll.js --network ${{ inputs.network }}
+
+      - name: Deploy QuestRewards only
+        if: inputs.target == 'quest-only'
+        env:
+          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
+        run: npx hardhat run scripts/deployQuestRewards.js --network ${{ inputs.network }}
 
       - name: Commit updated js/config.js
         run: |
@@ -73,9 +78,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add js/config.js
           if git diff --cached --quiet; then
-            echo "config.js unchanged — skipping commit"
+            echo "js/config.js unchanged — skipping commit"
           else
-            git commit -m "Deploy: update QUEST_REWARDS_ADDRESS on ${{ inputs.network }} [skip ci]"
+            git commit -m "chore: update contract addresses after deploy on ${{ inputs.network }} [skip ci]"
             git push origin ${{ github.ref_name }}
           fi
 
@@ -90,7 +95,7 @@ jobs:
     if: |
       always() &&
       (inputs.target == 'worker' ||
-       (inputs.target == 'both' && needs.deploy-contract.result != 'failure'))
+       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure'))
 
     steps:
       - uses: actions/checkout@v4
@@ -128,8 +133,7 @@ jobs:
         run: echo "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 3: Authorize an already-deployed QuestRewards contract
-  # Calls setGameContract(questRewardsAddress, true) on LastChad + LastChadItems
+  # Job 3: Re-authorize an already-deployed QuestRewards contract
   # ───────────────────────────────────────────────────────────────────────────
   authorize-contracts:
     name: Authorize Contracts (${{ inputs.network }})
