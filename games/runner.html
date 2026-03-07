@@ -134,6 +134,11 @@ let deathOverlayShown = false;
 function showDeathOverlay() {
   if (deathOverlayShown) return;
   deathOverlayShown = true;
+  if (window.parent !== window) {
+    // Embedded in a quest iframe — let the parent page handle death overlay and redirect
+    window.parent.postMessage({ type: 'runner_death' }, '*');
+    return;
+  }
   const overlay = document.getElementById('death-overlay');
   overlay.style.display = 'flex';
   requestAnimationFrame(() => overlay.classList.add('visible'));

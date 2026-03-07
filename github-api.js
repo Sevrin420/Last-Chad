@@ -504,6 +504,13 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           </div>
         </div>`;
 
+    } else if (section.selectedChoice === 'minigame') {
+      // Embedded minigame iframe — win advances, loss triggers death sequence
+      actionHtml = `
+        <div class="dialogue-frame">
+          <iframe class="section-game-frame section-minigame-frame" id="minigameFrame_${sid}" src="" allowfullscreen data-section-id="${sid}"></iframe>
+        </div>`;
+
     } else {
       // Fallback: terminal section
       actionHtml = `<button class="action-btn" onclick="goToSection(null)">CONTINUE</button>`;
@@ -568,6 +575,18 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
   });
   const gameSectionMapJson = JSON.stringify(gameSectionMap);
+
+  // Map sectionId → { minigameFile, winNextSectionId } for minigame sections
+  const minigameSectionMap = {};
+  sections.forEach(s => {
+    if (s.selectedChoice === 'minigame') {
+      minigameSectionMap[s.id] = {
+        minigameFile: s.minigameFile || 'runner.html',
+        winNextSectionId: s.minigameWinNextSectionId || null,
+      };
+    }
+  });
+  const minigameSectionMapJson = JSON.stringify(minigameSectionMap);
 
   // Map sectionId → XP awarded when player enters that section (tracked server-side)
   const sectionXpMap = {};
@@ -1224,9 +1243,41 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       font-size: 0.6rem;
       color: #7dd4ee;
     }
+
+    /* Minigame death overlay */
+    #minigame-death-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: url('../../assets/mainbg.png') center/cover no-repeat;
+      align-items: center;
+      justify-content: center;
+      z-index: 9000;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    #minigame-death-overlay.visible { opacity: 1; }
+    #minigame-death-overlay.show { display: flex; }
+    .minigame-death-dialogue {
+      background: url('../../assets/dialogue.jpg') center/100% 100% no-repeat;
+      padding: 52px 44px;
+      text-align: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.7rem, 2.5vw, 1.1rem);
+      color: #f5e6c8;
+      max-width: 420px;
+      width: 90%;
+      text-shadow: 2px 2px 0 #000;
+      line-height: 1.8;
+    }
   </style>
 </head>
 <body>
+  <!-- Minigame death overlay -->
+  <div id="minigame-death-overlay">
+    <div class="minigame-death-dialogue">You have died</div>
+  </div>
+
   <!-- Item info popup -->
   <div id="itemPopupOverlay">
     <div id="itemPopup">
@@ -1354,6 +1405,8 @@ ${completePanelHtml}
     var doubleChoiceMap = ${doubleChoiceMapJson};
     // Maps sectionId → { gameFile, nextSectionId } for sections that embed a game
     var gameSectionMap = ${gameSectionMapJson};
+    // Maps sectionId → { minigameFile, winNextSectionId } for minigame sections (win/loss branching)
+    var minigameSectionMap = ${minigameSectionMapJson};
     // Maps sectionId → XP amount awarded to players who visit that section
     var sectionXpMap = ${sectionXpMapJson};
     // Tracks which branch the player chose (0 or 1) for the first two double-choice sections,
@@ -1446,7 +1499,7 @@ function showPanel(id) {
       }
       panel.classList.add('active');
       // Show exp box only on non-game, non-complete panels
-      var _isGameSec = id && !!gameSectionMap[id];
+      var _isGameSec = id && (!!gameSectionMap[id] || !!minigameSectionMap[id]);
       var expBoxEl = document.getElementById('expBox');
       if (expBoxEl) expBoxEl.style.display = (id && !_isGameSec) ? 'block' : 'none';
       updateExpBox();
@@ -1465,6 +1518,20 @@ function showPanel(id) {
           if (WORKER_URL) gp.set('worker', WORKER_URL);
           gFrame.src = '../../games/' + gameSectionMap[id].gameFile + '?' + gp.toString();
           gFrame.dataset.loaded = '1';
+        }
+      }
+
+      // Set minigame iframe src dynamically
+      if (id && minigameSectionMap[id]) {
+        var mgFrame = document.getElementById('minigameFrame_' + id);
+        if (mgFrame && !mgFrame.dataset.loaded) {
+          var mgp = new URLSearchParams();
+          mgp.set('tokenId', chadId || '');
+          mgp.set('questId', QUEST_ID);
+          if (userAddress) mgp.set('player', userAddress);
+          if (WORKER_URL) mgp.set('worker', WORKER_URL);
+          mgFrame.src = '../../games/' + minigameSectionMap[id].minigameFile + '?' + mgp.toString();
+          mgFrame.dataset.loaded = '1';
         }
       }
 
@@ -2373,18 +2440,41 @@ ${diceInitJs}
     animateIntro();
     checkEscrowStatus();
 
-    // Handle win messages from embedded game iframes
+    // Handle win/death messages from embedded game iframes
     var _runnerWinCert = null;
+    var _minigameDeathHandled = false;
     window.addEventListener('message', function(e) {
-      if (!e.data || e.data.type !== 'runner_win') return;
-      _runnerWinCert = e.data.cert || null;
-      if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
-        _questRunnerXP += Number(e.data.runnerXP);
+      if (!e.data) return;
+
+      // Win — advance to next section
+      if (e.data.type === 'runner_win') {
+        _runnerWinCert = e.data.cert || null;
+        if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
+          _questRunnerXP += Number(e.data.runnerXP);
+        }
+        // Advance to next section: check minigame map first, then legacy game map
+        if (currentSectionId && minigameSectionMap[currentSectionId]) {
+          var winId = minigameSectionMap[currentSectionId].winNextSectionId;
+          goToSection(winId || null);
+        } else if (currentSectionId && gameSectionMap[currentSectionId]) {
+          var nextId = gameSectionMap[currentSectionId].nextSectionId;
+          goToSection(nextId || null);
+        }
+        return;
       }
-      // Advance to next section if the current panel has a game
-      if (currentSectionId && gameSectionMap[currentSectionId]) {
-        var nextId = gameSectionMap[currentSectionId].nextSectionId;
-        goToSection(nextId || null);
+
+      // Death — show parent death overlay, end quest, redirect to index
+      if (e.data.type === 'runner_death') {
+        if (_minigameDeathHandled) return;
+        _minigameDeathHandled = true;
+        var overlay = document.getElementById('minigame-death-overlay');
+        if (overlay) {
+          overlay.classList.add('show');
+          requestAnimationFrame(function() { overlay.classList.add('visible'); });
+        }
+        setTimeout(function() {
+          window.location.href = '../../index.html';
+        }, 3000);
       }
     });
 
