@@ -3,20 +3,25 @@
  * Cloudflare Worker + KV
  *
  * Tracks per-run state so players can't reload after dying to get a new attempt.
- * The frontend checks this Worker before showing the "Claim Rewards" button.
+ * On a verified win, signs a win ticket with the oracle private key. The contract
+ * verifies this signature in completeQuest() — no valid signature = tx reverts.
  *
  * KV key:  runner:{tokenId}:{questId}
- * KV value: { runStartedAt: <unix ms>, died: <bool> }
+ * KV value: { runStartedAt: <unix ms>, died: <bool>, player: <address> }
  *
  * Endpoints:
- *   POST /session/start  { tokenId, questId }          → records run attempt start
- *   POST /session/die    { tokenId, questId }          → records death, locks out further runs
- *   POST /session/win    { tokenId, questId }          → verifies win (not died + 110s elapsed)
- *   GET  /session/status?tokenId=&questId=             → returns current state
+ *   POST /session/start  { tokenId, questId, player }  → records run attempt start
+ *   POST /session/die    { tokenId, questId }           → records death, locks out further runs
+ *   POST /session/win    { tokenId, questId }           → verifies win + returns oracle signature
+ *   GET  /session/status?tokenId=&questId=              → returns current state
  *
- * Limitation: enforces UI only. A player who calls completeQuest() directly
- * via their wallet bypasses this Worker entirely. Sufficient for casual anti-cheat.
+ * Required Cloudflare secrets (set via `wrangler secret put`):
+ *   ORACLE_PRIVATE_KEY  — hex private key for the oracle wallet (no 0x prefix)
+ *                          Derive the oracle address from this key and call
+ *                          QuestRewards.setOracle(oracleAddress) once after deploy.
  */
+
+import { ethers } from 'ethers';
 
 const CORS = {
   'Access-Control-Allow-Origin': 'https://lastchad.xyz',
@@ -24,11 +29,10 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const WIN_THRESHOLD_MS = 110_000; // 110 seconds — runner is 2 minutes, allow 10s buffer
+const WIN_THRESHOLD_MS = 110_000; // 110s — runner is 2 minutes, allow 10s for network
 
 export default {
   async fetch(request, env) {
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
     }
@@ -49,6 +53,7 @@ export default {
         return await handleStatus(url, env);
       }
     } catch (err) {
+      console.error(err);
       return json({ error: 'Internal error' }, 500);
     }
 
@@ -57,14 +62,19 @@ export default {
 };
 
 // ---------------------------------------------------------------------------
-// POST /session/start
+// POST /session/start  { tokenId, questId, player }
 // Called when the runner game loads and begins.
-// If the player already died on this tokenId+questId, rejects immediately.
-// Otherwise records runStartedAt = now (resets on each fresh load).
+// Rejects if player already died on this tokenId+questId.
+// Records runStartedAt = now and the player's address (needed for signing).
 // ---------------------------------------------------------------------------
 async function handleStart(request, env) {
-  const { tokenId, questId } = await parseBody(request);
-  if (!tokenId || questId == null) return json({ error: 'Missing tokenId or questId' }, 400);
+  const { tokenId, questId, player } = await parseBody(request);
+  if (!tokenId || questId == null || !player) {
+    return json({ error: 'Missing tokenId, questId, or player' }, 400);
+  }
+  if (!ethers.isAddress(player)) {
+    return json({ error: 'Invalid player address' }, 400);
+  }
 
   const key = kvKey(tokenId, questId);
   const existing = await getSession(env, key);
@@ -76,16 +86,17 @@ async function handleStart(request, env) {
   const session = {
     runStartedAt: Date.now(),
     died: false,
+    player: player.toLowerCase(),
   };
-  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: 3600 }); // 1hr TTL
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: 3600 });
 
   return json({ ok: true });
 }
 
 // ---------------------------------------------------------------------------
-// POST /session/die
-// Called the moment the player hits an obstacle and dies.
-// Sets died = true permanently for this tokenId+questId.
+// POST /session/die  { tokenId, questId }
+// Called the moment the player hits an obstacle.
+// Sets died = true permanently — no further runs allowed for this tokenId+questId.
 // ---------------------------------------------------------------------------
 async function handleDie(request, env) {
   const { tokenId, questId } = await parseBody(request);
@@ -97,6 +108,7 @@ async function handleDie(request, env) {
   const session = {
     runStartedAt: existing?.runStartedAt ?? Date.now(),
     died: true,
+    player: existing?.player ?? null,
   };
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: 3600 });
 
@@ -104,11 +116,13 @@ async function handleDie(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /session/win
+// POST /session/win  { tokenId, questId }
 // Called when the player reaches the end of the map.
-// Returns { ok: true } only if:
-//   1. died is false (no death recorded for this run)
-//   2. at least WIN_THRESHOLD_MS has elapsed since runStartedAt
+// Checks:
+//   1. No death recorded (died == false)
+//   2. elapsed >= WIN_THRESHOLD_MS since runStartedAt
+// On success, signs keccak256(tokenId, questId, player) with the oracle key
+// and returns the signature. The player passes this to completeQuest().
 // ---------------------------------------------------------------------------
 async function handleWin(request, env) {
   const { tokenId, questId } = await parseBody(request);
@@ -129,12 +143,21 @@ async function handleWin(request, env) {
     return json({ ok: false, reason: 'too_fast', elapsed, required: WIN_THRESHOLD_MS }, 403);
   }
 
-  return json({ ok: true, elapsed });
+  // Sign: keccak256(abi.encodePacked(tokenId, questId, player))
+  // Must match what QuestRewards.sol verifies on-chain.
+  const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
+  const messageHash = ethers.solidityPackedKeccak256(
+    ['uint256', 'uint8', 'address'],
+    [BigInt(tokenId), Number(questId), session.player]
+  );
+  const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
+
+  return json({ ok: true, signature, elapsed });
 }
 
 // ---------------------------------------------------------------------------
 // GET /session/status?tokenId=1&questId=2
-// Returns current session state for the frontend to check on load.
+// Returns current session state. Checked on every page load.
 // ---------------------------------------------------------------------------
 async function handleStatus(url, env) {
   const tokenId = url.searchParams.get('tokenId');

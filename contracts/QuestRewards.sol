@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+
 interface ILastChad {
     function ownerOf(uint256 tokenId) external view returns (address);
     function awardExperience(uint256 tokenId, uint256 amount) external;
@@ -20,6 +23,7 @@ contract QuestRewards {
     ILastChad      public immutable lastChad;
     ILastChadItems public lastChadItems;
     address        public immutable gameOwner;
+    address        public oracle;  // Runner Worker signing key — set after deploy
 
     uint256 public constant SESSION_DURATION = 1 hours;
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
@@ -96,6 +100,13 @@ contract QuestRewards {
         lastChadItems = ILastChadItems(itemsAddress);
     }
 
+    // Set the oracle address — must match the ORACLE_ADDRESS derived from
+    // the ORACLE_PRIVATE_KEY secret stored in the Cloudflare Worker.
+    function setOracle(address _oracle) external onlyGameOwner {
+        require(_oracle != address(0), "Invalid oracle");
+        oracle = _oracle;
+    }
+
     // -------------------------------------------------------------------------
     // setQuestConfig — defines XP choice bonuses + automatic end-of-quest rewards
     // cellReward: cells minted to player on completion (0 = none)
@@ -153,11 +164,22 @@ contract QuestRewards {
         uint8   choice1,
         uint8   choice2,
         uint8   kept1,
-        uint8   kept2
+        uint8   kept2,
+        bytes calldata oracleSig
     ) external {
         address player = lockedBy[tokenId];
         require(player != address(0), "Token not locked");
         require(msg.sender == player, "Not token owner");
+
+        // Verify the Runner Worker signed off on this win.
+        // Message: keccak256(tokenId, questId, player)
+        // Signed by the oracle private key stored in Cloudflare secrets.
+        if (oracle != address(0)) {
+            bytes32 message = keccak256(abi.encodePacked(tokenId, questId, player));
+            bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+            address signer  = ECDSA.recover(ethHash, oracleSig);
+            require(signer == oracle, "Invalid oracle signature");
+        }
 
         QuestSession memory session = pendingSessions[tokenId];
         require(session.active, "No active session");

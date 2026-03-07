@@ -20,7 +20,8 @@ export const LASTCHAD_ABI = [
 export const QUEST_REWARDS_ABI = [
   // Player
   'function startQuest(uint256 tokenId, uint8 questId)',
-  'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2)',
+  'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2, bytes oracleSig)',
+  'function setOracle(address oracle)',
   'function purchaseItem(uint256 tokenId, uint256 itemId)',
   // Game owner — awards
   'function awardCells(uint256 tokenId, uint256 amount)',

@@ -1,16 +1,13 @@
 name = "last-chad-runner"
 main = "runner-worker.js"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "RUNNER_KV"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
 
-[vars]
-# No env vars needed — all config is in the Worker source
-
-# To create the KV namespace:
-#   npx wrangler kv:namespace create RUNNER_KV
-#   npx wrangler kv:namespace create RUNNER_KV --preview
-# Then paste the returned IDs above.
+# ORACLE_PRIVATE_KEY is a secret — never put it here.
+# Set it with: npx wrangler secret put ORACLE_PRIVATE_KEY
+# Then derive the oracle address and call QuestRewards.setOracle(address).
