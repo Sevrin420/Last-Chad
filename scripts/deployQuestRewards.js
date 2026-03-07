@@ -66,15 +66,30 @@ async function main() {
   await tx.wait();
   console.log("  lastChadItems.setGameContract ✓");
 
-  // ── 5. Seed quest configs ──────────────────────────────────────────────
-  // setQuestConfig(questId, c1a, c1b, c2a, c2b, cellReward, itemReward)
-  // Quest 1: choice1 bonus 1 or 3, choice2 bonus 2 or 3, 50 cells, no item
-  console.log("\nSeeding quest configs...");
-  tx = await questRewards.setQuestConfig(1, 1, 3, 2, 3, 0, 0);
-  await tx.wait();
-  console.log("  Quest 1 config set ✓  (XP bonuses: 1|3 + 2|3, no auto rewards)");
+  // ── 5. Set oracle address ─────────────────────────────────────────────
+  // ORACLE_ADDRESS must be the public address derived from the private key
+  // stored as ORACLE_PRIVATE_KEY in Cloudflare Worker secrets.
+  // Generate with: const w = ethers.Wallet.createRandom(); console.log(w.address, w.privateKey)
+  const oracleAddress = process.env.ORACLE_ADDRESS;
+  if (oracleAddress && hre.ethers.isAddress(oracleAddress)) {
+    console.log("\nSetting oracle address...");
+    tx = await questRewards.setOracle(oracleAddress);
+    await tx.wait();
+    console.log("  setOracle ✓ →", oracleAddress);
+  } else {
+    console.warn("\nSkipping setOracle — set ORACLE_ADDRESS env var to wire it automatically.");
+    console.warn("  Run after deploy: questRewards.setOracle(<oracle address>)");
+  }
 
-  // ── 6. Patch js/config.js with the new address ────────────────────────
+  // ── 6. Seed quest configs ──────────────────────────────────────────────
+  // setQuestConfig(questId, cellReward, itemReward)
+  // XP is now computed and signed by the Worker — not configured here.
+  console.log("\nSeeding quest configs...");
+  tx = await questRewards.setQuestConfig(1, 0, 0);
+  await tx.wait();
+  console.log("  Quest 1 config set ✓  (no auto cell/item reward; XP via Worker)");
+
+  // ── 7. Patch js/config.js with the new address ────────────────────────
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
   if (fs.existsSync(configPath)) {
     let config = fs.readFileSync(configPath, 'utf8');
@@ -88,15 +103,20 @@ async function main() {
     console.warn("\nWarning: js/config.js not found — update QUEST_REWARDS_ADDRESS manually.");
   }
 
-  // ── 7. Summary ────────────────────────────────────────────────────────
+  // ── 8. Summary ────────────────────────────────────────────────────────
   console.log("\n══════════════════════════════════════════════════");
   console.log("Deployment complete!");
   console.log("  Network:       ", network);
   console.log("  QuestRewards:  ", questRewardsAddress);
   console.log("  LastChad auth: ✓");
   console.log("  Items auth:    ✓");
-  console.log("  Quest 1 cfg:   ✓");
+  console.log("  Quest 1 cfg:   ✓  (XP signed by Worker)");
+  console.log("  Oracle:        ", oracleAddress ? "✓  " + oracleAddress : "⚠  not set yet");
   console.log("══════════════════════════════════════════════════\n");
+  if (!oracleAddress) {
+    console.log("Next: ORACLE_ADDRESS=<address> npx hardhat run scripts/deployQuestRewards.js");
+    console.log("  Or call questRewards.setOracle(<address>) from admin.html\n");
+  }
   console.log("js/config.js has been updated. Commit and push to go live.");
 }
 
