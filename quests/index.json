@@ -103,5 +103,10 @@
     "name": "21 test fresh",
     "slug": "21-test-fresh",
     "questId": 20
+  },
+  {
+    "name": "22 test fresh",
+    "slug": "22-test-fresh",
+    "questId": 21
   }
 ]
