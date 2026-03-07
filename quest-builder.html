@@ -1393,15 +1393,7 @@
 
           <!-- Dice Config -->
           <div class="choice-config ${section.selectedChoice === 'dice' ? 'visible' : ''}" data-config="dice" data-section-id="${section.id}">
-            <label>Dice Placeholder Image</label>
-            <div class="dice-placeholder" data-section-id="${section.id}">
-              <input type="file" accept="image/*" data-section-id="${section.id}" class="dice-image-input">
-              <div class="dice-icon">🎲</div>
-              <div class="dice-text">Click to upload dice visual<br>(or use placeholder)</div>
-            </div>
-            ${section.diceImage ? `<img src="${section.diceImage}" style="width: 100%; max-width: 200px; margin-top: 16px; border: 1px solid #7ee8d4; border-radius: 2px;">` : ''}
-
-            <label style="margin-top: 20px;">Stat Bonus</label>
+            <label>Stat Bonus</label>
             <div class="stat-bonus-grid">
               <label class="stat-cb-label ${section.statBonus === 'strength' ? 'checked' : ''}">
                 <input type="checkbox" class="stat-bonus-cb" value="strength" data-section-id="${section.id}" ${section.statBonus === 'strength' ? 'checked' : ''}> STR
