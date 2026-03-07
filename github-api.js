@@ -1580,7 +1580,7 @@ function showPanel(id) {
         if (lockBtn) lockBtn.textContent = 'LOCKING…';
         if (statusEl) statusEl.textContent = 'Step 2 of 2: Lock CHAD in escrow — confirm in wallet…';
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-        var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 150000 });
+        var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 300000 });
         if (statusEl) statusEl.textContent = 'Confirming on-chain…';
         await tx.wait();
         // Success
