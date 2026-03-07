@@ -17,6 +17,7 @@ on:
           - worker           # Cloudflare Worker only
           - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
           - verify           # Verify all contracts on Snowtrace (no deploy)
+          - release-escrow   # Return all NFTs locked in QuestRewards escrow to their owners
       network:
         description: 'Network (ignored if target=worker)'
         required: true
@@ -191,3 +192,27 @@ jobs:
         env:
           SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
         run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 5: Release all locked NFTs from QuestRewards escrow
+  # ───────────────────────────────────────────────────────────────────────────
+  release-escrow:
+    name: Release Escrow (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'release-escrow'
+    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Release all NFTs in escrow back to their owners
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/releaseEscrow.js --network ${{ inputs.network }}
