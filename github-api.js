@@ -1591,7 +1591,7 @@ function showPanel(id) {
 
       statusEl.textContent = '⏳ Checking escrow status…';
       try {
-        var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var rp = _getReadProvider();
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
         var locker = await qr.lockedBy(chadId);
         var lockerIsSet = locker !== ethers.constants.AddressZero;
@@ -1635,7 +1635,7 @@ function showPanel(id) {
       if (lockBtn) { lockBtn.disabled = true; lockBtn.textContent = 'CHECKING…'; }
       if (statusEl) statusEl.textContent = 'Checking approval…';
       try {
-        var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var rp = _getReadProvider();
         var nft = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, rp);
         var [approved, approvedAll] = await Promise.all([
           nft.getApproved(chadId),
@@ -1661,7 +1661,7 @@ function showPanel(id) {
         if (lockBtn) { lockBtn.style.display = 'none'; }
         if (startBtn) { startBtn.disabled = false; }
       } catch(err) {
-        var msg = (err.reason || err.message || '').slice(0, 100);
+        var msg = _cleanRpcError(err);
         if (statusEl) statusEl.textContent = 'Failed: ' + msg;
         if (lockBtn) { lockBtn.disabled = false; lockBtn.textContent = '🔒 LOCK CHAD IN ESCROW'; }
       }
@@ -1799,7 +1799,7 @@ function showPanel(id) {
 
       // Stats from chain (async)
       try {
-        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var readProvider = _getReadProvider();
         var lcContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
         var statsResult = await lcContract.getStats(chadId);
         var baseStr = parseInt(statsResult.strength);
@@ -2203,10 +2203,24 @@ ${diceInitJs}
     // ===== WALLET + ON-CHAIN INTEGRATION =====
     var QUEST_SLUG = '${sanitized}';
     var AVAX_CHAIN_ID = '0xa869';
-    var AVAX_CHAIN = { chainId: AVAX_CHAIN_ID, chainName: 'Avalanche Fuji Testnet', nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 }, rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'], blockExplorerUrls: ['https://testnet.snowtrace.io/'] };
+    var AVAX_CHAIN = { chainId: AVAX_CHAIN_ID, chainName: 'Avalanche Fuji Testnet', nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 }, rpcUrls: ['https://rpc.ankr.com/avalanche_fuji', 'https://api.avax-test.network/ext/bc/C/rpc'], blockExplorerUrls: ['https://testnet.snowtrace.io/'] };
     var WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
     var CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
     var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
+    var READ_RPC_FALLBACK = 'https://rpc.ankr.com/avalanche_fuji';
+    function _getReadProvider() {
+      return new ethers.providers.FallbackProvider([
+        { provider: _getReadProvider(), priority: 1, stallTimeout: 2500 },
+        { provider: new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK), priority: 2, stallTimeout: 2500 },
+      ], 1);
+    }
+    function _cleanRpcError(err) {
+      var msg = err && (err.reason || err.message || '');
+      if (!msg || msg.toLowerCase().includes('rpc request failed') || msg.toLowerCase().includes('request failed') || msg.toLowerCase().includes('network error') || msg.toLowerCase().includes('could not detect network')) {
+        return 'Network error — RPC unavailable. Try again.';
+      }
+      return String(msg).slice(0, 80);
+    }
     var LASTCHAD_ABI = [
       'function ownerOf(uint256 tokenId) external view returns (address)',
       'function balanceOf(address owner) external view returns (uint256)',
@@ -2258,7 +2272,7 @@ ${diceInitJs}
       var RETRY_MS = 2000;
       (async function fetchSeed() {
         try {
-          var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+          var rp = _getReadProvider();
           var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
           var session = await qrRead.getSession(chadId);
           // session[0] = seed (non-zero once startQuest has confirmed)
@@ -2417,7 +2431,7 @@ ${diceInitJs}
       // On-chain check via QuestRewards (authoritative)
       if (!done && QUEST_REWARDS_ADDRESS) {
         try {
-          var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+          var rp = _getReadProvider();
           var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
           done = await qr.questCompleted(chadId, QUEST_ID);
           if (done) markQuestDone(chadId); // sync localStorage
@@ -2523,7 +2537,7 @@ ${diceInitJs}
       // Verify the caller is the quest participant (NFT is in escrow, so check lockedBy not ownerOf)
       if (QUEST_REWARDS_ADDRESS) {
         try {
-          var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+          var readProvider = _getReadProvider();
           var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
           var lockedByAddr = await qrRead.lockedBy(chadId);
           if (lockedByAddr.toLowerCase() !== userAddress.toLowerCase()) {
@@ -2594,7 +2608,7 @@ ${diceInitJs}
     async function checkAndShowLevelUp(tokenId) {
       if (!tokenId || !userAddress) return;
       try {
-        var readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var readProvider = _getReadProvider();
         var readContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
         var pending = await readContract.getPendingStatPoints(tokenId);
         var pts = pending.toNumber ? pending.toNumber() : Number(pending);
