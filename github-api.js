@@ -2212,7 +2212,7 @@ ${diceInitJs}
     var AVAX_CHAIN_ID = '0xa869';
     var AVAX_CHAIN = { chainId: AVAX_CHAIN_ID, chainName: 'Avalanche Fuji Testnet', nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 }, rpcUrls: ['https://rpc.ankr.com/avalanche_fuji', 'https://api.avax-test.network/ext/bc/C/rpc'], blockExplorerUrls: ['https://testnet.snowtrace.io/'] };
     var WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
-    var CONTRACT_ADDRESS = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
+    var CONTRACT_ADDRESS = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
     var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
     var READ_RPC_FALLBACK = 'https://rpc.ankr.com/avalanche_fuji';
     function _getReadProvider() {
@@ -2240,7 +2240,7 @@ ${diceInitJs}
       'function getClosedCells(uint256 tokenId) external view returns (uint256)',
       'function getLevel(uint256 tokenId) external view returns (uint256)'
     ];
-    var ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
+    var ITEMS_CONTRACT_ADDRESS = '0x0ef84248f58be2ac72b8d2e4229fc4e8575d5947';
     var LASTCHAD_ITEMS_ABI = [
       'function mint(uint256 itemId, uint256 quantity) external payable',
       'function getItem(uint256 itemId) external view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)',
