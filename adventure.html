@@ -172,7 +172,7 @@
 
     .xp-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #3a7d44 0%, #6abf69 100%);
+      background: linear-gradient(90deg, #1a6b8a 0%, #36b8e0 100%);
       width: 0%;
       transition: width 0.4s ease;
     }
@@ -834,6 +834,10 @@
             <div class="stat-label">CHA</div>
             <div class="stat-value" id="statCha">—</div>
           </div>
+          <div class="stat-box" style="border-color:#36b8e0;">
+            <div class="stat-label" style="color:#36b8e0;">CELLS</div>
+            <div class="stat-value" id="statCells" style="color:#36b8e0;">—</div>
+          </div>
         </div>
       </div>
 
@@ -853,7 +857,7 @@
         <div class="xp-bar-wrap">
           <div class="xp-bar-fill" id="xpBarFill"></div>
         </div>
-        <div class="xp-label" id="xpLabel">0 / 100 XP</div>
+        <div class="xp-label" id="xpLabel">0 / 100 CELLS LOCKED</div>
       </div>
 
       <!-- Quest selector + Battle button -->
@@ -932,7 +936,8 @@
       'function tokenURI(uint256 tokenId) view returns (string)',
       'function MAX_SUPPLY() view returns (uint256)',
       'function getStats(uint256 tokenId) view returns (uint32, uint32, uint32, uint32, bool)',
-      'function getExperience(uint256 tokenId) view returns (uint256)',
+      'function getOpenCells(uint256 tokenId) view returns (uint256)',
+      'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)'
     ];
 
@@ -1017,9 +1022,11 @@
       portraitName.textContent = '';
       portraitLevel.textContent = 'LVL 1';
       xpBarFill.style.width = '0%';
-      xpLabel.textContent = '0 / 100 XP';
+      xpLabel.textContent = '0 / 100 CELLS LOCKED';
       baseStats = null;
       [statStr, statInt, statDex, statCha].forEach(el => { el.textContent = '—'; el.classList.remove('boosted'); });
+      const cellsEl = document.getElementById('statCells');
+      if (cellsEl) cellsEl.textContent = '—';
       const col = document.getElementById('equippedItemsCol');
       if (col) { col.style.display = 'none'; col.innerHTML = ''; }
       battleBtn.classList.remove('active');
@@ -1050,9 +1057,10 @@
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
-        const [statsResult, xpResult, nameResult] = await Promise.all([
+        const [statsResult, openCellsResult, closedCellsResult, nameResult] = await Promise.all([
           contract.getStats(tokenId),
-          contract.getExperience(tokenId),
+          contract.getOpenCells(tokenId),
+          contract.getClosedCells(tokenId),
           contract.tokenName(tokenId)
         ]);
 
@@ -1066,13 +1074,18 @@
           : null;
         applyItemBonuses();
 
-        const xp = Number(xpResult);
-        const level = Math.floor(xp / 100) + 1;
-        const xpIntoLevel = xp % 100;
-        const pct = xpIntoLevel;
+        // Open cells in stat box
+        const openCells = Number(openCellsResult);
+        const cellsEl = document.getElementById('statCells');
+        if (cellsEl) cellsEl.textContent = openCells;
+
+        // Closed cells drive level + progress bar
+        const closedCells = Number(closedCellsResult);
+        const level = Math.floor(closedCells / 100) + 1;
+        const cellsIntoLevel = closedCells % 100;
         portraitLevel.textContent = 'LVL ' + level;
-        xpBarFill.style.width = pct + '%';
-        xpLabel.textContent = xpIntoLevel + ' / 100 XP';
+        xpBarFill.style.width = cellsIntoLevel + '%';
+        xpLabel.textContent = cellsIntoLevel + ' / 100 CELLS LOCKED';
       } catch (err) {
         console.error('Failed to load chad data:', err);
       }

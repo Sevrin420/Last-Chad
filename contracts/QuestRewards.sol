@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 interface ILastChad {
     function ownerOf(uint256 tokenId) external view returns (address);
-    function awardExperience(uint256 tokenId, uint256 amount) external;
     function awardCells(uint256 tokenId, uint256 amount) external;
     function spendCells(uint256 tokenId, uint256 amount) external;
     function transferFrom(address from, address to, uint256 tokenId) external;
@@ -33,9 +32,9 @@ contract QuestRewards {
     }
 
     // Per-quest config — cells and item minted automatically on completion.
-    // XP is computed by the Worker and committed in the oracle signature.
+    // Cell reward amount is computed by the Worker and committed in the oracle signature.
     struct QuestConfig {
-        uint16 cellReward; // cells awarded on completion (0 = none)
+        uint16 cellReward; // bonus cells awarded on completion (0 = none)
         uint16 itemReward; // item ID minted on completion (0 = none)
     }
 
@@ -53,7 +52,7 @@ contract QuestRewards {
     // Events
     // -------------------------------------------------------------------------
     event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt);
-    event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded, uint256 cellsAwarded, uint256 itemAwarded);
+    event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 cellsAwarded, uint256 itemAwarded);
     event NFTBurned(uint256 indexed tokenId, address indexed originalOwner);
     event NFTReleased(uint256 indexed tokenId, address indexed returnedTo);
     event CellsAwarded(uint256 indexed tokenId, address indexed player, uint256 amount);
@@ -82,8 +81,6 @@ contract QuestRewards {
         lastChadItems = ILastChadItems(itemsAddress);
     }
 
-    // oracle address must match the public key derived from ORACLE_PRIVATE_KEY
-    // stored as a Cloudflare Worker secret.
     function setOracle(address _oracle) external onlyGameOwner {
         require(_oracle != address(0), "Invalid oracle");
         oracle = _oracle;
@@ -91,7 +88,6 @@ contract QuestRewards {
 
     // cellReward: cells minted to player on completion (0 = none)
     // itemReward: item ID minted to player on completion (0 = none)
-    // XP is no longer configured here — the Worker computes and signs it.
     function setQuestConfig(
         uint8  questId,
         uint16 cellReward,
@@ -128,19 +124,19 @@ contract QuestRewards {
     }
 
     // -------------------------------------------------------------------------
-    // completeQuest — player submits oracle-signed XP amount.
+    // completeQuest — player submits oracle-signed cell reward amount.
     //
     // The Worker (Cloudflare) runs all game logic: dice rolls, choice bonuses,
     // dex scaling, minigame outcomes. It signs keccak256(tokenId, questId, player,
-    // xpAmount) with the oracle private key. The contract verifies the signature
-    // and awards exactly the XP the Worker certified.
+    // cellReward) with the oracle private key. The contract verifies the signature
+    // and awards exactly the cells the Worker certified.
     //
-    // Cells and item rewards come from QuestConfig (on-chain, set by game owner).
+    // Additional cells and item rewards come from QuestConfig (on-chain).
     // -------------------------------------------------------------------------
     function completeQuest(
         uint256 tokenId,
         uint8   questId,
-        uint256 xpAmount,
+        uint256 cellReward,
         bytes calldata oracleSig
     ) external {
         address player = lockedBy[tokenId];
@@ -153,11 +149,9 @@ contract QuestRewards {
         require(block.timestamp <= uint256(session.startTime) + SESSION_DURATION, "Session expired");
         require(!questCompleted[tokenId][questId], "Already completed");
 
-        // Oracle signature commits to the exact XP amount the Worker certified.
-        // Prevents the player from inflating xpAmount — only a valid oracle sig
-        // for this specific (tokenId, questId, player, xpAmount) tuple will pass.
+        // Oracle signature commits to the exact cell reward the Worker certified.
         if (oracle != address(0)) {
-            bytes32 message = keccak256(abi.encodePacked(tokenId, questId, player, xpAmount));
+            bytes32 message = keccak256(abi.encodePacked(tokenId, questId, player, cellReward));
             bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
             address signer  = ECDSA.recover(ethHash, oracleSig);
             require(signer == oracle, "Invalid oracle signature");
@@ -172,17 +166,17 @@ contract QuestRewards {
         // Return NFT
         lastChad.transferFrom(address(this), player, tokenId);
 
-        // Award XP
-        if (xpAmount > 0) {
-            lastChad.awardExperience(tokenId, xpAmount);
+        // Award cells from oracle-signed amount
+        uint256 totalCellsAwarded = cellReward;
+        if (cellReward > 0) {
+            lastChad.awardCells(tokenId, cellReward);
         }
 
-        // Award cells from quest config
+        // Award bonus cells from quest config
         QuestConfig memory qc = _questConfig[questId];
-        uint256 cellsAwarded = 0;
         if (qc.cellReward > 0) {
-            cellsAwarded = uint256(qc.cellReward);
-            lastChad.awardCells(tokenId, cellsAwarded);
+            totalCellsAwarded += uint256(qc.cellReward);
+            lastChad.awardCells(tokenId, uint256(qc.cellReward));
         }
 
         // Award item from quest config
@@ -192,7 +186,7 @@ contract QuestRewards {
             lastChadItems.mintTo(player, itemAwarded, 1);
         }
 
-        emit QuestCompleted(tokenId, questId, xpAmount, cellsAwarded, itemAwarded);
+        emit QuestCompleted(tokenId, questId, totalCellsAwarded, itemAwarded);
     }
 
     // -------------------------------------------------------------------------

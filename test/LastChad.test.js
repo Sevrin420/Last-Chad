@@ -35,6 +35,7 @@ describe("LastChad", function () {
       expect(await contract.MINT_PRICE()).to.equal(PRICE);
       expect(await contract.MAX_MINT_PER_WALLET()).to.equal(5);
       expect(await contract.TOTAL_STAT_POINTS()).to.equal(2);
+      expect(await contract.CELLS_PER_LEVEL()).to.equal(100);
     });
   });
 
@@ -47,6 +48,13 @@ describe("LastChad", function () {
       expect(await contract.totalSupply()).to.equal(1);
       expect(await contract.ownerOf(1)).to.equal(addr1.address);
       expect(await contract.balanceOf(addr1.address)).to.equal(1);
+    });
+
+    it("starts with 5 open cells", async function () {
+      await contract.connect(addr1).mint(1, { value: PRICE });
+      expect(await contract.getOpenCells(1)).to.equal(5);
+      expect(await contract.getCells(1)).to.equal(5);
+      expect(await contract.getClosedCells(1)).to.equal(0);
     });
 
     it("mints multiple tokens in one tx", async function () {
@@ -287,53 +295,78 @@ describe("LastChad", function () {
   });
 
   // ──────────────────────────────────────────────────────────
-  // Experience & Leveling
+  // Cells & Leveling (replaces Experience)
   // ──────────────────────────────────────────────────────────
-  describe("Experience & Leveling", function () {
+  describe("Cells & Leveling", function () {
     beforeEach(async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
     });
 
-    it("starts at level 1 with 0 XP", async function () {
+    it("starts at level 1 with 5 open cells and 0 closed cells", async function () {
       expect(await contract.getLevel(1)).to.equal(1);
-      expect(await contract.getExperience(1)).to.equal(0);
+      expect(await contract.getOpenCells(1)).to.equal(5);
+      expect(await contract.getClosedCells(1)).to.equal(0);
     });
 
-    it("owner can award experience", async function () {
-      await contract.awardExperience(1, 50);
-      expect(await contract.getExperience(1)).to.equal(50);
-      expect(await contract.getLevel(1)).to.equal(1);
+    it("owner can award open cells", async function () {
+      await contract.awardCells(1, 50);
+      expect(await contract.getOpenCells(1)).to.equal(55);
     });
 
-    it("levels up at 100 XP", async function () {
-      await expect(contract.awardExperience(1, 100))
-        .to.emit(contract, "LevelUp").withArgs(1, 2, 1);
+    it("token owner can lock cells to level up", async function () {
+      // Give enough cells to level up
+      await contract.awardCells(1, 95); // 5 + 95 = 100 open
+      await expect(contract.connect(addr1).lockCells(1, 100))
+        .to.emit(contract, "LevelUp").withArgs(1, 2, 1)
+        .and.to.emit(contract, "CellsLocked").withArgs(1, 100, 100, 2);
       expect(await contract.getLevel(1)).to.equal(2);
+      expect(await contract.getOpenCells(1)).to.equal(0);
+      expect(await contract.getClosedCells(1)).to.equal(100);
     });
 
     it("awards pending stat points on level up", async function () {
-      await contract.awardExperience(1, 100);
+      await contract.awardCells(1, 95);
+      await contract.connect(addr1).lockCells(1, 100);
       expect(await contract.getPendingStatPoints(1)).to.equal(1);
     });
 
     it("awards multiple stat points on multi-level jump", async function () {
-      await contract.awardExperience(1, 300); // jumps to level 4
+      await contract.awardCells(1, 295); // 5 + 295 = 300 open
+      await contract.connect(addr1).lockCells(1, 300); // jumps to level 4
       expect(await contract.getPendingStatPoints(1)).to.equal(3);
       expect(await contract.getLevel(1)).to.equal(4);
     });
 
-    it("emits ExperienceAwarded", async function () {
-      await expect(contract.awardExperience(1, 50))
-        .to.emit(contract, "ExperienceAwarded").withArgs(1, 50, 50, 1);
+    it("partial lock does not level up if threshold not reached", async function () {
+      await contract.awardCells(1, 45); // 50 open total
+      await contract.connect(addr1).lockCells(1, 50);
+      expect(await contract.getLevel(1)).to.equal(1);
+      expect(await contract.getClosedCells(1)).to.equal(50);
     });
 
-    it("reverts for zero XP award", async function () {
-      await expect(contract.awardExperience(1, 0)).to.be.revertedWith("Amount must be > 0");
+    it("incremental locks accumulate to level up", async function () {
+      await contract.awardCells(1, 95);
+      await contract.connect(addr1).lockCells(1, 50);
+      expect(await contract.getLevel(1)).to.equal(1);
+      await contract.connect(addr1).lockCells(1, 50);
+      expect(await contract.getLevel(1)).to.equal(2);
     });
 
-    it("non-owner/game cannot award experience", async function () {
+    it("reverts for zero lock amount", async function () {
+      await expect(contract.connect(addr1).lockCells(1, 0)).to.be.revertedWith("Amount must be > 0");
+    });
+
+    it("reverts for insufficient open cells", async function () {
+      await expect(contract.connect(addr1).lockCells(1, 100)).to.be.revertedWith("Insufficient open cells");
+    });
+
+    it("reverts if not token owner", async function () {
+      await expect(contract.connect(addr2).lockCells(1, 5)).to.be.revertedWith("Not token owner");
+    });
+
+    it("non-owner/game cannot award cells", async function () {
       await expect(
-        contract.connect(addr1).awardExperience(1, 50)
+        contract.connect(addr1).awardCells(1, 50)
       ).to.be.revertedWith("Not authorized");
     });
   });
@@ -344,7 +377,8 @@ describe("LastChad", function () {
   describe("spendStatPoint", function () {
     beforeEach(async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
-      await contract.awardExperience(1, 100); // level 2, 1 stat point
+      await contract.awardCells(1, 95); // 100 open total
+      await contract.connect(addr1).lockCells(1, 100); // level 2, 1 stat point
     });
 
     it("token owner can spend a stat point", async function () {
@@ -388,11 +422,11 @@ describe("LastChad", function () {
       expect(await contract.authorizedGame(addr2.address)).to.be.true;
     });
 
-    it("authorized game can award experience", async function () {
+    it("authorized game can award cells", async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
       await contract.setGameContract(addr2.address, true);
       await expect(
-        contract.connect(addr2).awardExperience(1, 50)
+        contract.connect(addr2).awardCells(1, 50)
       ).to.not.be.reverted;
     });
 
