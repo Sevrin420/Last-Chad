@@ -96,8 +96,8 @@
 
     .page-title {
       font-size: clamp(1rem, 4vw, 1.5rem);
-      color: #36b8e0;
-      text-shadow: 0 0 16px rgba(54, 184, 224, 0.5);
+      color: #6b4fa8;
+      text-shadow: 0 0 16px rgba(107, 79, 168, 0.5);
       margin-bottom: 8px;
       text-align: center;
     }
@@ -141,15 +141,15 @@
       position: absolute;
       bottom: 3px; right: 3px;
       font-size: 0.38rem;
-      color: #36b8e0;
+      color: #6b4fa8;
       background: rgba(0,0,0,0.75);
       padding: 2px 4px;
       border-radius: 2px;
     }
-    .chad-card:hover { border-color: #36b8e0; transform: scale(1.05); }
+    .chad-card:hover { border-color: #6b4fa8; transform: scale(1.05); }
     .chad-card.selected {
-      border-color: #36b8e0;
-      box-shadow: 0 0 14px rgba(54, 184, 224, 0.5);
+      border-color: #6b4fa8;
+      box-shadow: 0 0 14px rgba(107, 79, 168, 0.5);
       transform: scale(1.05);
     }
 
@@ -163,8 +163,8 @@
       padding: 28px 24px;
       box-shadow:
         0 0 30px rgba(0,0,0,0.6),
-        0 0 60px rgba(54, 184, 224, 0.05),
-        inset 0 1px 0 rgba(54, 184, 224, 0.1);
+        0 0 60px rgba(107, 79, 168, 0.05),
+        inset 0 1px 0 rgba(107, 79, 168, 0.1);
     }
 
     /* Portrait + stats row */
@@ -178,7 +178,7 @@
     .portrait-img {
       width: 100px;
       height: 100px;
-      border: 3px solid #36b8e0;
+      border: 3px solid #6b4fa8;
       border-radius: 4px;
       object-fit: cover;
       image-rendering: pixelated;
@@ -196,8 +196,8 @@
 
     .chad-name {
       font-size: 0.6rem;
-      color: #36b8e0;
-      text-shadow: 0 0 8px rgba(54, 184, 224, 0.3);
+      color: #6b4fa8;
+      text-shadow: 0 0 8px rgba(107, 79, 168, 0.3);
       margin-bottom: 4px;
     }
 
@@ -210,7 +210,7 @@
 
     .stat-row .label { color: #5a8faa; }
     .stat-row .value { color: #f5e6c8; }
-    .stat-row .value.cells { color: #36b8e0; font-size: 0.55rem; }
+    .stat-row .value.cells { color: #6b4fa8; font-size: 0.55rem; }
 
     /* Level progress */
     .level-section {
@@ -223,7 +223,7 @@
       color: #5a8faa;
       margin-bottom: 8px;
     }
-    .level-val { color: #36b8e0; }
+    .level-val { color: #6b4fa8; }
     .progress-bar {
       width: 100%;
       height: 10px;
@@ -235,10 +235,10 @@
     }
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #1a6b8a 0%, #36b8e0 100%);
+      background: linear-gradient(90deg, #3a1f7a 0%, #6b4fa8 100%);
       width: 0%;
       transition: width 0.4s ease;
-      box-shadow: 0 0 6px rgba(54, 184, 224, 0.4);
+      box-shadow: 0 0 6px rgba(107, 79, 168, 0.4);
     }
     .progress-label {
       font-size: 0.4rem;
@@ -260,13 +260,13 @@
     }
 
     .slider-header .amount {
-      color: #36b8e0;
+      color: #6b4fa8;
       font-size: 0.55rem;
     }
 
     input[type="range"] {
       width: 100%;
-      accent-color: #36b8e0;
+      accent-color: #6b4fa8;
       cursor: pointer;
       margin-bottom: 8px;
     }
@@ -285,8 +285,8 @@
       font-family: 'Press Start 2P', monospace;
       font-size: clamp(0.6rem, 2.5vw, 0.75rem);
       color: #0a0a14;
-      background: linear-gradient(180deg, #36b8e0 0%, #1a6b8a 50%, #0f4060 100%);
-      border: 3px solid #36b8e0;
+      background: linear-gradient(180deg, #6b4fa8 0%, #3a1f7a 50%, #1e1050 100%);
+      border: 3px solid #6b4fa8;
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s;
@@ -296,16 +296,16 @@
         inset 0 -2px 0 rgba(0, 0, 0, 0.3),
         0 4px 0 #0a3050,
         0 6px 15px rgba(0,0,0,0.5),
-        0 0 20px rgba(54, 184, 224, 0.15);
+        0 0 20px rgba(107, 79, 168, 0.15);
     }
     .charge-btn:hover:not(:disabled) {
-      background: linear-gradient(180deg, #5ecfe8 0%, #36b8e0 50%, #1a6b8a 100%);
+      background: linear-gradient(180deg, #a07fd6 0%, #6b4fa8 50%, #3a1f7a 100%);
       box-shadow:
         inset 0 2px 0 rgba(255,255,255,0.25),
         inset 0 -2px 0 rgba(0,0,0,0.25),
         0 4px 0 #0a3050,
         0 6px 20px rgba(0,0,0,0.5),
-        0 0 30px rgba(54, 184, 224, 0.35);
+        0 0 30px rgba(107, 79, 168, 0.35);
     }
     .charge-btn:active:not(:disabled) {
       transform: translateY(3px);
@@ -352,7 +352,7 @@
       box-shadow: 0 0 40px rgba(0,0,0,0.8);
     }
     .modal-title {
-      font-size: 0.7rem; color: #36b8e0;
+      font-size: 0.7rem; color: #6b4fa8;
       text-align: center; margin-bottom: 24px;
     }
     .wallet-option {
@@ -363,7 +363,7 @@
       border: 2px solid #1a4060; border-radius: 4px;
       cursor: pointer; transition: all 0.15s;
     }
-    .wallet-option:hover { border-color: #36b8e0; background: rgba(54, 184, 224, 0.1); }
+    .wallet-option:hover { border-color: #6b4fa8; background: rgba(107, 79, 168, 0.1); }
     .wallet-icon {
       width: 32px; height: 32px; border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
@@ -375,7 +375,7 @@
       color: #1a4060; background: none; border: none;
       cursor: pointer; padding: 8px;
     }
-    .modal-close:hover { color: #36b8e0; }
+    .modal-close:hover { color: #6b4fa8; }
 
     @media (max-width: 480px) {
       .recharge-panel { padding: 20px 16px; }
