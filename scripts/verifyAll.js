@@ -23,10 +23,12 @@ function readConfig() {
     return m[1];
   };
 
+  const gambleMatch = src.match(/export const GAMBLE_ADDRESS\s*=\s*'([^']*)'/);
   return {
     lastChad:      get("CONTRACT_ADDRESS"),
     items:         get("ITEMS_CONTRACT_ADDRESS"),
     questRewards:  get("QUEST_REWARDS_ADDRESS"),
+    gamble:        gambleMatch ? gambleMatch[1] : '',
   };
 }
 
@@ -58,22 +60,26 @@ async function main() {
   console.log(`LastChad:      ${cfg.lastChad}`);
   console.log(`Items:         ${cfg.items}`);
   console.log(`QuestRewards:  ${cfg.questRewards}`);
+  if (cfg.gamble) console.log(`Gamble:        ${cfg.gamble}`);
 
   await verify(cfg.lastChad,     ["https://lastchad.xyz/metadata/"], "LastChad");
   await verify(cfg.items,        ["https://lastchad.xyz/items/"],    "LastChadItems");
   await verify(cfg.questRewards, [cfg.lastChad],                     "QuestRewards");
+  if (cfg.gamble) {
+    await verify(cfg.gamble, [cfg.lastChad], "Gamble");
+  } else {
+    console.log("\nSkipping Gamble — GAMBLE_ADDRESS not set in js/config.js");
+  }
 
   console.log("\n════════════════════════════════════════════");
   console.log("Done. Check Snowtrace:");
-  if (network === "avalanche") {
-    console.log(`  https://snowtrace.io/address/${cfg.lastChad}`);
-    console.log(`  https://snowtrace.io/address/${cfg.items}`);
-    console.log(`  https://snowtrace.io/address/${cfg.questRewards}`);
-  } else {
-    console.log(`  https://testnet.snowtrace.io/address/${cfg.lastChad}`);
-    console.log(`  https://testnet.snowtrace.io/address/${cfg.items}`);
-    console.log(`  https://testnet.snowtrace.io/address/${cfg.questRewards}`);
-  }
+  const base = network === "avalanche"
+    ? "https://snowtrace.io/address"
+    : "https://testnet.snowtrace.io/address";
+  console.log(`  ${base}/${cfg.lastChad}`);
+  console.log(`  ${base}/${cfg.items}`);
+  console.log(`  ${base}/${cfg.questRewards}`);
+  if (cfg.gamble) console.log(`  ${base}/${cfg.gamble}`);
   console.log("════════════════════════════════════════════\n");
 }
 
