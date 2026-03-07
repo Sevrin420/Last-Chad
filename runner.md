@@ -78,14 +78,17 @@ TTL: 1 hour (matches the on-chain session window)
    → POST /session/die     — sets died: true, blocks all future runs
 
 3. Player reaches the end (win)
-   → POST /session/win     — Worker checks: not died + 110s elapsed
-   → Worker signs keccak256(tokenId, questId, player) with oracle key
-   → Returns { ok: true, signature }
+   → POST /session/win { baseXP }  — Worker checks: not died + 110s elapsed
+   → Worker fetches quests/index.json → data.json → dice section statBonus
+   → Worker fetches lastChad.getStats(tokenId) via read RPC
+   → finalXP = baseXP + charStats[statBonus]  (stat bonus applied by Worker, not client)
+   → Worker signs keccak256(tokenId, questId, player, finalXP)
+   → Returns { ok: true, signature, xpAmount: finalXP }
 
-4. Player calls completeQuest(tokenId, questId, xpAmount, signature)
-   → Contract recovers signer from keccak256(tokenId, questId, player, xpAmount)
+4. Player calls completeQuest(tokenId, questId, finalXP, signature)
+   → Contract recovers signer from keccak256(tokenId, questId, player, finalXP)
    → Requires signer == oracle address
-   → Awards exactly xpAmount XP + quest config cells/item — returns NFT
+   → Awards exactly finalXP XP + quest config cells/item — returns NFT
 ```
 
 ### Lose Flow
