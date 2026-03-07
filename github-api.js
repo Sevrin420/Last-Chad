@@ -1575,6 +1575,13 @@ function showPanel(id) {
     }
 
     // ── Escrow enforcement ──────────────────────────────────────────────────
+    function _setStartEnabled(enabled) {
+      var btn = document.getElementById('introStartBtn');
+      if (!btn) return;
+      btn.disabled = !enabled;
+      btn.style.opacity = enabled ? '1' : '0.4';
+      btn.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
     async function checkEscrowStatus() {
       var statusEl = document.getElementById('escrowStatus');
       var lockBtn  = document.getElementById('lockEscrowBtn');
@@ -1585,7 +1592,7 @@ function showPanel(id) {
         // No contract configured — let the player proceed without on-chain check
         if (statusEl) statusEl.style.display = 'none';
         if (lockBtn)  lockBtn.style.display  = 'none';
-        if (startBtn) { startBtn.disabled = false; }
+        _setStartEnabled(true);
         return;
       }
 
@@ -1600,22 +1607,22 @@ function showPanel(id) {
           // Locked — either wallet not yet connected (trust on-chain state) or locked by this user
           statusEl.textContent = '✅ CHAD #' + chadId + ' is locked in escrow';
           if (lockBtn) lockBtn.style.display = 'none';
-          if (startBtn) startBtn.disabled = false;
+          _setStartEnabled(true);
         } else if (lockerIsSet && !lockerMatchesUser) {
           // Locked by a different wallet
           statusEl.textContent = '⚠️ This Chad is locked by a different wallet';
           if (lockBtn) lockBtn.style.display = 'none';
-          if (startBtn) startBtn.disabled = true;
+          _setStartEnabled(false);
         } else {
           statusEl.textContent = '🔒 Your Chad NFT must be locked in escrow to begin';
           if (lockBtn) lockBtn.style.display = '';
-          if (startBtn) startBtn.disabled = true;
+          _setStartEnabled(false);
         }
       } catch(e) {
         // RPC error — don't block the player
         statusEl.textContent = '⚠️ Could not verify escrow (network error)';
         if (lockBtn) lockBtn.style.display = 'none';
-        if (startBtn) startBtn.disabled = false;
+        _setStartEnabled(true);
       }
     }
 
@@ -1659,7 +1666,7 @@ function showPanel(id) {
         // Success
         if (statusEl) statusEl.textContent = '✅ CHAD #' + chadId + ' locked in escrow';
         if (lockBtn) { lockBtn.style.display = 'none'; }
-        if (startBtn) { startBtn.disabled = false; }
+        _setStartEnabled(true);
       } catch(err) {
         var msg = _cleanRpcError(err);
         if (statusEl) statusEl.textContent = 'Failed: ' + msg;
@@ -1732,7 +1739,7 @@ function showPanel(id) {
       await wait(400);
       if (startBtn) {
         startBtn.style.transition = 'opacity 0.8s ease';
-        startBtn.style.opacity = '1';
+        startBtn.style.opacity = startBtn.disabled ? '0.4' : '1';
         startBtn.style.pointerEvents = startBtn.disabled ? 'none' : 'auto';
       }
     }
@@ -2420,7 +2427,8 @@ ${diceInitJs}
       var startBtn = document.getElementById('introStartBtn');
 
       if (!chadId) {
-        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'START'; }
+        _setStartEnabled(false);
+        if (startBtn) startBtn.textContent = 'START';
         if (banner) banner.style.display = 'none';
         return;
       }
@@ -2441,10 +2449,11 @@ ${diceInitJs}
       if (done) {
         document.getElementById('introCompletedId').textContent = chadId;
         if (banner) banner.style.display = 'block';
-        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'COMPLETED'; }
+        _setStartEnabled(false);
+        if (startBtn) startBtn.textContent = 'COMPLETED';
       } else {
         if (banner) banner.style.display = 'none';
-        if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'START'; }
+        // Don't enable here — checkEscrowStatus() owns the enabled/disabled state
       }
     }
 
