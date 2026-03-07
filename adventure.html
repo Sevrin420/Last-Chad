@@ -880,6 +880,21 @@
     </div>
   </main>
 
+  <!-- Admin Panel (game owner only) -->
+  <div id="adminPanel" style="display:none; max-width:480px; margin:24px auto 0; padding:0 16px 32px;">
+    <details>
+      <summary style="font-family:'Press Start 2P',monospace; font-size:0.45rem; color:#c9a84c; cursor:pointer; padding:10px 0; list-style:none;">&#9660; OWNER PANEL</summary>
+      <div style="border:1px solid #5a4010; border-radius:6px; padding:16px; margin-top:8px; background:rgba(0,0,0,0.4);">
+        <div style="font-family:'Press Start 2P',monospace; font-size:0.38rem; color:#a0963d; margin-bottom:12px;">ESCROW MANAGEMENT</div>
+        <div id="adminLockedCount" style="font-family:'Press Start 2P',monospace; font-size:0.34rem; color:#f5e6c8; margin-bottom:12px;"></div>
+        <div id="adminLockedList" style="font-family:'Press Start 2P',monospace; font-size:0.3rem; color:#c9a84c; margin-bottom:12px; word-break:break-all;"></div>
+        <button id="adminFetchBtn" onclick="adminFetchLocked()" style="font-family:'Press Start 2P',monospace; font-size:0.34rem; background:#3a2a08; color:#c9a84c; border:1px solid #5a4010; padding:8px 14px; cursor:pointer; margin-right:8px; margin-bottom:8px;">CHECK LOCKED</button>
+        <button id="adminReleaseBtn" onclick="adminReleaseAll()" style="font-family:'Press Start 2P',monospace; font-size:0.34rem; background:#1a2a08; color:#7ec87e; border:1px solid #2a5010; padding:8px 14px; cursor:pointer; display:none; margin-bottom:8px;">RELEASE ALL</button>
+        <div id="adminStatus" style="font-family:'Press Start 2P',monospace; font-size:0.32rem; color:#c9a84c; min-height:1.5em; margin-top:6px;"></div>
+      </div>
+    </details>
+  </div>
+
   <!-- Wallet Modal -->
   <div class="modal-overlay" id="walletModal">
     <div class="modal">
@@ -940,7 +955,9 @@
     const QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
       'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
-      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
+      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
+      'function getLockedTokenIds() view returns (uint256[])',
+      'function batchReleaseLocked(uint256[] tokenIds) external'
     ];
     const ERC721_APPROVE_ABI = [
       'function getApproved(uint256 tokenId) view returns (address)',
@@ -1336,6 +1353,7 @@
       walletModal.classList.remove('show');
       showArena();
       loadOwnedChads();
+      _showAdminIfOwner(addr);
     }
 
     function onDisconnected() {
@@ -1345,6 +1363,7 @@
       walletBtn.classList.remove('connected');
       disconnectDropdown.classList.remove('show');
       hideArena();
+      _showAdminIfOwner(null);
     }
 
     // ========== EVENTS ==========
@@ -1546,6 +1565,75 @@
       }
     }
     loadQuestDropdown();
+
+    // ========== ADMIN PANEL ==========
+    var _adminLockedIds = [];
+
+    function _adminSetText(el, text) {
+      var base = text.replace(/(?:\.\.\.|…)$/, '');
+      if (base !== text) {
+        if (el._dotsId) clearInterval(el._dotsId);
+        var d = 0; el.textContent = base + '.';
+        el._dotsId = setInterval(function() { d = (d + 1) % 3; el.textContent = base + ['.', '..', '...'][d]; }, 400);
+      } else {
+        if (el._dotsId) { clearInterval(el._dotsId); el._dotsId = null; }
+        el.textContent = text;
+      }
+    }
+
+    async function adminFetchLocked() {
+      const statusEl = document.getElementById('adminStatus');
+      const countEl  = document.getElementById('adminLockedCount');
+      const listEl   = document.getElementById('adminLockedList');
+      const releaseBtn = document.getElementById('adminReleaseBtn');
+      if (!QUEST_REWARDS_ADDRESS) { _adminSetText(statusEl, 'No QUEST_REWARDS_ADDRESS configured.'); return; }
+      _adminSetText(statusEl, 'Fetching...');
+      releaseBtn.style.display = 'none';
+      try {
+        const rp = new ethers.providers.StaticJsonRpcProvider(READ_RPC, { chainId: 43113, name: 'fuji' });
+        const qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        const ids = await qr.getLockedTokenIds();
+        _adminLockedIds = ids.map(id => id.toNumber ? id.toNumber() : Number(id));
+        countEl.textContent = _adminLockedIds.length + ' CHAD' + (_adminLockedIds.length !== 1 ? 'S' : '') + ' IN ESCROW';
+        listEl.textContent = _adminLockedIds.length > 0 ? 'IDs: ' + _adminLockedIds.join(', ') : '';
+        _adminSetText(statusEl, _adminLockedIds.length > 0 ? 'Ready to release.' : 'No NFTs currently locked.');
+        if (_adminLockedIds.length > 0) releaseBtn.style.display = '';
+      } catch(e) {
+        _adminSetText(statusEl, 'Error: ' + (e.reason || e.message || String(e)).slice(0, 80));
+      }
+    }
+
+    async function adminReleaseAll() {
+      const statusEl  = document.getElementById('adminStatus');
+      const releaseBtn = document.getElementById('adminReleaseBtn');
+      const fetchBtn  = document.getElementById('adminFetchBtn');
+      const signer = getSigner();
+      if (!signer) { _adminSetText(statusEl, 'Connect wallet first.'); return; }
+      if (_adminLockedIds.length === 0) { _adminSetText(statusEl, 'Nothing to release — click CHECK LOCKED first.'); return; }
+      releaseBtn.disabled = true; fetchBtn.disabled = true;
+      _adminSetText(statusEl, 'Confirm in wallet...');
+      try {
+        const qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, signer);
+        const tx = await qr.batchReleaseLocked(_adminLockedIds);
+        _adminSetText(statusEl, 'Confirming...');
+        await tx.wait();
+        _adminSetText(statusEl, '✅ Released ' + _adminLockedIds.length + ' NFT' + (_adminLockedIds.length !== 1 ? 's' : '') + ' back to owners.');
+        _adminLockedIds = [];
+        document.getElementById('adminLockedList').textContent = '';
+        document.getElementById('adminLockedCount').textContent = '0 CHADS IN ESCROW';
+        releaseBtn.style.display = 'none';
+      } catch(e) {
+        _adminSetText(statusEl, 'Failed: ' + (e.reason || e.message || String(e)).slice(0, 80));
+      } finally {
+        releaseBtn.disabled = false; fetchBtn.disabled = false;
+      }
+    }
+
+    function _showAdminIfOwner(addr) {
+      // Show admin panel for any connected wallet — only game owner txs will succeed on-chain
+      const panel = document.getElementById('adminPanel');
+      if (panel) panel.style.display = addr ? '' : 'none';
+    }
 
     // ========== AUTO-RECONNECT ==========
     autoReconnect({ onConnected, onDisconnected });
