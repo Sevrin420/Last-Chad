@@ -5,6 +5,7 @@ export const CONTRACT_ADDRESS         = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe8
 export const ITEMS_CONTRACT_ADDRESS   = '0x00906C5b4a5943E212FD59d227e995F3390cf86d';
 export const QUEST_REWARDS_ADDRESS    = '0x0CcA830784D13F4E9B606F914eB0c1deecA925eB';
 export const MARKET_ADDRESS           = '0x2648fce03fe383c4a1d1a4c21fa59a0b9f35243d';
+export const GAMBLE_ADDRESS           = '';
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
 
 export const LASTCHAD_ABI = [
@@ -55,6 +56,23 @@ export const QUEST_REWARDS_ABI = [
   'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 cellsAwarded, uint256 itemAwarded)',
   'event NFTBurned(uint256 indexed tokenId, address indexed originalOwner)',
   'event NFTReleased(uint256 indexed tokenId, address indexed returnedTo)',
+];
+
+export const GAMBLE_ABI = [
+  // Coin flip (on-chain, 40% win)
+  'function flip(uint256 tokenId, uint256 wager) external',
+  // Generic oracle-signed settlement (blackjack, poker, etc.)
+  'function resolveGame(uint256 tokenId, uint256 wager, uint256 payout, uint8 gameId, uint256 nonce, bytes oracleSig) external',
+  // Admin
+  'function setOracle(address oracle) external',
+  'function setWagerLimits(uint256 min, uint256 max) external',
+  // View
+  'function minWager() view returns (uint256)',
+  'function maxWager() view returns (uint256)',
+  'function usedNonces(uint256 nonce) view returns (bool)',
+  // Events
+  'event CoinFlip(uint256 indexed tokenId, address indexed player, uint256 wager, bool won, bytes32 seed)',
+  'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
 ];
 
 export const MARKET_ABI = [

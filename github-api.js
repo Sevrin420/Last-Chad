@@ -1527,12 +1527,18 @@ function showPanel(id) {
         var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
         var locker = await qr.lockedBy(chadId);
-        var isLocked = locker !== ethers.constants.AddressZero && userAddress &&
-                       locker.toLowerCase() === userAddress.toLowerCase();
-        if (isLocked) {
+        var lockerIsSet = locker !== ethers.constants.AddressZero;
+        var lockerMatchesUser = userAddress && locker.toLowerCase() === userAddress.toLowerCase();
+        if (lockerIsSet && (!userAddress || lockerMatchesUser)) {
+          // Locked — either wallet not yet connected (trust on-chain state) or locked by this user
           statusEl.textContent = '✅ CHAD #' + chadId + ' is locked in escrow';
           if (lockBtn) lockBtn.style.display = 'none';
           if (startBtn) startBtn.disabled = false;
+        } else if (lockerIsSet && !lockerMatchesUser) {
+          // Locked by a different wallet
+          statusEl.textContent = '⚠️ This Chad is locked by a different wallet';
+          if (lockBtn) lockBtn.style.display = 'none';
+          if (startBtn) startBtn.disabled = true;
         } else {
           statusEl.textContent = '🔒 Your Chad NFT must be locked in escrow to begin';
           if (lockBtn) lockBtn.style.display = '';
@@ -1580,7 +1586,7 @@ function showPanel(id) {
         if (lockBtn) lockBtn.textContent = 'LOCKING…';
         if (statusEl) statusEl.textContent = 'Step 2 of 2: Lock CHAD in escrow — confirm in wallet…';
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-        var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 150000 });
+        var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 300000 });
         if (statusEl) statusEl.textContent = 'Confirming on-chain…';
         await tx.wait();
         // Success
