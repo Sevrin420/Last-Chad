@@ -1844,7 +1844,7 @@
 
         // Publish quest
         const QUEST_REWARDS_ADDRESS = '0x24e80b24aecd3e4230f294c932fb5e63b6bd3650';
-        const WORKER_URL = (document.getElementById('workerUrl')?.value || '').trim();
+        const WORKER_URL = (document.getElementById('workerUrl')?.value || '').trim() || 'https://last-chad-runner.severin20.workers.dev';
         github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, QUEST_REWARDS_ADDRESS, WORKER_URL)
           .then(data => {
             showPublishProgress(false);
