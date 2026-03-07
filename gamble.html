@@ -440,7 +440,7 @@
   <script type="module">
     import { connectWallet, autoReconnect, disconnect,
              getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
 
     // ── Music & Enter ──
     const jiptImage  = document.getElementById('jipt-image');
@@ -763,23 +763,19 @@
       dialogueText.appendChild(statusEl);
 
       try {
-        // Spend cells for the wager (escrow them)
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-        const tx = await contract.spendCells(selectedTokenId, wagerAmount);
+        // Single on-chain call: spends cells, flips, awards cells if won
+        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+        const tx = await gamble.flip(selectedTokenId, wagerAmount);
         statusEl.textContent = 'Waiting for confirmation...';
-        await tx.wait();
+        const receipt = await tx.wait();
         statusEl.remove();
 
-        // Determine result before showing tap button
-        // On-chain entropy: tx hash; local entropy: crypto.getRandomValues
-        const localNonce = crypto.getRandomValues(new Uint8Array(32));
-        const localHex = Array.from(localNonce).map(b => b.toString(16).padStart(2, '0')).join('');
-        const combined = tx.hash.slice(2) + localHex;
-        const msgBuf = new TextEncoder().encode(combined);
-        const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
-        const hashArr = new Uint8Array(hashBuf);
-        const roll = ((hashArr[0] << 24) | (hashArr[1] << 16) | (hashArr[2] << 8) | hashArr[3]) >>> 0;
-        const win = (roll % 100) < 40; // 40% win, 60% lose
+        // Read outcome from the CoinFlip event emitted by Gamble.sol
+        const iface = new ethers.utils.Interface(GAMBLE_ABI);
+        const flipLog = receipt.logs
+          .map(log => { try { return iface.parseLog(log); } catch { return null; } })
+          .find(e => e && e.name === 'CoinFlip');
+        const win = flipLog ? flipLog.args.won : false;
 
         // Show "here goes nothing" then a TAP button
         // video.play() MUST be called directly from a user tap on mobile
@@ -881,27 +877,7 @@
       await delay(3000);
       resultOverlay.classList.remove('active');
 
-      // Award cells after visuals — only if player won
-      if (win) {
-        clearDialogue();
-        const claimMsg = document.createElement('p');
-        claimMsg.className = 'loading';
-        claimMsg.textContent = 'Claiming your winnings...';
-        dialogueText.appendChild(claimMsg);
-        try {
-          const signer = getSigner();
-          const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-          const tx = await contract.awardCells(selectedTokenId, wagerAmount * 2);
-          claimMsg.textContent = 'Confirming...';
-          await tx.wait();
-          claimMsg.remove();
-        } catch (e) {
-          claimMsg.textContent = 'Failed to claim cells: ' + (e.reason || e.message);
-          claimMsg.style.color = '#e53935';
-          await delay(2000);
-          claimMsg.remove();
-        }
-      }
+      // Cells were already awarded on-chain by Gamble.flip() — nothing to do here.
 
       await showPlayAgain(win);
     }

@@ -13,6 +13,7 @@ on:
         options:
           - all-contracts    # Deploy LastChad + LastChadItems + QuestRewards (full redeploy)
           - quest-only       # Deploy QuestRewards only (LastChad + Items already deployed)
+          - gamble           # Deploy Gamble only (LastChad already deployed)
           - worker           # Cloudflare Worker only
           - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
           - verify           # Verify all contracts on Snowtrace (no deploy)
@@ -47,7 +48,7 @@ jobs:
   deploy-contract:
     name: Deploy Contracts (${{ inputs.network }})
     runs-on: ubuntu-latest
-    if: inputs.target == 'all-contracts' || inputs.target == 'quest-only'
+    if: inputs.target == 'all-contracts' || inputs.target == 'quest-only' || inputs.target == 'gamble'
     environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
 
     steps:
@@ -75,6 +76,12 @@ jobs:
           PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
         run: npx hardhat run scripts/deployQuestRewards.js --network ${{ inputs.network }}
+
+      - name: Deploy Gamble only
+        if: inputs.target == 'gamble'
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/deployGamble.js --network ${{ inputs.network }}
 
       - name: Commit updated js/config.js
         run: |
