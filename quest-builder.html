@@ -1210,6 +1210,8 @@
             failNextSectionId: section.failNextSectionId || null,
             statBonus: section.statBonus || null,
             difficulty: section.difficulty !== undefined ? section.difficulty : 8,
+            minigameFile: section.minigameFile || 'runner.html',
+            minigameWinNextSectionId: section.minigameWinNextSectionId || null,
             music: section.music || null,
             itemAward: section.itemAward || null,
             gameFile: section.gameFile || null
@@ -1249,7 +1251,7 @@
         name: `Section ${state.sections.length + 1}`,
         photo: null,
         dialogue: '',
-        selectedChoice: null, // 'single', 'double', or 'dice'
+        selectedChoice: null, // 'single', 'double', 'dice', or 'minigame'
         // Single button config
         buttonName: 'Continue',
         nextSectionId: null,
@@ -1264,6 +1266,9 @@
         failNextSectionId: null,
         statBonus: null,
         difficulty: 8,
+        // Minigame config
+        minigameFile: 'runner.html',
+        minigameWinNextSectionId: null,
         sectionXp: 0,
         music: null,
         itemAward: null,
@@ -1299,8 +1304,8 @@
             <input type="text" placeholder="e.g., The Forest Entrance" value="${escAttr(section.name)}" data-section-id="${section.id}" class="section-name-input">
           </div>
 
-          <!-- Photo Upload (hidden when dice action is selected) -->
-          <div class="form-group" ${section.selectedChoice === 'dice' ? 'style="display:none"' : ''} data-photo-group="${section.id}">
+          <!-- Photo Upload (hidden when dice or minigame action is selected) -->
+          <div class="form-group" ${(section.selectedChoice === 'dice' || section.selectedChoice === 'minigame') ? 'style="display:none"' : ''} data-photo-group="${section.id}">
             <label>Section Image</label>
             <div class="photo-upload" data-section-id="${section.id}">
               <input type="file" accept="image/*" data-section-id="${section.id}">
@@ -1356,6 +1361,7 @@
               <option value="single" ${section.selectedChoice === 'single' ? 'selected' : ''}>🔘 Single Button → Next Section</option>
               <option value="double" ${section.selectedChoice === 'double' ? 'selected' : ''}>⚖️ Double Button → Branch</option>
               <option value="dice" ${section.selectedChoice === 'dice' ? 'selected' : ''}>🎲 Roll Dice → 0-12 XP</option>
+              <option value="minigame" ${section.selectedChoice === 'minigame' ? 'selected' : ''}>🎮 Minigame → Win/Loss</option>
             </select>
           </div>
 
@@ -1423,6 +1429,22 @@
             </select>
           </div>
 
+          <!-- Minigame Config -->
+          <div class="choice-config ${section.selectedChoice === 'minigame' ? 'visible' : ''}" data-config="minigame" data-section-id="${section.id}">
+            <label>Game</label>
+            <select class="minigame-file-select" data-section-id="${section.id}">
+              <option value="runner.html" ${section.minigameFile === 'runner.html' ? 'selected' : ''}>Race To The Sewers (runner.html)</option>
+            </select>
+            <div style="margin-top:12px;padding:10px;background:rgba(229,57,53,0.08);border:1px solid #e53935;border-radius:4px;font-size:0.28rem;color:#ef9a9a;line-height:1.8;">
+              ⚠️ ON LOSS: quest ends immediately. Character dies screen shown for 3 seconds, then player is sent back to the lobby.
+            </div>
+            <label style="margin-top: 16px;">On Win → Next Section</label>
+            <select class="minigame-win-next-select" data-section-id="${section.id}">
+              <option value="">-- Quest Complete --</option>
+              ${state.sections.map((s, i) => `<option value="${s.id}" ${section.minigameWinNextSectionId == s.id ? 'selected' : ''}>Section ${i + 1}: ${escContent(s.name)}</option>`).join('')}
+            </select>
+          </div>
+
           <!-- Button Preview -->
           ${section.selectedChoice === 'single' ? `
             <div class="button-preview">
@@ -1445,6 +1467,13 @@
             <div class="button-preview">
               <div class="button-preview-label">🎲 Dice Roll Preview</div>
               <div style="text-align: center; color: #a0963d; font-size: 0.3rem;">Player will roll dice and calculate XP</div>
+            </div>
+          ` : ''}
+
+          ${section.selectedChoice === 'minigame' ? `
+            <div class="button-preview">
+              <div class="button-preview-label">🎮 Minigame Preview</div>
+              <div style="text-align: center; color: #a0963d; font-size: 0.3rem;">Win → next section &nbsp;|&nbsp; Loss → character dies, quest ends</div>
             </div>
           ` : ''}
         `;
@@ -1654,6 +1683,28 @@
         });
       });
 
+      document.querySelectorAll('.minigame-win-next-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.minigameWinNextSectionId = e.target.value ? parseInt(e.target.value) : null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      document.querySelectorAll('.minigame-file-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.minigameFile = e.target.value || 'runner.html';
+            saveQuestAuto();
+          }
+        });
+      });
+
       // Stat bonus checkboxes — single selection enforced
       document.querySelectorAll('.stat-bonus-cb').forEach(cb => {
         cb.addEventListener('change', (e) => {
@@ -1796,6 +1847,11 @@
           }
           if (section.failNextSectionId && !sectionIds.has(parseInt(section.failNextSectionId))) {
             alert(`⚠️ Section "${section.name}" has invalid fail outcome section!`);
+            return;
+          }
+        } else if (section.selectedChoice === 'minigame') {
+          if (section.minigameWinNextSectionId && !sectionIds.has(parseInt(section.minigameWinNextSectionId))) {
+            alert(`⚠️ Section "${section.name}" has invalid win next section!`);
             return;
           }
         }
@@ -2025,6 +2081,15 @@
               label: 'Fail'
             });
           }
+        } else if (section.selectedChoice === 'minigame') {
+          if (section.minigameWinNextSectionId) {
+            node.children.push({
+              type: 'win',
+              targetId: section.minigameWinNextSectionId,
+              label: 'Win'
+            });
+          }
+          // Loss is terminal — no child node
         }
 
         return node;
@@ -2037,6 +2102,7 @@
       if (choiceType === 'single') return '#7ee8d4'; // green/teal
       if (choiceType === 'double') return '#5ba3ff'; // blue
       if (choiceType === 'dice') return '#8b7355'; // brown
+      if (choiceType === 'minigame') return '#e57373'; // red
       return '#f5e6c8'; // default
     }
 
@@ -2189,6 +2255,7 @@
         if (node.selectedChoice === 'single') icon.textContent = '🔘';
         else if (node.selectedChoice === 'double') icon.textContent = '⚖️';
         else if (node.selectedChoice === 'dice') icon.textContent = '🎲';
+        else if (node.selectedChoice === 'minigame') icon.textContent = '🎮';
         svg.appendChild(icon);
 
         // Draw choice type label
@@ -2202,6 +2269,7 @@
         if (node.selectedChoice === 'single') typeText.textContent = 'Single';
         else if (node.selectedChoice === 'double') typeText.textContent = 'Double';
         else if (node.selectedChoice === 'dice') typeText.textContent = 'Dice';
+        else if (node.selectedChoice === 'minigame') typeText.textContent = 'Minigame';
         svg.appendChild(typeText);
       });
     }
