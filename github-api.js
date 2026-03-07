@@ -2215,11 +2215,15 @@ ${diceInitJs}
     var CONTRACT_ADDRESS = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
     var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
     var READ_RPC_FALLBACK = 'https://rpc.ankr.com/avalanche_fuji';
+    var _cachedReadProvider = null;
     function _getReadProvider() {
-      return new ethers.providers.FallbackProvider([
-        { provider: new ethers.providers.JsonRpcProvider(READ_RPC), priority: 1, stallTimeout: 2500 },
-        { provider: new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK), priority: 2, stallTimeout: 2500 },
+      if (_cachedReadProvider) return _cachedReadProvider;
+      var fuji = { chainId: 43113, name: 'fuji' };
+      _cachedReadProvider = new ethers.providers.FallbackProvider([
+        { provider: new ethers.providers.StaticJsonRpcProvider(READ_RPC, fuji), priority: 1, stallTimeout: 3000 },
+        { provider: new ethers.providers.StaticJsonRpcProvider(READ_RPC_FALLBACK, fuji), priority: 2, stallTimeout: 3000 },
       ], 1);
+      return _cachedReadProvider;
     }
     function _cleanRpcError(err) {
       var msg = err && (err.reason || err.message || '');
