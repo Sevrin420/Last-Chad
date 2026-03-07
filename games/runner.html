@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Race To The Sewers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -20,10 +22,37 @@ canvas {
   image-rendering: crisp-edges;
   border: 2px solid #333;
 }
+#death-overlay {
+  position: fixed;
+  inset: 0;
+  background: url('../assets/mainbg.png') center/cover no-repeat;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+#death-overlay.visible { opacity: 1; }
+.death-dialogue {
+  background: url('../assets/dialogue.jpg') center/100% 100% no-repeat;
+  padding: 52px 44px;
+  text-align: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 1.1rem;
+  color: #f5e6c8;
+  max-width: 420px;
+  width: 90%;
+  text-shadow: 2px 2px 0 #000;
+  line-height: 1.8;
+}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="death-overlay">
+  <div class="death-dialogue">You have died</div>
+</div>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -82,6 +111,54 @@ const ROAD_LEFT = (W - LANE_COUNT * LANE_WIDTH) / 2;
 const ROAD_RIGHT = ROAD_LEFT + LANE_COUNT * LANE_WIDTH;
 const SPRITE_SIZE = 48;
 
+// ── Worker / Quest Integration ──
+const _qp = new URLSearchParams(window.location.search);
+const GAME_TOKEN_ID  = _qp.get('tokenId')  || '';
+const GAME_QUEST_ID  = _qp.get('questId')  || '';
+const GAME_PLAYER    = _qp.get('player')   || '';
+const WORKER_URL     = _qp.get('worker')   || '';
+
+async function callWorker(path, body) {
+  if (!WORKER_URL || !GAME_TOKEN_ID || !GAME_QUEST_ID) return null;
+  try {
+    const r = await fetch(WORKER_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+let deathOverlayShown = false;
+function showDeathOverlay() {
+  if (deathOverlayShown) return;
+  deathOverlayShown = true;
+  const overlay = document.getElementById('death-overlay');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 1s ease';
+    overlay.classList.remove('visible');
+    setTimeout(() => { window.location.href = '../../index.html'; }, 1000);
+  }, 3000);
+}
+
+let winHandled = false;
+async function onWin() {
+  if (winHandled) return;
+  winHandled = true;
+  music.pause();
+  if (window.parent !== window) {
+    const cert = await callWorker('/session/win', {
+      tokenId: GAME_TOKEN_ID,
+      questId: GAME_QUEST_ID,
+      baseXP: 0,
+    });
+    window.parent.postMessage({ type: 'runner_win', cert }, '*');
+  }
+}
+
 let state = 'title'; // title, playing, dead, wall_death, game_over, win
 let player = { lane: 2, x: 0, y: 0, targetX: 0, moveSpeed: 8 };
 let obstacles = [];
@@ -108,7 +185,7 @@ window.addEventListener('keydown', e => {
   if (state === 'title' && (e.key === 'Enter' || e.key === ' ')) startGame();
   if (state === 'dead' && (e.key === 'Enter' || e.key === ' ')) respawn();
   if (state === 'win' && (e.key === 'Enter' || e.key === ' ')) { state = 'title'; }
-  if (state === 'game_over' && (e.key === 'Enter' || e.key === ' ')) { state = 'title'; }
+  // game_over: redirect handled by showDeathOverlay() — no key handler needed
 });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
 
@@ -120,7 +197,7 @@ canvas.addEventListener('touchstart', e => {
   if (state === 'title') startGame();
   if (state === 'dead') respawn();
   if (state === 'win') { state = 'title'; }
-  if (state === 'game_over') { state = 'title'; }
+  // game_over: redirect handled by showDeathOverlay()
 });
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
@@ -171,6 +248,9 @@ function startGame() {
   music.currentTime = 0;
   music.play().catch(() => {});
   startTime = performance.now();
+  winHandled = false;
+  deathOverlayShown = false;
+  callWorker('/session/start', { tokenId: GAME_TOKEN_ID, questId: GAME_QUEST_ID, player: GAME_PLAYER });
 }
 
 function respawn() {
@@ -457,7 +537,7 @@ function update(dt) {
     particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
     particles = particles.filter(p => p.life > 0);
     if (wallDeathTimer <= 0) {
-      if (lives <= 0) { state = 'game_over'; }
+      if (lives <= 0) { state = 'game_over'; showDeathOverlay(); }
       else { respawn(); }
     }
     return;
@@ -543,8 +623,9 @@ function update(dt) {
       lives--;
       deathFlash = 0.5;
       spawnDeathParticles(player.x, player.y);
+      callWorker('/session/die', { tokenId: GAME_TOKEN_ID, questId: GAME_QUEST_ID });
       state = lives <= 0 ? 'game_over' : 'dead';
-      if (lives <= 0) music.pause();
+      if (lives <= 0) { music.pause(); showDeathOverlay(); }
       break;
     }
   }
@@ -559,8 +640,9 @@ function update(dt) {
         lives--;
         deathFlash = 0.5;
         spawnDeathParticles(player.x, player.y);
+        callWorker('/session/die', { tokenId: GAME_TOKEN_ID, questId: GAME_QUEST_ID });
         state = lives <= 0 ? 'game_over' : 'dead';
-        if (lives <= 0) music.pause();
+        if (lives <= 0) { music.pause(); showDeathOverlay(); }
         break;
       }
     }
@@ -575,14 +657,15 @@ function update(dt) {
     if (pBox.y < wallBot && pBox.y + pBox.h > wallTop) {
       if (inGap) {
         state = 'win';
-        music.pause();
+        onWin();
       } else {
         deathCount++;
         lives--;
         spawnDeathParticles(player.x, player.y);
+        callWorker('/session/die', { tokenId: GAME_TOKEN_ID, questId: GAME_QUEST_ID });
         state = 'wall_death';
         wallDeathTimer = 1.2;
-        if (lives <= 0) music.pause();
+        if (lives <= 0) { music.pause(); }
       }
     }
   }
@@ -678,20 +761,11 @@ function render() {
       ctx.globalAlpha = 1;
     }
 
-    if (state === 'game_over') {
-      ctx.fillStyle = 'rgba(0,0,0,0.75)';
-      ctx.fillRect(0, 0, W, H);
-      drawChunkyTitle('GAME OVER', W / 2, H / 2 - 60, 40);
-      drawPixelText('No lives remaining', W / 2, H / 2, 14, '#f88');
-      drawPixelText(`Deaths: ${deathCount}`, W / 2, H / 2 + 35, 12, '#888');
-      const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
-      ctx.globalAlpha = pulse;
-      drawPixelText('[ PRESS ENTER OR TAP ]', W / 2, H / 2 + 80, 13, '#aaa');
-      ctx.globalAlpha = 1;
-    }
+    // game_over is handled by the HTML death overlay (showDeathOverlay())
   }
 
-  if (state === 'win') {
+  if (state === 'win' && window.parent === window) {
+    // Only show win screen when running standalone (not embedded in a quest iframe)
     drawBackground(0, 0);
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, W, H);

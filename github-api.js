@@ -104,7 +104,7 @@ class GitHubAPI {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/git/blobs/${sha}`);
   }
 
-  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null, questRewardsAddress = '') {
+  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null, questRewardsAddress = '', workerUrl = '') {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
     if (introPhoto) imageCount++;
@@ -190,7 +190,7 @@ class GitHubAPI {
 
       // Generate quest HTML with the assigned questId
       progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress, questId);
+      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress, questId, workerUrl);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
       console.log(`✓ Quest HTML blob created`);
       treeItems.push({
@@ -328,7 +328,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '', questId = 0) {
+function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '', questId = 0, workerUrl = '') {
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -556,6 +556,18 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   const diceOutcomesJson = JSON.stringify(diceOutcomes);
   const doubleChoiceMapJson = JSON.stringify(doubleChoiceMap);
   const diceInitJs = diceSectionIds.map(id => `    getDiceState(${id});`).join('\n');
+
+  // Map sectionId → { gameFile, nextSectionId } for embedded game sections
+  const gameSectionMap = {};
+  sections.forEach(s => {
+    if (s.gameFile) {
+      gameSectionMap[s.id] = {
+        gameFile: s.gameFile,
+        nextSectionId: s.nextSectionId || null,
+      };
+    }
+  });
+  const gameSectionMapJson = JSON.stringify(gameSectionMap);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1199,7 +1211,11 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       <div class="intro-title">${escapeHtml(questName)}</div>
       ${introLines.length > 0 ? '<div id="introText" class="intro-text" style="opacity:0;text-align:left;"></div>' : ''}
 <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
-      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()"${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
+      <div id="escrowBox" style="margin:18px 0 10px;font-size:0.48rem;color:#c9a84c;text-align:center;line-height:1.8;">
+        <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking escrow status…</div>
+        <button class="intro-start-btn" id="lockEscrowBtn" onclick="lockChadInEscrow()" style="display:none;background:rgba(201,168,76,0.15);border-color:#c9a84c;color:#c9a84c;">🔒 LOCK CHAD IN ESCROW</button>
+      </div>
+      <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()" disabled${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
     </div>
   </div>
 
@@ -1294,6 +1310,8 @@ ${completePanelHtml}
     var diceOutcomes = ${diceOutcomesJson};
     // Maps sectionId → { next1, next2 } for double-choice sections
     var doubleChoiceMap = ${doubleChoiceMapJson};
+    // Maps sectionId → { gameFile, nextSectionId } for sections that embed a game
+    var gameSectionMap = ${gameSectionMapJson};
     // Tracks which branch the player chose (0 or 1) for the first two double-choice sections,
     // in encounter order. Passed as choice1/choice2 to QuestRewards.completeQuest.
     var _choiceRecord = [];
@@ -1387,6 +1405,20 @@ function showPanel(id) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
 
+      // Set game iframe src dynamically so tokenId/questId/player/worker params are injected at runtime
+      if (id && gameSectionMap[id]) {
+        var gFrame = panel.querySelector('.section-game-frame');
+        if (gFrame && !gFrame.dataset.loaded) {
+          var gp = new URLSearchParams();
+          gp.set('tokenId', chadId || '');
+          gp.set('questId', QUEST_ID);
+          if (userAddress) gp.set('player', userAddress);
+          if (WORKER_URL) gp.set('worker', WORKER_URL);
+          gFrame.src = '../../games/' + gameSectionMap[id].gameFile + '?' + gp.toString();
+          gFrame.dataset.loaded = '1';
+        }
+      }
+
       // When reaching the complete panel, show total XP that will be claimed
       if (!id) {
         var _xpTotal = Object.keys(diceOutcomes).reduce(function(sum, sid) {
@@ -1411,6 +1443,94 @@ function showPanel(id) {
       _saveProgress();
       showPanel(id || null);
     }
+
+    // ── Escrow enforcement ──────────────────────────────────────────────────
+    async function checkEscrowStatus() {
+      var statusEl = document.getElementById('escrowStatus');
+      var lockBtn  = document.getElementById('lockEscrowBtn');
+      var startBtn = document.getElementById('introStartBtn');
+      if (!statusEl) return;
+
+      if (!QUEST_REWARDS_ADDRESS || !chadId) {
+        // No contract configured — let the player proceed without on-chain check
+        if (statusEl) statusEl.style.display = 'none';
+        if (lockBtn)  lockBtn.style.display  = 'none';
+        if (startBtn) { startBtn.disabled = false; }
+        return;
+      }
+
+      statusEl.textContent = '⏳ Checking escrow status…';
+      try {
+        var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+        var locker = await qr.lockedBy(chadId);
+        var isLocked = locker !== ethers.constants.AddressZero && userAddress &&
+                       locker.toLowerCase() === userAddress.toLowerCase();
+        if (isLocked) {
+          statusEl.textContent = '✅ CHAD #' + chadId + ' is locked in escrow';
+          if (lockBtn) lockBtn.style.display = 'none';
+          if (startBtn) startBtn.disabled = false;
+        } else {
+          statusEl.textContent = '🔒 Your Chad NFT must be locked in escrow to begin';
+          if (lockBtn) lockBtn.style.display = '';
+          if (startBtn) startBtn.disabled = true;
+        }
+      } catch(e) {
+        // RPC error — don't block the player
+        statusEl.textContent = '⚠️ Could not verify escrow (network error)';
+        if (lockBtn) lockBtn.style.display = 'none';
+        if (startBtn) startBtn.disabled = false;
+      }
+    }
+
+    async function lockChadInEscrow() {
+      var lockBtn  = document.getElementById('lockEscrowBtn');
+      var statusEl = document.getElementById('escrowStatus');
+      var startBtn = document.getElementById('introStartBtn');
+      if (!chadId) { alert('Add ?chad=TOKEN_ID to the URL first.'); return; }
+      if (!walletSigner) { alert('Connect your wallet first.'); return; }
+
+      var ERC721_APPROVE_ABI = [
+        'function getApproved(uint256 tokenId) view returns (address)',
+        'function isApprovedForAll(address owner, address operator) view returns (bool)',
+        'function approve(address to, uint256 tokenId) external',
+      ];
+
+      if (lockBtn) { lockBtn.disabled = true; lockBtn.textContent = 'CHECKING…'; }
+      if (statusEl) statusEl.textContent = 'Checking approval…';
+      try {
+        var rp = new ethers.providers.JsonRpcProvider(READ_RPC);
+        var nft = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, rp);
+        var [approved, approvedAll] = await Promise.all([
+          nft.getApproved(chadId),
+          nft.isApprovedForAll(userAddress, QUEST_REWARDS_ADDRESS)
+        ]);
+        var needsApproval = !approvedAll && approved.toLowerCase() !== QUEST_REWARDS_ADDRESS.toLowerCase();
+        if (needsApproval) {
+          if (lockBtn) lockBtn.textContent = 'APPROVING…';
+          if (statusEl) statusEl.textContent = 'Step 1 of 2: Approve NFT transfer in your wallet…';
+          var nftWrite = new ethers.Contract(CONTRACT_ADDRESS, ERC721_APPROVE_ABI, walletSigner);
+          var approveTx = await nftWrite.approve(QUEST_REWARDS_ADDRESS, chadId);
+          if (statusEl) statusEl.textContent = 'Confirming approval…';
+          await approveTx.wait();
+        }
+        if (lockBtn) lockBtn.textContent = 'LOCKING…';
+        if (statusEl) statusEl.textContent = 'Step 2 of 2: Lock CHAD in escrow — confirm in wallet…';
+        var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
+        var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 150000 });
+        if (statusEl) statusEl.textContent = 'Confirming on-chain…';
+        await tx.wait();
+        // Success
+        if (statusEl) statusEl.textContent = '✅ CHAD #' + chadId + ' locked in escrow';
+        if (lockBtn) { lockBtn.style.display = 'none'; }
+        if (startBtn) { startBtn.disabled = false; }
+      } catch(err) {
+        var msg = (err.reason || err.message || '').slice(0, 100);
+        if (statusEl) statusEl.textContent = 'Failed: ' + msg;
+        if (lockBtn) { lockBtn.disabled = false; lockBtn.textContent = '🔒 LOCK CHAD IN ESCROW'; }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     function startQuest() {
       if (!chadId) { alert('Select your Chad NFT first.'); return; }
@@ -1968,6 +2088,7 @@ ${diceInitJs}
     ];
     var itemAwards = ${itemAwardsJson};
     var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}';
+    var WORKER_URL = '${workerUrl}';
     var QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
       'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
@@ -2054,6 +2175,7 @@ ${diceInitJs}
       document.getElementById('walletBtn').classList.add('connected');
       document.getElementById('walletModal').classList.remove('show');
       checkQuestCompletion();
+      checkEscrowStatus();
       if (currentSectionId && !_questSeed) _startOnChainQuest();
     }
 
@@ -2177,6 +2299,19 @@ ${diceInitJs}
     // Run check on page load (using chadId from URL if present)
     checkQuestCompletion();
     animateIntro();
+    checkEscrowStatus();
+
+    // Handle win messages from embedded game iframes
+    var _runnerWinCert = null;
+    window.addEventListener('message', function(e) {
+      if (!e.data || e.data.type !== 'runner_win') return;
+      _runnerWinCert = e.data.cert || null;
+      // Advance to next section if the current panel has a game
+      if (currentSectionId && gameSectionMap[currentSectionId]) {
+        var nextId = gameSectionMap[currentSectionId].nextSectionId;
+        goToSection(nextId || null);
+      }
+    });
 
     // Auto-reconnect wallet on page load
     (async function() {
