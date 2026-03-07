@@ -70,9 +70,9 @@ async function main() {
   // setQuestConfig(questId, c1a, c1b, c2a, c2b, cellReward, itemReward)
   // Quest 1: choice1 bonus 1 or 3, choice2 bonus 2 or 3, 50 cells, no item
   console.log("\nSeeding quest configs...");
-  tx = await questRewards.setQuestConfig(1, 1, 3, 2, 3, 50, 0);
+  tx = await questRewards.setQuestConfig(1, 1, 3, 2, 3, 0, 0);
   await tx.wait();
-  console.log("  Quest 1 config set ✓  (XP bonuses: 1|3 + 2|3, 50 cells reward)");
+  console.log("  Quest 1 config set ✓  (XP bonuses: 1|3 + 2|3, no auto rewards)");
 
   // ── 6. Patch js/config.js with the new address ────────────────────────
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
