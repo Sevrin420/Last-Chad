@@ -1197,6 +1197,33 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     #itemPopupStats { font-family: 'Press Start 2P', monospace; font-size: 0.42rem; color: #4caf50; line-height: 2; }
     .hud-item-badge { cursor: pointer; }
     .hud-item-badge:hover img { opacity: 0.8; }
+
+    /* Exp box — running XP counter (top-right, non-game sections only) */
+    .exp-box {
+      position: fixed;
+      top: 116px;
+      right: 16px;
+      z-index: 150;
+      border: 2px solid #b0b0b0;
+      border-radius: 4px;
+      background: rgba(20, 18, 14, 0.88);
+      box-shadow: 0 0 8px rgba(176, 176, 176, 0.2), inset 0 0 6px rgba(0,0,0,0.4);
+      padding: 6px 10px;
+      text-align: center;
+      min-width: 56px;
+      display: none;
+      backdrop-filter: blur(4px);
+    }
+    .exp-box-label {
+      font-size: 0.35rem;
+      color: #c0c0c0;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+    .exp-box-value {
+      font-size: 0.6rem;
+      color: #e0e0e0;
+    }
   </style>
 </head>
 <body>
@@ -1239,6 +1266,10 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     </div>
   </header>
   <button class="music-toggle" id="musicToggleBtn" onclick="toggleQuestMusic()" title="Toggle music">♪</button>
+  <div class="exp-box" id="expBox">
+    <div class="exp-box-label">EXP</div>
+    <div class="exp-box-value" id="expBoxValue">0</div>
+  </div>
 
   <main class="main">
 
@@ -1294,6 +1325,16 @@ ${completePanelHtml}
   <script src="../../nav.js"><\/script>
   <script>
     var _animGen = 0;
+    var _questRunnerXP = 0;
+
+    function updateExpBox() {
+      var total = _questRunnerXP;
+      Object.keys(diceOutcomes).forEach(function(sid) {
+        total += (diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0;
+      });
+      var el = document.getElementById('expBoxValue');
+      if (el) el.textContent = total;
+    }
 
     // ===== IN-PROGRESS SESSION PERSISTENCE =====
     // Saves seed + current section + score so reloads resume from the same point.
@@ -1410,6 +1451,11 @@ function showPanel(id) {
         if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
       }
       panel.classList.add('active');
+      // Show exp box only on non-game, non-complete panels
+      var _isGameSec = id && !!gameSectionMap[id];
+      var expBoxEl = document.getElementById('expBox');
+      if (expBoxEl) expBoxEl.style.display = (id && !_isGameSec) ? 'block' : 'none';
+      updateExpBox();
       playQuestMusic(id || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       animatePanel(id || null);
@@ -2035,6 +2081,7 @@ function showPanel(id) {
       diceState[sid].totalScore = total;
 
       _saveProgress();
+      updateExpBox();
 
       if (scoreBox) scoreBox.className = 'score-box scored';
       if (scoreLabel) scoreLabel.textContent = 'SCORE';
@@ -2064,6 +2111,7 @@ function showPanel(id) {
       var bonus = statBonusVal || 0;
       diceState[sid].totalScore = bonus;
       _saveProgress();
+      updateExpBox();
 
       if (scoreBox) scoreBox.className = 'score-box no-score';
       if (scoreLabel) scoreLabel.textContent = 'NO SCORE';
@@ -2329,6 +2377,9 @@ ${diceInitJs}
     window.addEventListener('message', function(e) {
       if (!e.data || e.data.type !== 'runner_win') return;
       _runnerWinCert = e.data.cert || null;
+      if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
+        _questRunnerXP += Number(e.data.runnerXP);
+      }
       // Advance to next section if the current panel has a game
       if (currentSectionId && gameSectionMap[currentSectionId]) {
         var nextId = gameSectionMap[currentSectionId].nextSectionId;

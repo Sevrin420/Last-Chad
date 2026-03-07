@@ -153,9 +153,9 @@ async function onWin() {
     const cert = await callWorker('/session/win', {
       tokenId: GAME_TOKEN_ID,
       questId: GAME_QUEST_ID,
-      baseXP: 0,
+      baseXP: lives,
     });
-    window.parent.postMessage({ type: 'runner_win', cert }, '*');
+    window.parent.postMessage({ type: 'runner_win', cert, runnerXP: lives }, '*');
   }
 }
 
@@ -764,21 +764,19 @@ function render() {
     // game_over is handled by the HTML death overlay (showDeathOverlay())
   }
 
-  if (state === 'win' && window.parent === window) {
-    // Only show win screen when running standalone (not embedded in a quest iframe)
+  if (state === 'win') {
     drawBackground(0, 0);
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, W, H);
-    drawChunkyTitle('YOU MADE IT', W / 2, H / 2 - 60, 36);
-    drawPixelText('You reached the sewers!', W / 2, H / 2, 16, '#4f4');
-    drawPixelText(`Deaths: ${deathCount}`, W / 2, H / 2 + 35, 14, '#f88');
-    const rating = deathCount === 0 ? 'FLAWLESS!' : deathCount < 3 ? 'LEGENDARY' : deathCount < 10 ? 'SURVIVOR' : 'PERSISTENT';
-    const ratingColor = deathCount === 0 ? '#ff0' : deathCount < 3 ? '#f80' : deathCount < 10 ? '#4a4' : '#888';
-    drawPixelText(rating, W / 2, H / 2 + 65, 20, ratingColor);
-    const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
-    ctx.globalAlpha = pulse;
-    drawPixelText('[ PRESS ENTER OR TAP ]', W / 2, H / 2 + 110, 13, '#aaa');
-    ctx.globalAlpha = 1;
+    drawChunkyTitle('YOU MADE IT', W / 2, H / 2 - 90, 36);
+    drawPixelText('Experience earned', W / 2, H / 2 - 30, 14, '#f5e6c8');
+    drawChunkyTitle(String(lives), W / 2, H / 2 + 20, 46);
+    if (window.parent === window) {
+      const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
+      ctx.globalAlpha = pulse;
+      drawPixelText('[ PRESS ENTER OR TAP ]', W / 2, H / 2 + 100, 13, '#aaa');
+      ctx.globalAlpha = 1;
+    }
   }
 }
 
