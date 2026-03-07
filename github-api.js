@@ -544,8 +544,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           ${hasDice ? '<p>Your score held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
         </div>
         <div class="claim-xp-section">
-          <div id="xpPreview" style="margin-bottom:12px;font-size:1.1em;color:#ffd700;display:none;">XP EARNED: <span id="xpPreviewValue">0</span></div>
-          <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM XP</button>
+          <div id="xpPreview" style="margin-bottom:12px;font-size:1.1em;color:#ffd700;display:none;">CELLS EARNED: <span id="xpPreviewValue">0</span></div>
+          <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM CELLS</button>
           <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
         </div>
         <div class="action-wrap">
@@ -1198,16 +1198,16 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     .hud-item-badge { cursor: pointer; }
     .hud-item-badge:hover img { opacity: 0.8; }
 
-    /* Exp box — running XP counter (top-right, non-game sections only) */
+    /* Cells box — running cells counter (top-right, non-game sections only) */
     .exp-box {
       position: fixed;
       top: 116px;
       right: 16px;
       z-index: 150;
-      border: 2px solid #b0b0b0;
+      border: 2px solid #36b8e0;
       border-radius: 4px;
-      background: rgba(20, 18, 14, 0.88);
-      box-shadow: 0 0 8px rgba(176, 176, 176, 0.2), inset 0 0 6px rgba(0,0,0,0.4);
+      background: rgba(10, 20, 40, 0.88);
+      box-shadow: 0 0 8px rgba(54, 184, 224, 0.2), inset 0 0 6px rgba(0,0,0,0.4);
       padding: 6px 10px;
       text-align: center;
       min-width: 56px;
@@ -1216,13 +1216,13 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .exp-box-label {
       font-size: 0.35rem;
-      color: #c0c0c0;
+      color: #36b8e0;
       letter-spacing: 0.1em;
       margin-bottom: 4px;
     }
     .exp-box-value {
       font-size: 0.6rem;
-      color: #e0e0e0;
+      color: #7dd4ee;
     }
   </style>
 </head>
@@ -1267,7 +1267,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   </header>
   <button class="music-toggle" id="musicToggleBtn" onclick="toggleQuestMusic()" title="Toggle music">♪</button>
   <div class="exp-box" id="expBox">
-    <div class="exp-box-label">EXP</div>
+    <div class="exp-box-label">CELLS</div>
     <div class="exp-box-value" id="expBoxValue">0</div>
   </div>
 
@@ -1325,7 +1325,7 @@ ${completePanelHtml}
   <script src="../../nav.js"><\/script>
   <script>
     var _animGen = 0;
-    var _questRunnerXP = 0;
+    var _questRunnerXP = 0; // cells earned from runner minigame
 
     function updateExpBox() {
       var total = _questRunnerXP;
@@ -1474,15 +1474,15 @@ function showPanel(id) {
         }
       }
 
-      // When reaching the complete panel, show total XP that will be claimed
+      // When reaching the complete panel, show total cells that will be claimed
       if (!id) {
-        var _xpTotal = Object.keys(diceOutcomes).reduce(function(sum, sid) {
+        var _cellTotal = Object.keys(diceOutcomes).reduce(function(sum, sid) {
           return sum + ((diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0);
         }, 0);
         var xpPreviewEl = document.getElementById('xpPreview');
         var xpPreviewVal = document.getElementById('xpPreviewValue');
-        if (xpPreviewEl && _xpTotal > 0) {
-          xpPreviewVal.textContent = _xpTotal;
+        if (xpPreviewEl && _cellTotal > 0) {
+          xpPreviewVal.textContent = _cellTotal;
           xpPreviewEl.style.display = 'block';
         }
       }
@@ -2148,7 +2148,8 @@ ${diceInitJs}
       'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
       'function totalSupply() external view returns (uint256)',
       'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
-      'function getExperience(uint256 tokenId) external view returns (uint256)',
+      'function getOpenCells(uint256 tokenId) external view returns (uint256)',
+      'function getClosedCells(uint256 tokenId) external view returns (uint256)',
       'function getLevel(uint256 tokenId) external view returns (uint256)'
     ];
     var ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
@@ -2162,7 +2163,7 @@ ${diceInitJs}
     var WORKER_URL = '${workerUrl}';
     var QUEST_REWARDS_ABI = [
       'function startQuest(uint256 tokenId, uint8 questId) external',
-      'function completeQuest(uint256 tokenId, uint8 questId, uint8 choice1, uint8 choice2, uint8 kept1, uint8 kept2) external',
+      'function completeQuest(uint256 tokenId, uint8 questId, uint256 cellReward, bytes oracleSig) external',
       'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
       'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
       'function lockedBy(uint256 tokenId) external view returns (address)'
@@ -2403,7 +2404,7 @@ ${diceInitJs}
       }
     })();
 
-    // ===== CLAIM XP =====
+    // ===== CLAIM CELLS =====
     async function claimQuestXP() {
       var btn = document.getElementById('claimXpBtn');
       var statusEl = document.getElementById('claimXpStatus');
@@ -2419,7 +2420,7 @@ ${diceInitJs}
       }
 
       if (isQuestDone(chadId)) {
-        statusEl.textContent = 'XP already claimed for CHAD #' + chadId;
+        statusEl.textContent = 'Cells already claimed for CHAD #' + chadId;
         btn.disabled = true;
         btn.textContent = 'ALREADY CLAIMED';
         return;
@@ -2438,58 +2439,51 @@ ${diceInitJs}
           if (lockedByAddr.toLowerCase() !== userAddress.toLowerCase()) {
             statusEl.textContent = 'This wallet did not start the quest for CHAD #' + chadId;
             btn.disabled = false;
-            btn.textContent = 'CLAIM XP';
+            btn.textContent = 'CLAIM CELLS';
             return;
           }
         } catch(e) { /* check failed — proceed */ }
       }
 
-      // Step 1: Ask the worker to finalise XP (section XP + dice + stat bonus) and sign it
-      var workerXP = null;
+      // Step 1: Ask the worker to finalise cells (section cells + dice + stat bonus) and sign it
+      var workerCells = null;
       var workerSig = null;
       if (WORKER_URL && chadId) {
-        statusEl.textContent = 'CALCULATING XP...';
+        statusEl.textContent = 'CALCULATING CELLS...';
         try {
-          // Dice cargo score from the first dice section (0–12)
           var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
           var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
-          var _diceXP = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
+          var _diceScore = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
           var winResp = await fetch(WORKER_URL + '/session/win', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: _diceXP }),
+            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceScore: _diceScore }),
           }).then(function(r) { return r.json(); });
           if (winResp && winResp.ok) {
-            workerXP  = winResp.xpAmount;
-            workerSig = winResp.signature;
+            workerCells = winResp.cellReward;
+            workerSig   = winResp.signature;
           } else if (winResp && !winResp.ok) {
             btn.disabled = false;
-            btn.textContent = 'CLAIM XP';
-            statusEl.textContent = 'XP verification failed: ' + (winResp.reason || 'unknown');
+            btn.textContent = 'CLAIM CELLS';
+            statusEl.textContent = 'Cell verification failed: ' + (winResp.reason || 'unknown');
             return;
           }
-        } catch(e) { /* worker unavailable — proceed without signed XP */ }
+        } catch(e) { /* worker unavailable — proceed without signed cells */ }
       }
 
-      // Step 2: Award XP on-chain via QuestRewards if configured, otherwise localStorage only
+      // Step 2: Award cells on-chain via QuestRewards if configured, otherwise localStorage only
       if (QUEST_REWARDS_ADDRESS && walletSigner) {
         statusEl.textContent = 'CONFIRM IN WALLET...';
         try {
-          // Collect kept bitmasks from the first dice section (on-chain verification)
-          var _firstDiceSid2 = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
-          var _ds2 = _firstDiceSid2 !== undefined ? getDiceState(_firstDiceSid2) : null;
-          var _kept1 = (_ds2 && _ds2.kept1) || 0;
-          var _kept2 = (_ds2 && _ds2.kept2) || 0;
-          // Narrative choices recorded in order of encounter (0 = first option, 1 = second option)
-          var _choice1 = _choiceRecord[0] !== undefined ? _choiceRecord[0] : 0;
-          var _choice2 = _choiceRecord[1] !== undefined ? _choiceRecord[1] : 0;
+          var _cellReward = workerCells != null ? workerCells : 0;
+          var _oracleSig  = workerSig   != null ? workerSig   : '0x';
           var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
-          var tx = await qr.completeQuest(chadId, QUEST_ID, _choice1, _choice2, _kept1, _kept2);
+          var tx = await qr.completeQuest(chadId, QUEST_ID, _cellReward, _oracleSig);
           statusEl.textContent = 'CONFIRMING...';
           await tx.wait();
         } catch(e) {
           btn.disabled = false;
-          btn.textContent = 'CLAIM XP';
+          btn.textContent = 'CLAIM CELLS';
           statusEl.textContent = 'Failed: ' + (e.reason || e.message || String(e));
           return;
         }
@@ -2497,9 +2491,9 @@ ${diceInitJs}
 
       markQuestDone(chadId);
       _clearProgress();
-      btn.textContent = 'XP CLAIMED — CHAD #' + chadId;
-      var xpMsg = workerXP != null ? (workerXP + ' XP awarded!') : (QUEST_REWARDS_ADDRESS ? 'XP awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).');
-      statusEl.textContent = xpMsg;
+      btn.textContent = 'CELLS CLAIMED — CHAD #' + chadId;
+      var cellMsg = workerCells != null ? (workerCells + ' cells awarded!') : (QUEST_REWARDS_ADDRESS ? 'Cells awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).');
+      statusEl.textContent = cellMsg;
       checkQuestCompletion();
 
       // Check for pending stat points from level-up

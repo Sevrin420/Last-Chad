@@ -9,6 +9,7 @@ contract LastChad is ERC721, Ownable {
     uint256 public constant MINT_PRICE = 0.02 ether; // 0.02 AVAX
     uint256 public constant TOTAL_STAT_POINTS = 2;
     uint256 public constant MAX_MINT_PER_WALLET = 5;
+    uint256 public constant CELLS_PER_LEVEL = 100;
 
     struct Stats {
         uint32 strength;
@@ -22,22 +23,27 @@ contract LastChad is ERC721, Ownable {
     string private _baseTokenURI;
     mapping(uint256 => Stats) private _tokenStats;
     mapping(uint256 => string) public tokenName;
-    mapping(uint256 => uint256) private _tokenExperience;
+    mapping(uint256 => uint256) private _openCells;    // spendable cells
+    mapping(uint256 => uint256) private _closedCells;  // locked permanently into the NFT
     mapping(uint256 => uint256) private _pendingStatPoints;
-    mapping(uint256 => uint256) private _tokenCells;
     mapping(address => bool) public authorizedGame;
     mapping(address => uint256) public mintedPerWallet;
+    mapping(uint256 => bool) public eliminated;
+    uint256 public eliminationPercent = 20;
 
     event StatsAssigned(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
     event StatsUpdated(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma);
     event StatIncremented(uint256 indexed tokenId, uint8 statIndex, uint32 amount, uint32 newValue);
     event NameSet(uint256 indexed tokenId, string name);
-    event ExperienceAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalExperience, uint256 newLevel);
+    event CellsLocked(uint256 indexed tokenId, uint256 amount, uint256 totalClosed, uint256 newLevel);
     event LevelUp(uint256 indexed tokenId, uint256 newLevel, uint256 statPointsAwarded);
     event StatPointSpent(uint256 indexed tokenId, uint8 statIndex, uint32 newValue);
     event GameContractSet(address indexed game, bool enabled);
-    event CellsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalCells);
-    event CellsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingCells);
+    event CellsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalOpenCells);
+    event CellsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingOpenCells);
+    event Eliminated(uint256 indexed tokenId, uint256 closedCells);
+    event Reinstated(uint256 indexed tokenId);
+    event EliminationPercentSet(uint256 newPercent);
 
     modifier onlyGameOrOwner() {
         require(authorizedGame[msg.sender] || msg.sender == owner(), "Not authorized");
@@ -58,7 +64,7 @@ contract LastChad is ERC721, Ownable {
         for (uint256 i = 0; i < quantity; i++) {
             totalSupply++;
             _safeMint(msg.sender, totalSupply);
-            _tokenCells[totalSupply] = 5;
+            _openCells[totalSupply] = 5;
         }
     }
 
@@ -106,24 +112,66 @@ contract LastChad is ERC721, Ownable {
         emit GameContractSet(game, enabled);
     }
 
-    function awardExperience(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
+    // -------------------------------------------------------------------------
+    // Elimination — owner flags the bottom eliminationPercent% each month
+    // -------------------------------------------------------------------------
+    function setEliminationPercent(uint256 percent) external onlyOwner {
+        require(percent > 0 && percent <= 100, "Invalid percent");
+        eliminationPercent = percent;
+        emit EliminationPercentSet(percent);
+    }
+
+    function eliminate(uint256 tokenId) external onlyOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
+        require(!eliminated[tokenId], "Already eliminated");
+        eliminated[tokenId] = true;
+        emit Eliminated(tokenId, _closedCells[tokenId]);
+    }
+
+    // Call in chunks of ~500 for large supplies to stay under block gas limit
+    function batchEliminate(uint256[] calldata tokenIds) external onlyOwner {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tid = tokenIds[i];
+            if (eliminated[tid]) continue;
+            if (ownerOf(tid) == address(0)) continue;
+            eliminated[tid] = true;
+            emit Eliminated(tid, _closedCells[tid]);
+        }
+    }
+
+    function reinstate(uint256 tokenId) external onlyOwner {
+        require(eliminated[tokenId], "Not eliminated");
+        eliminated[tokenId] = false;
+        emit Reinstated(tokenId);
+    }
+
+    // Lock open cells into closed cells. Leveling: 100 closed = level 2, 200 = level 3, etc.
+    function lockCells(uint256 tokenId, uint256 amount) external {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!eliminated[tokenId], "Chad eliminated");
         require(amount > 0, "Amount must be > 0");
-        uint256 oldLevel = (_tokenExperience[tokenId] / 100) + 1;
-        _tokenExperience[tokenId] += amount;
-        uint256 totalXP = _tokenExperience[tokenId];
-        uint256 newLevel = (totalXP / 100) + 1;
+        require(_openCells[tokenId] >= amount, "Insufficient open cells");
+
+        uint256 oldLevel = (_closedCells[tokenId] / CELLS_PER_LEVEL) + 1;
+
+        _openCells[tokenId] -= amount;
+        _closedCells[tokenId] += amount;
+
+        uint256 newLevel = (_closedCells[tokenId] / CELLS_PER_LEVEL) + 1;
+
         if (newLevel > oldLevel) {
             uint256 levelsGained = newLevel - oldLevel;
             _pendingStatPoints[tokenId] += levelsGained;
             emit LevelUp(tokenId, newLevel, levelsGained);
         }
-        emit ExperienceAwarded(tokenId, amount, totalXP, newLevel);
+
+        emit CellsLocked(tokenId, amount, _closedCells[tokenId], newLevel);
     }
 
     // statIndex: 0=strength, 1=intelligence, 2=dexterity, 3=charisma
     function spendStatPoint(uint256 tokenId, uint8 statIndex) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!eliminated[tokenId], "Chad eliminated");
         require(_pendingStatPoints[tokenId] > 0, "No stat points available");
         require(statIndex <= 3, "Invalid stat index");
 
@@ -142,12 +190,16 @@ contract LastChad is ERC721, Ownable {
         return _pendingStatPoints[tokenId];
     }
 
-    function getExperience(uint256 tokenId) external view returns (uint256) {
-        return _tokenExperience[tokenId];
+    function getOpenCells(uint256 tokenId) external view returns (uint256) {
+        return _openCells[tokenId];
+    }
+
+    function getClosedCells(uint256 tokenId) external view returns (uint256) {
+        return _closedCells[tokenId];
     }
 
     function getLevel(uint256 tokenId) external view returns (uint256) {
-        return (_tokenExperience[tokenId] / 100) + 1;
+        return (_closedCells[tokenId] / CELLS_PER_LEVEL) + 1;
     }
 
     function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned) {
@@ -155,22 +207,25 @@ contract LastChad is ERC721, Ownable {
         return (s.strength, s.intelligence, s.dexterity, s.charisma, s.assigned);
     }
 
+    // Award open cells to a token (quest rewards, etc.)
     function awardCells(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         require(amount > 0, "Amount must be > 0");
-        _tokenCells[tokenId] += amount;
-        emit CellsAwarded(tokenId, amount, _tokenCells[tokenId]);
+        _openCells[tokenId] += amount;
+        emit CellsAwarded(tokenId, amount, _openCells[tokenId]);
     }
 
+    // Spend open cells from a token (shop purchases, gambling, etc.)
     function spendCells(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
         require(amount > 0, "Amount must be > 0");
-        require(_tokenCells[tokenId] >= amount, "Insufficient cells");
-        _tokenCells[tokenId] -= amount;
-        emit CellsSpent(tokenId, amount, _tokenCells[tokenId]);
+        require(_openCells[tokenId] >= amount, "Insufficient cells");
+        _openCells[tokenId] -= amount;
+        emit CellsSpent(tokenId, amount, _openCells[tokenId]);
     }
 
+    // Backward-compatible alias — returns open cells
     function getCells(uint256 tokenId) external view returns (uint256) {
-        return _tokenCells[tokenId];
+        return _openCells[tokenId];
     }
 
     function _baseURI() internal view override returns (string memory) {

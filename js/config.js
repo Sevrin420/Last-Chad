@@ -11,16 +11,21 @@ export const LASTCHAD_ABI = [
   'function approve(address to, uint256 tokenId)',
   'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
   'function getLevel(uint256 tokenId) view returns (uint256)',
-  'function getExperience(uint256 tokenId) view returns (uint256)',
+  'function getOpenCells(uint256 tokenId) view returns (uint256)',
+  'function getClosedCells(uint256 tokenId) view returns (uint256)',
   'function getCells(uint256 tokenId) view returns (uint256)',
+  'function lockCells(uint256 tokenId, uint256 amount)',
   'function awardCells(uint256 tokenId, uint256 amount)',
   'function spendCells(uint256 tokenId, uint256 amount)',
+  'function getPendingStatPoints(uint256 tokenId) view returns (uint256)',
+  'function spendStatPoint(uint256 tokenId, uint8 statIndex)',
+  'function tokenName(uint256 tokenId) view returns (string)',
 ];
 
 export const QUEST_REWARDS_ABI = [
   // Player
   'function startQuest(uint256 tokenId, uint8 questId)',
-  'function completeQuest(uint256 tokenId, uint8 questId, uint256 xpAmount, bytes oracleSig)',
+  'function completeQuest(uint256 tokenId, uint8 questId, uint256 cellReward, bytes oracleSig)',
   'function purchaseItem(uint256 tokenId, uint256 itemId)',
   // Game owner — config
   'function setOracle(address oracle)',
@@ -47,7 +52,7 @@ export const QUEST_REWARDS_ABI = [
   'function getQuestConfig(uint8 questId) view returns (uint16 cellReward, uint16 itemReward)',
   // Events
   'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
-  'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 xpAwarded, uint256 cellsAwarded, uint256 itemAwarded)',
+  'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 cellsAwarded, uint256 itemAwarded)',
   'event NFTBurned(uint256 indexed tokenId, address indexed originalOwner)',
   'event NFTReleased(uint256 indexed tokenId, address indexed returnedTo)',
 ];

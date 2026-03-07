@@ -6,52 +6,11 @@ const PRICE = ethers.parseEther("0.02");
 const BASE_URI = "https://lastchad.xyz/metadata/";
 const QUEST_ID = 0;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Off-chain helpers — mirror the contract's internal scoring logic exactly
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Matches: keccak256(abi.encodePacked(seed, roll, dieIndex)) % 6 + 1
-function computeDie(seed, roll, dieIndex) {
-  const packed = ethers.solidityPacked(
-    ["bytes32", "uint8", "uint8"],
-    [seed, roll, dieIndex]
-  );
-  return Number(BigInt(ethers.keccak256(packed)) % 6n) + 1;
-}
-
-// Applies kept1 / kept2 bitmasks to select which roll each die comes from
-function computeFinalDice(seed, kept1, kept2) {
-  return Array.from({ length: 5 }, (_, i) => {
-    if ((kept1 >> i) & 1) return computeDie(seed, 1, i);
-    if ((kept2 >> i) & 1) return computeDie(seed, 2, i);
-    return computeDie(seed, 3, i);
-  });
-}
-
-// Finds 6+5+4, returns sum of remaining 2 dice (or 0 if set not present)
-function computeDiceScore(dice) {
-  const used = new Array(5).fill(false);
-  let has6 = false, has5 = false, has4 = false;
-  for (let i = 0; i < 5 && !has6; i++) {
-    if (dice[i] === 6) { has6 = true; used[i] = true; }
-  }
-  for (let i = 0; i < 5 && !has5; i++) {
-    if (!used[i] && dice[i] === 5) { has5 = true; used[i] = true; }
-  }
-  for (let i = 0; i < 5 && !has4; i++) {
-    if (!used[i] && dice[i] === 4) { has4 = true; used[i] = true; }
-  }
-  if (!has6 || !has5 || !has4) return 0;
-  return dice.reduce((sum, v, i) => sum + (used[i] ? 0 : v), 0);
-}
-
 // Extracts the seed from a QuestStarted event receipt
 function seedFromReceipt(receipt) {
   const event = receipt.logs.find(l => l.fragment?.name === "QuestStarted");
   return event.args.seed;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe("QuestRewards", function () {
   let lastChad, questRewards, owner, player, other;
@@ -65,11 +24,11 @@ describe("QuestRewards", function () {
     const QuestRewards = await ethers.getContractFactory("QuestRewards");
     questRewards = await QuestRewards.deploy(await lastChad.getAddress());
 
-    // Authorize QuestRewards to call awardExperience on LastChad
+    // Authorize QuestRewards to call awardCells on LastChad
     await lastChad.setGameContract(await questRewards.getAddress(), true);
 
-    // Configure quest 0: choice1 = [1, 3], choice2 = [2, 3]
-    await questRewards.setQuestConfig(QUEST_ID, 1, 3, 2, 3);
+    // Configure quest 0: 5 bonus cells on completion, no item
+    await questRewards.setQuestConfig(QUEST_ID, 5, 0);
 
     // Mint token 1 to player
     await lastChad.connect(player).mint(1, { value: PRICE });
@@ -149,10 +108,6 @@ describe("QuestRewards", function () {
   // completeQuest
   // ──────────────────────────────────────────────────────────
   describe("completeQuest", function () {
-    // kept1 = kept2 = 0b11111 — all dice locked after roll 1.
-    // Final dice are 100% predictable from the seed alone.
-    const ALL_KEPT = 31;
-
     let seed;
 
     beforeEach(async function () {
@@ -160,150 +115,79 @@ describe("QuestRewards", function () {
       seed = seedFromReceipt(await tx.wait());
     });
 
-    // — Input validation —
-
     it("reverts when caller does not own the token", async function () {
       await expect(
-        questRewards.connect(other).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT)
+        questRewards.connect(other).completeQuest(1, QUEST_ID, 10, "0x")
       ).to.be.revertedWith("Not token owner");
     });
 
     it("reverts when there is no active session", async function () {
-      // Token 2 has never had startQuest called
       await lastChad.connect(player).mint(1, { value: PRICE });
       await expect(
-        questRewards.connect(player).completeQuest(2, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT)
+        questRewards.connect(player).completeQuest(2, QUEST_ID, 10, "0x")
       ).to.be.revertedWith("No active session");
     });
 
     it("reverts when questId does not match the active session", async function () {
-      // Session has questId=0; passing 99 triggers "Wrong quest"
       await expect(
-        questRewards.connect(player).completeQuest(1, 99, 1, 1, ALL_KEPT, ALL_KEPT)
+        questRewards.connect(player).completeQuest(1, 99, 10, "0x")
       ).to.be.revertedWith("Wrong quest");
     });
 
     it("reverts when the session has expired", async function () {
       await time.increase(3601);
       await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT)
+        questRewards.connect(player).completeQuest(1, QUEST_ID, 10, "0x")
       ).to.be.revertedWith("Session expired");
     });
 
-    it("reverts for choice1 > 1", async function () {
+    // — Cell awards —
+
+    it("awards cells from oracle amount + quest config bonus", async function () {
+      const cellReward = 10;
+      // No oracle set, so signature not verified
       await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 2, 1, ALL_KEPT, ALL_KEPT)
-      ).to.be.revertedWith("Invalid choice1");
+        questRewards.connect(player).completeQuest(1, QUEST_ID, cellReward, "0x")
+      ).to.emit(questRewards, "QuestCompleted").withArgs(1, QUEST_ID, 15, 0);
+      // 10 from oracle + 5 from quest config = 15 total
+      // Player started with 5 open cells, now has 5 + 15 = 20
+      expect(await lastChad.getOpenCells(1)).to.equal(20);
     });
 
-    it("reverts for choice2 > 1", async function () {
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 2, ALL_KEPT, ALL_KEPT)
-      ).to.be.revertedWith("Invalid choice2");
-    });
-
-    it("reverts for kept1 >= 32", async function () {
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, 32, 32)
-      ).to.be.revertedWith("Invalid kept1");
-    });
-
-    it("reverts for kept2 >= 32", async function () {
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, 32)
-      ).to.be.revertedWith("Invalid kept2");
-    });
-
-    it("reverts when kept2 is not a superset of kept1", async function () {
-      // kept1 locks dice 0,2,4 — kept2 locks dice 1,3 — missing dice 0,2,4
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, 0b10101, 0b01010)
-      ).to.be.revertedWith("kept2 must include all of kept1");
-    });
-
-    // — XP calculation —
-
-    it("awards correct XP: upper tunnels + backup signal (max choices)", async function () {
-      const dice = computeFinalDice(seed, ALL_KEPT, ALL_KEPT);
-      const expected = 3 + computeDiceScore(dice) + 3; // choice1=upper, choice2=backup, dex=0
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT)
-      ).to.emit(questRewards, "QuestCompleted").withArgs(1, QUEST_ID, expected);
-    });
-
-    it("awards correct XP: lower tunnels + force alone (min choices)", async function () {
-      const dice = computeFinalDice(seed, 0, 0);
-      const expected = 1 + computeDiceScore(dice) + 2; // choice1=lower, choice2=force, dex=0
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 0, 0, 0, 0)
-      ).to.emit(questRewards, "QuestCompleted").withArgs(1, QUEST_ID, expected);
-    });
-
-    it("applies DEX bonus: dex=3 gives +2 bonus", async function () {
-      await lastChad.addStat(1, 2, 3); // statIndex 2 = dexterity, adds 3
-      const dice = computeFinalDice(seed, ALL_KEPT, ALL_KEPT);
-      const expected = 3 + computeDiceScore(dice) + 3 + 2;
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT)
-      ).to.emit(questRewards, "QuestCompleted").withArgs(1, QUEST_ID, expected);
-    });
-
-    it("applies DEX bonus: dex=1 gives no bonus", async function () {
-      await lastChad.addStat(1, 2, 1); // dex=1, bonus=0
-      const dice = computeFinalDice(seed, ALL_KEPT, ALL_KEPT);
-      const expected = 3 + computeDiceScore(dice) + 3 + 0;
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT)
-      ).to.emit(questRewards, "QuestCompleted").withArgs(1, QUEST_ID, expected);
-    });
-
-    // — Dice roll selection via bitmasks —
-
-    it("uses roll 2 values for dice locked in kept2 but not kept1", async function () {
-      const kept1 = 0b00000; // nothing locked after roll 1
-      const kept2 = 0b11111; // everything locked after roll 2
-      const dice = computeFinalDice(seed, kept1, kept2);
-      const expected = 1 + computeDiceScore(dice) + 2;
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 0, 0, kept1, kept2)
-      ).to.emit(questRewards, "QuestCompleted").withArgs(1, QUEST_ID, expected);
-    });
-
-    it("mixes roll values correctly across different keep decisions", async function () {
-      const kept1 = 0b00011; // dice 0,1 locked after roll 1
-      const kept2 = 0b01111; // dice 0,1,2,3 locked after roll 2; die 4 uses roll 3
-      const dice = computeFinalDice(seed, kept1, kept2);
-      const expected = 1 + computeDiceScore(dice) + 2;
-      await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 0, 0, kept1, kept2)
-      ).to.emit(questRewards, "QuestCompleted").withArgs(1, QUEST_ID, expected);
+    it("awards zero cells when oracle amount is 0", async function () {
+      // Still gets quest config bonus of 5
+      await questRewards.connect(player).completeQuest(1, QUEST_ID, 0, "0x");
+      expect(await lastChad.getOpenCells(1)).to.equal(10); // 5 starter + 5 config bonus
     });
 
     // — Post-completion state —
 
-    it("XP is recorded on the LastChad contract", async function () {
-      const dice = computeFinalDice(seed, ALL_KEPT, ALL_KEPT);
-      const expected = 3 + computeDiceScore(dice) + 3;
-      await questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT);
-      expect(await lastChad.getExperience(1)).to.equal(expected);
+    it("open cells are recorded on the LastChad contract", async function () {
+      await questRewards.connect(player).completeQuest(1, QUEST_ID, 10, "0x");
+      expect(await lastChad.getOpenCells(1)).to.equal(20); // 5 + 10 + 5
     });
 
     it("marks questCompleted as true", async function () {
-      await questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT);
+      await questRewards.connect(player).completeQuest(1, QUEST_ID, 10, "0x");
       expect(await questRewards.questCompleted(1, QUEST_ID)).to.be.true;
     });
 
     it("clears the active session", async function () {
-      await questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT);
+      await questRewards.connect(player).completeQuest(1, QUEST_ID, 10, "0x");
       const session = await questRewards.getSession(1);
       expect(session.active).to.be.false;
     });
 
     it("cannot be completed a second time", async function () {
-      await questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT);
+      await questRewards.connect(player).completeQuest(1, QUEST_ID, 10, "0x");
       await expect(
-        questRewards.connect(player).completeQuest(1, QUEST_ID, 1, 1, ALL_KEPT, ALL_KEPT)
+        questRewards.connect(player).completeQuest(1, QUEST_ID, 10, "0x")
       ).to.be.revertedWith("No active session");
+    });
+
+    it("returns NFT to player after completion", async function () {
+      await questRewards.connect(player).completeQuest(1, QUEST_ID, 10, "0x");
+      expect(await lastChad.ownerOf(1)).to.equal(player.address);
     });
   });
 
