@@ -59,11 +59,20 @@ export const QUEST_REWARDS_ABI = [
 ];
 
 export const GAMBLE_ABI = [
+  // Coin flip (on-chain, 40% win)
   'function flip(uint256 tokenId, uint256 wager) external',
+  // Generic oracle-signed settlement (blackjack, poker, etc.)
+  'function resolveGame(uint256 tokenId, uint256 wager, uint256 payout, uint8 gameId, uint256 nonce, bytes oracleSig) external',
+  // Admin
+  'function setOracle(address oracle) external',
+  'function setWagerLimits(uint256 min, uint256 max) external',
+  // View
   'function minWager() view returns (uint256)',
   'function maxWager() view returns (uint256)',
-  'function setWagerLimits(uint256 min, uint256 max) external',
+  'function usedNonces(uint256 nonce) view returns (bool)',
+  // Events
   'event CoinFlip(uint256 indexed tokenId, address indexed player, uint256 wager, bool won, bytes32 seed)',
+  'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
 ];
 
 export const MARKET_ABI = [

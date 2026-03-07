@@ -47,7 +47,21 @@ async function main() {
   await tx.wait();
   console.log("  lastChad.setGameContract ✓");
 
-  // ── 3. Patch js/config.js ──────────────────────────────────────────────
+  // ── 3. Set oracle address ──────────────────────────────────────────────
+  const oracleAddress = process.env.ORACLE_ADDRESS;
+  if (oracleAddress && hre.ethers.isAddress(oracleAddress)) {
+    console.log("\nSetting oracle address...");
+    const SET_ORACLE_ABI = ['function setOracle(address oracle) external'];
+    const gambleWrite = new hre.ethers.Contract(gambleAddress, SET_ORACLE_ABI, deployer);
+    const oracleTx = await gambleWrite.setOracle(oracleAddress);
+    await oracleTx.wait();
+    console.log("  setOracle ✓ →", oracleAddress);
+  } else {
+    console.warn("\nSkipping setOracle — set ORACLE_ADDRESS env var to wire it automatically.");
+    console.warn("  resolveGame() will skip signature checks until oracle is set.");
+  }
+
+  // ── 4. Patch js/config.js ──────────────────────────────────────────────
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
   if (fs.existsSync(configPath)) {
     let config = fs.readFileSync(configPath, 'utf8');
@@ -66,6 +80,7 @@ async function main() {
   console.log("  Network:          ", network);
   console.log("  Gamble:           ", gambleAddress);
   console.log("  LastChad auth:    ✓");
+  console.log("  Oracle:           ", oracleAddress ? "✓  " + oracleAddress : "⚠  not set (resolveGame open)");
   console.log("══════════════════════════════════════════════════\n");
   console.log("js/config.js has been updated. Commit and push to go live.");
 }
