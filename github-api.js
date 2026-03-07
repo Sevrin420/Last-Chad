@@ -1367,6 +1367,7 @@ ${completePanelHtml}
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"><\/script>
+  <script src="../../js/quest-globals.js"><\/script>
   <script src="../../nav.js"><\/script>
   <script>
     var _animGen = 0;
@@ -1657,8 +1658,25 @@ function showPanel(id) {
           _setText(statusEl, 'Confirming approval…');
           await approveTx.wait();
         }
+        // Simulate first via RPC for clear revert reasons
+        if (lockBtn) _setText(lockBtn, 'VALIDATING…');
+        _setText(statusEl, 'Checking eligibility…');
+        try {
+          var qrStatic = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
+          await qrStatic.callStatic.startQuest(chadId, QUEST_ID, { from: userAddress });
+        } catch (simErr) {
+          var simMsg = (simErr.reason || (simErr.error && simErr.error.message) || simErr.message || '').toLowerCase();
+          var display = 'Cannot start quest.';
+          if (simMsg.includes('already')) display = 'CHAD #' + chadId + ' has already attempted this quest.';
+          else if (simMsg.includes('owner')) display = 'Wallet does not own CHAD #' + chadId + '.';
+          else if (simMsg.includes('eliminated')) display = 'CHAD #' + chadId + ' is eliminated.';
+          else if (simErr.reason) display = simErr.reason;
+          _setText(statusEl, display);
+          if (lockBtn) { lockBtn.disabled = false; _setText(lockBtn, '🔒 LOCK CHAD IN ESCROW'); }
+          return;
+        }
         if (lockBtn) _setText(lockBtn, 'LOCKING…');
-        _setText(statusEl, 'Step 2 of 2: Lock CHAD in escrow — confirm in wallet…');
+        _setText(statusEl, 'Lock CHAD in escrow — confirm in wallet…');
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, walletSigner);
         var tx = await qr.startQuest(chadId, QUEST_ID, { gasLimit: 300000 });
         _setText(statusEl, 'Confirming on-chain…');
@@ -1668,7 +1686,13 @@ function showPanel(id) {
         if (lockBtn) { lockBtn.style.display = 'none'; }
         _setStartEnabled(true);
       } catch(err) {
-        var msg = _cleanRpcError(err);
+        var reason = (err.reason || (err.error && err.error.message) || err.message || '').toLowerCase();
+        var msg;
+        if (err.code === 4001 || reason.includes('rejected') || reason.includes('denied')) {
+          msg = 'Transaction rejected.';
+        } else {
+          msg = _cleanRpcError(err);
+        }
         _setText(statusEl, 'Failed: ' + msg);
         if (lockBtn) { lockBtn.disabled = false; _setText(lockBtn, '🔒 LOCK CHAD IN ESCROW'); }
       }
@@ -2208,13 +2232,9 @@ ${diceInitJs}
     // Quest starts when the player clicks START on the intro overlay
 
     // ===== WALLET + ON-CHAIN INTEGRATION =====
+    // CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, ABIs, READ_RPC, etc. are loaded
+    // from ../../js/quest-globals.js — update that file when contracts are redeployed.
     var QUEST_SLUG = '${sanitized}';
-    var AVAX_CHAIN_ID = '0xa869';
-    var AVAX_CHAIN = { chainId: AVAX_CHAIN_ID, chainName: 'Avalanche Fuji Testnet', nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 }, rpcUrls: ['https://rpc.ankr.com/avalanche_fuji', 'https://api.avax-test.network/ext/bc/C/rpc'], blockExplorerUrls: ['https://testnet.snowtrace.io/'] };
-    var WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
-    var CONTRACT_ADDRESS = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
-    var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
-    var READ_RPC_FALLBACK = 'https://rpc.ankr.com/avalanche_fuji';
     var _cachedReadProvider = null;
     function _getReadProvider() {
       if (_cachedReadProvider) return _cachedReadProvider;
@@ -2242,40 +2262,21 @@ ${diceInitJs}
       }
     }
     function _cleanRpcError(err) {
+      // ethers v5: err.reason is the revert string, err.error?.data?.message has the VM reason
+      var reason = err && err.reason;
+      if (reason && reason !== 'unknown' && !reason.includes('CALL_EXCEPTION')) return String(reason).slice(0, 120);
+      var nested = err && err.error && (err.error.reason || err.error.message || '');
+      if (nested && !nested.includes('CALL_EXCEPTION')) return String(nested).slice(0, 120);
       var msg = err && (err.reason || err.message || '');
       if (!msg || msg.toLowerCase().includes('rpc request failed') || msg.toLowerCase().includes('request failed') || msg.toLowerCase().includes('network error') || msg.toLowerCase().includes('could not detect network')) {
         return 'Network error — RPC unavailable. Try again.';
       }
-      return String(msg).slice(0, 80);
+      // If only generic "call revert exception", try to extract the actual reason
+      if (msg.includes('CALL_EXCEPTION') && err.errorArgs && err.errorArgs.length > 0) return String(err.errorArgs[0]).slice(0, 120);
+      return String(msg).slice(0, 120);
     }
-    var LASTCHAD_ABI = [
-      'function ownerOf(uint256 tokenId) external view returns (address)',
-      'function balanceOf(address owner) external view returns (uint256)',
-      'function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256)',
-      'function getPendingStatPoints(uint256 tokenId) external view returns (uint256)',
-      'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
-      'function totalSupply() external view returns (uint256)',
-      'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
-      'function getOpenCells(uint256 tokenId) external view returns (uint256)',
-      'function getClosedCells(uint256 tokenId) external view returns (uint256)',
-      'function getLevel(uint256 tokenId) external view returns (uint256)'
-    ];
-    var ITEMS_CONTRACT_ADDRESS = '0x0ef84248f58be2ac72b8d2e4229fc4e8575d5947';
-    var LASTCHAD_ITEMS_ABI = [
-      'function mint(uint256 itemId, uint256 quantity) external payable',
-      'function getItem(uint256 itemId) external view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)',
-      'function balanceOf(address account, uint256 id) external view returns (uint256)'
-    ];
     var itemAwards = ${itemAwardsJson};
-    var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}';
     var WORKER_URL = '${workerUrl}';
-    var QUEST_REWARDS_ABI = [
-      'function startQuest(uint256 tokenId, uint8 questId) external',
-      'function completeQuest(uint256 tokenId, uint8 questId, uint256 cellReward, bytes oracleSig) external',
-      'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
-      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
-      'function lockedBy(uint256 tokenId) external view returns (address)'
-    ];
     var QUEST_ID = ${questId};
     var _questSeed = null; // set after startQuest confirmed on-chain
 

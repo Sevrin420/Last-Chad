@@ -1889,9 +1889,10 @@
         const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/read-claude-md-E1ubC');
 
         // Publish quest
-        const QUEST_REWARDS_ADDRESS = '0x1e395c017BbdAEe37CD641DB112076144439c382';
+        // Contract addresses are now loaded at runtime from js/quest-globals.js,
+        // so we pass empty string — the template no longer hardcodes them.
         const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
-        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, QUEST_REWARDS_ADDRESS, WORKER_URL)
+        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, '', WORKER_URL)
           .then(data => {
             showPublishProgress(false);
             showQuestPublishedModal(questName, data.questUrl);
