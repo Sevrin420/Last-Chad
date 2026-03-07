@@ -3,7 +3,7 @@
 
 export const CONTRACT_ADDRESS         = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
 export const ITEMS_CONTRACT_ADDRESS   = '0x0ef84248f58be2ac72b8d2e4229fc4e8575d5947';
-export const QUEST_REWARDS_ADDRESS    = '0x476eD0E6104A83BEc5771FA9f239Bd35fb813ad4';
+export const QUEST_REWARDS_ADDRESS    = '0x1e395c017BbdAEe37CD641DB112076144439c382';
 export const MARKET_ADDRESS           = '0x2648fce03fe383c4a1d1a4c21fa59a0b9f35243d';
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
 
