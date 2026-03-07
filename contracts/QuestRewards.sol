@@ -9,6 +9,7 @@ interface ILastChad {
     function awardCells(uint256 tokenId, uint256 amount) external;
     function spendCells(uint256 tokenId, uint256 amount) external;
     function transferFrom(address from, address to, uint256 tokenId) external;
+    function eliminated(uint256 tokenId) external view returns (bool);
 }
 
 interface ILastChadItems {
@@ -102,6 +103,7 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     function startQuest(uint256 tokenId, uint8 questId) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!lastChad.eliminated(tokenId), "Chad eliminated");
         require(!questStarted[tokenId][questId], "Quest already attempted");
 
         bytes32 seed = keccak256(abi.encodePacked(
@@ -212,6 +214,7 @@ contract QuestRewards {
     // -------------------------------------------------------------------------
     function purchaseItem(uint256 tokenId, uint256 itemId) external {
         require(lockedBy[tokenId] == msg.sender, "Not quest participant");
+        require(!lastChad.eliminated(tokenId), "Chad eliminated");
         require(address(lastChadItems) != address(0), "Items contract not set");
         QuestSession memory session = pendingSessions[tokenId];
         require(session.active, "No active session");
