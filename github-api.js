@@ -569,6 +569,13 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   });
   const gameSectionMapJson = JSON.stringify(gameSectionMap);
 
+  // Map sectionId → XP awarded when player enters that section (tracked server-side)
+  const sectionXpMap = {};
+  sections.forEach(s => {
+    if (s.sectionXp && Number(s.sectionXp) > 0) sectionXpMap[s.id] = Number(s.sectionXp);
+  });
+  const sectionXpMapJson = JSON.stringify(sectionXpMap);
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1312,6 +1319,8 @@ ${completePanelHtml}
     var doubleChoiceMap = ${doubleChoiceMapJson};
     // Maps sectionId → { gameFile, nextSectionId } for sections that embed a game
     var gameSectionMap = ${gameSectionMapJson};
+    // Maps sectionId → XP amount awarded to players who visit that section
+    var sectionXpMap = ${sectionXpMapJson};
     // Tracks which branch the player chose (0 or 1) for the first two double-choice sections,
     // in encounter order. Passed as choice1/choice2 to QuestRewards.completeQuest.
     var _choiceRecord = [];
@@ -1442,6 +1451,20 @@ function showPanel(id) {
       currentSectionId = id || null;
       _saveProgress();
       showPanel(id || null);
+
+      // Report section visit to worker so section XP is tracked server-side
+      if (id && sectionXpMap[id] !== undefined && WORKER_URL && chadId) {
+        fetch(WORKER_URL + '/session/visit-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tokenId:   chadId,
+            questId:   QUEST_ID,
+            sectionId: id,
+            sectionXp: sectionXpMap[id],
+          }),
+        }).catch(function() {});
+      }
     }
 
     // ── Escrow enforcement ──────────────────────────────────────────────────
@@ -2370,15 +2393,42 @@ ${diceInitJs}
         } catch(e) { /* check failed — proceed */ }
       }
 
-      // Award XP on-chain via QuestRewards if configured, otherwise localStorage only
+      // Step 1: Ask the worker to finalise XP (section XP + dice + stat bonus) and sign it
+      var workerXP = null;
+      var workerSig = null;
+      if (WORKER_URL && chadId) {
+        statusEl.textContent = 'CALCULATING XP...';
+        try {
+          // Dice cargo score from the first dice section (0–12)
+          var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
+          var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
+          var _diceXP = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
+          var winResp = await fetch(WORKER_URL + '/session/win', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: _diceXP }),
+          }).then(function(r) { return r.json(); });
+          if (winResp && winResp.ok) {
+            workerXP  = winResp.xpAmount;
+            workerSig = winResp.signature;
+          } else if (winResp && !winResp.ok) {
+            btn.disabled = false;
+            btn.textContent = 'CLAIM XP';
+            statusEl.textContent = 'XP verification failed: ' + (winResp.reason || 'unknown');
+            return;
+          }
+        } catch(e) { /* worker unavailable — proceed without signed XP */ }
+      }
+
+      // Step 2: Award XP on-chain via QuestRewards if configured, otherwise localStorage only
       if (QUEST_REWARDS_ADDRESS && walletSigner) {
         statusEl.textContent = 'CONFIRM IN WALLET...';
         try {
           // Collect kept bitmasks from the first dice section (on-chain verification)
-          var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
-          var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
-          var _kept1 = (_ds && _ds.kept1) || 0;
-          var _kept2 = (_ds && _ds.kept2) || 0;
+          var _firstDiceSid2 = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
+          var _ds2 = _firstDiceSid2 !== undefined ? getDiceState(_firstDiceSid2) : null;
+          var _kept1 = (_ds2 && _ds2.kept1) || 0;
+          var _kept2 = (_ds2 && _ds2.kept2) || 0;
           // Narrative choices recorded in order of encounter (0 = first option, 1 = second option)
           var _choice1 = _choiceRecord[0] !== undefined ? _choiceRecord[0] : 0;
           var _choice2 = _choiceRecord[1] !== undefined ? _choiceRecord[1] : 0;
@@ -2397,7 +2447,8 @@ ${diceInitJs}
       markQuestDone(chadId);
       _clearProgress();
       btn.textContent = 'XP CLAIMED — CHAD #' + chadId;
-      statusEl.textContent = QUEST_REWARDS_ADDRESS ? 'XP awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).';
+      var xpMsg = workerXP != null ? (workerXP + ' XP awarded!') : (QUEST_REWARDS_ADDRESS ? 'XP awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).');
+      statusEl.textContent = xpMsg;
       checkQuestCompletion();
 
       // Check for pending stat points from level-up

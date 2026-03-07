@@ -51,6 +51,9 @@ const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'cha
 const GETSTATS_ABI = [
   'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
 ];
+const QUESTREWARDS_ABI = [
+  'function questStarted(uint256 tokenId, uint8 questId) view returns (bool)',
+];
 
 export default {
   async fetch(request, env) {
@@ -66,6 +69,9 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/session/die') {
         return await handleDie(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/session/visit-section') {
+        return await handleVisitSection(request, env);
       }
       if (request.method === 'POST' && url.pathname === '/session/win') {
         return await handleWin(request, env);
@@ -94,17 +100,41 @@ async function handleStart(request, env) {
     return json({ error: 'Invalid player address' }, 400);
   }
 
+  // On-chain check: each Chad can only start each quest once.
+  // QuestRewards.questStarted is set permanently the moment startQuest() runs.
+  if (env.QUEST_REWARDS_ADDRESS) {
+    try {
+      const provider = new ethers.JsonRpcProvider(env.READ_RPC);
+      const qr = new ethers.Contract(env.QUEST_REWARDS_ADDRESS, QUESTREWARDS_ABI, provider);
+      const alreadyStarted = await qr.questStarted(BigInt(tokenId), Number(questId));
+      if (alreadyStarted) {
+        // Allow the session to be re-registered if the chain shows it started
+        // (this covers the normal flow: adventure.html starts → quest page registers).
+        // But if a KV session already exists AND is completed, block.
+        const existing = await getSession(env, kvKey(tokenId, questId));
+        if (existing?.completed) {
+          return json({ ok: false, reason: 'quest_already_completed' }, 403);
+        }
+        if (existing?.died) {
+          return json({ ok: false, reason: 'already_died' }, 403);
+        }
+      }
+    } catch (_) { /* RPC error — let the session proceed */ }
+  }
+
   const key      = kvKey(tokenId, questId);
   const existing = await getSession(env, key);
 
-  if (existing?.died) {
-    return json({ ok: false, reason: 'already_died' }, 403);
-  }
+  if (existing?.died)      return json({ ok: false, reason: 'already_died' }, 403);
+  if (existing?.completed) return json({ ok: false, reason: 'quest_already_completed' }, 403);
 
   await env.RUNNER_KV.put(key, JSON.stringify({
-    runStartedAt: Date.now(),
-    died:         false,
-    player:       player.toLowerCase(),
+    runStartedAt:    Date.now(),
+    died:            false,
+    completed:       false,
+    player:          player.toLowerCase(),
+    visitedSections: existing?.visitedSections ?? {},
+    diceScore:       existing?.diceScore ?? null,
   }), { expirationTtl: 3600 });
 
   return json({ ok: true });
@@ -121,12 +151,49 @@ async function handleDie(request, env) {
   const existing = await getSession(env, key);
 
   await env.RUNNER_KV.put(key, JSON.stringify({
-    runStartedAt: existing?.runStartedAt ?? Date.now(),
-    died:         true,
-    player:       existing?.player ?? null,
+    runStartedAt:    existing?.runStartedAt ?? Date.now(),
+    died:            true,
+    completed:       false,
+    player:          existing?.player ?? null,
+    visitedSections: existing?.visitedSections ?? {},
+    diceScore:       existing?.diceScore ?? null,
   }), { expirationTtl: 3600 });
 
   return json({ ok: true });
+}
+
+// ---------------------------------------------------------------------------
+// POST /session/visit-section  { tokenId, questId, sectionId, sectionXp }
+//
+// Records that the player entered a section and how much XP it awards.
+// Only the first visit per sectionId is recorded (no double-counting).
+// ---------------------------------------------------------------------------
+async function handleVisitSection(request, env) {
+  const { tokenId, questId, sectionId, sectionXp } = await parseBody(request);
+  if (!tokenId || questId == null || sectionId == null) {
+    return json({ error: 'Missing tokenId, questId, or sectionId' }, 400);
+  }
+
+  const key     = kvKey(tokenId, questId);
+  const session = await getSession(env, key);
+
+  if (!session)         return json({ ok: false, reason: 'no_session' }, 403);
+  if (session.died)     return json({ ok: false, reason: 'already_died' }, 403);
+  if (session.completed) return json({ ok: false, reason: 'quest_already_completed' }, 403);
+
+  const xp = Math.max(0, Math.min(Number(sectionXp) || 0, MAX_XP_PER_QUEST));
+  const sid = String(sectionId);
+
+  // Only record first visit — prevents XP inflation from section revisits
+  if (session.visitedSections[sid] !== undefined) {
+    return json({ ok: true, alreadyVisited: true });
+  }
+
+  session.visitedSections[sid] = xp;
+  const ttl = Math.max(60, Math.ceil((session.runStartedAt + 3_600_000 - Date.now()) / 1000));
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: ttl });
+
+  return json({ ok: true, sectionXp: xp });
 }
 
 // ---------------------------------------------------------------------------
@@ -139,41 +206,44 @@ async function handleDie(request, env) {
 // Returns { ok, signature, xpAmount } on success.
 // ---------------------------------------------------------------------------
 async function handleWin(request, env) {
-  const { tokenId, questId, baseXP } = await parseBody(request);
-  if (!tokenId || questId == null || baseXP == null) {
-    return json({ error: 'Missing tokenId, questId, or baseXP' }, 400);
+  const { tokenId, questId, diceXP } = await parseBody(request);
+  if (!tokenId || questId == null || diceXP == null) {
+    return json({ error: 'Missing tokenId, questId, or diceXP' }, 400);
   }
 
   const key     = kvKey(tokenId, questId);
   const session = await getSession(env, key);
 
-  if (!session)       return json({ ok: false, reason: 'no_session' }, 403);
-  if (session.died)   return json({ ok: false, reason: 'already_died' }, 403);
+  if (!session)          return json({ ok: false, reason: 'no_session' }, 403);
+  if (session.died)      return json({ ok: false, reason: 'already_died' }, 403);
+  if (session.completed) return json({ ok: false, reason: 'quest_already_completed' }, 403);
 
   const elapsed = Date.now() - session.runStartedAt;
   if (elapsed < WIN_THRESHOLD_MS) {
     return json({ ok: false, reason: 'too_fast', elapsed, required: WIN_THRESHOLD_MS }, 403);
   }
 
-  const base = Number(baseXP);
-  if (!Number.isInteger(base) || base < 0 || base > MAX_XP_PER_QUEST) {
-    return json({ ok: false, reason: 'invalid_base_xp' }, 400);
-  }
+  const dice = Math.max(0, Math.min(Number(diceXP) || 0, 12)); // dice cargo score 0–12
 
-  // 1. Look up which stat this quest's dice section uses (from data.json via GitHub Pages).
+  // 1. Sum XP from every quest section the player actually visited (tracked server-side).
+  const sectionXpTotal = Object.values(session.visitedSections ?? {})
+    .reduce((sum, xp) => sum + Number(xp), 0);
+
+  // 2. Look up which stat this quest's dice section uses (from data.json via GitHub Pages).
   //    Returns null for quests with no dice section (runner games, etc.).
   const statBonus = await getQuestStatBonus(Number(questId), env);
 
-  // 2. If a stat applies, read its value from the chain — never from the client.
+  // 3. If a stat applies, read its value from the chain — never from the client.
   let statValue = 0;
   if (statBonus) {
     const stats = await getCharStats(BigInt(tokenId), env);
     statValue = stats[statBonus] ?? 0;
   }
 
-  const finalXP = Math.min(base + statValue, MAX_XP_PER_QUEST);
+  // finalXP = section XP (server-tracked) + dice cargo score (client-reported) + stat bonus (chain)
+  const finalXP = Math.min(sectionXpTotal + dice + statValue, MAX_XP_PER_QUEST);
 
-  // 3. Sign keccak256(tokenId, questId, player, finalXP)
+  // 4. Sign keccak256(tokenId, questId, player, finalXP)
   //    Must match what QuestRewards.sol verifies on-chain.
   const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
   const messageHash  = ethers.solidityPackedKeccak256(
@@ -182,7 +252,14 @@ async function handleWin(request, env) {
   );
   const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
 
-  return json({ ok: true, signature, xpAmount: finalXP, statBonus, statValue, elapsed });
+  // 5. Mark session completed — prevents re-claiming
+  await env.RUNNER_KV.put(key, JSON.stringify({
+    ...session,
+    completed: true,
+    diceScore: dice,
+  }), { expirationTtl: 86_400 }); // keep 24h so status endpoint can confirm
+
+  return json({ ok: true, signature, xpAmount: finalXP, sectionXpTotal, dice, statBonus, statValue, elapsed });
 }
 
 // ---------------------------------------------------------------------------
@@ -198,10 +275,12 @@ async function handleStatus(url, env) {
 
   const elapsed = Date.now() - session.runStartedAt;
   return json({
-    exists:   true,
-    died:     session.died,
+    exists:          true,
+    died:            session.died,
+    completed:       session.completed ?? false,
     elapsed,
-    canClaim: !session.died && elapsed >= WIN_THRESHOLD_MS,
+    canClaim:        !session.died && !session.completed && elapsed >= WIN_THRESHOLD_MS,
+    visitedSections: session.visitedSections ?? {},
   });
 }
 

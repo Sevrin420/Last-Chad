@@ -1086,6 +1086,8 @@
         .replace(/</g, '&lt;');
     }
 
+    const MAX_XP_PER_QUEST = 50; // matches worker hard cap
+
     // State management
     const state = {
       questName: '',
@@ -1264,6 +1266,7 @@
         failNextSectionId: null,
         statBonus: null,
         difficulty: 8,
+        sectionXp: 0,
         music: null,
         itemAward: null,
         gameFile: null
@@ -1298,8 +1301,8 @@
             <input type="text" placeholder="e.g., The Forest Entrance" value="${escAttr(section.name)}" data-section-id="${section.id}" class="section-name-input">
           </div>
 
-          <!-- Photo Upload -->
-          <div class="form-group">
+          <!-- Photo Upload (hidden when dice action is selected) -->
+          <div class="form-group" ${section.selectedChoice === 'dice' ? 'style="display:none"' : ''} data-photo-group="${section.id}">
             <label>Section Image</label>
             <div class="photo-upload" data-section-id="${section.id}">
               <input type="file" accept="image/*" data-section-id="${section.id}">
@@ -1312,6 +1315,12 @@
           <div class="form-group">
             <label>Dialogue / Story Text</label>
             <textarea placeholder="What does the NPC say? Describe the scene..." data-section-id="${section.id}" class="section-dialogue-input">${escTextarea(section.dialogue)}</textarea>
+          </div>
+
+          <!-- Section XP -->
+          <div class="form-group">
+            <label>⭐ Section XP (awarded at quest end)</label>
+            <input type="number" class="section-xp-input" min="0" max="${MAX_XP_PER_QUEST}" value="${section.sectionXp !== undefined ? section.sectionXp : 0}" data-section-id="${section.id}" placeholder="0">
           </div>
 
           <!-- Music for this section -->
@@ -1723,6 +1732,18 @@
           const section = state.sections.find(s => s.id === sectionId);
           if (section) {
             section.gameFile = e.target.value || null;
+            saveQuestAuto();
+          }
+        });
+      });
+
+      // Section XP input
+      document.querySelectorAll('.section-xp-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const sectionId = parseInt(e.target.dataset.sectionId);
+          const section = state.sections.find(s => s.id === sectionId);
+          if (section) {
+            section.sectionXp = Math.max(0, parseInt(e.target.value) || 0);
             saveQuestAuto();
           }
         });

@@ -9,9 +9,10 @@ id = "REPLACE_WITH_KV_NAMESPACE_ID"
 preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
 
 [vars]
-LASTCHAD_ADDRESS = "0x27732900f9a87ced6a2ec5ce890d7ff58f882f76"
-READ_RPC         = "https://api.avax-test.network/ext/bc/C/rpc"
-GAME_BASE_URL    = "https://lastchad.xyz"
+LASTCHAD_ADDRESS      = "0x27732900f9a87ced6a2ec5ce890d7ff58f882f76"
+QUEST_REWARDS_ADDRESS = "0x24e80b24aecd3e4230f294c932fb5e63b6bd3650"
+READ_RPC              = "https://api.avax-test.network/ext/bc/C/rpc"
+GAME_BASE_URL         = "https://lastchad.xyz"
 
 # ORACLE_PRIVATE_KEY is a secret — never put it here.
 # Set it with: npx wrangler secret put ORACLE_PRIVATE_KEY
