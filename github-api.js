@@ -697,8 +697,9 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       display: flex;
       flex-direction: row;
       align-items: flex-start;
-      gap: 20px;
+      gap: 4px;
       margin-top: 4px;
+      padding-right: 16px;
     }
     .hud-portrait-col {
       display: flex;
@@ -728,8 +729,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     .hud-stats-panel {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding-top: 4px;
+      gap: 2px;
+      padding-top: 18px;
     }
     .hud-stat-box {
       background: url('https://lastchad.xyz/assets/stat-frame.png') center/100% 100% no-repeat;
