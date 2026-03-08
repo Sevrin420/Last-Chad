@@ -23,7 +23,8 @@ async function main() {
 
   const lastChad = new hre.ethers.Contract(CONTRACT_ADDRESS, ABI, owner);
 
-  const total = (await lastChad.totalSupply()).toNumber();
+  const totalRaw = await lastChad.totalSupply();
+  const total = totalRaw.toNumber ? totalRaw.toNumber() : Number(totalRaw);
   console.log(`Total supply: ${total} Chads\n`);
 
   const owned = [];
