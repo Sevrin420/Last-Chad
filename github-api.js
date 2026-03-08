@@ -507,8 +507,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     } else if (section.selectedChoice === 'minigame') {
       // Embedded minigame iframe — win advances, loss triggers death sequence
       actionHtml = `
-        <div class="dialogue-frame">
-          <iframe class="section-game-frame section-minigame-frame" id="minigameFrame_${sid}" src="" allowfullscreen data-section-id="${sid}"></iframe>
+        <div class="minigame-fullscreen-wrap" id="minigameWrap_${sid}">
+          <iframe class="section-game-frame section-minigame-frame" id="minigameFrame_${sid}" src="" allowfullscreen allow="autoplay" data-section-id="${sid}"></iframe>
         </div>`;
 
     } else {
@@ -1250,6 +1250,31 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       color: #7dd4ee;
     }
 
+    /* Minigame fullscreen mode — hides chrome, shows only the game */
+    body.minigame-active .header,
+    body.minigame-active .music-toggle,
+    body.minigame-active .exp-box,
+    body.minigame-active .bg,
+    body.minigame-active .narrative,
+    body.minigame-active .section-img,
+    body.minigame-active .quest-hud { display: none !important; }
+    body.minigame-active main,
+    body.minigame-active .quest-panel,
+    body.minigame-active .panel.active,
+    body.minigame-active .action-wrap { padding: 0 !important; margin: 0 !important; background: none !important; }
+    body.minigame-active .minigame-fullscreen-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 8000;
+      background: #000;
+    }
+    body.minigame-active .minigame-fullscreen-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
     /* Minigame death overlay */
     #minigame-death-overlay {
       display: none;
@@ -1511,6 +1536,9 @@ function showPanel(id) {
       panel.classList.add('active');
       // Show exp box only on non-game, non-complete panels
       var _isGameSec = id && (!!gameSectionMap[id] || !!minigameSectionMap[id]);
+      // Fullscreen mode for minigame sections
+      var _isMinigame = id && !!minigameSectionMap[id];
+      document.body.classList.toggle('minigame-active', !!_isMinigame);
       var expBoxEl = document.getElementById('expBox');
       if (expBoxEl) expBoxEl.style.display = (id && !_isGameSec) ? 'block' : 'none';
       updateExpBox();
@@ -2495,6 +2523,7 @@ ${diceInitJs}
       if (e.data.type === 'runner_death') {
         if (_minigameDeathHandled) return;
         _minigameDeathHandled = true;
+        document.body.classList.remove('minigame-active');
         var overlay = document.getElementById('minigame-death-overlay');
         if (overlay) {
           overlay.classList.add('show');
