@@ -204,20 +204,25 @@
 
     /* --- Stats panel --- */
     .stats-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
       padding-top: 4px;
+      align-content: start;
+      width: auto;
     }
 
     .stat-box {
       background: linear-gradient(180deg, #1e2c30 0%, #131e22 100%);
       border: 3px solid #546e7a;
       border-radius: 0;
-      padding: 8px 10px;
-      min-width: 0;
+      padding: 7px 8px;
       text-align: center;
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       box-shadow:
         inset 0 1px 0 rgba(176, 190, 197, 0.12),
         0 3px 0 #263238,
@@ -225,10 +230,17 @@
         0 7px 8px rgba(0,0,0,0.4);
     }
 
+    /* CELLS box spans both columns, loses square aspect */
+    .stat-box:last-child {
+      grid-column: span 2;
+      aspect-ratio: auto;
+      padding: 6px 8px;
+    }
+
     .stat-label {
-      font-size: 0.52rem;
+      font-size: 0.45rem;
       color: #90a4ae;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
       letter-spacing: 0.06em;
     }
 
@@ -240,7 +252,7 @@
     /* --- Portrait frame --- */
     .portrait-frame {
       width: 100%;
-      max-width: 280px;
+      max-width: 360px;
       height: auto;
       border: 4px solid #5c4409;
       border-radius: 4px;
