@@ -18,6 +18,8 @@ on:
           - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
           - verify           # Verify all contracts on Snowtrace (no deploy)
           - release-escrow   # Return all NFTs locked in QuestRewards escrow to their owners
+          - gamble-open      # Open the gambling den (authorize Gamble in LastChad)
+          - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
       network:
         description: 'Network (ignored if target=worker)'
         required: true
@@ -216,3 +218,28 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/releaseEscrow.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 6: Open or close the gambling den
+  # ───────────────────────────────────────────────────────────────────────────
+  toggle-gamble:
+    name: ${{ inputs.target == 'gamble-open' && 'Open Gambling Den' || 'Close Gambling Den (Maintenance)' }} (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'gamble-open' || inputs.target == 'gamble-close'
+    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Toggle gambling den authorization
+        env:
+          PRIVATE_KEY:  ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          GAMBLE_OPEN:  ${{ inputs.target == 'gamble-open' && 'true' || 'false' }}
+        run: npx hardhat run scripts/toggleGamble.js --network ${{ inputs.network }}
