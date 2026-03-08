@@ -834,6 +834,13 @@
         statusMsg.textContent = `Locked ${amount} cell${amount !== 1 ? 's' : ''}!`;
         statusMsg.className = 'status-msg ok';
 
+        // Calculate level-up locally — don't rely on RPC sync timing
+        const oldLevel = Math.floor(closedCells / CELLS_PER_LEVEL) + 1;
+        const newClosedCells = closedCells + amount;
+        const newLevel = Math.floor(newClosedCells / CELLS_PER_LEVEL) + 1;
+        const didLevelUp = newLevel > oldLevel;
+        const levelsGained = newLevel - oldLevel;
+
         // Show charge overlay with CHARGE / SKIP buttons
         const overlay = document.getElementById('chargeVideoOverlay');
         const vid = document.getElementById('chargeVideo');
@@ -854,6 +861,17 @@
           vid.pause();
           vid.removeAttribute('src');
           vid.load();
+          // Show level-up banner immediately if we know one occurred,
+          // then refresh all data from chain
+          if (didLevelUp) {
+            const banner = document.getElementById('levelupBanner');
+            const body = document.getElementById('levelupBody');
+            const link = document.getElementById('levelupLink');
+            const pts = levelsGained === 1 ? '1 stat point' : `${levelsGained} stat points`;
+            body.textContent = `LEVEL ${newLevel}! You have ${pts} to spend.`;
+            link.href = `stats.html?chad=${selectedTokenId}`;
+            banner.style.display = 'block';
+          }
           selectChad(selectedTokenId);
         }
 
