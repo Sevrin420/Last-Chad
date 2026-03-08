@@ -34,9 +34,6 @@ function readCurrentAddress(configPath, key) {
 const SET_GAME_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
 ];
-const SET_ORACLE_ABI = [
-  'function setOracle(address oracle) external',
-];
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
@@ -46,7 +43,6 @@ async function main() {
   const globalsPath = path.join(__dirname, '..', 'js', 'quest-globals.js');
 
   const existingQuestRewards = readCurrentAddress(configPath, 'QUEST_REWARDS_ADDRESS');
-  const oracleAddress        = process.env.ORACLE_ADDRESS || null;
 
   console.log("\n════════════════════════════════════════════");
   console.log("Last Chad — LastChad contract redeploy");
@@ -54,7 +50,7 @@ async function main() {
   console.log(`Network:        ${network}`);
   console.log(`Deployer:       ${deployer.address}`);
   console.log(`QuestRewards:   ${existingQuestRewards || '(not found in config.js)'}`);
-  console.log(`Oracle:         ${oracleAddress || '(not set)'}\n`);
+  console.log();
 
   // ── Deploy LastChad ───────────────────────────────────────────────────────
   const baseURI = "https://lastchad.xyz/metadata/";
@@ -76,15 +72,7 @@ async function main() {
     console.warn("Run 'authorize' target after deploy to wire the contracts.");
   }
 
-  // ── Oracle (optional) ─────────────────────────────────────────────────────
-  if (oracleAddress && hre.ethers.isAddress(oracleAddress)) {
-    const lcWithOracle = new hre.ethers.Contract(lastChadAddress, SET_ORACLE_ABI, deployer);
-    const tx = await lcWithOracle.setOracle(oracleAddress);
-    await tx.wait();
-    console.log("LastChad.setOracle ✓ →", oracleAddress);
-  }
-
-  // ── Patch js/config.js ────────────────────────────────────────────────────
+// ── Patch js/config.js ────────────────────────────────────────────────────
   if (fs.existsSync(configPath)) {
     let config = fs.readFileSync(configPath, 'utf8');
     config = config.replace(
@@ -120,8 +108,6 @@ async function main() {
   console.log("════════════════════════════════════════════\n");
   console.log("Next steps:");
   console.log("  1. Commit and push js/config.js + js/quest-globals.js");
-  console.log("  2. QuestRewards.sol still points to old LastChad — redeploy");
-  console.log("     QuestRewards too if you need it to call the new contract.");
 }
 
 main().catch(err => {

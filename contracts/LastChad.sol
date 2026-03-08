@@ -161,7 +161,7 @@ contract LastChad is ERC721, Ownable {
 
         if (newLevel > oldLevel) {
             uint256 levelsGained = newLevel - oldLevel;
-            _pendingStatPoints[tokenId] += levelsGained * 2;
+            _pendingStatPoints[tokenId] += levelsGained;
             emit LevelUp(tokenId, newLevel, levelsGained);
         }
 

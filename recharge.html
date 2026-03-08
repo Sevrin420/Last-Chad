@@ -785,7 +785,7 @@
         const levelupBody = document.getElementById('levelupBody');
         const levelupLink = document.getElementById('levelupLink');
         if (pendingPts > 0) {
-          levelupBody.textContent = `LEVEL ${level}! You have 2 stat points to assign.`;
+          levelupBody.textContent = `LEVEL ${level}! You have 1 stat point to assign.`;
           levelupLink.href = `levelup.html?chad=${tokenId}`;
           banner.style.display = 'block';
         } else {
@@ -866,7 +866,7 @@
             const banner = document.getElementById('levelupBanner');
             const body = document.getElementById('levelupBody');
             const link = document.getElementById('levelupLink');
-            body.textContent = `LEVEL ${newLevel}! You have 2 stat points to assign.`;
+            body.textContent = `LEVEL ${newLevel}! You have 1 stat point to assign.`;
             link.href = `levelup.html?chad=${selectedTokenId}`;
             banner.style.display = 'block';
           }
