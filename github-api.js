@@ -1799,16 +1799,24 @@ function showPanel(id) {
         setStatEl('hudInt_' + sid, baseInt, modInt);
         setStatEl('hudDex_' + sid, baseDex, modDex);
         setStatEl('hudCha_' + sid, baseCha, modCha);
+        // _chadStats includes item mods — used for HUD display only
         window._chadStats = {
           strength: baseStr + modStr,
           intelligence: baseInt + modInt,
           dexterity: baseDex + modDex,
           charisma: baseCha + modCha
         };
+        // _chadBaseStats is chain-only — used for dice XP scoring to match worker calculation
+        window._chadBaseStats = {
+          strength: baseStr,
+          intelligence: baseInt,
+          dexterity: baseDex,
+          charisma: baseCha
+        };
         var bonusEl = document.getElementById('statBonusVal_' + sid);
         if (bonusEl) {
           var stat = bonusEl.getAttribute('data-stat');
-          bonusEl.textContent = '+' + (window._chadStats[stat] || 0);
+          bonusEl.textContent = '+' + (window._chadBaseStats[stat] || 0);
         }
       } catch (e) {
         // HUD is cosmetic — silently fail if RPC unavailable
@@ -2111,8 +2119,9 @@ function showPanel(id) {
 
       // Compute stat bonus first — it applies regardless of 6,5,4 outcome
       var statBonusVal = 0;
-      if (outcome.statBonus && window._chadStats) {
-        statBonusVal = window._chadStats[outcome.statBonus] || 0;
+      if (outcome.statBonus && window._chadBaseStats) {
+        // Use chain-only base stats to match worker calculation (item mods not honored server-side)
+        statBonusVal = window._chadBaseStats[outcome.statBonus] || 0;
       }
 
       var vals = state.values.slice();
@@ -2261,11 +2270,24 @@ ${diceInitJs}
               if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
             });
             // Create the worker session so /session/win has a valid entry to sign against.
+            // After start succeeds, replay any section visits that happened before the session existed.
             if (WORKER_URL && chadId && userAddress) {
               fetch(WORKER_URL + '/session/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, player: userAddress }),
+              }).then(function(r) { return r.json(); }).then(function(startResp) {
+                if (!startResp || !startResp.ok) return;
+                // Replay any section visits that occurred before the session was registered
+                Object.keys(_visitedSections).forEach(function(sid) {
+                  if (sectionXpMap[sid] !== undefined) {
+                    fetch(WORKER_URL + '/session/visit-section', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: sid, sectionXp: sectionXpMap[sid] }),
+                    }).catch(function() {});
+                  }
+                });
               }).catch(function() {});
             }
             return;
