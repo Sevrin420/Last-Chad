@@ -356,6 +356,18 @@
     .status-msg.ok { color: #4caf50; }
     .status-msg.err { color: #e53935; }
 
+    /* Loading flash */
+    .loading {
+      color: #ffaa40;
+      font-size: 0.6rem;
+      animation: blink 1s step-end infinite;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
     /* Empty state */
     .empty-msg {
       font-size: 0.6rem;
@@ -451,6 +463,9 @@
         <li>Locked cells are permanent.</li>
       </ul>
     </div>
+
+    <!-- Loading message -->
+    <div class="loading" id="loadMsg" style="display:none;">Loading your Chads...</div>
 
     <!-- Chad grid (shown after connect) -->
     <div class="chad-grid" id="chadGrid" style="display:none;"></div>
@@ -553,6 +568,7 @@
     const disconnectDropdown = document.getElementById('disconnectDropdown');
     const disconnectBtn    = document.getElementById('disconnectBtn');
     const connectPrompt    = document.getElementById('connectPrompt');
+    const loadMsg          = document.getElementById('loadMsg');
     const chadGrid         = document.getElementById('chadGrid');
     const rechargePanel    = document.getElementById('rechargePanel');
     const portraitImg      = document.getElementById('portraitImg');
@@ -597,15 +613,18 @@
       chadGrid.innerHTML = '';
       chadGrid.style.display = 'none';
       rechargePanel.style.display = 'none';
+      loadMsg.style.display = 'none';
 
       if (!userAddress || !CONTRACT_ADDRESS) return;
+
+      loadMsg.style.display = 'block';
 
       const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
       let total;
       try { total = (await contract.totalSupply()).toNumber(); }
-      catch (e) { connectPrompt.textContent = 'Error loading Chads'; connectPrompt.style.display = 'block'; return; }
+      catch (e) { loadMsg.style.display = 'none'; connectPrompt.textContent = 'Error loading Chads'; connectPrompt.style.display = 'block'; return; }
 
       const owned = [];
       for (let id = 1; id <= total; id++) {
@@ -614,6 +633,8 @@
           if (owner.toLowerCase() === userAddress.toLowerCase()) owned.push(id);
         } catch (_) {}
       }
+
+      loadMsg.style.display = 'none';
 
       if (owned.length === 0) {
         connectPrompt.textContent = "You don't own any Chads yet.";
@@ -719,12 +740,12 @@
         const overlay = document.getElementById('chargeVideoOverlay');
         const vid = document.getElementById('chargeVideo');
         overlay.classList.add('show');
-        vid.currentTime = 0;
-        vid.play().catch(() => {});
         vid.onended = () => {
           overlay.classList.remove('show');
           selectChad(selectedTokenId);
         };
+        vid.load();
+        vid.play().catch(() => {});
       } catch (err) {
         const msg = err.reason || err.message || 'Transaction failed';
         statusMsg.textContent = msg.includes('Insufficient') ? 'Not enough open cells.' : msg.substring(0, 80);
