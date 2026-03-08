@@ -21,6 +21,8 @@ export const LASTCHAD_ABI = [
   'function getPendingStatPoints(uint256 tokenId) view returns (uint256)',
   'function spendStatPoint(uint256 tokenId, uint8 statIndex)',
   'function tokenName(uint256 tokenId) view returns (string)',
+  'function authorizedGame(address game) view returns (bool)',
+  'function setGameContract(address game, bool enabled)',
 ];
 
 export const QUEST_REWARDS_ABI = [

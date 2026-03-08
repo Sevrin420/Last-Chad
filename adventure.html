@@ -56,6 +56,19 @@
 
     .wallet-wrapper { position: relative; }
 
+    #mute-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      padding: 8px 12px;
+      background: rgba(10,10,15,0.7);
+      border: 1px solid #3d2e0a;
+      border-radius: 4px;
+      color: #c9a84c;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    #mute-btn:hover { border-color: #c9a84c; }
+
     .wallet-btn {
       font-family: 'Press Start 2P', monospace;
       font-size: 0.7rem;
@@ -821,9 +834,13 @@
   <!-- Background -->
   <div class="bg"></div>
 
+  <!-- Background music -->
+  <audio id="bg-music" src="music/hopefull.mp3" loop></audio>
+
   <!-- Header -->
   <header class="header">
     <div id="nav-placeholder"></div>
+    <button id="mute-btn">🔊</button>
     <div class="wallet-wrapper">
       <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
       <div class="disconnect-dropdown" id="disconnectDropdown">
@@ -1578,6 +1595,24 @@
       }
     }
     loadQuestDropdown();
+
+    // ========== MUSIC ==========
+    const bgMusic = document.getElementById('bg-music');
+    const muteBtn = document.getElementById('mute-btn');
+    bgMusic.volume = 0.4;
+    // Start on first user interaction (browser autoplay policy)
+    let musicStarted = false;
+    function startMusic() {
+      if (musicStarted) return;
+      musicStarted = true;
+      bgMusic.play().catch(() => {});
+    }
+    document.addEventListener('click', startMusic, { once: true });
+    muteBtn.addEventListener('click', () => {
+      startMusic();
+      bgMusic.muted = !bgMusic.muted;
+      muteBtn.textContent = bgMusic.muted ? '🔇' : '🔊';
+    });
 
     // ========== AUTO-RECONNECT ==========
     autoReconnect({ onConnected, onDisconnected });

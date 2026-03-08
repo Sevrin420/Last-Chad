@@ -93,9 +93,9 @@
       box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.5), 0 2px 10px rgba(201, 168, 76, 0.4);
     }
     .wallet-btn.connected {
-      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
-      border-color: #4caf50;
-      color: #a5d6a7;
+      background: linear-gradient(180deg, #a07820 0%, #6b4f10 100%);
+      border-color: #c9a84c;
+      color: #ffe96a;
       font-size: 0.5rem;
     }
     .wallet-wrapper { position: relative; }
@@ -293,7 +293,7 @@
       line-height: 2.2;
     }
     #chad-info .cells-count {
-      color: #6dffaa;
+      color: #c9a84c;
       font-size: clamp(0.6rem, 1.4vw, 0.75rem);
     }
 
@@ -312,7 +312,7 @@
     }
     #wager-amount {
       font-size: clamp(0.65rem, 1.6vw, 0.85rem);
-      color: #6dffaa;
+      color: #ffe96a;
     }
 
     /* ── Video overlay ── */
@@ -384,7 +384,7 @@
   </div>
 
   <!-- Background music -->
-  <audio id="bg-music" src="music/adventure.mp3" loop></audio>
+  <audio id="bg-music" src="music/moody.mp3" loop></audio>
 
   <!-- Header -->
   <header class="game-header">
@@ -616,6 +616,9 @@
     }
 
     // ── Flow: Select NFT ──
+    let _minWager = 1;
+    let _maxWager = 50;
+
     async function startCoinFlip() {
       clearDialogue();
       const addr = userAddress;
@@ -635,6 +638,28 @@
       // Fetch owned NFTs
       const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+      const gambleRead = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, readProvider);
+
+      // Check that Gamble is authorized in LastChad — if not, flip() will always revert
+      try {
+        const authorized = await contract.authorizedGame(GAMBLE_ADDRESS);
+        if (!authorized) {
+          loadMsg.textContent = '';
+          loadMsg.remove();
+          const p = document.createElement('p');
+          p.style.color = '#e53935';
+          p.textContent = "The gambling den is closed for maintenance. Check back soon!";
+          dialogueText.appendChild(p);
+          console.error('Gamble contract not authorized in LastChad. Owner must call setGameContract(GAMBLE_ADDRESS, true).');
+          return;
+        }
+      } catch (e) { /* RPC issue — proceed anyway */ }
+
+      // Fetch on-chain wager limits so the slider is always in range
+      try {
+        _minWager = (await gambleRead.minWager()).toNumber();
+        _maxWager = (await gambleRead.maxWager()).toNumber();
+      } catch (e) { /* use defaults */ }
 
       let totalSupply;
       try {
@@ -716,6 +741,15 @@
         return;
       }
 
+      if (token.cells < _minWager) {
+        await showNpcText([`You need at least ${_minWager} cell${_minWager === 1 ? '' : 's'} to play. Go earn some first!`]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
+        return;
+      }
+
+      const sliderMax = Math.min(token.cells, _maxWager);
+      const sliderMin = _minWager;
+
       // Show selected chad
       const sel = document.createElement('div');
       sel.id = 'selected-chad';
@@ -728,13 +762,13 @@
       `;
       dialogueText.appendChild(sel);
 
-      // Show wager slider
+      // Show wager slider (clamped to on-chain limits)
       const wagerSec = document.createElement('div');
       wagerSec.id = 'wager-section';
       wagerSec.innerHTML = `
-        <div id="wager-label">WAGER CELLS</div>
-        <input type="range" id="wager-slider" min="1" max="${token.cells}" value="1" />
-        <div id="wager-amount">1 cell</div>
+        <div id="wager-label">WAGER CELLS (max ${sliderMax})</div>
+        <input type="range" id="wager-slider" min="${sliderMin}" max="${sliderMax}" value="${sliderMin}" />
+        <div id="wager-amount">${sliderMin} cell${sliderMin === 1 ? '' : 's'}</div>
       `;
       dialogueText.appendChild(wagerSec);
 
@@ -744,7 +778,7 @@
         wagerAmount = parseInt(slider.value);
         amountDisplay.textContent = wagerAmount + (wagerAmount === 1 ? ' cell' : ' cells');
       });
-      wagerAmount = 1;
+      wagerAmount = sliderMin;
 
       showChoices([
         { label: "LET'S FLIP!", action: recordWagerAndFlip }
@@ -839,7 +873,8 @@
       } catch (err) {
         statusEl.remove();
         const errP = document.createElement('p');
-        errP.textContent = 'Transaction failed: ' + (err.reason || err.message);
+        const reason = err.reason || err.data?.message || err.error?.message || err.message || String(err);
+        errP.textContent = 'Transaction failed: ' + reason;
         errP.style.color = '#e53935';
         dialogueText.appendChild(errP);
         showChoices([
