@@ -218,6 +218,10 @@ tapTarget.addEventListener('click', () => { handleTap(); });
 tapTarget.addEventListener('touchstart', e => { e.preventDefault(); handleTap(); }, { passive: false });
 // Fallback click handler for desktop / hybrid devices
 document.addEventListener('click', () => { handleTap(); });
+// Parent-page relay: WebView browsers send parent_tap when their overlay is tapped
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'parent_tap') handleTap();
+});
 document.addEventListener('touchmove', e => {
   e.preventDefault();
   const dx = e.touches[0].clientX - touchStartX;

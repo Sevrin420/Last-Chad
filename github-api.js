@@ -1274,6 +1274,17 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       border: none;
       display: block;
     }
+    #mg-tap-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      display: none;
+    }
+    body.minigame-active #mg-tap-overlay { display: block; }
 
     /* Minigame death overlay */
     #minigame-death-overlay {
@@ -1304,6 +1315,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   </style>
 </head>
 <body>
+  <!-- Parent-side tap relay: works in WebViews where iframe taps are eaten -->
+  <button id="mg-tap-overlay" aria-label="Tap to start"></button>
   <!-- Minigame death overlay -->
   <div id="minigame-death-overlay">
     <div class="minigame-death-dialogue">You have died</div>
@@ -1571,6 +1584,9 @@ function showPanel(id) {
           if (WORKER_URL) mgp.set('worker', WORKER_URL);
           mgFrame.src = '../../games/' + minigameSectionMap[id].minigameFile + '?' + mgp.toString();
           mgFrame.dataset.loaded = '1';
+          mgFrame.addEventListener('load', function() { _showMgTap(mgFrame); }, { once: true });
+        } else if (mgFrame && mgFrame.dataset.loaded) {
+          _showMgTap(mgFrame);
         }
       }
 
@@ -2495,6 +2511,26 @@ ${diceInitJs}
     animateIntro();
     checkEscrowStatus();
 
+    // Parent-side tap relay for WebView browsers (Rabby, MetaMask, etc.)
+    // Sits above the iframe in the parent document — always receives first tap
+    var _mgTapOverlay = document.getElementById('mg-tap-overlay');
+    var _mgTapActive = false;
+    function _showMgTap(frameEl) {
+      _mgTapActive = true;
+      _mgTapOverlay.onclick = function() {
+        if (!_mgTapActive) return;
+        _mgTapActive = false;
+        _mgTapOverlay.style.display = 'none';
+        if (frameEl && frameEl.contentWindow) {
+          frameEl.contentWindow.postMessage({ type: 'parent_tap' }, '*');
+        }
+      };
+    }
+    function _hideMgTap() {
+      _mgTapActive = false;
+      _mgTapOverlay.style.display = 'none';
+    }
+
     // Handle win/death messages from embedded game iframes
     var _runnerWinCert = null;
     var _minigameDeathHandled = false;
@@ -2503,6 +2539,7 @@ ${diceInitJs}
 
       // Win — advance to next section
       if (e.data.type === 'runner_win') {
+        _hideMgTap();
         _runnerWinCert = e.data.cert || null;
         if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
           _questRunnerXP += Number(e.data.runnerXP);
