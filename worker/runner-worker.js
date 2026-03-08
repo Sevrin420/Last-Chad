@@ -43,7 +43,7 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const WIN_THRESHOLD_MS  = 110_000; // runner: 2 min map, 10s buffer
+const WIN_THRESHOLD_MS  = 10_000;  // minimum play time before claim (10s anti-bot buffer)
 const MAX_XP_PER_QUEST  = 50;      // hard cap — Worker will never sign more
 const QUEST_CACHE_TTL   = 86_400;  // 24h — quest configs change rarely
 const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'charisma']);
