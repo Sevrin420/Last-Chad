@@ -158,5 +158,10 @@
     "name": "32 test game",
     "slug": "32-test-game",
     "questId": 31
+  },
+  {
+    "name": "33 test game",
+    "slug": "33-test-game",
+    "questId": 32
   }
 ]
