@@ -469,6 +469,44 @@
       font-size: clamp(0.45rem, 2vw, 0.55rem);
     }
     #skipChargeBtn:active { color: #ccc; border-color: #888; }
+
+    /* Level-up banner */
+    .levelup-banner {
+      background: linear-gradient(135deg, #1a1200 0%, #0d0800 100%);
+      border: 2px solid #c9a84c;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(201,168,76,0.25);
+    }
+    .levelup-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.8rem, 3vw, 1.1rem);
+      color: #c9a84c;
+      margin-bottom: 10px;
+      animation: blink 1s step-end infinite;
+    }
+    .levelup-body {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+      color: #e0d0a0;
+      margin-bottom: 16px;
+      line-height: 1.8;
+    }
+    .levelup-btn {
+      display: inline-block;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.5rem, 2vw, 0.65rem);
+      color: #0a0a14;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5a3d00 100%);
+      border: 2px solid #c9a84c;
+      border-radius: 6px;
+      padding: 12px 20px;
+      text-decoration: none;
+      box-shadow: 0 3px 0 #3d2800;
+    }
+    .levelup-btn:active { transform: translateY(2px); box-shadow: none; }
   </style>
 </head>
 <body>
@@ -539,6 +577,13 @@
         <div class="progress-label" id="progressNote">Lock 100 cells total to reach Level 2</div>
       </div>
 
+      <!-- Level-up banner (hidden until pending stat points > 0) -->
+      <div class="levelup-banner" id="levelupBanner" style="display:none;">
+        <div class="levelup-title">⬆ LEVEL UP!</div>
+        <div class="levelup-body" id="levelupBody">You have stat points to spend.</div>
+        <a class="levelup-btn" id="levelupLink" href="stats.html">SPEND STAT POINTS</a>
+      </div>
+
       <!-- Amount slider -->
       <div class="slider-section">
         <div class="slider-header">
@@ -591,6 +636,7 @@
       'function ownerOf(uint256 tokenId) view returns (address)',
       'function getOpenCells(uint256 tokenId) view returns (uint256)',
       'function getClosedCells(uint256 tokenId) view returns (uint256)',
+      'function getPendingStatPoints(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
       'function lockCells(uint256 tokenId, uint256 amount) external',
     ];
@@ -710,27 +756,42 @@
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
-        const [openRes, closedRes, nameRes] = await Promise.all([
+        const [openRes, closedRes, nameRes, pendingRes] = await Promise.all([
           contract.getOpenCells(tokenId),
           contract.getClosedCells(tokenId),
           contract.tokenName(tokenId),
+          contract.getPendingStatPoints(tokenId),
         ]);
 
         openCells   = Number(openRes);
         closedCells = Number(closedRes);
+        const pendingPts = Number(pendingRes);
         const name  = nameRes && nameRes.trim() ? nameRes : 'CHAD #' + tokenId;
         const level = Math.floor(closedCells / CELLS_PER_LEVEL) + 1;
         const cellsIntoLevel = closedCells % CELLS_PER_LEVEL;
         const nextLevel = level + 1;
         const needed = CELLS_PER_LEVEL - cellsIntoLevel;
 
-        chadName.textContent    = name.toUpperCase();
+        chadName.textContent     = name.toUpperCase();
         displayOpen.textContent  = openCells;
         displayClosed.textContent = closedCells;
         displayLevel.textContent  = level;
         progressFill.style.width  = cellsIntoLevel + '%';
         progressText.textContent  = cellsIntoLevel + ' / 100';
         progressNote.textContent  = `Lock ${needed} more cell${needed !== 1 ? 's' : ''} to reach Level ${nextLevel}`;
+
+        // Level-up banner
+        const banner = document.getElementById('levelupBanner');
+        const levelupBody = document.getElementById('levelupBody');
+        const levelupLink = document.getElementById('levelupLink');
+        if (pendingPts > 0) {
+          const pts = pendingPts === 1 ? '1 stat point' : `${pendingPts} stat points`;
+          levelupBody.textContent = `LEVEL ${level}! You have ${pts} to spend.`;
+          levelupLink.href = `stats.html?chad=${tokenId}`;
+          banner.style.display = 'block';
+        } else {
+          banner.style.display = 'none';
+        }
 
         // Slider
         lockSlider.min   = openCells > 0 ? 1 : 0;
