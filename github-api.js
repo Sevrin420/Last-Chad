@@ -1093,16 +1093,18 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       font-family: 'Press Start 2P', monospace;
       font-size: 0.55rem;
       padding: 10px 18px;
-      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
-      border: 2px solid #d4a017;
-      border-radius: 4px;
-      color: #1a1005;
+      background: linear-gradient(180deg, #b0bec5 0%, #78909c 50%, #546e7a 100%);
+      border: 3px solid #90a4ae;
+      border-radius: 0;
+      color: #0d1a1f;
       cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5);
+      transition: all 0.15s;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.35), 0 4px 0 #37474f, 0 6px 0 #263238, 0 8px 10px rgba(0,0,0,0.5);
+      letter-spacing: 0.04em;
     }
-    .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
-    .wallet-btn.connected { background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%); border-color: #4caf50; color: #a5d6a7; font-size: 0.5rem; }
+    .wallet-btn:hover { background: linear-gradient(180deg, #cfd8dc 0%, #90a4ae 50%, #607d8b 100%); border-color: #b0bec5; }
+    .wallet-btn:active { transform: translateY(4px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.4), 0 1px 0 #37474f, 0 2px 6px rgba(0,0,0,0.5); }
+    .wallet-btn.connected { background: linear-gradient(180deg, #78909c 0%, #546e7a 50%, #37474f 100%); border-color: #90a4ae; color: #eceff1; font-size: 0.5rem; box-shadow: inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #263238, 0 6px 0 #1a2a30, 0 8px 10px rgba(0,0,0,0.5); }
     .wallet-wrapper { position: relative; }
     .disconnect-dropdown { display: none; position: absolute; top: calc(100% + 6px); right: 0; background: linear-gradient(180deg, #1e1608 0%, #140f05 100%); border: 2px solid #5c4409; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.7); z-index: 110; min-width: 160px; }
     .disconnect-dropdown.show { display: block; }
@@ -2242,6 +2244,15 @@ ${diceInitJs}
             document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
               if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
             });
+            // Register session with worker so /session/win has a valid session to sign against.
+            // Required when no sections have sectionXp configured (worker never got a visit-section ping).
+            if (WORKER_URL && chadId) {
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 0, sectionXp: 0 }),
+              }).catch(function() {});
+            }
             return;
           }
         } catch(e) { console.warn('Seed fetch failed:', e); }
