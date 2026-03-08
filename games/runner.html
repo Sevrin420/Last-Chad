@@ -52,6 +52,7 @@ canvas {
 </head>
 <body>
 <canvas id="game"></canvas>
+<button id="tapTarget" style="position:fixed;inset:0;width:100%;height:100%;background:transparent;border:none;z-index:50;cursor:pointer;-webkit-tap-highlight-color:transparent;" aria-label="Tap to start"></button>
 <div id="death-overlay">
   <div class="death-dialogue">You have died</div>
 </div>
@@ -200,16 +201,21 @@ window.addEventListener('keyup', e => { keys[e.key] = false; });
 
 // Touch controls — listen on document so tapping black bars also works
 let touchStartX = 0;
+function showTapTarget() { tapTarget.style.display = ''; }
 function handleTap() {
   if (state === 'title') startGame();
-  else if (state === 'dead') respawn();
-  else if (state === 'win') { state = 'title'; }
+  else if (state === 'dead') { tapTarget.style.display = 'none'; respawn(); }
+  else if (state === 'win') { state = 'title'; showTapTarget(); }
 }
 document.addEventListener('touchstart', e => {
   e.preventDefault();
   touchStartX = e.touches[0].clientX;
   handleTap();
 }, { passive: false });
+// Tap-target button: reliable on mobile even before iframe gets focus
+const tapTarget = document.getElementById('tapTarget');
+tapTarget.addEventListener('click', () => { handleTap(); });
+tapTarget.addEventListener('touchstart', e => { e.preventDefault(); handleTap(); }, { passive: false });
 // Fallback click handler for desktop / hybrid devices
 document.addEventListener('click', () => { handleTap(); });
 document.addEventListener('touchmove', e => {
@@ -243,6 +249,7 @@ function getObstacleSprite() {
 
 // ── Game Functions ──
 function startGame() {
+  tapTarget.style.display = 'none';
   state = 'playing';
   player.lane = 2;
   player.x = laneToX(2);
@@ -638,6 +645,7 @@ function update(dt) {
       spawnDeathParticles(player.x, player.y);
       callWorker('/session/die', { tokenId: GAME_TOKEN_ID, questId: GAME_QUEST_ID });
       state = lives <= 0 ? 'game_over' : 'dead';
+      if (state === 'dead') showTapTarget();
       if (lives <= 0) { music.pause(); showDeathOverlay(); }
       break;
     }
@@ -670,6 +678,7 @@ function update(dt) {
     if (pBox.y < wallBot && pBox.y + pBox.h > wallTop) {
       if (inGap) {
         state = 'win';
+        showTapTarget();
         onWin();
       } else {
         deathCount++;
