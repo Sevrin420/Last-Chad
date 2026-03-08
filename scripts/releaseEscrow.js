@@ -14,19 +14,8 @@
  *   PRIVATE_KEY  — game owner / deployer wallet (must match gameOwner on contract)
  */
 
-const hre  = require("hardhat");
-const fs   = require("fs");
-const path = require("path");
-
-// Read QUEST_REWARDS_ADDRESS from js/config.js so this script stays in sync
-const configPath = path.join(__dirname, '..', 'js', 'config.js');
-const configContent = fs.readFileSync(configPath, 'utf8');
-const addrMatch = configContent.match(/QUEST_REWARDS_ADDRESS\s*=\s*'([^']+)'/);
-if (!addrMatch) {
-  console.error("Could not find QUEST_REWARDS_ADDRESS in js/config.js");
-  process.exit(1);
-}
-const QUEST_REWARDS_ADDRESS = addrMatch[1];
+const hre = require("hardhat");
+const { QUEST_REWARDS: QUEST_REWARDS_ADDRESS } = require('./addresses');
 
 const QUEST_REWARDS_ABI = [
   'function getLockedTokenIds() view returns (uint256[])',
