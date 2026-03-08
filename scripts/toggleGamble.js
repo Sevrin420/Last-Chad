@@ -15,7 +15,7 @@
 
 const hre = require("hardhat");
 
-const LAST_CHAD_ADDRESS = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
+const LAST_CHAD_ADDRESS = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe884f';
 const GAMBLE_ADDRESS    = '0x9034A1B8F64d58E9e372C9aebBD64BFE6Bd294f1';
 
 const SET_GAME_CONTRACT_ABI = [
