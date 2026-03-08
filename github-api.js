@@ -1392,10 +1392,12 @@ ${completePanelHtml}
     function _saveProgress() {
       if (!chadId) return;
       var scores = {};
+      var cargoScores = {};
       Object.keys(diceState).forEach(function(sid) {
         if (diceState[sid].totalScore) scores[sid] = diceState[sid].totalScore;
+        if (diceState[sid].cargoScore != null) cargoScores[sid] = diceState[sid].cargoScore;
       });
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores, sectionCells: _sectionCells, visitedSections: _visitedSections, winCert: _runnerWinCert || null }));
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores, cargoScores: cargoScores, sectionCells: _sectionCells, visitedSections: _visitedSections, winCert: _runnerWinCert || null }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1657,6 +1659,11 @@ function showPanel(id) {
         if (saved.scores) {
           Object.keys(saved.scores).forEach(function(sid) {
             getDiceState(Number(sid)).totalScore = saved.scores[sid];
+          });
+        }
+        if (saved.cargoScores) {
+          Object.keys(saved.cargoScores).forEach(function(sid) {
+            getDiceState(Number(sid)).cargoScore = saved.cargoScores[sid];
           });
         }
         if (saved.sectionCells) _sectionCells = saved.sectionCells;
@@ -2121,6 +2128,7 @@ function showPanel(id) {
 
       var score = vals[0] + vals[1];
       var total = score + statBonusVal;
+      diceState[sid].cargoScore = score;
       diceState[sid].totalScore = total;
 
       _saveProgress();
@@ -2152,6 +2160,7 @@ function showPanel(id) {
     function noScoreResult(scoreBox, scoreLabel, scoreValue, resultText, continueWrap, actionBtn, failNextId, difficulty, sid, statBonusVal) {
       // Stat bonus still counts even when 6,5,4 aren't held
       var bonus = statBonusVal || 0;
+      diceState[sid].cargoScore = 0;
       diceState[sid].totalScore = bonus;
       _saveProgress();
       updateExpBox();
@@ -2553,10 +2562,12 @@ ${diceInitJs}
             workerCells = _runnerWinCert.xpAmount;
             workerSig   = _runnerWinCert.signature;
           } else {
-            // Dice / section path: call /session/win now with the cargo dice score
+            // Dice / section path: call /session/win with only the raw cargo score (no stat).
+            // The worker independently fetches the stat bonus from chain and adds it server-side.
+            // Sending totalScore (cargo + stat) would double-count the stat bonus.
             var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
             var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
-            var _diceScore = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
+            var _diceScore = _ds ? (_ds.cargoScore || 0) : 0;
             var winResp = await fetch(WORKER_URL + '/session/win', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
