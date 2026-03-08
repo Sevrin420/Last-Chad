@@ -16,6 +16,10 @@ body {
   height: 100vh;
   overflow: hidden;
   font-family: monospace;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 canvas {
   image-rendering: pixelated;
@@ -52,7 +56,7 @@ canvas {
 </head>
 <body>
 <canvas id="game"></canvas>
-<button id="tapTarget" style="position:fixed;inset:0;width:100%;height:100%;background:transparent;border:none;z-index:50;cursor:pointer;-webkit-tap-highlight-color:transparent;" aria-label="Tap to start"></button>
+<button id="tapTarget" style="position:fixed;inset:0;width:100%;height:100%;background:rgba(0,0,0,0.01);border:none;z-index:50;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;" aria-label="Tap to start"></button>
 <div id="death-overlay">
   <div class="death-dialogue">You have died</div>
 </div>
@@ -201,23 +205,37 @@ window.addEventListener('keyup', e => { keys[e.key] = false; });
 
 // Touch controls — listen on document so tapping black bars also works
 let touchStartX = 0;
+let tapHandled = false; // debounce multiple simultaneous events
 function showTapTarget() { tapTarget.style.display = ''; }
 function handleTap() {
+  if (tapHandled) return;
+  tapHandled = true;
+  setTimeout(() => { tapHandled = false; }, 100);
   if (state === 'title') startGame();
   else if (state === 'dead') { tapTarget.style.display = 'none'; respawn(); }
   else if (state === 'win') { state = 'title'; showTapTarget(); }
 }
+// Tap-target button: reliable on mobile even before iframe gets focus
+const tapTarget = document.getElementById('tapTarget');
+// Use pointerdown (covers touch + mouse) with touchstart fallback
+tapTarget.addEventListener('pointerdown', e => { e.preventDefault(); handleTap(); });
+tapTarget.addEventListener('touchstart', e => { e.preventDefault(); handleTap(); }, { passive: false });
+tapTarget.addEventListener('click', () => { handleTap(); });
+// Document-level fallbacks
+document.addEventListener('pointerdown', e => {
+  if (e.target === tapTarget) return; // already handled
+  handleTap();
+});
 document.addEventListener('touchstart', e => {
+  if (e.target === tapTarget) return; // already handled
   e.preventDefault();
   touchStartX = e.touches[0].clientX;
   handleTap();
 }, { passive: false });
-// Tap-target button: reliable on mobile even before iframe gets focus
-const tapTarget = document.getElementById('tapTarget');
-tapTarget.addEventListener('click', () => { handleTap(); });
-tapTarget.addEventListener('touchstart', e => { e.preventDefault(); handleTap(); }, { passive: false });
-// Fallback click handler for desktop / hybrid devices
-document.addEventListener('click', () => { handleTap(); });
+document.addEventListener('click', e => {
+  if (e.target === tapTarget) return;
+  handleTap();
+});
 // Parent-page relay: WebView browsers send parent_tap when their overlay is tapped
 window.addEventListener('message', e => {
   if (e.data && e.data.type === 'parent_tap') handleTap();
@@ -270,7 +288,7 @@ function startGame() {
   lastSpawnTime = 0;
   lastEnemySpawnTime = 0;
   music.currentTime = 0;
-  music.play().catch(() => {});
+  try { var p = music.play(); if (p && p.catch) p.catch(function(){}); } catch(e) {}
   startTime = performance.now();
   winHandled = false;
   deathOverlayShown = false;

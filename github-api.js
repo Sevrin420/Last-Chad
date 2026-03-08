@@ -1278,10 +1278,11 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       position: fixed;
       inset: 0;
       z-index: 9000;
-      background: transparent;
+      background: rgba(0,0,0,0.01);
       border: none;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
       display: none;
     }
     body.minigame-active #mg-tap-overlay { display: block; }
@@ -2517,14 +2518,17 @@ ${diceInitJs}
     var _mgTapActive = false;
     function _showMgTap(frameEl) {
       _mgTapActive = true;
-      _mgTapOverlay.onclick = function() {
+      function _relayTap() {
         if (!_mgTapActive) return;
         _mgTapActive = false;
         _mgTapOverlay.style.display = 'none';
         if (frameEl && frameEl.contentWindow) {
           frameEl.contentWindow.postMessage({ type: 'parent_tap' }, '*');
         }
-      };
+      }
+      _mgTapOverlay.onclick = _relayTap;
+      _mgTapOverlay.ontouchstart = function(e) { e.preventDefault(); _relayTap(); };
+      _mgTapOverlay.onpointerdown = function(e) { e.preventDefault(); _relayTap(); };
     }
     function _hideMgTap() {
       _mgTapActive = false;
