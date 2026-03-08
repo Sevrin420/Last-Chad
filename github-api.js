@@ -551,7 +551,10 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           ${hasDice ? '<p>Your score held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
         </div>
         <div class="claim-xp-section">
-          <div id="xpPreview" style="margin-bottom:12px;font-size:1.1em;color:#ffd700;display:none;">CELLS EARNED: <span id="xpPreviewValue">0</span></div>
+          <div id="xpPreview" style="margin-bottom:12px;display:none;">
+            <div style="font-size:0.6em;color:#aaa;margin-bottom:6px;letter-spacing:0.08em;">CELLS EARNED IN QUEST</div>
+            <div style="font-size:1.1em;color:#ffd700;"><span id="xpPreviewValue">0</span></div>
+          </div>
           <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM REWARDS</button>
           <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
         </div>
