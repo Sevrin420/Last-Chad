@@ -1156,6 +1156,8 @@
           const section = state.sections.find(s => s.id === sectionId);
           if (section) {
             section.selectedChoice = choice;
+            // Clear gameFile when switching to minigame to prevent duplicate iframes
+            if (choice === 'minigame') section.gameFile = null;
             renderSections();
             saveQuestAuto();
           }

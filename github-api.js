@@ -405,7 +405,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       : (section.selectedChoice === 'dice' && section.diceImage
           ? `<img src="images/dice-${sid}.png" alt="${sectionName}" class="section-img">`
           : '');
-    const gameIframeHtml = section.gameFile
+    const gameIframeHtml = (section.gameFile && section.selectedChoice !== 'minigame')
       ? `<div class="dialogue-frame"><iframe src="../../games/${escapeHtml(section.gameFile)}" class="section-game-frame" allowfullscreen></iframe></div>`
       : '';
     const topImageHtml = gameIframeHtml || (rawImgHtml
