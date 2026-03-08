@@ -16,9 +16,9 @@
 
 const hre = require("hardhat");
 
-const LAST_CHAD_ADDRESS       = '0x27732900f9a87ced6a2ec5ce890d7ff58f882f76';
-const LAST_CHAD_ITEMS_ADDRESS = '0x0ef84248f58be2ac72b8d2e4229fc4e8575d5947';
-const QUEST_REWARDS_ADDRESS   = '0x72eD8376C35fA741Ac1D785E09DA5d94a808F136';
+const LAST_CHAD_ADDRESS       = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe884f';
+const LAST_CHAD_ITEMS_ADDRESS = '0x00906C5b4a5943E212FD59d227e995F3390cf86d';
+const QUEST_REWARDS_ADDRESS   = '0x0CcA830784D13F4E9B606F914eB0c1deecA925eB';
 
 const SET_GAME_CONTRACT_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
