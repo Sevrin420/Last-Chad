@@ -434,6 +434,12 @@
       justify-content: center;
     }
     #chargeVideoOverlay.show { display: flex; }
+    #chargeOverlayContent {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
     #chargeVideo {
       width: 100%;
       height: 100%;
@@ -441,19 +447,28 @@
       display: none;
     }
     #chargeVideo.playing { display: block; }
-    #watchChargeBtn {
+    #chargeOverlayContent.hidden { display: none; }
+    #watchChargeBtn, #skipChargeBtn {
       font-family: 'Press Start 2P', monospace;
       font-size: clamp(0.6rem, 2.5vw, 0.8rem);
+      border-radius: 6px;
+      padding: 18px 32px;
+      cursor: pointer;
+    }
+    #watchChargeBtn {
       color: #0a0a14;
       background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5a3d00 100%);
       border: 3px solid #c9a84c;
-      border-radius: 6px;
-      padding: 20px 36px;
-      cursor: pointer;
       box-shadow: 0 4px 0 #3d2800, 0 0 30px rgba(201,168,76,0.3);
-      animation: blink 1s step-end infinite;
     }
     #watchChargeBtn:active { transform: translateY(3px); box-shadow: none; }
+    #skipChargeBtn {
+      color: #888;
+      background: transparent;
+      border: 2px solid #444;
+      font-size: clamp(0.45rem, 2vw, 0.55rem);
+    }
+    #skipChargeBtn:active { color: #ccc; border-color: #888; }
   </style>
 </head>
 <body>
@@ -542,8 +557,12 @@
 
   <!-- Charge video overlay -->
   <div id="chargeVideoOverlay">
-    <button id="watchChargeBtn">▶ WATCH CHARGE</button>
-    <video id="chargeVideo" playsinline></video>
+    <div id="chargeOverlayContent">
+      <div id="chargeDoneMsg" style="font-family:'Press Start 2P',monospace;color:#c9a84c;font-size:clamp(0.7rem,2.5vw,1rem);text-align:center;margin-bottom:24px;">⚡ CELLS LOCKED ⚡</div>
+      <button id="watchChargeBtn">▶ CHARGE</button>
+      <button id="skipChargeBtn">SKIP</button>
+    </div>
+    <video id="chargeVideo" playsinline preload="none" webkit-playsinline></video>
   </div>
 
   <!-- Wallet modal -->
@@ -754,28 +773,47 @@
         statusMsg.textContent = `Locked ${amount} cell${amount !== 1 ? 's' : ''}!`;
         statusMsg.className = 'status-msg ok';
 
-        // Show charge overlay — user taps button to play video
+        // Show charge overlay with CHARGE / SKIP buttons
         const overlay = document.getElementById('chargeVideoOverlay');
         const vid = document.getElementById('chargeVideo');
+        const content = document.getElementById('chargeOverlayContent');
         const watchBtn = document.getElementById('watchChargeBtn');
-        overlay.classList.add('show');
-        watchBtn.style.display = 'block';
+        const skipBtn = document.getElementById('skipChargeBtn');
+
+        // Reset state
+        content.classList.remove('hidden');
         vid.classList.remove('playing');
-        vid.src = 'assets/charge.mp4';
+        vid.removeAttribute('src');
+        vid.load();
+        overlay.classList.add('show');
+
+        function dismissOverlay() {
+          overlay.classList.remove('show');
+          vid.classList.remove('playing');
+          vid.pause();
+          vid.removeAttribute('src');
+          vid.load();
+          selectChad(selectedTokenId);
+        }
+
+        skipBtn.onclick = dismissOverlay;
 
         watchBtn.onclick = () => {
-          watchBtn.style.display = 'none';
+          content.classList.add('hidden');
+          vid.src = 'assets/charge.mp4';
+          vid.load();
           vid.classList.add('playing');
-          vid.onended = () => {
-            overlay.classList.remove('show');
-            vid.classList.remove('playing');
-            selectChad(selectedTokenId);
+          vid.onended = dismissOverlay;
+          vid.onerror = dismissOverlay;
+
+          // Wait for video to be ready, then play
+          vid.oncanplay = () => {
+            vid.play().catch(dismissOverlay);
           };
-          vid.play().catch(() => {
-            overlay.classList.remove('show');
-            vid.classList.remove('playing');
-            selectChad(selectedTokenId);
-          });
+          // Fallback if canplay already fired
+          if (vid.readyState >= 3) {
+            vid.play().catch(dismissOverlay);
+          }
         };
       } catch (err) {
         const msg = err.reason || err.message || 'Transaction failed';
