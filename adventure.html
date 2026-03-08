@@ -210,16 +210,11 @@
     }
 
     .stat-box {
-      /* Pipe frame surrounds each stat — stub height is 10px top & bottom */
       background: url('assets/stat-frame.png') center/100% 100% no-repeat;
-      image-rendering: pixelated;
       width: 100%;
-      /* Inner content padded inside the 11px pipe walls + 10px stubs */
-      padding: 22px 13px 22px;
+      padding: 20px 10px;
       text-align: center;
-      /* Cells overlap by stub height so stubs from adjacent frames merge */
-      margin-top: -10px;
-      position: relative;
+      margin-top: 6px;
     }
     .stat-box:first-child { margin-top: 0; }
     .stat-label {
