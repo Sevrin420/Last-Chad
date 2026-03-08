@@ -630,7 +630,7 @@
         const level = Math.floor(closedCells / CELLS_PER_LEVEL) + 1;
         const cellsIntoLevel = closedCells % CELLS_PER_LEVEL;
         const nextLevel = level + 1;
-        const needed = nextLevel * CELLS_PER_LEVEL - closedCells;
+        const needed = CELLS_PER_LEVEL - cellsIntoLevel;
 
         chadName.textContent    = name.toUpperCase();
         displayOpen.textContent  = openCells;
