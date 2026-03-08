@@ -183,5 +183,10 @@
     "name": "40 test",
     "slug": "40-test",
     "questId": 36
+  },
+  {
+    "name": "41 test",
+    "slug": "41-test",
+    "questId": 37
   }
 ]

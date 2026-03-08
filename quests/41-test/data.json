@@ -1,0 +1,28 @@
+{
+  "name": "41 test",
+  "questId": 37,
+  "sections": [
+    {
+      "id": 1772944837244,
+      "name": "Section 1",
+      "dialogue": "Yup",
+      "selectedChoice": "minigame",
+      "buttonName": "Continue",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "minigameFile": "runner.html",
+      "minigameWinNextSectionId": null,
+      "sectionXp": 0,
+      "music": null,
+      "itemAward": null,
+      "gameFile": null
+    }
+  ]
+}
