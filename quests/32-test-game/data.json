@@ -1,0 +1,50 @@
+{
+  "name": "32 test game",
+  "questId": 31,
+  "sections": [
+    {
+      "id": 1772939099149,
+      "name": "Section 1",
+      "dialogue": "Playing a gamd",
+      "selectedChoice": "minigame",
+      "buttonName": "Continue",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "minigameFile": "runner.html",
+      "minigameWinNextSectionId": 1772939145104,
+      "sectionXp": 0,
+      "music": null,
+      "itemAward": null,
+      "gameFile": "runner.html"
+    },
+    {
+      "id": 1772939145104,
+      "name": "Section 2",
+      "dialogue": "Well done you made it",
+      "selectedChoice": "single",
+      "buttonName": "Continue",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "minigameFile": "runner.html",
+      "minigameWinNextSectionId": null,
+      "sectionXp": 3,
+      "music": null,
+      "itemAward": null,
+      "gameFile": null
+    }
+  ]
+}
