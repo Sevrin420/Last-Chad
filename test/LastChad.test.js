@@ -327,13 +327,13 @@ describe("LastChad", function () {
     it("awards pending stat points on level up", async function () {
       await contract.awardCells(1, 95);
       await contract.connect(addr1).lockCells(1, 100);
-      expect(await contract.getPendingStatPoints(1)).to.equal(2);
+      expect(await contract.getPendingStatPoints(1)).to.equal(1);
     });
 
     it("awards multiple stat points on multi-level jump", async function () {
       await contract.awardCells(1, 295); // 5 + 295 = 300 open
       await contract.connect(addr1).lockCells(1, 300); // jumps to level 4
-      expect(await contract.getPendingStatPoints(1)).to.equal(6);
+      expect(await contract.getPendingStatPoints(1)).to.equal(3);
       expect(await contract.getLevel(1)).to.equal(4);
     });
 
@@ -378,14 +378,14 @@ describe("LastChad", function () {
     beforeEach(async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
       await contract.awardCells(1, 95); // 100 open total
-      await contract.connect(addr1).lockCells(1, 100); // level 2, 2 stat points
+      await contract.connect(addr1).lockCells(1, 100); // level 2, 1 stat point
     });
 
     it("token owner can spend a stat point", async function () {
       await contract.connect(addr1).spendStatPoint(1, 0); // strength
       const stats = await contract.getStats(1);
       expect(stats.strength).to.equal(1);
-      expect(await contract.getPendingStatPoints(1)).to.equal(1);
+      expect(await contract.getPendingStatPoints(1)).to.equal(0);
     });
 
     it("emits StatPointSpent", async function () {
@@ -394,7 +394,6 @@ describe("LastChad", function () {
     });
 
     it("reverts when no stat points available", async function () {
-      await contract.connect(addr1).spendStatPoint(1, 0);
       await contract.connect(addr1).spendStatPoint(1, 0);
       await expect(
         contract.connect(addr1).spendStatPoint(1, 0)
