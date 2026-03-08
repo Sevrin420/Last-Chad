@@ -681,7 +681,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .section-game-frame {
       width: 100%;
-      height: 480px;
+      aspect-ratio: 2 / 3;
+      height: auto;
       border: none;
       display: block;
     }

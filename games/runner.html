@@ -63,11 +63,11 @@ const H = 720;
 canvas.width = W;
 canvas.height = H;
 
-// Scale canvas to fit screen
+// Scale canvas to fill iframe/screen
 function resizeCanvas() {
   const scaleX = window.innerWidth / W;
   const scaleY = window.innerHeight / H;
-  const scale = Math.min(scaleX, scaleY) * 0.95;
+  const scale = Math.min(scaleX, scaleY);
   canvas.style.width = (W * scale) + 'px';
   canvas.style.height = (H * scale) + 'px';
 }
@@ -94,6 +94,7 @@ bgImg.src = 'endless runner/bg.png';
 spriteNames.forEach(name => {
   const img = new Image();
   img.onload = () => { loadedCount++; };
+  img.onerror = () => { loadedCount++; };
   img.src = 'endless runner/' + name + '.png';
   sprites[name] = img;
 });
