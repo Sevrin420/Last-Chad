@@ -292,16 +292,18 @@
     }
 
     .stat-box {
-      background: linear-gradient(180deg, #1e2c32 0%, #131e24 100%);
-      border: 2px solid #37474f;
-      border-radius: 4px;
-      padding: 6px 4px;
+      /* Pipe frame surrounds each stat — stub height is 10px top & bottom */
+      background: url('assets/stat-frame.png') center/100% 100% no-repeat;
+      image-rendering: pixelated;
+      width: 100%;
+      /* Inner content padded inside the 11px pipe walls + 10px stubs */
+      padding: 22px 13px 22px;
       text-align: center;
-      box-shadow:
-        inset 0 1px 0 rgba(176,190,197,0.08),
-        0 2px 0 #0d1a1f,
-        0 4px 0 #091419;
+      /* Cells overlap by stub height so stubs from adjacent frames merge */
+      margin-top: -10px;
+      position: relative;
     }
+    .stat-box:first-child { margin-top: 0; }
     .stat-label {
       font-size: 0.38rem;
       color: #78909c;
@@ -322,33 +324,7 @@
       50% { text-shadow: 0 0 12px #ffe066, 0 0 22px #ffd700, 0 0 30px rgba(255,215,0,0.5); }
     }
 
-    /* Pipe end caps (top and bottom of stats column) */
-    .pipe-cap-top {
-      width: 100%;
-      height: 18px;
-      flex-shrink: 0;
-      background: url('assets/pipe-cap-top.png') center/100% 100% no-repeat;
-      image-rendering: pixelated;
-    }
-    .pipe-cap-bottom {
-      width: 100%;
-      height: 18px;
-      flex-shrink: 0;
-      background: url('assets/pipe-cap-bottom.png') center/100% 100% no-repeat;
-      image-rendering: pixelated;
-    }
-
-    /* Pipe connector between stat boxes */
-    .pipe-connector {
-      width: 100%;
-      height: 36px;
-      flex-shrink: 0;
-      background: url('assets/pipe-connector.png') center/100% 100% no-repeat;
-      image-rendering: pixelated;
-    }
-    .pipe-connector.cracked {
-      filter: brightness(1.12) contrast(1.06) saturate(0.9);
-    }
+    /* Legacy pipe elements — no longer used in stats panel */
 
     /* ── Portrait info (below card+stats row) ── */
     .portrait-info {
@@ -785,34 +761,28 @@
           </div>
         </div>
 
-        <!-- Stats panel -->
+        <!-- Stats panel — each box fully surrounded by pipe frame -->
         <div class="stats-panel" id="statsPanel">
-          <div class="pipe-cap-top"></div>
           <div class="stat-box">
             <div class="stat-label">STR</div>
             <div class="stat-value" id="statStr">—</div>
           </div>
-          <div class="pipe-connector"></div>
           <div class="stat-box">
             <div class="stat-label">INT</div>
             <div class="stat-value" id="statInt">—</div>
           </div>
-          <div class="pipe-connector cracked"></div>
           <div class="stat-box">
             <div class="stat-label">DEX</div>
             <div class="stat-value" id="statDex">—</div>
           </div>
-          <div class="pipe-connector"></div>
           <div class="stat-box">
             <div class="stat-label">CHA</div>
             <div class="stat-value" id="statCha">—</div>
           </div>
-          <div class="pipe-connector cracked"></div>
           <div class="stat-box">
             <div class="stat-label">CELLS</div>
             <div class="stat-value" id="statCells">—</div>
           </div>
-          <div class="pipe-cap-bottom"></div>
         </div>
 
       </div><!-- /card-stats-row -->
