@@ -552,11 +552,11 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
         </div>
         <div class="claim-xp-section">
           <div id="xpPreview" style="margin-bottom:12px;font-size:1.1em;color:#ffd700;display:none;">CELLS EARNED: <span id="xpPreviewValue">0</span></div>
-          <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM CELLS</button>
+          <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM REWARDS</button>
           <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
         </div>
-        <div class="action-wrap">
-          <button class="action-btn" onclick="window.history.back()">RETURN</button>
+        <div class="action-wrap" id="returnWrap" style="display:none;">
+          <button class="action-btn" onclick="window.location.href='../../chadbase.html'">BACK TO BASE</button>
         </div>
       </div>`;
 
@@ -2244,13 +2244,12 @@ ${diceInitJs}
             document.querySelectorAll('[id^="rollBtn_"]').forEach(function(btn) {
               if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
             });
-            // Register session with worker so /session/win has a valid session to sign against.
-            // Required when no sections have sectionXp configured (worker never got a visit-section ping).
-            if (WORKER_URL && chadId) {
-              fetch(WORKER_URL + '/session/visit-section', {
+            // Create the worker session so /session/win has a valid entry to sign against.
+            if (WORKER_URL && chadId && userAddress) {
+              fetch(WORKER_URL + '/session/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 0, sectionXp: 0 }),
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, player: userAddress }),
               }).catch(function() {});
             }
             return;
@@ -2500,6 +2499,8 @@ ${diceInitJs}
         statusEl.textContent = 'Cells already claimed for CHAD #' + chadId;
         btn.disabled = true;
         btn.textContent = 'ALREADY CLAIMED';
+        var rw = document.getElementById('returnWrap');
+        if (rw) rw.style.display = '';
         return;
       }
 
@@ -2521,17 +2522,19 @@ ${diceInitJs}
               _setText(statusEl, 'Cells already claimed for CHAD #' + chadId);
               btn.disabled = true;
               _setText(btn, 'ALREADY CLAIMED');
+              var rw = document.getElementById('returnWrap');
+              if (rw) rw.style.display = '';
             } else {
               _setText(statusEl, 'No active quest session — start a new quest from the Adventure page');
               btn.disabled = false;
-              _setText(btn, 'CLAIM CELLS');
+              _setText(btn, 'CLAIM REWARDS');
             }
             return;
           }
           if (lockedByAddr.toLowerCase() !== userAddress.toLowerCase()) {
             _setText(statusEl, 'This wallet did not start the quest for CHAD #' + chadId);
             btn.disabled = false;
-            _setText(btn, 'CLAIM CELLS');
+            _setText(btn, 'CLAIM REWARDS');
             return;
           }
         } catch(e) { /* check failed — proceed */ }
@@ -2564,7 +2567,7 @@ ${diceInitJs}
               workerSig   = winResp.signature;
             } else if (winResp && !winResp.ok) {
               btn.disabled = false;
-              _setText(btn, 'CLAIM CELLS');
+              _setText(btn, 'CLAIM REWARDS');
               _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
               return;
             }
@@ -2584,7 +2587,7 @@ ${diceInitJs}
           await tx.wait();
         } catch(e) {
           btn.disabled = false;
-          _setText(btn, 'CLAIM CELLS');
+          _setText(btn, 'CLAIM REWARDS');
           _setText(statusEl, 'Failed: ' + (e.reason || e.message || String(e)));
           return;
         }
@@ -2592,9 +2595,11 @@ ${diceInitJs}
 
       markQuestDone(chadId);
       _clearProgress();
-      _setText(btn, 'CELLS CLAIMED — CHAD #' + chadId);
+      _setText(btn, 'REWARDS CLAIMED — CHAD #' + chadId);
       var cellMsg = workerCells != null ? (workerCells + ' cells awarded!') : (QUEST_REWARDS_ADDRESS ? 'Cells awarded on-chain!' : 'Score recorded locally (QuestRewards not deployed).');
       _setText(statusEl, cellMsg);
+      var rw = document.getElementById('returnWrap');
+      if (rw) rw.style.display = '';
       checkQuestCompletion();
 
       // Check for pending stat points from level-up
