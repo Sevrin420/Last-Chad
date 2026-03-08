@@ -2178,7 +2178,14 @@ function showPanel(id) {
       }
       if (resultText) resultText.innerHTML = '<span class="result-fail">FAILURE</span>';
       if (continueWrap) continueWrap.classList.add('show');
-      if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
+      if (actionBtn) {
+        if (failNextId == null) {
+          // No recovery path — quest failure means death
+          actionBtn.onclick = function() { window.location.href = '../../died.html'; };
+        } else {
+          actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
+        }
+      }
     }
 
     // Initialise dice state + event listeners for each dice section
@@ -2458,7 +2465,7 @@ ${diceInitJs}
         return;
       }
 
-      // Death — show parent death overlay, end quest, redirect to index
+      // Death — show parent death overlay, end quest, redirect to died page
       if (e.data.type === 'runner_death') {
         if (_minigameDeathHandled) return;
         _minigameDeathHandled = true;
@@ -2468,7 +2475,7 @@ ${diceInitJs}
           requestAnimationFrame(function() { overlay.classList.add('visible'); });
         }
         setTimeout(function() {
-          window.location.href = '../../index.html';
+          window.location.href = '../../died.html';
         }, 3000);
       }
     });
