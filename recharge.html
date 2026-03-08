@@ -740,12 +740,12 @@
         const overlay = document.getElementById('chargeVideoOverlay');
         const vid = document.getElementById('chargeVideo');
         overlay.classList.add('show');
-        vid.currentTime = 0;
-        vid.play().catch(() => {});
         vid.onended = () => {
           overlay.classList.remove('show');
           selectChad(selectedTokenId);
         };
+        vid.load();
+        vid.play().catch(() => {});
       } catch (err) {
         const msg = err.reason || err.message || 'Transaction failed';
         statusMsg.textContent = msg.includes('Insufficient') ? 'Not enough open cells.' : msg.substring(0, 80);
