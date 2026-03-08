@@ -551,7 +551,10 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
           ${hasDice ? '<p>Your score held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
         </div>
         <div class="claim-xp-section">
-          <div id="xpPreview" style="margin-bottom:12px;font-size:1.1em;color:#ffd700;display:none;">CELLS EARNED: <span id="xpPreviewValue">0</span></div>
+          <div id="xpPreview" style="margin-bottom:12px;display:none;">
+            <div style="font-size:0.6em;color:#aaa;margin-bottom:6px;letter-spacing:0.08em;">CELLS EARNED IN QUEST</div>
+            <div style="font-size:1.1em;color:#ffd700;"><span id="xpPreviewValue">0</span></div>
+          </div>
           <button class="claim-xp-btn" id="claimXpBtn" onclick="claimQuestXP()">CLAIM REWARDS</button>
           <div class="loading-text" id="claimXpStatus" style="margin-top:8px;"></div>
         </div>
@@ -1799,16 +1802,24 @@ function showPanel(id) {
         setStatEl('hudInt_' + sid, baseInt, modInt);
         setStatEl('hudDex_' + sid, baseDex, modDex);
         setStatEl('hudCha_' + sid, baseCha, modCha);
+        // _chadStats includes item mods — used for HUD display only
         window._chadStats = {
           strength: baseStr + modStr,
           intelligence: baseInt + modInt,
           dexterity: baseDex + modDex,
           charisma: baseCha + modCha
         };
+        // _chadBaseStats is chain-only — used for dice XP scoring to match worker calculation
+        window._chadBaseStats = {
+          strength: baseStr,
+          intelligence: baseInt,
+          dexterity: baseDex,
+          charisma: baseCha
+        };
         var bonusEl = document.getElementById('statBonusVal_' + sid);
         if (bonusEl) {
           var stat = bonusEl.getAttribute('data-stat');
-          bonusEl.textContent = '+' + (window._chadStats[stat] || 0);
+          bonusEl.textContent = '+' + (window._chadBaseStats[stat] || 0);
         }
       } catch (e) {
         // HUD is cosmetic — silently fail if RPC unavailable
@@ -2111,8 +2122,9 @@ function showPanel(id) {
 
       // Compute stat bonus first — it applies regardless of 6,5,4 outcome
       var statBonusVal = 0;
-      if (outcome.statBonus && window._chadStats) {
-        statBonusVal = window._chadStats[outcome.statBonus] || 0;
+      if (outcome.statBonus && window._chadBaseStats) {
+        // Use chain-only base stats to match worker calculation (item mods not honored server-side)
+        statBonusVal = window._chadBaseStats[outcome.statBonus] || 0;
       }
 
       var vals = state.values.slice();
@@ -2178,7 +2190,14 @@ function showPanel(id) {
       }
       if (resultText) resultText.innerHTML = '<span class="result-fail">FAILURE</span>';
       if (continueWrap) continueWrap.classList.add('show');
-      if (actionBtn) actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
+      if (actionBtn) {
+        if (failNextId == null) {
+          // No recovery path — quest failure means death
+          actionBtn.onclick = function() { window.location.href = '../../died.html'; };
+        } else {
+          actionBtn.onclick = (function(nextId) { return function() { goToSection(nextId); }; })(failNextId);
+        }
+      }
     }
 
     // Initialise dice state + event listeners for each dice section
@@ -2254,11 +2273,24 @@ ${diceInitJs}
               if (btn.textContent === 'AWAITING SEED') { btn.textContent = 'ROLL'; btn.disabled = false; }
             });
             // Create the worker session so /session/win has a valid entry to sign against.
+            // After start succeeds, replay any section visits that happened before the session existed.
             if (WORKER_URL && chadId && userAddress) {
               fetch(WORKER_URL + '/session/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, player: userAddress }),
+              }).then(function(r) { return r.json(); }).then(function(startResp) {
+                if (!startResp || !startResp.ok) return;
+                // Replay any section visits that occurred before the session was registered
+                Object.keys(_visitedSections).forEach(function(sid) {
+                  if (sectionXpMap[sid] !== undefined) {
+                    fetch(WORKER_URL + '/session/visit-section', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: sid, sectionXp: sectionXpMap[sid] }),
+                    }).catch(function() {});
+                  }
+                });
               }).catch(function() {});
             }
             return;
@@ -2458,7 +2490,7 @@ ${diceInitJs}
         return;
       }
 
-      // Death — show parent death overlay, end quest, redirect to index
+      // Death — show parent death overlay, end quest, redirect to died page
       if (e.data.type === 'runner_death') {
         if (_minigameDeathHandled) return;
         _minigameDeathHandled = true;
@@ -2468,7 +2500,7 @@ ${diceInitJs}
           requestAnimationFrame(function() { overlay.classList.add('visible'); });
         }
         setTimeout(function() {
-          window.location.href = '../../index.html';
+          window.location.href = '../../died.html';
         }, 3000);
       }
     });
