@@ -732,10 +732,8 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       padding-top: 4px;
     }
     .hud-stat-box {
-      background: rgba(30, 20, 10, 0.7);
-      border: 2px solid #5c4409;
-      border-radius: 4px;
-      padding: 10px 16px;
+      background: url('https://lastchad.xyz/assets/stat-frame.png') center/100% 100% no-repeat;
+      padding: 20px 14px;
       min-width: 90px;
       text-align: center;
     }
