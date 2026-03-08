@@ -165,30 +165,21 @@
       position: relative;
       width: 100%;
       aspect-ratio: 3 / 4;
-      border-radius: 10px;
+      border-radius: 4px;
       overflow: visible;
-      /* Metallic card frame */
-      background: linear-gradient(180deg, #1a1208 0%, #0d0a05 100%);
-      border: 6px solid #6b4c14;
-      box-shadow:
-        0 0 0 1px #3d2a07,
-        0 0 0 2px #8b6330,
-        inset 0 0 0 2px rgba(201,168,76,0.15),
-        0 8px 24px rgba(0,0,0,0.7),
-        0 0 40px rgba(0,0,0,0.5);
+      background: #0d0a05;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8), 0 0 60px rgba(0,0,0,0.5);
     }
 
-    /* Metallic frame sheen */
+    /* Rusty metallic frame image overlay */
     .nft-card::before {
       content: '';
       position: absolute;
-      inset: -6px;
-      border-radius: 12px;
-      background:
-        linear-gradient(135deg, rgba(201,168,76,0.35) 0%, transparent 40%),
-        linear-gradient(315deg, rgba(139,99,48,0.25) 0%, transparent 40%);
+      inset: -5.5%;
+      background: url('assets/card-frame.png') center/100% 100% no-repeat;
       pointer-events: none;
-      z-index: 1;
+      z-index: 4;
+      image-rendering: pixelated;
     }
 
     /* Portrait image fills card */
@@ -279,33 +270,15 @@
     /* ── Last Chad badge (bottom-center of card) ── */
     .lc-badge {
       position: absolute;
-      bottom: 14%;
+      bottom: 10%;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 4;
-      background: linear-gradient(180deg, #2a1e0a 0%, #1a1205 100%);
-      border: 3px solid #6b4c14;
-      border-radius: 6px;
-      padding: 8px 14px;
-      text-align: center;
-      box-shadow:
-        0 0 0 1px #3d2a07,
-        0 4px 12px rgba(0,0,0,0.8),
-        inset 0 1px 0 rgba(201,168,76,0.2);
-      white-space: nowrap;
-    }
-    .lc-badge-line1 {
-      font-size: clamp(0.85rem, 4vw, 1.1rem);
-      color: #c9a84c;
-      display: block;
-      letter-spacing: 0.04em;
-      text-shadow: 0 0 10px rgba(201,168,76,0.5);
-    }
-    .lc-badge-line2 {
-      font-size: clamp(0.85rem, 4vw, 1.1rem);
-      color: #f5e6c8;
-      display: block;
-      letter-spacing: 0.04em;
+      z-index: 6;
+      width: 55%;
+      aspect-ratio: 260 / 160;
+      background: url('assets/lastchad-badge.png') center/100% 100% no-repeat;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.9));
     }
 
     /* ── Stats panel (right column) ── */
@@ -352,40 +325,13 @@
     /* Pipe connector between stat boxes */
     .pipe-connector {
       width: 100%;
-      height: 18px;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      height: 24px;
       flex-shrink: 0;
+      background: url('assets/pipe-connector.png') center/auto 100% no-repeat;
+      image-rendering: pixelated;
     }
-    .pipe-connector::before {
-      content: '';
-      position: absolute;
-      left: 50%;
-      top: 0; bottom: 0;
-      transform: translateX(-50%);
-      width: 14px;
-      background: linear-gradient(90deg, #1e2c32 0%, #263e47 30%, #37505a 50%, #263e47 70%, #1e2c32 100%);
-      border-left: 1px solid #37474f;
-      border-right: 1px solid #37474f;
-    }
-    /* Flange bolts */
-    .pipe-connector::after {
-      content: '';
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: 24px;
-      height: 8px;
-      background: linear-gradient(180deg, #263238 0%, #1a272d 100%);
-      border: 1px solid #455a64;
-      border-radius: 1px;
-    }
-    /* Crack detail on some pipes */
-    .pipe-connector.cracked::before {
-      background: linear-gradient(90deg, #1e2c32 0%, #2a3e47 30%, #3d5560 50%, #2a3e47 70%, #1e2c32 100%);
+    .pipe-connector.cracked {
+      filter: brightness(1.1) contrast(1.05);
     }
 
     /* ── Portrait info (below card+stats row) ── */
@@ -818,11 +764,8 @@
             <img id="portraitImg" src="" alt="">
             <div class="portrait-placeholder" id="portraitPlaceholder">Select a<br>Chad below</div>
 
-            <!-- Last Chad badge -->
-            <div class="lc-badge">
-              <span class="lc-badge-line1">Last</span>
-              <span class="lc-badge-line2">Chad</span>
-            </div>
+            <!-- Last Chad badge image -->
+            <div class="lc-badge"></div>
           </div>
         </div>
 
