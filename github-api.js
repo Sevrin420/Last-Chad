@@ -1393,7 +1393,7 @@ ${completePanelHtml}
       Object.keys(diceState).forEach(function(sid) {
         if (diceState[sid].totalScore) scores[sid] = diceState[sid].totalScore;
       });
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores, sectionCells: _sectionCells, visitedSections: _visitedSections }));
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores, sectionCells: _sectionCells, visitedSections: _visitedSections, winCert: _runnerWinCert || null }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1659,6 +1659,7 @@ function showPanel(id) {
         }
         if (saved.sectionCells) _sectionCells = saved.sectionCells;
         if (saved.visitedSections) _visitedSections = saved.visitedSections;
+        if (saved.winCert) _runnerWinCert = saved.winCert;
         var resumeId = saved.sectionId || firstId;
         currentSectionId = resumeId;
         showPanel(resumeId);
@@ -2426,6 +2427,7 @@ ${diceInitJs}
         if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
           _questRunnerXP += Number(e.data.runnerXP);
         }
+        _saveProgress(); // persist cert so it survives a page refresh before claiming
         // Advance to next section: check minigame map first, then legacy game map
         if (currentSectionId && minigameSectionMap[currentSectionId]) {
           var winId = minigameSectionMap[currentSectionId].winNextSectionId;
@@ -2524,28 +2526,37 @@ ${diceInitJs}
         } catch(e) { /* check failed — proceed */ }
       }
 
-      // Step 1: Ask the worker to finalise cells (section cells + dice + stat bonus) and sign it
+      // Step 1: Get cells + signature from worker.
+      // If the runner minigame already obtained a win cert, reuse it — the worker marks the session
+      // completed on the first /session/win call, so a second call returns quest_already_completed.
       var workerCells = null;
       var workerSig = null;
       if (WORKER_URL && chadId) {
         _setText(statusEl, 'CALCULATING CELLS...');
         try {
-          var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
-          var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
-          var _diceScore = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
-          var winResp = await fetch(WORKER_URL + '/session/win', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceScore: _diceScore }),
-          }).then(function(r) { return r.json(); });
-          if (winResp && winResp.ok) {
-            workerCells = winResp.cellReward;
-            workerSig   = winResp.signature;
-          } else if (winResp && !winResp.ok) {
-            btn.disabled = false;
-            _setText(btn, 'CLAIM CELLS');
-            _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
-            return;
+          if (_runnerWinCert && _runnerWinCert.signature) {
+            // Minigame path: runner already called /session/win and got the signature
+            workerCells = _runnerWinCert.xpAmount;
+            workerSig   = _runnerWinCert.signature;
+          } else {
+            // Dice / section path: call /session/win now with the cargo dice score
+            var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
+            var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
+            var _diceScore = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
+            var winResp = await fetch(WORKER_URL + '/session/win', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: _diceScore }),
+            }).then(function(r) { return r.json(); });
+            if (winResp && winResp.ok) {
+              workerCells = winResp.xpAmount;
+              workerSig   = winResp.signature;
+            } else if (winResp && !winResp.ok) {
+              btn.disabled = false;
+              _setText(btn, 'CLAIM CELLS');
+              _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
+              return;
+            }
           }
         } catch(e) { /* worker unavailable — proceed without signed cells */ }
       }

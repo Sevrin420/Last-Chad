@@ -197,9 +197,9 @@ async function handleVisitSection(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /session/win  { tokenId, questId, baseXP }
+// POST /session/win  { tokenId, questId, diceXP }
 //
-// baseXP — raw score computed by the game UI (cargo score + choice bonuses).
+// diceXP — raw score computed by the game UI (cargo score / lives remaining).
 //          The Worker adds the stat bonus on top from authoritative sources.
 //          The client cannot influence which stat is used or its value.
 //
