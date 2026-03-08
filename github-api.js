@@ -1372,9 +1372,11 @@ ${completePanelHtml}
   <script>
     var _animGen = 0;
     var _questRunnerXP = 0; // cells earned from runner minigame
+    var _sectionCells = 0; // cells earned from section visits
+    var _visitedSections = {}; // tracks visited sections to avoid double-counting
 
     function updateExpBox() {
-      var total = _questRunnerXP;
+      var total = _questRunnerXP + _sectionCells;
       Object.keys(diceOutcomes).forEach(function(sid) {
         total += (diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0;
       });
@@ -1391,7 +1393,7 @@ ${completePanelHtml}
       Object.keys(diceState).forEach(function(sid) {
         if (diceState[sid].totalScore) scores[sid] = diceState[sid].totalScore;
       });
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores }));
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores, sectionCells: _sectionCells, visitedSections: _visitedSections, winCert: _runnerWinCert || null }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1538,12 +1540,12 @@ function showPanel(id) {
 
       // When reaching the complete panel, show total cells that will be claimed
       if (!id) {
-        var _cellTotal = Object.keys(diceOutcomes).reduce(function(sum, sid) {
+        var _cellTotal = _sectionCells + _questRunnerXP + Object.keys(diceOutcomes).reduce(function(sum, sid) {
           return sum + ((diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0);
         }, 0);
         var xpPreviewEl = document.getElementById('xpPreview');
         var xpPreviewVal = document.getElementById('xpPreviewValue');
-        if (xpPreviewEl && _cellTotal > 0) {
+        if (xpPreviewEl) {
           xpPreviewVal.textContent = _cellTotal;
           xpPreviewEl.style.display = 'block';
         }
@@ -1560,7 +1562,15 @@ function showPanel(id) {
       _saveProgress();
       showPanel(id || null);
 
-      // Report section visit to worker so section XP is tracked server-side
+      // Track section cells locally (once per section per session)
+      if (id && sectionXpMap[id] !== undefined && !_visitedSections[id]) {
+        _visitedSections[id] = true;
+        _sectionCells += sectionXpMap[id];
+        _saveProgress();
+        updateExpBox();
+      }
+
+      // Report section visit to worker so section cells are tracked server-side
       if (id && sectionXpMap[id] !== undefined && WORKER_URL && chadId) {
         fetch(WORKER_URL + '/session/visit-section', {
           method: 'POST',
@@ -1647,6 +1657,9 @@ function showPanel(id) {
             getDiceState(Number(sid)).totalScore = saved.scores[sid];
           });
         }
+        if (saved.sectionCells) _sectionCells = saved.sectionCells;
+        if (saved.visitedSections) _visitedSections = saved.visitedSections;
+        if (saved.winCert) _runnerWinCert = saved.winCert;
         var resumeId = saved.sectionId || firstId;
         currentSectionId = resumeId;
         showPanel(resumeId);
@@ -2175,21 +2188,9 @@ ${diceInitJs}
       ], 1);
       return _cachedReadProvider;
     }
-    // Animated waiting-dots helper.
-    // _setText(el, 'CONFIRMING...') — cycles . → .. → ... every 400ms until next _setText call
-    // _setText(el, 'DONE')          — stops animation, sets plain text
-    var _dotsTimers = new WeakMap();
     function _setText(el, text) {
       if (!el) return;
-      if (_dotsTimers.has(el)) { clearInterval(_dotsTimers.get(el)); _dotsTimers.delete(el); }
-      var base = text.replace(/(?:\.\.\.|…)$/, '');
-      if (base !== text) {
-        var d = 0;
-        el.textContent = base + '.';
-        _dotsTimers.set(el, setInterval(function() { d = (d + 1) % 3; el.textContent = base + ['.', '..', '...'][d]; }, 400));
-      } else {
-        el.textContent = text;
-      }
+      el.textContent = text;
     }
     function _cleanRpcError(err) {
       // ethers v5: err.reason is the revert string, err.error?.data?.message has the VM reason
@@ -2426,6 +2427,7 @@ ${diceInitJs}
         if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
           _questRunnerXP += Number(e.data.runnerXP);
         }
+        _saveProgress(); // persist cert so it survives a page refresh before claiming
         // Advance to next section: check minigame map first, then legacy game map
         if (currentSectionId && minigameSectionMap[currentSectionId]) {
           var winId = minigameSectionMap[currentSectionId].winNextSectionId;
@@ -2500,6 +2502,21 @@ ${diceInitJs}
           var readProvider = _getReadProvider();
           var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
           var lockedByAddr = await qrRead.lockedBy(chadId);
+          if (lockedByAddr === ethers.constants.AddressZero) {
+            // lockedBy cleared — check if quest was already completed
+            var alreadyClaimed = await qrRead.questCompleted(chadId, QUEST_ID);
+            if (alreadyClaimed) {
+              markQuestDone(chadId);
+              _setText(statusEl, 'Cells already claimed for CHAD #' + chadId);
+              btn.disabled = true;
+              _setText(btn, 'ALREADY CLAIMED');
+            } else {
+              _setText(statusEl, 'No active quest session — start a new quest from the Adventure page');
+              btn.disabled = false;
+              _setText(btn, 'CLAIM CELLS');
+            }
+            return;
+          }
           if (lockedByAddr.toLowerCase() !== userAddress.toLowerCase()) {
             _setText(statusEl, 'This wallet did not start the quest for CHAD #' + chadId);
             btn.disabled = false;
@@ -2509,28 +2526,37 @@ ${diceInitJs}
         } catch(e) { /* check failed — proceed */ }
       }
 
-      // Step 1: Ask the worker to finalise cells (section cells + dice + stat bonus) and sign it
+      // Step 1: Get cells + signature from worker.
+      // If the runner minigame already obtained a win cert, reuse it — the worker marks the session
+      // completed on the first /session/win call, so a second call returns quest_already_completed.
       var workerCells = null;
       var workerSig = null;
       if (WORKER_URL && chadId) {
         _setText(statusEl, 'CALCULATING CELLS...');
         try {
-          var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
-          var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
-          var _diceScore = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
-          var winResp = await fetch(WORKER_URL + '/session/win', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceScore: _diceScore }),
-          }).then(function(r) { return r.json(); });
-          if (winResp && winResp.ok) {
-            workerCells = winResp.cellReward;
-            workerSig   = winResp.signature;
-          } else if (winResp && !winResp.ok) {
-            btn.disabled = false;
-            _setText(btn, 'CLAIM CELLS');
-            _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
-            return;
+          if (_runnerWinCert && _runnerWinCert.signature) {
+            // Minigame path: runner already called /session/win and got the signature
+            workerCells = _runnerWinCert.xpAmount;
+            workerSig   = _runnerWinCert.signature;
+          } else {
+            // Dice / section path: call /session/win now with the cargo dice score
+            var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
+            var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
+            var _diceScore = (_ds && _ds.totalScore) ? _ds.totalScore : 0;
+            var winResp = await fetch(WORKER_URL + '/session/win', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: _diceScore }),
+            }).then(function(r) { return r.json(); });
+            if (winResp && winResp.ok) {
+              workerCells = winResp.xpAmount;
+              workerSig   = winResp.signature;
+            } else if (winResp && !winResp.ok) {
+              btn.disabled = false;
+              _setText(btn, 'CLAIM CELLS');
+              _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
+              return;
+            }
           }
         } catch(e) { /* worker unavailable — proceed without signed cells */ }
       }

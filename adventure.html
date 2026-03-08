@@ -60,25 +60,43 @@
       font-family: 'Press Start 2P', monospace;
       font-size: 0.7rem;
       padding: 10px 18px;
-      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
-      border: 2px solid #d4a017;
-      border-radius: 4px;
-      color: #1a1005;
+      background: linear-gradient(180deg, #b0bec5 0%, #78909c 50%, #546e7a 100%);
+      border: 3px solid #90a4ae;
+      border-radius: 0;
+      color: #0d1a1f;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
       box-shadow:
-        inset 0 1px 0 rgba(255, 220, 120, 0.4),
-        0 2px 6px rgba(0, 0, 0, 0.5);
+        inset 0 2px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+        0 4px 0 #37474f,
+        0 6px 0 #263238,
+        0 8px 12px rgba(0, 0, 0, 0.55);
       touch-action: manipulation;
+      letter-spacing: 0.04em;
     }
     .wallet-btn:hover {
-      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+      background: linear-gradient(180deg, #cfd8dc 0%, #90a4ae 50%, #607d8b 100%);
+      border-color: #b0bec5;
+    }
+    .wallet-btn:active {
+      transform: translateY(4px);
+      box-shadow:
+        inset 0 2px 4px rgba(0,0,0,0.4),
+        0 1px 0 #37474f,
+        0 2px 6px rgba(0,0,0,0.5);
     }
     .wallet-btn.connected {
-      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
-      border-color: #4caf50;
-      color: #a5d6a7;
+      background: linear-gradient(180deg, #78909c 0%, #546e7a 50%, #37474f 100%);
+      border-color: #90a4ae;
+      color: #eceff1;
       font-size: 0.65rem;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.15),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+        0 4px 0 #263238,
+        0 6px 0 #1a2a30,
+        0 8px 12px rgba(0, 0, 0, 0.55);
     }
 
     .disconnect-dropdown {
@@ -192,23 +210,29 @@
     }
 
     .stat-box {
-      background: rgba(30, 20, 10, 0.7);
-      border: 2px solid #5c4409;
-      border-radius: 4px;
-      padding: 10px 16px;
-      min-width: 90px;
+      background: linear-gradient(180deg, #1e2c30 0%, #131e22 100%);
+      border: 3px solid #546e7a;
+      border-radius: 0;
+      padding: 12px 18px;
+      min-width: 96px;
       text-align: center;
+      box-shadow:
+        inset 0 1px 0 rgba(176, 190, 197, 0.12),
+        0 3px 0 #263238,
+        0 5px 0 #182028,
+        0 7px 8px rgba(0,0,0,0.4);
     }
 
     .stat-label {
       font-size: 0.52rem;
-      color: #8a7a5a;
+      color: #90a4ae;
       margin-bottom: 6px;
+      letter-spacing: 0.06em;
     }
 
     .stat-value {
       font-size: 0.85rem;
-      color: #c9a84c;
+      color: #cfd8dc;
     }
 
     /* --- Portrait frame --- */
@@ -834,9 +858,9 @@
             <div class="stat-label">CHA</div>
             <div class="stat-value" id="statCha">—</div>
           </div>
-          <div class="stat-box" style="border-color:#6b4fa8;">
-            <div class="stat-label" style="color:#6b4fa8;">CELLS</div>
-            <div class="stat-value" id="statCells" style="color:#6b4fa8;">—</div>
+          <div class="stat-box">
+            <div class="stat-label">CELLS</div>
+            <div class="stat-value" id="statCells">—</div>
           </div>
         </div>
       </div>
