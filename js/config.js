@@ -9,9 +9,19 @@ export const GAMBLE_ADDRESS           = '0x12527ec23064D11Fa128d6B36Db69252b86Ec
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
 
 export const LASTCHAD_ABI = [
+  // ERC-721 standard
+  'function totalSupply() view returns (uint256)',
+  'function balanceOf(address owner) view returns (uint256)',
+  'function ownerOf(uint256 tokenId) view returns (address)',
+  'function tokenURI(uint256 tokenId) view returns (string)',
   'function approve(address to, uint256 tokenId)',
+  'function getApproved(uint256 tokenId) view returns (address)',
+  'function isApprovedForAll(address owner, address operator) view returns (bool)',
+  // LastChad-specific
+  'function MAX_SUPPLY() view returns (uint256)',
   'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
   'function getLevel(uint256 tokenId) view returns (uint256)',
+  'function getExperience(uint256 tokenId) view returns (uint256)',
   'function getOpenCells(uint256 tokenId) view returns (uint256)',
   'function getClosedCells(uint256 tokenId) view returns (uint256)',
   'function getCells(uint256 tokenId) view returns (uint256)',
@@ -23,6 +33,12 @@ export const LASTCHAD_ABI = [
   'function tokenName(uint256 tokenId) view returns (string)',
   'function authorizedGame(address game) view returns (bool)',
   'function setGameContract(address game, bool enabled)',
+];
+
+export const ITEMS_ABI = [
+  'function balanceOf(address account, uint256 id) view returns (uint256)',
+  'function getItem(uint256 itemId) view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)',
+  'function mint(uint256 itemId, uint256 quantity) external payable',
 ];
 
 export const QUEST_REWARDS_ABI = [
