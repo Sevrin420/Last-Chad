@@ -102,27 +102,55 @@
       text-align: center;
     }
 
-    .page-subtitle {
-      font-size: 0.42rem;
-      color: #a07d1e;
-      text-align: center;
-      line-height: 2;
+    /* Dialogue box with image border */
+    .dialogue-box {
+      background-image: url('assets/dialogue.jpg');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      padding: 40px 56px;
       margin-bottom: 32px;
+      max-width: 580px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .dialogue-main {
+      font-size: clamp(0.55rem, 2vw, 0.7rem);
+      color: #f5e6c8;
+      line-height: 2.2;
+      margin-bottom: 14px;
+    }
+
+    .dialogue-bullets {
+      list-style: none;
+      text-align: left;
+      display: inline-block;
+    }
+
+    .dialogue-bullets li {
+      font-size: clamp(0.48rem, 1.8vw, 0.6rem);
+      color: #c9a84c;
+      line-height: 2.4;
+    }
+
+    .dialogue-bullets li::before {
+      content: '▶ ';
+      color: #8b6914;
     }
 
     /* Chad selector grid */
     .chad-grid {
       display: flex;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
       justify-content: center;
       margin-bottom: 28px;
-      max-width: 580px;
+      max-width: 680px;
     }
 
     .chad-card {
-      width: 90px;
-      height: 90px;
+      width: 130px;
+      height: 130px;
       border: 3px solid #5a3d00;
       border-radius: 4px;
       cursor: pointer;
@@ -416,7 +444,13 @@
   <!-- Main -->
   <main class="main">
     <h1 class="page-title">RECHARGE</h1>
-    <p class="page-subtitle">Lock open cells into your Chad's body.<br>100 locked cells = Level Up. Locked cells are permanent.</p>
+    <div class="dialogue-box">
+      <p class="dialogue-main">Lock open cells into your Chad's body.</p>
+      <ul class="dialogue-bullets">
+        <li>100 locked cells = Level Up.</li>
+        <li>Locked cells are permanent.</li>
+      </ul>
+    </div>
 
     <!-- Chad grid (shown after connect) -->
     <div class="chad-grid" id="chadGrid" style="display:none;"></div>
