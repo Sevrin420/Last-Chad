@@ -168,5 +168,10 @@
     "name": "35 trat",
     "slug": "35-trat",
     "questId": 33
+  },
+  {
+    "name": "36 test",
+    "slug": "36-test",
+    "questId": 34
   }
 ]
