@@ -581,7 +581,7 @@
       <div class="levelup-banner" id="levelupBanner" style="display:none;">
         <div class="levelup-title">⬆ LEVEL UP!</div>
         <div class="levelup-body" id="levelupBody">You have stat points to spend.</div>
-        <a class="levelup-btn" id="levelupLink" href="stats.html">SPEND STAT POINTS</a>
+        <a class="levelup-btn" id="levelupLink" href="levelup.html">ASSIGN STATS</a>
       </div>
 
       <!-- Amount slider -->
@@ -785,9 +785,8 @@
         const levelupBody = document.getElementById('levelupBody');
         const levelupLink = document.getElementById('levelupLink');
         if (pendingPts > 0) {
-          const pts = pendingPts === 1 ? '1 stat point' : `${pendingPts} stat points`;
-          levelupBody.textContent = `LEVEL ${level}! You have ${pts} to spend.`;
-          levelupLink.href = `stats.html?chad=${tokenId}`;
+          levelupBody.textContent = `LEVEL ${level}! You have 2 stat points to assign.`;
+          levelupLink.href = `levelup.html?chad=${tokenId}`;
           banner.style.display = 'block';
         } else {
           banner.style.display = 'none';
@@ -834,6 +833,13 @@
         statusMsg.textContent = `Locked ${amount} cell${amount !== 1 ? 's' : ''}!`;
         statusMsg.className = 'status-msg ok';
 
+        // Calculate level-up locally — don't rely on RPC sync timing
+        const oldLevel = Math.floor(closedCells / CELLS_PER_LEVEL) + 1;
+        const newClosedCells = closedCells + amount;
+        const newLevel = Math.floor(newClosedCells / CELLS_PER_LEVEL) + 1;
+        const didLevelUp = newLevel > oldLevel;
+        const levelsGained = newLevel - oldLevel;
+
         // Show charge overlay with CHARGE / SKIP buttons
         const overlay = document.getElementById('chargeVideoOverlay');
         const vid = document.getElementById('chargeVideo');
@@ -854,6 +860,16 @@
           vid.pause();
           vid.removeAttribute('src');
           vid.load();
+          // Show level-up banner immediately if we know one occurred,
+          // then refresh all data from chain
+          if (didLevelUp) {
+            const banner = document.getElementById('levelupBanner');
+            const body = document.getElementById('levelupBody');
+            const link = document.getElementById('levelupLink');
+            body.textContent = `LEVEL ${newLevel}! You have 2 stat points to assign.`;
+            link.href = `levelup.html?chad=${selectedTokenId}`;
+            banner.style.display = 'block';
+          }
           selectChad(selectedTokenId);
         }
 
