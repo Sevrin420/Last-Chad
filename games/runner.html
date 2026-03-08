@@ -21,6 +21,8 @@ canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   border: 2px solid #333;
+  display: block;
+  touch-action: none;
 }
 #death-overlay {
   position: fixed;
@@ -73,6 +75,7 @@ function resizeCanvas() {
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
 
 // ── Asset Loading ──
 const spriteNames = [
@@ -195,23 +198,27 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
 
-// Touch controls
+// Touch controls — listen on document so tapping black bars also works
 let touchStartX = 0;
-canvas.addEventListener('touchstart', e => {
+function handleTap() {
+  if (state === 'title') startGame();
+  else if (state === 'dead') respawn();
+  else if (state === 'win') { state = 'title'; }
+}
+document.addEventListener('touchstart', e => {
   e.preventDefault();
   touchStartX = e.touches[0].clientX;
-  if (state === 'title') startGame();
-  if (state === 'dead') respawn();
-  if (state === 'win') { state = 'title'; }
-  // game_over: redirect handled by showDeathOverlay()
-});
-canvas.addEventListener('touchmove', e => {
+  handleTap();
+}, { passive: false });
+// Fallback click handler for desktop / hybrid devices
+document.addEventListener('click', () => { handleTap(); });
+document.addEventListener('touchmove', e => {
   e.preventDefault();
   const dx = e.touches[0].clientX - touchStartX;
   if (dx > 30) { keys['ArrowRight'] = true; keys['ArrowLeft'] = false; touchStartX = e.touches[0].clientX; }
   if (dx < -30) { keys['ArrowLeft'] = true; keys['ArrowRight'] = false; touchStartX = e.touches[0].clientX; }
-});
-canvas.addEventListener('touchend', () => { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; });
+}, { passive: false });
+document.addEventListener('touchend', () => { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; });
 
 
 // ── Helper Functions ──
