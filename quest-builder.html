@@ -1320,9 +1320,9 @@
             <textarea placeholder="What does the NPC say? Describe the scene..." data-section-id="${section.id}" class="section-dialogue-input">${escTextarea(section.dialogue)}</textarea>
           </div>
 
-          <!-- Section XP -->
+          <!-- Section Cells -->
           <div class="form-group">
-            <label>⭐ Section XP (awarded at quest end)</label>
+            <label>🪙 Section Cells (awarded when player visits)</label>
             <input type="number" class="section-xp-input" min="0" max="${MAX_XP_PER_QUEST}" value="${section.sectionXp !== undefined ? section.sectionXp : 0}" data-section-id="${section.id}" placeholder="0">
           </div>
 
@@ -1360,7 +1360,7 @@
               <option value="">-- Choose action type --</option>
               <option value="single" ${section.selectedChoice === 'single' ? 'selected' : ''}>🔘 Single Button → Next Section</option>
               <option value="double" ${section.selectedChoice === 'double' ? 'selected' : ''}>⚖️ Double Button → Branch</option>
-              <option value="dice" ${section.selectedChoice === 'dice' ? 'selected' : ''}>🎲 Roll Dice → 0-12 XP</option>
+              <option value="dice" ${section.selectedChoice === 'dice' ? 'selected' : ''}>🎲 Roll Dice → 0-12 Cells</option>
               <option value="minigame" ${section.selectedChoice === 'minigame' ? 'selected' : ''}>🎮 Minigame → Win/Loss</option>
             </select>
           </div>
