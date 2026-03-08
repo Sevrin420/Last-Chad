@@ -1229,10 +1229,10 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       top: 116px;
       right: 16px;
       z-index: 150;
-      border: 2px solid #36b8e0;
+      border: 2px solid #c9a84c;
       border-radius: 4px;
-      background: rgba(10, 20, 40, 0.88);
-      box-shadow: 0 0 8px rgba(54, 184, 224, 0.2), inset 0 0 6px rgba(0,0,0,0.4);
+      background: rgba(20, 14, 4, 0.88);
+      box-shadow: 0 0 8px rgba(201, 168, 76, 0.2), inset 0 0 6px rgba(0,0,0,0.4);
       padding: 6px 10px;
       text-align: center;
       min-width: 56px;
@@ -1241,13 +1241,13 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .exp-box-label {
       font-size: 0.35rem;
-      color: #36b8e0;
+      color: #c9a84c;
       letter-spacing: 0.1em;
       margin-bottom: 4px;
     }
     .exp-box-value {
       font-size: 0.6rem;
-      color: #7dd4ee;
+      color: #ffe96a;
     }
 
     /* Minigame fullscreen mode — hides chrome, shows only the game */
