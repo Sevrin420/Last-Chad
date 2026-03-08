@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Level Up | Last Chad</title>
+  <link rel="stylesheet" href="nav.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+      background-image: url('assets/chargebg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 20%, rgba(120, 90, 10, 0.35) 0%, transparent 65%),
+        linear-gradient(180deg, rgba(10, 10, 20, 0.55) 0%, rgba(10, 10, 20, 0.75) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(10, 10, 20, 0.88);
+      border-bottom: 2px solid #5a3d00;
+      backdrop-filter: blur(8px);
+    }
+
+    .wallet-wrapper { position: relative; }
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
+    .wallet-btn.connected {
+      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
+      border-color: #4caf50;
+      color: #a5d6a7;
+      font-size: 0.5rem;
+    }
+    .disconnect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px); right: 0;
+      background: linear-gradient(180deg, #0e1420 0%, #090e1a 100%);
+      border: 2px solid #5a3d00;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      z-index: 110; min-width: 160px;
+    }
+    .disconnect-dropdown.show { display: block; }
+    .disconnect-btn {
+      width: 100%; padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #e53935; background: none; border: none;
+      cursor: pointer; text-align: center; transition: background 0.15s;
+    }
+    .disconnect-btn:hover { background: rgba(229,57,53,0.15); }
+
+    /* Main */
+    .main {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 20px 40px;
+    }
+
+    /* Card */
+    .levelup-card {
+      width: 100%;
+      max-width: 520px;
+      background: linear-gradient(180deg, rgba(10, 20, 40, 0.95) 0%, rgba(5, 12, 26, 0.98) 100%);
+      border: 3px solid #5a3d00;
+      border-radius: 8px;
+      padding: 32px 28px;
+      box-shadow:
+        0 0 30px rgba(0,0,0,0.6),
+        0 0 60px rgba(201,168,76,0.1),
+        inset 0 1px 0 rgba(201,168,76,0.15);
+    }
+
+    .card-title {
+      text-align: center;
+      font-size: clamp(0.8rem, 3vw, 1rem);
+      color: #c9a84c;
+      margin-bottom: 6px;
+      text-shadow: 0 0 10px rgba(201,168,76,0.3);
+      animation: title-glow 2s ease-in-out infinite;
+    }
+    @keyframes title-glow {
+      0%, 100% { text-shadow: 0 0 10px rgba(201,168,76,0.3); }
+      50% { text-shadow: 0 0 20px rgba(201,168,76,0.6), 0 0 40px rgba(201,168,76,0.2); }
+    }
+
+    .card-subtitle {
+      text-align: center;
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      margin-bottom: 24px;
+      line-height: 1.8;
+    }
+
+    /* Portrait + stats row (like adventure.html) */
+    .portrait-row {
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .nft-card-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .nft-card {
+      aspect-ratio: 3 / 4;
+      background: #0d0a05;
+      border: 3px solid #c9a84c;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 0 0 15px rgba(201,168,76,0.2);
+    }
+
+    .nft-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: pixelated;
+    }
+
+    .stats-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      width: 72px;
+      flex-shrink: 0;
+      padding-top: 18px;
+    }
+
+    .stat-box {
+      background: url('assets/stat-frame.png') center/100% 100% no-repeat;
+      width: 100%;
+      padding: 20px 10px;
+      text-align: center;
+      margin-top: 2px;
+    }
+    .stat-box:first-child { margin-top: 0; }
+    .stat-label {
+      font-size: 0.38rem;
+      color: #78909c;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .stat-val {
+      font-size: 0.9rem;
+      color: #cfd8dc;
+    }
+
+    /* Name / Level info below portrait */
+    .portrait-info {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .portrait-name {
+      font-size: 0.7rem;
+      color: #80cbc4;
+      font-style: italic;
+      margin-bottom: 5px;
+      text-shadow: 0 0 8px rgba(128,203,196,0.3);
+    }
+
+    .portrait-level {
+      font-size: 0.6rem;
+      color: #f5e6c8;
+    }
+
+    /* Points remaining */
+    .points-remaining {
+      text-align: center;
+      margin-bottom: 24px;
+      padding: 12px 16px;
+      background: rgba(92, 68, 9, 0.15);
+      border: 1px solid #3d2e0a;
+      border-radius: 4px;
+    }
+
+    .points-label {
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      margin-bottom: 6px;
+    }
+
+    .points-value {
+      font-size: 1.2rem;
+      color: #c9a84c;
+      text-shadow: 0 0 10px rgba(201,168,76,0.3);
+      transition: color 0.2s;
+    }
+    .points-value.zero { color: #4caf50; text-shadow: 0 0 10px rgba(76,175,80,0.3); }
+
+    /* Divider */
+    .divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #5c4409, transparent);
+      margin: 20px 0;
+    }
+
+    /* Stat rows */
+    .stat-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(61,46,10,0.3);
+    }
+    .stat-row:last-of-type { border-bottom: none; }
+
+    .stat-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 140px;
+    }
+
+    .stat-icon {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      background: rgba(61,46,10,0.4);
+      border: 2px solid #3d2e0a;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .stat-name {
+      font-size: 0.5rem;
+      color: #f5e6c8;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .stat-full {
+      font-size: 0.35rem;
+      color: #8a7a5a;
+      text-transform: lowercase;
+    }
+
+    .stat-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-bar-container {
+      width: 60px; height: 10px;
+      background: #1a1005;
+      border: 2px solid #3d2e0a;
+      border-radius: 2px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 1px;
+      transition: width 0.2s ease;
+    }
+    .stat-bar-fill.str { background: linear-gradient(90deg, #e53935, #ff5252); box-shadow: 0 0 4px rgba(229,57,53,0.4); }
+    .stat-bar-fill.int { background: linear-gradient(90deg, #2196f3, #42a5f5); box-shadow: 0 0 4px rgba(33,150,243,0.4); }
+    .stat-bar-fill.dex { background: linear-gradient(90deg, #4caf50, #66bb6a); box-shadow: 0 0 4px rgba(76,175,80,0.4); }
+    .stat-bar-fill.cha { background: linear-gradient(90deg, #ab47bc, #ce93d8); box-shadow: 0 0 4px rgba(171,71,188,0.4); }
+
+    .stat-btn {
+      width: 34px; height: 34px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      background: linear-gradient(180deg, #3d2e0a 0%, #1a1005 100%);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      color: #c9a84c;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      touch-action: manipulation;
+    }
+    .stat-btn:hover {
+      background: linear-gradient(180deg, #5c4409 0%, #3d2e0a 100%);
+      border-color: #8b6914;
+      box-shadow: 0 0 8px rgba(139,105,20,0.3);
+    }
+    .stat-btn:active { transform: scale(0.9); }
+    .stat-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .stat-btn:disabled:hover {
+      background: linear-gradient(180deg, #3d2e0a 0%, #1a1005 100%);
+      border-color: #5c4409;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .stat-value {
+      font-size: 0.9rem;
+      color: #f5e6c8;
+      min-width: 30px;
+      text-align: center;
+    }
+
+    .stat-add {
+      font-size: 0.55rem;
+      color: #4caf50;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    /* Confirm button */
+    .confirm-btn {
+      width: 100%;
+      margin-top: 24px;
+      padding: 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.6rem, 2.5vw, 0.8rem);
+      color: #fff;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border: 3px solid #d4a017;
+      border-radius: 6px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      box-shadow:
+        inset 0 2px 0 rgba(255,220,120,0.4),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 4px 0 #3d2e0a,
+        0 6px 15px rgba(0,0,0,0.5),
+        0 0 20px rgba(139,105,20,0.2);
+    }
+    .confirm-btn::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: none;
+    }
+    .confirm-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 50%, #6b5010 100%);
+      border-color: #f5e6c8;
+      box-shadow:
+        inset 0 2px 0 rgba(255,220,120,0.5),
+        inset 0 -2px 0 rgba(0,0,0,0.3),
+        0 4px 0 #3d2e0a,
+        0 6px 20px rgba(0,0,0,0.5),
+        0 0 30px rgba(201,168,76,0.4);
+    }
+    .confirm-btn:hover::after { left: 120%; transition: left 0.5s ease; }
+    .confirm-btn:active {
+      transform: translateY(3px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 #3d2e0a;
+    }
+    .confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); }
+    .confirm-btn:disabled:hover {
+      transform: none;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #5c4409 100%);
+      border-color: #d4a017;
+    }
+    .confirm-btn.ready { animation: glow-pulse 2s ease-in-out infinite; }
+    .confirm-btn.ready:hover { animation: none; }
+
+    @keyframes glow-pulse {
+      0%, 100% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 15px rgba(139,105,20,0.2); }
+      50% { box-shadow: inset 0 2px 0 rgba(255,220,120,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), 0 4px 0 #3d2e0a, 0 6px 15px rgba(0,0,0,0.5), 0 0 25px rgba(201,168,76,0.4); }
+    }
+
+    /* Status */
+    .status-msg {
+      margin-top: 14px;
+      font-size: 0.42rem;
+      color: #a07d1e;
+      text-align: center;
+      min-height: 1.6em;
+      line-height: 2;
+    }
+    .status-msg.ok { color: #4caf50; }
+    .status-msg.err { color: #e53935; }
+
+    /* Back link */
+    .back-btn {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 12px 24px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #f5e6c8;
+      text-decoration: none;
+      background: rgba(61,46,10,0.3);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .back-btn:hover { border-color: #c9a84c; background: rgba(92,68,9,0.3); color: #c9a84c; }
+
+    /* Wallet modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8); z-index: 200;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: linear-gradient(180deg, #0e1420 0%, #090e1a 100%);
+      border: 3px solid #5a3d00;
+      border-radius: 8px; padding: 28px 24px;
+      max-width: 380px; width: 100%;
+    }
+    .modal-title {
+      font-size: 0.7rem; color: #c9a84c;
+      text-align: center; margin-bottom: 24px;
+    }
+    .wallet-option {
+      display: flex; align-items: center; gap: 14px;
+      width: 100%; padding: 14px 16px; margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+      color: #f5e6c8; background: rgba(90,61,0,0.2);
+      border: 2px solid #5a3d00; border-radius: 4px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .wallet-option:hover { border-color: #c9a84c; background: rgba(201,168,76,0.1); }
+    .wallet-icon {
+      width: 32px; height: 32px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .modal-close {
+      display: block; margin: 16px auto 0;
+      font-family: 'Press Start 2P', monospace; font-size: 0.45rem;
+      color: #5a3d00; background: none; border: none;
+      cursor: pointer; padding: 8px;
+    }
+    .modal-close:hover { color: #c9a84c; }
+
+    /* Loading */
+    .loading-msg {
+      text-align: center;
+      font-size: 0.55rem;
+      color: #c9a84c;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Success state */
+    .success-view {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .success-view p {
+      font-size: 0.55rem;
+      color: #4caf50;
+      line-height: 2;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 480px) {
+      .levelup-card { padding: 24px 18px; }
+      .header { padding: 12px 16px; }
+      .stat-info { min-width: 110px; }
+      .stat-bar-container { width: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div id="nav-placeholder"></div>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="levelup-card">
+      <h1 class="card-title" id="cardTitle">LEVEL UP!</h1>
+      <p class="card-subtitle" id="cardSubtitle">Assign your new stat points.<br>This is permanent and cannot be changed.</p>
+
+      <!-- Loading state -->
+      <div class="loading-msg" id="loadingMsg">Loading Chad data...</div>
+
+      <!-- Main content (hidden until loaded) -->
+      <div id="mainContent" style="display:none;">
+
+        <!-- Chad portrait + stats HUD -->
+        <div class="portrait-row">
+          <div class="nft-card-wrap">
+            <div class="nft-card">
+              <img id="portraitImg" src="" alt="Chad">
+            </div>
+          </div>
+          <div class="stats-panel">
+            <div class="stat-box">
+              <div class="stat-label">STR</div>
+              <div class="stat-val" id="hudStr">—</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">INT</div>
+              <div class="stat-val" id="hudInt">—</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">DEX</div>
+              <div class="stat-val" id="hudDex">—</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">CHA</div>
+              <div class="stat-val" id="hudCha">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Name / Level -->
+        <div class="portrait-info">
+          <div class="portrait-name" id="portraitName"></div>
+          <div class="portrait-level" id="portraitLevel"></div>
+        </div>
+
+        <!-- Allocation UI -->
+        <div id="allocationUI">
+          <!-- Points remaining -->
+          <div class="points-remaining">
+            <div class="points-label">POINTS REMAINING</div>
+            <div class="points-value" id="pointsValue">0</div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Strength -->
+          <div class="stat-row">
+            <div class="stat-info">
+              <div class="stat-icon">&#9876;</div>
+              <span class="stat-name">STR<span class="stat-full">strength</span></span>
+            </div>
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill str" id="barStr"></div>
+            </div>
+            <div class="stat-controls">
+              <button class="stat-btn" id="strMinus" disabled>-</button>
+              <span class="stat-value" id="strValue">0</span>
+              <span class="stat-add" id="strAdd"></span>
+              <button class="stat-btn" id="strPlus">+</button>
+            </div>
+          </div>
+
+          <!-- Intelligence -->
+          <div class="stat-row">
+            <div class="stat-info">
+              <div class="stat-icon">&#128218;</div>
+              <span class="stat-name">INT<span class="stat-full">intelligence</span></span>
+            </div>
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill int" id="barInt"></div>
+            </div>
+            <div class="stat-controls">
+              <button class="stat-btn" id="intMinus" disabled>-</button>
+              <span class="stat-value" id="intValue">0</span>
+              <span class="stat-add" id="intAdd"></span>
+              <button class="stat-btn" id="intPlus">+</button>
+            </div>
+          </div>
+
+          <!-- Dexterity -->
+          <div class="stat-row">
+            <div class="stat-info">
+              <div class="stat-icon">&#127939;</div>
+              <span class="stat-name">DEX<span class="stat-full">dexterity</span></span>
+            </div>
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill dex" id="barDex"></div>
+            </div>
+            <div class="stat-controls">
+              <button class="stat-btn" id="dexMinus" disabled>-</button>
+              <span class="stat-value" id="dexValue">0</span>
+              <span class="stat-add" id="dexAdd"></span>
+              <button class="stat-btn" id="dexPlus">+</button>
+            </div>
+          </div>
+
+          <!-- Charisma -->
+          <div class="stat-row">
+            <div class="stat-info">
+              <div class="stat-icon">&#128081;</div>
+              <span class="stat-name">CHA<span class="stat-full">charisma</span></span>
+            </div>
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill cha" id="barCha"></div>
+            </div>
+            <div class="stat-controls">
+              <button class="stat-btn" id="chaMinus" disabled>-</button>
+              <span class="stat-value" id="chaValue">0</span>
+              <span class="stat-add" id="chaAdd"></span>
+              <button class="stat-btn" id="chaPlus">+</button>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <button class="confirm-btn" id="confirmBtn" disabled>
+            <span id="confirmText">ASSIGN POINTS</span>
+          </button>
+
+          <div class="status-msg" id="statusMsg"></div>
+        </div>
+
+        <!-- Success view (shown after assignment) -->
+        <div id="successUI" style="display:none;">
+          <div class="success-view">
+            <p id="successText">Stats assigned!</p>
+            <a class="back-btn" id="backLink" href="recharge.html">BACK TO RECHARGE</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Wallet modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="modal">
+      <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="rabby">
+        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
+        Rabby
+      </button>
+      <button class="wallet-option" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
+        WalletConnect
+      </button>
+      <button class="modal-close" id="modalClose">CANCEL</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script type="module">
+    import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+
+    const MAX_PER_STAT = 10;
+    const CELLS_PER_LEVEL = 100;
+
+    const CONTRACT_ABI = [
+      'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
+      'function getPendingStatPoints(uint256 tokenId) view returns (uint256)',
+      'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
+      'function tokenName(uint256 tokenId) view returns (string)',
+      'function getLevel(uint256 tokenId) view returns (uint256)',
+      'function getClosedCells(uint256 tokenId) view returns (uint256)',
+      'function ownerOf(uint256 tokenId) view returns (address)',
+    ];
+
+    // URL params
+    const params = new URLSearchParams(window.location.search);
+    const tokenId = Number(params.get('chad'));
+
+    if (!tokenId || tokenId <= 0) {
+      document.getElementById('loadingMsg').textContent = 'No Chad specified. Return to Recharge.';
+      document.getElementById('loadingMsg').style.animation = 'none';
+    }
+
+    // DOM
+    const walletBtn = document.getElementById('walletBtn');
+    const walletModal = document.getElementById('walletModal');
+    const modalClose = document.getElementById('modalClose');
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const loadingMsg = document.getElementById('loadingMsg');
+    const mainContent = document.getElementById('mainContent');
+    const allocationUI = document.getElementById('allocationUI');
+    const successUI = document.getElementById('successUI');
+    const pointsValue = document.getElementById('pointsValue');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const confirmText = document.getElementById('confirmText');
+    const statusMsg = document.getElementById('statusMsg');
+
+    let userAddress = null;
+    let pendingPoints = 0;
+    let baseStats = { str: 0, int: 0, dex: 0, cha: 0 };
+    let added = { str: 0, int: 0, dex: 0, cha: 0 };
+
+    const statElements = {
+      str: { minus: document.getElementById('strMinus'), plus: document.getElementById('strPlus'), value: document.getElementById('strValue'), bar: document.getElementById('barStr'), add: document.getElementById('strAdd'), hud: document.getElementById('hudStr') },
+      int: { minus: document.getElementById('intMinus'), plus: document.getElementById('intPlus'), value: document.getElementById('intValue'), bar: document.getElementById('barInt'), add: document.getElementById('intAdd'), hud: document.getElementById('hudInt') },
+      dex: { minus: document.getElementById('dexMinus'), plus: document.getElementById('dexPlus'), value: document.getElementById('dexValue'), bar: document.getElementById('barDex'), add: document.getElementById('dexAdd'), hud: document.getElementById('hudDex') },
+      cha: { minus: document.getElementById('chaMinus'), plus: document.getElementById('chaPlus'), value: document.getElementById('chaValue'), bar: document.getElementById('barCha'), add: document.getElementById('chaAdd'), hud: document.getElementById('hudCha') },
+    };
+
+    function totalAdded() {
+      return added.str + added.int + added.dex + added.cha;
+    }
+
+    function remaining() {
+      return pendingPoints - totalAdded();
+    }
+
+    function updateUI() {
+      const rem = remaining();
+      pointsValue.textContent = rem;
+      pointsValue.classList.toggle('zero', rem === 0);
+
+      for (const [key, el] of Object.entries(statElements)) {
+        const total = baseStats[key] + added[key];
+        el.value.textContent = total;
+        el.bar.style.width = (total / MAX_PER_STAT * 100) + '%';
+        el.hud.textContent = total;
+        el.minus.disabled = added[key] <= 0;
+        el.plus.disabled = rem <= 0;
+        el.add.textContent = added[key] > 0 ? '+' + added[key] : '';
+      }
+
+      if (rem === 0 && totalAdded() > 0 && getSigner()) {
+        confirmBtn.disabled = false;
+        confirmBtn.classList.add('ready');
+      } else {
+        confirmBtn.disabled = true;
+        confirmBtn.classList.remove('ready');
+      }
+    }
+
+    // Stat button events
+    for (const [key, el] of Object.entries(statElements)) {
+      el.minus.addEventListener('click', () => {
+        if (added[key] > 0) { added[key]--; updateUI(); }
+      });
+      el.plus.addEventListener('click', () => {
+        if (remaining() > 0) { added[key]++; updateUI(); }
+      });
+    }
+
+    // Load chad data
+    async function loadChadData() {
+      if (!tokenId || !CONTRACT_ADDRESS) return;
+
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+
+        const [statsRes, pendingRes, nameRes, levelRes] = await Promise.all([
+          contract.getStats(tokenId),
+          contract.getPendingStatPoints(tokenId),
+          contract.tokenName(tokenId),
+          contract.getLevel(tokenId),
+        ]);
+
+        baseStats.str = Number(statsRes.strength);
+        baseStats.int = Number(statsRes.intelligence);
+        baseStats.dex = Number(statsRes.dexterity);
+        baseStats.cha = Number(statsRes.charisma);
+        pendingPoints = Number(pendingRes);
+
+        const name = nameRes && nameRes.trim() ? nameRes : 'CHAD #' + tokenId;
+        const level = Number(levelRes);
+
+        // Set portrait
+        document.getElementById('portraitImg').src = 'assets/chads/' + tokenId + '.png';
+        document.getElementById('portraitName').textContent = name.toUpperCase();
+        document.getElementById('portraitLevel').textContent = 'LVL ' + level;
+
+        // Title
+        document.getElementById('cardTitle').textContent = 'LEVEL ' + level + '!';
+
+        if (pendingPoints === 0) {
+          loadingMsg.textContent = 'No stat points to spend.';
+          loadingMsg.style.animation = 'none';
+          mainContent.style.display = 'block';
+          allocationUI.style.display = 'none';
+          successUI.style.display = 'block';
+          document.getElementById('successText').textContent = 'No pending stat points.';
+          return;
+        }
+
+        loadingMsg.style.display = 'none';
+        mainContent.style.display = 'block';
+        added = { str: 0, int: 0, dex: 0, cha: 0 };
+        updateUI();
+
+      } catch (err) {
+        console.error('Failed to load chad:', err);
+        loadingMsg.textContent = 'Failed to load Chad data.';
+        loadingMsg.style.animation = 'none';
+      }
+    }
+
+    // Confirm — send spendStatPoint calls
+    confirmBtn.addEventListener('click', async () => {
+      if (confirmBtn.disabled || !getSigner() || !tokenId) return;
+      if (remaining() !== 0) return;
+
+      // Build list of spendStatPoint calls: [statIndex, ...]
+      const calls = [];
+      const statMap = { str: 0, int: 1, dex: 2, cha: 3 };
+      for (const [key, idx] of Object.entries(statMap)) {
+        for (let i = 0; i < added[key]; i++) {
+          calls.push(idx);
+        }
+      }
+
+      if (calls.length === 0) return;
+
+      confirmBtn.disabled = true;
+      confirmBtn.classList.remove('ready');
+      statusMsg.className = 'status-msg';
+
+      try {
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, getSigner());
+
+        for (let i = 0; i < calls.length; i++) {
+          confirmText.textContent = `ASSIGNING ${i + 1} / ${calls.length}...`;
+          statusMsg.textContent = 'Confirm in your wallet...';
+          const tx = await contract.spendStatPoint(tokenId, calls[i]);
+          statusMsg.textContent = 'Writing on-chain...';
+          await tx.wait();
+        }
+
+        confirmText.textContent = 'STATS ASSIGNED!';
+        statusMsg.textContent = '';
+        statusMsg.className = 'status-msg ok';
+
+        // Show success
+        setTimeout(() => {
+          allocationUI.style.display = 'none';
+          successUI.style.display = 'block';
+          document.getElementById('successText').textContent = 'Stats upgraded!';
+        }, 1000);
+
+      } catch (err) {
+        console.error('spendStatPoint failed:', err);
+        const msg = err.reason || err.message || 'Unknown error';
+        if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
+          confirmText.textContent = 'ASSIGN POINTS';
+          statusMsg.textContent = 'Transaction cancelled.';
+        } else if (msg.includes('No stat points')) {
+          confirmText.textContent = 'NO POINTS';
+          statusMsg.textContent = 'No pending stat points on-chain.';
+          statusMsg.className = 'status-msg err';
+        } else {
+          confirmText.textContent = 'ASSIGN POINTS';
+          statusMsg.textContent = msg.substring(0, 80);
+          statusMsg.className = 'status-msg err';
+        }
+        confirmBtn.disabled = false;
+        confirmBtn.classList.add('ready');
+      }
+    });
+
+    // Wallet
+    function onConnected(addr) {
+      userAddress = addr;
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      walletModal.classList.remove('show');
+      loadChadData();
+    }
+
+    function onDisconnected() {
+      userAddress = null;
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+      confirmBtn.disabled = true;
+      confirmBtn.classList.remove('ready');
+    }
+
+    walletBtn.addEventListener('click', () => {
+      if (userAddress) { disconnectDropdown.classList.toggle('show'); return; }
+      walletModal.classList.add('show');
+    });
+    disconnectBtn.addEventListener('click', () => {
+      disconnectDropdown.classList.remove('show');
+      disconnect(onDisconnected);
+    });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
+    });
+    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
+    walletModal.addEventListener('click', e => {
+      if (e.target === walletModal) walletModal.classList.remove('show');
+    });
+    document.querySelectorAll('.wallet-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        walletModal.classList.remove('show');
+        connectWallet(opt.dataset.wallet, { onConnected, onDisconnected });
+      });
+    });
+
+    // Init
+    if (tokenId > 0) loadChadData();
+    autoReconnect({ onConnected, onDisconnected });
+  </script>
+  <script src="nav.js"></script>
+</body>
+</html>

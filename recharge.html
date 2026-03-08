@@ -581,7 +581,7 @@
       <div class="levelup-banner" id="levelupBanner" style="display:none;">
         <div class="levelup-title">⬆ LEVEL UP!</div>
         <div class="levelup-body" id="levelupBody">You have stat points to spend.</div>
-        <a class="levelup-btn" id="levelupLink" href="stats.html">SPEND STAT POINTS</a>
+        <a class="levelup-btn" id="levelupLink" href="levelup.html">ASSIGN STATS</a>
       </div>
 
       <!-- Amount slider -->
@@ -785,9 +785,8 @@
         const levelupBody = document.getElementById('levelupBody');
         const levelupLink = document.getElementById('levelupLink');
         if (pendingPts > 0) {
-          const pts = pendingPts === 1 ? '1 stat point' : `${pendingPts} stat points`;
-          levelupBody.textContent = `LEVEL ${level}! You have ${pts} to spend.`;
-          levelupLink.href = `stats.html?chad=${tokenId}`;
+          levelupBody.textContent = `LEVEL ${level}! You have 2 stat points to assign.`;
+          levelupLink.href = `levelup.html?chad=${tokenId}`;
           banner.style.display = 'block';
         } else {
           banner.style.display = 'none';
@@ -867,9 +866,8 @@
             const banner = document.getElementById('levelupBanner');
             const body = document.getElementById('levelupBody');
             const link = document.getElementById('levelupLink');
-            const pts = levelsGained === 1 ? '1 stat point' : `${levelsGained} stat points`;
-            body.textContent = `LEVEL ${newLevel}! You have ${pts} to spend.`;
-            link.href = `stats.html?chad=${selectedTokenId}`;
+            body.textContent = `LEVEL ${newLevel}! You have 2 stat points to assign.`;
+            link.href = `levelup.html?chad=${selectedTokenId}`;
             banner.style.display = 'block';
           }
           selectChad(selectedTokenId);
