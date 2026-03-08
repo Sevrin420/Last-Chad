@@ -1,0 +1,28 @@
+{
+  "name": "40 test",
+  "questId": 36,
+  "sections": [
+    {
+      "id": 1772943304208,
+      "name": "Section 1",
+      "dialogue": "Run",
+      "selectedChoice": "minigame",
+      "buttonName": "Continue",
+      "nextSectionId": null,
+      "button1Name": "Choice A",
+      "button2Name": "Choice B",
+      "choice1NextSectionId": null,
+      "choice2NextSectionId": null,
+      "passNextSectionId": null,
+      "failNextSectionId": null,
+      "statBonus": null,
+      "difficulty": 8,
+      "minigameFile": "runner.html",
+      "minigameWinNextSectionId": null,
+      "sectionXp": 0,
+      "music": "music/adventure.mp3",
+      "itemAward": null,
+      "gameFile": null
+    }
+  ]
+}
