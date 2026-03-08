@@ -2,8 +2,7 @@
 // Run: npx hardhat run scripts/awardStarterCells.js --network fuji
 
 const hre = require("hardhat");
-
-const CONTRACT_ADDRESS = "0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2";
+const { LAST_CHAD: CONTRACT_ADDRESS } = require('./addresses');
 const CELLS_TO_AWARD   = 5;
 const TOKEN_IDS        = [1, 2, 3, 4, 5, 6];
 

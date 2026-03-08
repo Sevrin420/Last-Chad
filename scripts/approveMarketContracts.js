@@ -1,8 +1,5 @@
 const hre = require("hardhat");
-
-const MARKET_ADDRESS       = '0x2648fce03fe383c4a1d1a4c21fa59a0b9f35243d';
-const LASTCHAD_ADDRESS     = '0xE6A490A8D7fd9AAa70d095CC3e28a4974f9AfcE2';
-const ITEMS_ADDRESS        = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
+const { MARKET: MARKET_ADDRESS, LAST_CHAD: LASTCHAD_ADDRESS, ITEMS: ITEMS_ADDRESS } = require('./addresses');
 
 const MARKET_ABI = [
   "function setApprovedContract(address nftContract, bool approved) external"

@@ -16,9 +16,8 @@ const hre = require("hardhat");
 const fs  = require("fs");
 const path = require("path");
 
-// ── Existing contract addresses ────────────────────────────────────────────
-const LAST_CHAD_ADDRESS       = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe884f';
-const LAST_CHAD_ITEMS_ADDRESS = '0x00906C5b4a5943E212FD59d227e995F3390cf86d';
+// ── Existing contract addresses (read from js/config.js) ──────────────────
+const { LAST_CHAD: LAST_CHAD_ADDRESS, ITEMS: LAST_CHAD_ITEMS_ADDRESS } = require('./addresses');
 
 // ── Minimal ABIs needed just for the wiring calls ─────────────────────────
 const SET_GAME_CONTRACT_ABI = [

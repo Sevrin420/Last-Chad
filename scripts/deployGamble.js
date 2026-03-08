@@ -15,8 +15,7 @@
 const hre  = require("hardhat");
 const fs   = require("fs");
 const path = require("path");
-
-const LAST_CHAD_ADDRESS = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe884f';
+const { LAST_CHAD: LAST_CHAD_ADDRESS } = require('./addresses');
 
 const SET_GAME_CONTRACT_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
