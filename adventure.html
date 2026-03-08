@@ -770,34 +770,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, truncateAddress, getSigner } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, READ_RPC,
+             LASTCHAD_ABI, ITEMS_ABI, QUEST_REWARDS_ABI } from './js/config.js';
     // ========== CONFIG ==========
-    const CONTRACT_ABI = [
-      'function totalSupply() view returns (uint256)',
-      'function balanceOf(address owner) view returns (uint256)',
-      'function ownerOf(uint256 tokenId) view returns (address)',
-      'function tokenURI(uint256 tokenId) view returns (string)',
-      'function MAX_SUPPLY() view returns (uint256)',
-      'function getStats(uint256 tokenId) view returns (uint32, uint32, uint32, uint32, bool)',
-      'function getOpenCells(uint256 tokenId) view returns (uint256)',
-      'function getClosedCells(uint256 tokenId) view returns (uint256)',
-      'function tokenName(uint256 tokenId) view returns (string)'
-    ];
-
-    const ITEMS_ABI = [
-      'function balanceOf(address account, uint256 id) view returns (uint256)',
-      'function getItem(uint256 itemId) view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)'
-    ];
-    const QUEST_REWARDS_ABI = [
-      'function startQuest(uint256 tokenId, uint8 questId) external',
-      'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
-      'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)'
-    ];
-    const ERC721_APPROVE_ABI = [
-      'function getApproved(uint256 tokenId) view returns (address)',
-      'function isApprovedForAll(address owner, address operator) view returns (bool)',
-      'function approve(address to, uint256 tokenId) external'
-    ];
+    const CONTRACT_ABI = LASTCHAD_ABI;
+    const ERC721_APPROVE_ABI = LASTCHAD_ABI;
     // Known ERC-1155 items — add entries here when new items are created
     const KNOWN_ITEMS = { '1': "Cindy's Code" };
     let questIndexData = [];

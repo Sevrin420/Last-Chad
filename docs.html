@@ -484,13 +484,9 @@
   <script src="nav.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
+    import { ITEMS_CONTRACT_ADDRESS, ITEMS_ABI } from './js/config.js';
 
     // ========== LAST CHAD ITEMS CONTRACT ==========
-    const ITEMS_CONTRACT_ADDRESS = '0xf84b280b2f501b9433319f1c8eee5595c5c60b34';
-    const ITEMS_ABI = [
-      'function mint(uint256 itemId, uint256 quantity) external payable',
-      'function balanceOf(address account, uint256 id) view returns (uint256)'
-    ];
     const CINDYCODE_ITEM_ID = 1;
 
     const walletBtn = document.getElementById('walletBtn');
