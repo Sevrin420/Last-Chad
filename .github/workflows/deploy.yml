@@ -20,6 +20,7 @@ on:
           - release-escrow   # Return all NFTs locked in QuestRewards escrow to their owners
           - gamble-open      # Open the gambling den (authorize Gamble in LastChad)
           - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
+          - award-owner-cells # Award 100 open cells to every Chad in the owner wallet
       network:
         description: 'Network (ignored if target=worker)'
         required: true
@@ -243,3 +244,27 @@ jobs:
           PRIVATE_KEY:  ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           GAMBLE_OPEN:  ${{ inputs.target == 'gamble-open' && 'true' || 'false' }}
         run: npx hardhat run scripts/toggleGamble.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 7: Award 100 open cells to every Chad in the owner wallet
+  # ───────────────────────────────────────────────────────────────────────────
+  award-owner-cells:
+    name: Award 100 Cells to Owner Chads (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'award-owner-cells'
+    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Award 100 cells to each Chad in owner wallet
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/awardOwnerCells.js --network ${{ inputs.network }}
