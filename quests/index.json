@@ -3,5 +3,10 @@
     "name": "56 Test",
     "slug": "56-test",
     "questId": 0
+  },
+  {
+    "name": "58 Test",
+    "slug": "58-test",
+    "questId": 1
   }
 ]
