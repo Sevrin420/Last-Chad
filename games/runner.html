@@ -122,10 +122,11 @@ const SPRITE_SIZE = 48;
 
 // ── Worker / Quest Integration ──
 const _qp = new URLSearchParams(window.location.search);
-const GAME_TOKEN_ID  = _qp.get('tokenId')  || '';
-const GAME_QUEST_ID  = _qp.get('questId')  || '';
-const GAME_PLAYER    = _qp.get('player')   || '';
-const WORKER_URL     = _qp.get('worker')   || '';
+const GAME_TOKEN_ID  = _qp.get('tokenId')   || '';
+const GAME_QUEST_ID  = _qp.get('questId')   || '';
+const GAME_SECTION_ID = _qp.get('sectionId') || '';
+const GAME_PLAYER    = _qp.get('player')    || '';
+const WORKER_URL     = _qp.get('worker')    || '';
 
 async function callWorker(path, body) {
   if (!WORKER_URL || !GAME_TOKEN_ID || !GAME_QUEST_ID) return null;
@@ -164,12 +165,16 @@ async function onWin() {
   winHandled = true;
   music.pause();
   if (window.parent !== window) {
-    const cert = await callWorker('/session/win', {
+    // Record runner XP as a section visit so the worker accumulates it.
+    // /session/win is called once by the quest claim handler at the very end,
+    // after any dice sections are also played — so the full total is correct.
+    await callWorker('/session/visit-section', {
       tokenId: GAME_TOKEN_ID,
       questId: GAME_QUEST_ID,
-      diceXP: lives,
+      sectionId: 'runner_' + (GAME_SECTION_ID || 'default'),
+      sectionXp: lives,
     });
-    window.parent.postMessage({ type: 'runner_win', cert, runnerXP: lives }, '*');
+    window.parent.postMessage({ type: 'runner_win', runnerXP: lives }, '*');
   }
 }
 

@@ -9,16 +9,18 @@
  *
  * Stat bonus resolution (for dice quests):
  *  - Fetches lastchad.xyz/quests/index.json to map questId → slug
- *  - Fetches lastchad.xyz/quests/{slug}/data.json to find the dice section's statBonus
- *  - Fetches lastChad.getStats(tokenId) via read RPC to get the actual stat value
+ *  - Fetches lastchad.xyz/quests/{slug}/data.json to find ALL dice sections' statBonus fields
+ *  - Fetches lastChad.getStats(tokenId) via read RPC to get the actual stat values
+ *  - Each dice section's stat bonus is applied independently — two STR-based dice
+ *    sections both add the character's STR value to the final XP total
  *  - Both data.json and chain stats are read by the Worker — the client never
  *    controls which stat applies or what its value is
  *
  * KV key:  runner:{tokenId}:{questId}
  * KV value: { runStartedAt, died, player }
  *
- * KV cache key:  questdata:{questId}
- * KV cache value: { statBonus }   TTL: 24h
+ * KV cache key:  questdata_v2:{questId}
+ * KV cache value: { statBonuses: string[] }   TTL: 24h
  *
  * Endpoints:
  *   POST /session/start  { tokenId, questId, player }  → record run start
@@ -229,18 +231,22 @@ async function handleWin(request, env) {
   const sectionXpTotal = Object.values(session.visitedSections ?? {})
     .reduce((sum, xp) => sum + Number(xp), 0);
 
-  // 2. Look up which stat this quest's dice section uses (from data.json via GitHub Pages).
-  //    Returns null for quests with no dice section (runner games, etc.).
-  const statBonus = await getQuestStatBonus(Number(questId), env);
+  // 2. Look up which stat each dice section uses (from data.json via GitHub Pages).
+  //    Returns an array — one entry per dice section that has a statBonus configured.
+  //    Each dice section's stat is applied independently, so two STR-based dice
+  //    sections both add the character's STR value.
+  const statBonuses = await getQuestStatBonuses(Number(questId), env);
 
-  // 3. If a stat applies, read its value from the chain — never from the client.
+  // 3. Sum the stat value for every dice section that has one — fetched from chain.
   let statValue = 0;
-  if (statBonus) {
+  if (statBonuses.length > 0) {
     const stats = await getCharStats(BigInt(tokenId), env);
-    statValue = stats[statBonus] ?? 0;
+    for (const statName of statBonuses) {
+      statValue += stats[statName] ?? 0;
+    }
   }
 
-  // finalXP = section XP (server-tracked) + dice cargo score (client-reported) + stat bonus (chain)
+  // finalXP = section XP (server-tracked) + dice cargo score (client-reported) + per-section stat bonuses (chain)
   const finalXP = Math.min(sectionXpTotal + dice + statValue, MAX_XP_PER_QUEST);
 
   // 4. Sign keccak256(tokenId, questId, player, finalXP)
@@ -259,7 +265,7 @@ async function handleWin(request, env) {
     diceScore: dice,
   }), { expirationTtl: 86_400 }); // keep 24h so status endpoint can confirm
 
-  return json({ ok: true, signature, xpAmount: finalXP, sectionXpTotal, dice, statBonus, statValue, elapsed });
+  return json({ ok: true, signature, xpAmount: finalXP, sectionXpTotal, dice, statBonuses, statValue, elapsed });
 }
 
 // ---------------------------------------------------------------------------
@@ -285,16 +291,17 @@ async function handleStatus(url, env) {
 }
 
 // ---------------------------------------------------------------------------
-// getQuestStatBonus — fetch questId → slug → data.json → dice section statBonus
+// getQuestStatBonuses — fetch questId → slug → data.json → all dice section statBonuses
 //
-// Cached in KV under questdata:{questId} for 24h so GitHub Pages is only
+// Cached in KV under questdata_v2:{questId} for 24h so GitHub Pages is only
 // hit once per quest per day across all workers.
-// Returns a stat name string or null.
+// Returns an array of stat name strings (one entry per dice section that has a
+// statBonus configured). Empty array means no stat bonuses apply.
 // ---------------------------------------------------------------------------
-async function getQuestStatBonus(questId, env) {
-  const cacheKey = `questdata:${questId}`;
+async function getQuestStatBonuses(questId, env) {
+  const cacheKey = `questdata_v2:${questId}`;
   const cached   = await env.RUNNER_KV.get(cacheKey, { type: 'json' });
-  if (cached !== null) return cached.statBonus;
+  if (cached !== null) return cached.statBonuses ?? [];
 
   const baseUrl = env.GAME_BASE_URL ?? 'https://lastchad.xyz';
 
@@ -305,26 +312,26 @@ async function getQuestStatBonus(questId, env) {
 
   const entry = index.find(q => q.questId === questId);
   if (!entry) {
-    // questId not in index — could be a runner quest with no data.json
-    await env.RUNNER_KV.put(cacheKey, JSON.stringify({ statBonus: null }), { expirationTtl: QUEST_CACHE_TTL });
-    return null;
+    // questId not in index — runner quest or no data.json
+    await env.RUNNER_KV.put(cacheKey, JSON.stringify({ statBonuses: [] }), { expirationTtl: QUEST_CACHE_TTL });
+    return [];
   }
 
-  // Fetch quest data.json to find the dice section's statBonus
+  // Fetch quest data.json to find every dice section's statBonus
   const dataRes = await fetch(`${baseUrl}/quests/${entry.slug}/data.json`);
   if (!dataRes.ok) {
-    await env.RUNNER_KV.put(cacheKey, JSON.stringify({ statBonus: null }), { expirationTtl: QUEST_CACHE_TTL });
-    return null;
+    await env.RUNNER_KV.put(cacheKey, JSON.stringify({ statBonuses: [] }), { expirationTtl: QUEST_CACHE_TTL });
+    return [];
   }
   const data = await dataRes.json();
 
-  const diceSection = (data.sections ?? []).find(s => s.selectedChoice === 'dice');
-  const statBonus   = (diceSection?.statBonus && VALID_STATS.has(diceSection.statBonus))
-    ? diceSection.statBonus
-    : null;
+  // Collect one entry per dice section that has a valid statBonus configured
+  const statBonuses = (data.sections ?? [])
+    .filter(s => s.selectedChoice === 'dice' && s.statBonus && VALID_STATS.has(s.statBonus))
+    .map(s => s.statBonus);
 
-  await env.RUNNER_KV.put(cacheKey, JSON.stringify({ statBonus }), { expirationTtl: QUEST_CACHE_TTL });
-  return statBonus;
+  await env.RUNNER_KV.put(cacheKey, JSON.stringify({ statBonuses }), { expirationTtl: QUEST_CACHE_TTL });
+  return statBonuses;
 }
 
 // ---------------------------------------------------------------------------
