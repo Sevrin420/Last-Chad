@@ -198,5 +198,10 @@
     "name": "Episode 1 - A New Tribe Demo",
     "slug": "episode-1-a-new-tribe-demo",
     "questId": 39
+  },
+  {
+    "name": "Episode 1 - A New Tribe Demo 1",
+    "slug": "episode-1-a-new-tribe-demo-1",
+    "questId": 40
   }
 ]
