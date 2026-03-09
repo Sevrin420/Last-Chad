@@ -842,10 +842,14 @@ function waitAndStart() {
   if (loadedCount >= totalAssets) {
     requestAnimationFrame(gameLoop);
   } else {
-    // Show loading
+    // Show loading screen
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, W, H);
-    drawPixelText(`Loading... ${loadedCount}/${totalAssets}`, W / 2, H / 2, 16, '#666');
+    const pulse = Math.sin(performance.now() / 400) * 0.4 + 0.6;
+    ctx.globalAlpha = pulse;
+    drawPixelText('LOADING...', W / 2, H / 2 - 10, 18, '#f5e6c8');
+    ctx.globalAlpha = 1;
+    drawPixelText(`${loadedCount} / ${totalAssets}`, W / 2, H / 2 + 24, 13, '#8a7a5a');
     requestAnimationFrame(waitAndStart);
   }
 }
