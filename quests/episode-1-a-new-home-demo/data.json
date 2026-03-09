@@ -1,5 +1,5 @@
 {
-  "name": "Episode 1 - A New Home (Demo)",
+  "name": "Episode 1 - A New Home [demo]",
   "questId": 3,
   "sections": [
     {
@@ -30,7 +30,7 @@
       "dialogue": "Winded but alive you seek refuge in the sewers of the north quadrant",
       "selectedChoice": "single",
       "buttonName": "Enter the sewer",
-      "nextSectionId": null,
+      "nextSectionId": 1773051776596,
       "button1Name": "Choice A",
       "button2Name": "Choice B",
       "choice1NextSectionId": null,
@@ -52,7 +52,7 @@
       "dialogue": "About a mile back you find a group of Chads. \n\nThey are weary but alive.",
       "selectedChoice": "single",
       "buttonName": "Continue",
-      "nextSectionId": null,
+      "nextSectionId": 1773051851184,
       "button1Name": "Choice A",
       "button2Name": "Choice B",
       "choice1NextSectionId": null,
@@ -74,7 +74,7 @@
       "dialogue": "A man approaches\n\nHello, I'm Sky\n\nGlad to see new faces around here\nWe might not look like much but every man here has destroyed his fair share of Synthettes. \n\nFind a spot and get comfy\n\nTomorrow we will go out in search of cells\n",
       "selectedChoice": "single",
       "buttonName": "Continue",
-      "nextSectionId": null,
+      "nextSectionId": 1773052019853,
       "button1Name": "Choice A",
       "button2Name": "Choice B",
       "choice1NextSectionId": null,
@@ -96,7 +96,7 @@
       "dialogue": "The next morning\n\nStreets are empty, nothing worth looking at",
       "selectedChoice": "single",
       "buttonName": "Keep looking",
-      "nextSectionId": null,
+      "nextSectionId": 1773052244399,
       "button1Name": "Choice A",
       "button2Name": "Choice B",
       "choice1NextSectionId": null,

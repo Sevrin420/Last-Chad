@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Episode 1 - A New Home (Demo) | Last Chad</title>
+  <title>Episode 1 - A New Home [demo] | Last Chad</title>
   <link rel="stylesheet" href="../../styles.css">
   <link rel="stylesheet" href="../../nav.css">
   <style>
@@ -765,8 +765,8 @@
   <!-- Intro overlay — appears before any panel content loads -->
   <div id="intro-overlay">
     <div class="intro-box">
-      <img src="images/intro.png" alt="Episode 1 - A New Home (Demo)" style="width:100%;max-width:460px;height:auto;border-radius:4px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">
-      <div class="intro-title">Episode 1 - A New Home (Demo)</div>
+      <img src="images/intro.png" alt="Episode 1 - A New Home [demo]" style="width:100%;max-width:460px;height:auto;border-radius:4px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">
+      <div class="intro-title">Episode 1 - A New Home [demo]</div>
       <div id="introText" class="intro-text" style="opacity:0;text-align:left;"></div>
 <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
       <div id="escrowBox" style="margin:18px 0 10px;font-size:0.48rem;color:#c9a84c;text-align:center;line-height:1.8;">
@@ -781,7 +781,7 @@
 
   <header class="header">
     <div id="nav-placeholder"></div>
-    <span class="chad-name" id="chadName">Episode 1 - A New Home (Demo)</span>
+    <span class="chad-name" id="chadName">Episode 1 - A New Home [demo]</span>
     <div class="wallet-wrapper">
       <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
       <div class="disconnect-dropdown" id="disconnectDropdown">
@@ -830,7 +830,7 @@
         </div>
         <div class="action-wrap">
           
-        <button class="action-btn" onclick="goToSection(null)">
+        <button class="action-btn" onclick="goToSection(1773051776596)">
           Enter the sewer
         </button>
         </div>
@@ -845,7 +845,7 @@
         </div>
         <div class="action-wrap">
           
-        <button class="action-btn" onclick="goToSection(null)">
+        <button class="action-btn" onclick="goToSection(1773051851184)">
           Continue
         </button>
         </div>
@@ -864,7 +864,7 @@
         </div>
         <div class="action-wrap">
           
-        <button class="action-btn" onclick="goToSection(null)">
+        <button class="action-btn" onclick="goToSection(1773052019853)">
           Continue
         </button>
         </div>
@@ -879,7 +879,7 @@
         </div>
         <div class="action-wrap">
           
-        <button class="action-btn" onclick="goToSection(null)">
+        <button class="action-btn" onclick="goToSection(1773052244399)">
           Keep looking
         </button>
         </div>
@@ -1009,7 +1009,7 @@
       <!-- Quest Complete -->
       <div class="panel" id="panel-complete">
         <div class="narrative">
-          <p>You have reached the end of <span class="highlight">Episode 1 - A New Home (Demo)</span>.</p>
+          <p>You have reached the end of <span class="highlight">Episode 1 - A New Home [demo]</span>.</p>
           <p>Congratulations you did not die.</p>
         </div>
         <div class="claim-xp-section">
@@ -1117,7 +1117,7 @@
     // in encounter order. Passed as choice1/choice2 to QuestRewards.completeQuest.
     var _choiceRecord = [];
     var sectionMusic = {"1773050788748":"../../music/darkintro.mp3","1773051776596":"../../music/darkintro.mp3","1773051851184":"../../music/darkintro.mp3","1773052019853":"../../music/moody.mp3","1773052244399":"../../music/hopefull.mp3","1773052562631":"../../music/upbeat.mp3","1773052624345":"../../music/moody.mp3"};
-    var introLines = ["Last Chad was supposed to be the greatest competition ever filmed.","Instead it has turned into the greatest massacre ever filmed.","All the normies are dead. The Synthettes have taken the island.","Only the strongest Chads with their elite avatars have survived.","You have heard they are gathering in the north quadrant sewers"];
+    var introLines = ["Last Chad was supposed to be the greatest competition ever filmed.","Instead it has turned into the greatest massacre ever filmed.","All the normies are dead.","The Synthettes have taken the island.","Only the strongest Chads with their elite avatars have survived.","You have heard they are gathering in the north quadrant sewers"];
 
     var musicMuted = false;
     var _currentMusicSrc = '';
@@ -1158,7 +1158,7 @@
       6: [1,0,1, 1,0,1, 1,0,1]
     };
     // Strip image data from sections — images are served as files in /images/
-    const questData = {"name":"Episode 1 - A New Home (Demo)","sections":[{"id":1773050725892,"name":"Death Race","dialogue":"Make a break for the tunnels at the north quadrant.\n\nAvoid all obstacles\n\nYou have 30 lives\n\nDeath is permanent\n\nSlide finger across phone screen to move\n\nAt end of map be in the middle lane to run straight into the tunnel\n\nFollow these rules or perish\n\nAny extra lives at game end are added to your quest cell count\n\nGood luck","selectedChoice":"minigame","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":1773050788748,"sectionXp":0,"music":null,"itemAward":null,"gameFile":"runner.html","hasPhoto":false,"hasDiceImage":false},{"id":1773050788748,"name":"Section 2","dialogue":"Winded but alive you seek refuge in the sewers of the north quadrant","selectedChoice":"single","buttonName":"Enter the sewer","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":10,"music":"music/darkintro.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773051776596,"name":"Inside the sewer","dialogue":"About a mile back you find a group of Chads. \n\nThey are weary but alive.","selectedChoice":"single","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/darkintro.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773051851184,"name":"Sky","dialogue":"A man approaches\n\nHello, I'm Sky\n\nGlad to see new faces around here\nWe might not look like much but every man here has destroyed his fair share of Synthettes. \n\nFind a spot and get comfy\n\nTomorrow we will go out in search of cells\n","selectedChoice":"single","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/darkintro.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052019853,"name":"Section 5","dialogue":"The next morning\n\nStreets are empty, nothing worth looking at","selectedChoice":"single","buttonName":"Keep looking","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/moody.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052244399,"name":"Section 6","dialogue":"Bingo!\n\n\nYour up. Retrieve the cells without setting off the car alarm.\n\nIn the upcoming dice game your dexterity stat boosts your score. \n\nRoll the dice, lock a 6,5,4 and the remaining 2 dice are your score.\n\nDifficulty 8\n\nYou have 3 rolls total \n\nIf you do not lock a 6,5,4 the remaining 2 dice will not be used to score\n\nDice rolls affect quest outcomes but are not events that lead to game over. \n\nGood luck\n\nBetter score = more cells","selectedChoice":"dice","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":1773052562631,"failNextSectionId":1773052624345,"statBonus":"dexterity","difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/hopefull.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052562631,"name":"Dice pass","dialogue":"Nice work!\n\nHere's your cut of the cells. Now let's get back to base","selectedChoice":"single","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":10,"music":"music/upbeat.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052624345,"name":"Section 8","dialogue":"That didn't go so well\nAt least we made it home alive","selectedChoice":"single","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/moody.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false}]};
+    const questData = {"name":"Episode 1 - A New Home [demo]","sections":[{"id":1773050725892,"name":"Death Race","dialogue":"Make a break for the tunnels at the north quadrant.\n\nAvoid all obstacles\n\nYou have 30 lives\n\nDeath is permanent\n\nSlide finger across phone screen to move\n\nAt end of map be in the middle lane to run straight into the tunnel\n\nFollow these rules or perish\n\nAny extra lives at game end are added to your quest cell count\n\nGood luck","selectedChoice":"minigame","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":1773050788748,"sectionXp":0,"music":null,"itemAward":null,"gameFile":"runner.html","hasPhoto":false,"hasDiceImage":false},{"id":1773050788748,"name":"Section 2","dialogue":"Winded but alive you seek refuge in the sewers of the north quadrant","selectedChoice":"single","buttonName":"Enter the sewer","nextSectionId":1773051776596,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":10,"music":"music/darkintro.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773051776596,"name":"Inside the sewer","dialogue":"About a mile back you find a group of Chads. \n\nThey are weary but alive.","selectedChoice":"single","buttonName":"Continue","nextSectionId":1773051851184,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/darkintro.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773051851184,"name":"Sky","dialogue":"A man approaches\n\nHello, I'm Sky\n\nGlad to see new faces around here\nWe might not look like much but every man here has destroyed his fair share of Synthettes. \n\nFind a spot and get comfy\n\nTomorrow we will go out in search of cells\n","selectedChoice":"single","buttonName":"Continue","nextSectionId":1773052019853,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/darkintro.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052019853,"name":"Section 5","dialogue":"The next morning\n\nStreets are empty, nothing worth looking at","selectedChoice":"single","buttonName":"Keep looking","nextSectionId":1773052244399,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/moody.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052244399,"name":"Section 6","dialogue":"Bingo!\n\n\nYour up. Retrieve the cells without setting off the car alarm.\n\nIn the upcoming dice game your dexterity stat boosts your score. \n\nRoll the dice, lock a 6,5,4 and the remaining 2 dice are your score.\n\nDifficulty 8\n\nYou have 3 rolls total \n\nIf you do not lock a 6,5,4 the remaining 2 dice will not be used to score\n\nDice rolls affect quest outcomes but are not events that lead to game over. \n\nGood luck\n\nBetter score = more cells","selectedChoice":"dice","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":1773052562631,"failNextSectionId":1773052624345,"statBonus":"dexterity","difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/hopefull.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052562631,"name":"Dice pass","dialogue":"Nice work!\n\nHere's your cut of the cells. Now let's get back to base","selectedChoice":"single","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":10,"music":"music/upbeat.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false},{"id":1773052624345,"name":"Section 8","dialogue":"That didn't go so well\nAt least we made it home alive","selectedChoice":"single","buttonName":"Continue","nextSectionId":null,"button1Name":"Choice A","button2Name":"Choice B","choice1NextSectionId":null,"choice2NextSectionId":null,"passNextSectionId":null,"failNextSectionId":null,"statBonus":null,"difficulty":8,"minigameFile":"runner.html","minigameWinNextSectionId":null,"sectionXp":0,"music":"music/moody.mp3","itemAward":null,"gameFile":null,"hasPhoto":true,"hasDiceImage":false}]};
     const sectionMap = {};
     let currentSectionId = null;
 
