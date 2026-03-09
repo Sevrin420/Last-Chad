@@ -18,6 +18,7 @@ on:
           - worker           # Cloudflare Worker only
           - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
           - verify           # Verify all contracts on Snowtrace (no deploy)
+          - validate         # On-chain validation: confirm all contracts are live and wired
           - release-escrow   # Return all NFTs locked in QuestRewards escrow to their owners
           - gamble-open      # Open the gambling den (authorize Gamble in LastChad)
           - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
@@ -203,6 +204,28 @@ jobs:
         env:
           SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
         run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4b: Validate contracts on-chain (read-only, no secrets needed)
+  # Confirms all 5 contracts are live and correctly wired together.
+  # ───────────────────────────────────────────────────────────────────────────
+  validate-contracts:
+    name: Validate Contracts (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'validate'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Validate all contracts on-chain
+        run: npx hardhat run scripts/validateContracts.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 5: Release all locked NFTs from QuestRewards escrow
