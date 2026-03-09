@@ -548,7 +548,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       <div class="panel" id="panel-complete">
         <div class="narrative">
           <p>You have reached the end of <span class="highlight">${escapeHtml(questName)}</span>.</p>
-          ${hasDice ? '<p>Your score held strong through every trial.</p>' : '<p>Well played, Chad.</p>'}
+          <p>Congratulations you did not die.</p>
         </div>
         <div class="claim-xp-section">
           <div id="xpPreview" style="margin-bottom:12px;display:none;">
