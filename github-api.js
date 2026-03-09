@@ -697,17 +697,17 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       display: flex;
       flex-direction: row;
       align-items: flex-start;
-      gap: 4px;
+      gap: 8px;
       margin-top: 4px;
-      padding-right: 16px;
     }
     .hud-portrait-col {
       display: flex;
       flex-direction: column;
       align-items: center;
+      flex-shrink: 0;
     }
     .hud-portrait-frame {
-      width: clamp(140px, 40vw, 200px);
+      width: clamp(160px, 48vw, 240px);
       height: auto;
       border: 4px solid #c9a84c;
       border-radius: 4px;
@@ -728,20 +728,25 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .hud-stats-panel {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding-top: 18px;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 4px;
+      flex: 1;
+      align-content: flex-start;
+      padding-top: 4px;
     }
     .hud-stat-box {
       background: url('https://lastchad.xyz/assets/stat-frame.png') center/100% 100% no-repeat;
-      padding: 20px 14px;
-      min-width: 90px;
+      padding: 12px 8px;
       text-align: center;
+      flex: 1 1 calc(50% - 4px);
+      min-width: 0;
+      box-sizing: border-box;
     }
     .hud-stat-label {
       font-size: 0.52rem;
       color: #8a7a5a;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .hud-stat-value {
       font-size: 0.85rem;
