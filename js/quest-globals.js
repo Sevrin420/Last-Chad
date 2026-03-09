@@ -42,6 +42,7 @@ var QUEST_REWARDS_ABI = [
   'function startQuest(uint256 tokenId, uint8 questId) external',
   'function completeQuest(uint256 tokenId, uint8 questId, uint256 cellReward, bytes oracleSig) external',
   'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
+  'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
   'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
   'function lockedBy(uint256 tokenId) external view returns (address)'
 ];
