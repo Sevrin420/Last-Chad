@@ -90,19 +90,12 @@ const spriteNames = [
   'Barrier_01', 'Barrier_02', 'Barrier_03'
 ];
 const sprites = {};
-let loadedCount = 0;
-const totalAssets = spriteNames.length + 1; // +1 for bg image
-
 // Background image
 const bgImg = new Image();
-bgImg.onload = () => { loadedCount++; };
-bgImg.onerror = () => { loadedCount++; }; // graceful fallback if missing
 bgImg.src = 'endless runner/bg.png';
 
 spriteNames.forEach(name => {
   const img = new Image();
-  img.onload = () => { loadedCount++; };
-  img.onerror = () => { loadedCount++; };
   img.src = 'endless runner/' + name + '.png';
   sprites[name] = img;
 });
@@ -837,23 +830,8 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-// Wait for assets then start loop
-function waitAndStart() {
-  if (loadedCount >= totalAssets) {
-    requestAnimationFrame(gameLoop);
-  } else {
-    // Show loading screen
-    ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, W, H);
-    const pulse = Math.sin(performance.now() / 400) * 0.4 + 0.6;
-    ctx.globalAlpha = pulse;
-    drawPixelText('LOADING...', W / 2, H / 2 - 10, 18, '#f5e6c8');
-    ctx.globalAlpha = 1;
-    drawPixelText(`${loadedCount} / ${totalAssets}`, W / 2, H / 2 + 24, 13, '#8a7a5a');
-    requestAnimationFrame(waitAndStart);
-  }
-}
-waitAndStart();
+// Start loop immediately — title screen renders right away while assets finish loading
+requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
