@@ -159,6 +159,7 @@ function showDeathOverlay() {
 }
 
 let winHandled = false;
+let _winCertXP = null; // actual cells from worker (may include stat bonus)
 async function onWin() {
   if (winHandled) return;
   winHandled = true;
@@ -169,7 +170,9 @@ async function onWin() {
       questId: GAME_QUEST_ID,
       diceXP: lives,
     });
-    window.parent.postMessage({ type: 'runner_win', cert, runnerXP: lives }, '*');
+    const awardedXP = (cert && cert.xpAmount != null) ? cert.xpAmount : lives;
+    _winCertXP = awardedXP;
+    window.parent.postMessage({ type: 'runner_win', cert, runnerXP: awardedXP }, '*');
   }
 }
 
@@ -811,7 +814,7 @@ function render() {
     ctx.fillRect(0, 0, W, H);
     drawChunkyTitle('YOU MADE IT', W / 2, H / 2 - 90, 36);
     drawPixelText('Experience earned', W / 2, H / 2 - 30, 14, '#f5e6c8');
-    drawChunkyTitle(String(lives), W / 2, H / 2 + 20, 46);
+    drawChunkyTitle(_winCertXP !== null ? String(_winCertXP) : String(lives), W / 2, H / 2 + 20, 46);
     if (window.parent === window) {
       const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
       ctx.globalAlpha = pulse;
