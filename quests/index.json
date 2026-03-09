@@ -193,5 +193,10 @@
     "name": "43 real reat",
     "slug": "43-real-reat",
     "questId": 38
+  },
+  {
+    "name": "Episode 1 - A New Tribe Demo",
+    "slug": "episode-1-a-new-tribe-demo",
+    "questId": 39
   }
 ]
