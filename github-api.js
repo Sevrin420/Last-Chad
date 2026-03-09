@@ -1580,6 +1580,7 @@ function showPanel(id) {
           var mgp = new URLSearchParams();
           mgp.set('tokenId', chadId || '');
           mgp.set('questId', QUEST_ID);
+          mgp.set('sectionId', id);
           if (userAddress) mgp.set('player', userAddress);
           if (WORKER_URL) mgp.set('worker', WORKER_URL);
           mgFrame.src = '../../games/' + minigameSectionMap[id].minigameFile + '?' + mgp.toString();
@@ -2543,7 +2544,9 @@ ${diceInitJs}
       // Win — advance to next section
       if (e.data.type === 'runner_win') {
         _hideMgTap();
-        _runnerWinCert = e.data.cert || null;
+        // Runner no longer pre-calls /session/win — it uses /session/visit-section instead.
+        // The cert is not used; claim always calls /session/win once at the end.
+        _runnerWinCert = null;
         if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
           _questRunnerXP += Number(e.data.runnerXP);
         }
@@ -2659,31 +2662,27 @@ ${diceInitJs}
       if (WORKER_URL && chadId) {
         _setText(statusEl, 'CALCULATING CELLS...');
         try {
-          if (_runnerWinCert && _runnerWinCert.signature) {
-            // Minigame path: runner already called /session/win and got the signature
-            workerCells = _runnerWinCert.xpAmount;
-            workerSig   = _runnerWinCert.signature;
-          } else {
-            // Dice / section path: call /session/win with only the raw cargo score (no stat).
-            // The worker independently fetches the stat bonus from chain and adds it server-side.
-            // Sending totalScore (cargo + stat) would double-count the stat bonus.
-            var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
-            var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
-            var _diceScore = _ds ? (_ds.cargoScore || 0) : 0;
-            var winResp = await fetch(WORKER_URL + '/session/win', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: _diceScore }),
-            }).then(function(r) { return r.json(); });
-            if (winResp && winResp.ok) {
-              workerCells = winResp.xpAmount;
-              workerSig   = winResp.signature;
-            } else if (winResp && !winResp.ok) {
-              btn.disabled = false;
-              _setText(btn, 'CLAIM REWARDS');
-              _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
-              return;
-            }
+          // Always call /session/win here with the raw cargo score (no stat bonus).
+          // Runner XP was already recorded via /session/visit-section when the runner won.
+          // Section XP was recorded via /session/visit-section as sections were visited.
+          // The worker sums all accumulated section XP + diceXP + stat bonus server-side.
+          // Sending totalScore (cargo + stat) would double-count the stat bonus.
+          var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
+          var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
+          var _diceScore = _ds ? (_ds.cargoScore || 0) : 0;
+          var winResp = await fetch(WORKER_URL + '/session/win', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: _diceScore }),
+          }).then(function(r) { return r.json(); });
+          if (winResp && winResp.ok) {
+            workerCells = winResp.xpAmount;
+            workerSig   = winResp.signature;
+          } else if (winResp && !winResp.ok) {
+            btn.disabled = false;
+            _setText(btn, 'CLAIM REWARDS');
+            _setText(statusEl, 'Cell verification failed: ' + (winResp.reason || 'unknown'));
+            return;
           }
         } catch(e) { /* worker unavailable — proceed without signed cells */ }
       }
