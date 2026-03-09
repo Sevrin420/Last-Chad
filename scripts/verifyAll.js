@@ -24,11 +24,13 @@ function readConfig() {
   };
 
   const gambleMatch = src.match(/export const GAMBLE_ADDRESS\s*=\s*'([^']*)'/);
+  const marketMatch = src.match(/export const MARKET_ADDRESS\s*=\s*'([^']*)'/);
   return {
     lastChad:      get("CONTRACT_ADDRESS"),
     items:         get("ITEMS_CONTRACT_ADDRESS"),
     questRewards:  get("QUEST_REWARDS_ADDRESS"),
     gamble:        gambleMatch ? gambleMatch[1] : '',
+    market:        marketMatch ? marketMatch[1] : '',
   };
 }
 
@@ -60,11 +62,23 @@ async function main() {
   console.log(`LastChad:      ${cfg.lastChad}`);
   console.log(`Items:         ${cfg.items}`);
   console.log(`QuestRewards:  ${cfg.questRewards}`);
+  if (cfg.market) console.log(`Market:        ${cfg.market}`);
   if (cfg.gamble) console.log(`Gamble:        ${cfg.gamble}`);
 
   await verify(cfg.lastChad,     ["https://lastchad.xyz/metadata/"], "LastChad");
   await verify(cfg.items,        ["https://lastchad.xyz/items/"],    "LastChadItems");
   await verify(cfg.questRewards, [cfg.lastChad],                     "QuestRewards");
+
+  if (cfg.market) {
+    // Market(address initialOwner) — fetch owner() to get the constructor arg
+    const ownerAbi = ['function owner() view returns (address)'];
+    const marketContract = new hre.ethers.Contract(cfg.market, ownerAbi, hre.ethers.provider);
+    const marketOwner = await marketContract.owner();
+    await verify(cfg.market, [marketOwner], "Market");
+  } else {
+    console.log("\nSkipping Market — MARKET_ADDRESS not set in js/config.js");
+  }
+
   if (cfg.gamble) {
     await verify(cfg.gamble, [cfg.lastChad], "Gamble");
   } else {
@@ -79,6 +93,7 @@ async function main() {
   console.log(`  ${base}/${cfg.lastChad}`);
   console.log(`  ${base}/${cfg.items}`);
   console.log(`  ${base}/${cfg.questRewards}`);
+  if (cfg.market) console.log(`  ${base}/${cfg.market}`);
   if (cfg.gamble) console.log(`  ${base}/${cfg.gamble}`);
   console.log("════════════════════════════════════════════\n");
 }
