@@ -508,6 +508,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       // Embedded minigame iframe — win advances, loss triggers death sequence
       actionHtml = `
         <div class="minigame-fullscreen-wrap" id="minigameWrap_${sid}">
+          <div class="mg-loading-screen" id="mgLoading_${sid}">LOADING...</div>
           <iframe class="section-game-frame section-minigame-frame" id="minigameFrame_${sid}" src="" allowfullscreen allow="autoplay" data-section-id="${sid}"></iframe>
         </div>`;
 
@@ -1277,6 +1278,30 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       height: 100%;
       border: none;
       display: block;
+      position: relative;
+      z-index: 1;
+    }
+    .mg-loading-screen {
+      display: none;
+      position: absolute;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      font-family: monospace;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #f5e6c8;
+      background: #111;
+      z-index: 2;
+      pointer-events: none;
+      animation: mgLoadingPulse 0.7s ease-in-out infinite alternate;
+    }
+    body.minigame-active .mg-loading-screen { display: flex; }
+    .mg-loading-screen.mg-hidden { display: none !important; }
+    @keyframes mgLoadingPulse {
+      from { opacity: 0.4; }
+      to { opacity: 1.0; }
     }
     #mg-tap-overlay {
       position: fixed;
@@ -2560,6 +2585,13 @@ ${diceInitJs}
     var _mgTapOverlay = document.getElementById('mg-tap-overlay');
     var _mgTapActive = false;
     function _showMgTap(frameEl) {
+      // Hide parent loading screen — runner.html's own canvas is now visible
+      var wrapEl = frameEl && frameEl.closest ? frameEl.closest('.minigame-fullscreen-wrap') : null;
+      if (!wrapEl && frameEl) wrapEl = frameEl.parentElement;
+      if (wrapEl) {
+        var loadingEl = wrapEl.querySelector('.mg-loading-screen');
+        if (loadingEl) loadingEl.classList.add('mg-hidden');
+      }
       _mgTapActive = true;
       function _relayTap() {
         if (!_mgTapActive) return;
