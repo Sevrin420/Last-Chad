@@ -1623,10 +1623,13 @@ function showPanel(id) {
         }
       }
 
-      // When reaching the complete panel, show total cells that will be claimed
+      // When reaching the complete panel, show total cells that will be claimed.
+      // Use cargoScore (not totalScore) for dice sections — totalScore includes statBonusVal
+      // per section, but the worker adds the stat bonus only ONCE globally on /session/win.
+      // Summing totalScore across multiple dice sections would overcount the bonus.
       if (!id) {
         var _cellTotal = _sectionCells + _questRunnerXP + Object.keys(diceOutcomes).reduce(function(sum, sid) {
-          return sum + ((diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0);
+          return sum + ((diceState[Number(sid)] && diceState[Number(sid)].cargoScore) || 0);
         }, 0);
         var xpPreviewEl = document.getElementById('xpPreview');
         var xpPreviewVal = document.getElementById('xpPreviewValue');
@@ -2705,19 +2708,29 @@ ${diceInitJs}
           var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
           var lockedByAddr = await qrRead.lockedBy(chadId);
           if (lockedByAddr === ethers.constants.AddressZero) {
-            // lockedBy cleared — check if quest was already completed
+            // lockedBy cleared — check completed first, then whether quest was ever started
             var alreadyClaimed = await qrRead.questCompleted(chadId, QUEST_ID);
             if (alreadyClaimed) {
               markQuestDone(chadId);
+              _clearProgress();
               _setText(statusEl, 'Cells already claimed for CHAD #' + chadId);
               btn.disabled = true;
               _setText(btn, 'ALREADY CLAIMED');
               var rw = document.getElementById('returnWrap');
               if (rw) rw.style.display = '';
             } else {
-              _setText(statusEl, 'No active quest session — start a new quest from the Adventure page');
-              btn.disabled = false;
-              _setText(btn, 'CLAIM REWARDS');
+              // Not completed and not locked — figure out why
+              var wasStarted = false;
+              try { wasStarted = await qrRead.questStarted(chadId, QUEST_ID); } catch(e) {}
+              if (wasStarted) {
+                // Quest was started but session expired and NFT was released — unrecoverable
+                _setText(statusEl, 'Quest session expired. Your NFT was returned — cells for this attempt cannot be claimed.');
+              } else {
+                // Quest was never started on-chain — player skipped adventure.html
+                _setText(statusEl, 'Quest not started on-chain. Begin from the Adventure page to lock your Chad and earn cells.');
+              }
+              btn.disabled = true;
+              _setText(btn, 'SESSION INACTIVE');
             }
             return;
           }
