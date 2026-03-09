@@ -2,7 +2,7 @@
 
 > A text-based adventure RPG with upgradable NFT characters on Avalanche.
 
-Mint a Chad. Send them on quests. Roll dice. Earn XP. Level up. Equip items. Don't die.
+Mint a Chad. Send them on quests. Roll dice. Play Mini-Games. Earn XP. Level up. Equip items. Don't die.
 
 ---
 
