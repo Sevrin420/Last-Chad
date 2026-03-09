@@ -1581,9 +1581,9 @@ function showPanel(id) {
       panel.classList.add('active');
       // Show exp box only on non-game, non-complete panels
       var _isGameSec = id && (!!gameSectionMap[id] || !!minigameSectionMap[id]);
-      // Fullscreen mode for minigame sections
+      // Fullscreen mode for minigame sections — class is added AFTER dialogue in animatePanel
       var _isMinigame = id && !!minigameSectionMap[id];
-      document.body.classList.toggle('minigame-active', !!_isMinigame);
+      if (!_isMinigame) document.body.classList.remove('minigame-active');
       var expBoxEl = document.getElementById('expBox');
       if (expBoxEl) expBoxEl.style.display = (id && !_isGameSec) ? 'block' : 'none';
       updateExpBox();
@@ -2034,6 +2034,12 @@ function showPanel(id) {
         if (!alive()) return;
         diceSection.style.opacity = '1';
       } else {
+        // For minigame sections: activate fullscreen mode now that dialogue is done
+        if (sid && minigameSectionMap[sid]) {
+          document.body.classList.add('minigame-active');
+          await wait(20);
+          if (!alive()) return;
+        }
         if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
       }
     }
