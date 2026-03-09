@@ -2587,14 +2587,15 @@ ${diceInitJs}
     // Sits above the iframe in the parent document — always receives first tap
     var _mgTapOverlay = document.getElementById('mg-tap-overlay');
     var _mgTapActive = false;
+    var _mgCurrentLoadingEl = null; // set by _showMgTap, cleared by runner_ready
     function _showMgTap(frameEl) {
-      // Hide parent loading screen — runner.html's own canvas is now visible
+      // Keep the parent loading screen visible until runner.html sends runner_ready
+      // (iframe 'load' fires when HTML parses, not when all game assets finish loading).
+      // Store a ref so the runner_ready handler can hide it at the right moment.
       var wrapEl = frameEl && frameEl.closest ? frameEl.closest('.minigame-fullscreen-wrap') : null;
       if (!wrapEl && frameEl) wrapEl = frameEl.parentElement;
-      if (wrapEl) {
-        var loadingEl = wrapEl.querySelector('.mg-loading-screen');
-        if (loadingEl) loadingEl.classList.add('mg-hidden');
-      }
+      _mgCurrentLoadingEl = wrapEl ? wrapEl.querySelector('.mg-loading-screen') : null;
+
       _mgTapActive = true;
       function _relayTap() {
         if (!_mgTapActive) return;
@@ -2618,6 +2619,15 @@ ${diceInitJs}
     var _minigameDeathHandled = false;
     window.addEventListener('message', function(e) {
       if (!e.data) return;
+
+      // Runner finished loading its assets — now safe to hide the parent loading screen
+      if (e.data.type === 'runner_ready') {
+        if (_mgCurrentLoadingEl) {
+          _mgCurrentLoadingEl.classList.add('mg-hidden');
+          _mgCurrentLoadingEl = null;
+        }
+        return;
+      }
 
       // Win — advance to next section
       if (e.data.type === 'runner_win') {
