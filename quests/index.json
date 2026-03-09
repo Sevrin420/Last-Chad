@@ -8,5 +8,10 @@
     "name": "58 Test",
     "slug": "58-test",
     "questId": 1
+  },
+  {
+    "name": "Episode 1 - A New Home",
+    "slug": "episode-1-a-new-home",
+    "questId": 2
   }
 ]
