@@ -731,12 +731,11 @@ function render() {
   const scrollSpeed = state === 'playing' ? getDifficulty().scrollSpeed : 100;
   const dt = 1 / 60;
 
-  const isActive = state === 'playing' || state === 'dead' || state === 'wall_death' || state === 'game_over';
-  drawBackground(dt, isActive ? scrollSpeed : (state === 'title' ? 50 : 0));
-
+  // ── Loading gate: skip all gameplay rendering until assets are ready ──
   if (state === 'loading') {
     if (loadedCount >= totalAssets) {
       state = 'title';
+      // fall through to title render below
     } else {
       ctx.fillStyle = '#111';
       ctx.fillRect(0, 0, W, H);
@@ -748,6 +747,9 @@ function render() {
       return;
     }
   }
+
+  const isActive = state === 'playing' || state === 'dead' || state === 'wall_death' || state === 'game_over';
+  drawBackground(dt, isActive ? scrollSpeed : (state === 'title' ? 50 : 0));
 
   if (state === 'title') {
     // Darken
@@ -850,7 +852,13 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-// Start loop immediately — title screen renders right away while assets finish loading
+// Paint loading screen immediately (don't wait for rAF — eliminates black flash)
+ctx.fillStyle = '#111';
+ctx.fillRect(0, 0, W, H);
+drawPixelText('LOADING...', W / 2, H / 2, 20, '#f5e6c8');
+drawPixelText(`0 / ${totalAssets}`, W / 2, H / 2 + 34, 12, '#8a7a5a');
+
+// Start game loop
 requestAnimationFrame(gameLoop);
 </script>
 </body>
