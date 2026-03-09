@@ -90,12 +90,17 @@ const spriteNames = [
   'Barrier_01', 'Barrier_02', 'Barrier_03'
 ];
 const sprites = {};
+let loadedCount = 0;
+const totalAssets = spriteNames.length + 1;
+
 // Background image
 const bgImg = new Image();
+bgImg.onload = bgImg.onerror = () => { loadedCount++; };
 bgImg.src = 'endless runner/bg.png';
 
 spriteNames.forEach(name => {
   const img = new Image();
+  img.onload = img.onerror = () => { loadedCount++; };
   img.src = 'endless runner/' + name + '.png';
   sprites[name] = img;
 });
@@ -171,7 +176,7 @@ async function onWin() {
   }
 }
 
-let state = 'title'; // title, playing, dead, wall_death, game_over, win
+let state = 'loading'; // loading, title, playing, dead, wall_death, game_over, win
 let player = { lane: 2, x: 0, y: 0, targetX: 0, moveSpeed: 8 };
 let obstacles = [];
 let enemies = [];
@@ -194,7 +199,7 @@ let wallDeathTimer = 0;
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.key] = true;
-  if (state === 'title' && (e.key === 'Enter' || e.key === ' ')) startGame();
+  if (state === 'title' && loadedCount >= totalAssets && (e.key === 'Enter' || e.key === ' ')) startGame();
   if (state === 'dead' && (e.key === 'Enter' || e.key === ' ')) respawn();
   if (state === 'win' && (e.key === 'Enter' || e.key === ' ')) { state = 'title'; }
   // game_over: redirect handled by showDeathOverlay() — no key handler needed
@@ -209,7 +214,7 @@ function handleTap() {
   if (tapHandled) return;
   tapHandled = true;
   setTimeout(() => { tapHandled = false; }, 100);
-  if (state === 'title') startGame();
+  if (state === 'title' && loadedCount >= totalAssets) startGame();
   else if (state === 'dead') { tapTarget.style.display = 'none'; respawn(); }
   else if (state === 'win') { state = 'title'; showTapTarget(); }
 }
@@ -728,6 +733,21 @@ function render() {
 
   const isActive = state === 'playing' || state === 'dead' || state === 'wall_death' || state === 'game_over';
   drawBackground(dt, isActive ? scrollSpeed : (state === 'title' ? 50 : 0));
+
+  if (state === 'loading') {
+    if (loadedCount >= totalAssets) {
+      state = 'title';
+    } else {
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, W, H);
+      const pulse = Math.sin(performance.now() / 350) * 0.5 + 0.5;
+      ctx.globalAlpha = 0.4 + pulse * 0.6;
+      drawPixelText('LOADING...', W / 2, H / 2, 20, '#f5e6c8');
+      ctx.globalAlpha = 1;
+      drawPixelText(`${loadedCount} / ${totalAssets}`, W / 2, H / 2 + 34, 12, '#8a7a5a');
+      return;
+    }
+  }
 
   if (state === 'title') {
     // Darken
