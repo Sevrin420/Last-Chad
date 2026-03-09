@@ -735,10 +735,6 @@ function render() {
   if (state === 'loading') {
     if (loadedCount >= totalAssets) {
       state = 'title';
-      // Tell parent quest page that assets are loaded so it can hide its loading screen
-      if (window.parent !== window) {
-        window.parent.postMessage({ type: 'runner_ready' }, '*');
-      }
       // fall through to title render below
     } else {
       ctx.fillStyle = '#111';
