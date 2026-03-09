@@ -171,7 +171,7 @@ async function onWin() {
     await callWorker('/session/visit-section', {
       tokenId: GAME_TOKEN_ID,
       questId: GAME_QUEST_ID,
-      sectionId: GAME_SECTION_ID || 'runner',
+      sectionId: 'runner_' + (GAME_SECTION_ID || 'default'),
       sectionXp: lives,
     });
     window.parent.postMessage({ type: 'runner_win', runnerXP: lives }, '*');

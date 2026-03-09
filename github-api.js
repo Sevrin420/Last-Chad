@@ -1415,9 +1415,11 @@ ${completePanelHtml}
   <script src="../../nav.js"><\/script>
   <script>
     var _animGen = 0;
-    var _questRunnerXP = 0; // cells earned from runner minigame
+    var _questRunnerXP = 0; // cells earned from runner minigame (HUD display)
+    var _runnerScores = {}; // sectionId → runnerXP, for worker replay on reload
     var _sectionCells = 0; // cells earned from section visits
     var _visitedSections = {}; // tracks visited sections to avoid double-counting
+    var _scoredDiceSections = {}; // sectionId → cargoScore already sent to worker
 
     function updateExpBox() {
       var total = _questRunnerXP + _sectionCells;
@@ -1439,7 +1441,7 @@ ${completePanelHtml}
         if (diceState[sid].totalScore) scores[sid] = diceState[sid].totalScore;
         if (diceState[sid].cargoScore != null) cargoScores[sid] = diceState[sid].cargoScore;
       });
-      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores, cargoScores: cargoScores, sectionCells: _sectionCells, visitedSections: _visitedSections, winCert: _runnerWinCert || null }));
+      localStorage.setItem(_progressKey(), JSON.stringify({ seed: _questSeed, sectionId: currentSectionId, scores: scores, cargoScores: cargoScores, sectionCells: _sectionCells, visitedSections: _visitedSections, runnerScores: _runnerScores, scoredDice: _scoredDiceSections }));
     }
     function _loadProgress() {
       if (!chadId) return null;
@@ -1717,7 +1719,12 @@ function showPanel(id) {
         }
         if (saved.sectionCells) _sectionCells = saved.sectionCells;
         if (saved.visitedSections) _visitedSections = saved.visitedSections;
-        if (saved.winCert) _runnerWinCert = saved.winCert;
+        if (saved.runnerScores) {
+          _runnerScores = saved.runnerScores;
+          // Rebuild HUD runner total from saved map
+          Object.keys(_runnerScores).forEach(function(sid) { _questRunnerXP += _runnerScores[sid]; });
+        }
+        if (saved.scoredDice) _scoredDiceSections = saved.scoredDice;
         var resumeId = saved.sectionId || firstId;
         currentSectionId = resumeId;
         showPanel(resumeId);
@@ -2189,6 +2196,16 @@ function showPanel(id) {
       diceState[sid].cargoScore = score;
       diceState[sid].totalScore = total;
 
+      // Record cargo score with worker immediately so it survives any later reload
+      if (score > 0 && WORKER_URL && chadId && !_scoredDiceSections[sid]) {
+        _scoredDiceSections[sid] = score;
+        fetch(WORKER_URL + '/session/visit-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'dice_' + sid, sectionXp: score }),
+        }).catch(function() {});
+      }
+
       _saveProgress();
       updateExpBox();
 
@@ -2327,7 +2344,10 @@ ${diceInitJs}
                 body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, player: userAddress }),
               }).then(function(r) { return r.json(); }).then(function(startResp) {
                 if (!startResp || !startResp.ok) return;
-                // Replay any section visits that occurred before the session was registered
+                // Replay all XP sources that occurred before (or after) the session was registered.
+                // The worker deduplicates by sectionId so replaying is always safe.
+
+                // 1. Regular section XP (sectionXpMap entries)
                 Object.keys(_visitedSections).forEach(function(sid) {
                   if (sectionXpMap[sid] !== undefined) {
                     fetch(WORKER_URL + '/session/visit-section', {
@@ -2336,6 +2356,24 @@ ${diceInitJs}
                       body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: sid, sectionXp: sectionXpMap[sid] }),
                     }).catch(function() {});
                   }
+                });
+
+                // 2. Runner minigame wins (keyed by runner section ID)
+                Object.keys(_runnerScores).forEach(function(sid) {
+                  fetch(WORKER_URL + '/session/visit-section', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'runner_' + sid, sectionXp: _runnerScores[sid] }),
+                  }).catch(function() {});
+                });
+
+                // 3. Dice section cargo scores
+                Object.keys(_scoredDiceSections).forEach(function(sid) {
+                  fetch(WORKER_URL + '/session/visit-section', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'dice_' + sid, sectionXp: _scoredDiceSections[sid] }),
+                  }).catch(function() {});
                 });
               }).catch(function() {});
             }
@@ -2544,13 +2582,14 @@ ${diceInitJs}
       // Win — advance to next section
       if (e.data.type === 'runner_win') {
         _hideMgTap();
-        // Runner no longer pre-calls /session/win — it uses /session/visit-section instead.
-        // The cert is not used; claim always calls /session/win once at the end.
         _runnerWinCert = null;
         if (e.data.runnerXP && Number(e.data.runnerXP) > 0) {
-          _questRunnerXP += Number(e.data.runnerXP);
+          var _rXP = Number(e.data.runnerXP);
+          _questRunnerXP += _rXP;
+          // Record by section ID so this can be replayed to the worker after a page reload
+          if (currentSectionId != null) _runnerScores[currentSectionId] = _rXP;
         }
-        _saveProgress(); // persist cert so it survives a page refresh before claiming
+        _saveProgress();
         // Advance to next section: check minigame map first, then legacy game map
         if (currentSectionId && minigameSectionMap[currentSectionId]) {
           var winId = minigameSectionMap[currentSectionId].winNextSectionId;
@@ -2655,25 +2694,18 @@ ${diceInitJs}
       }
 
       // Step 1: Get cells + signature from worker.
-      // If the runner minigame already obtained a win cert, reuse it — the worker marks the session
-      // completed on the first /session/win call, so a second call returns quest_already_completed.
       var workerCells = null;
       var workerSig = null;
       if (WORKER_URL && chadId) {
         _setText(statusEl, 'CALCULATING CELLS...');
         try {
-          // Always call /session/win here with the raw cargo score (no stat bonus).
-          // Runner XP was already recorded via /session/visit-section when the runner won.
-          // Section XP was recorded via /session/visit-section as sections were visited.
-          // The worker sums all accumulated section XP + diceXP + stat bonus server-side.
-          // Sending totalScore (cargo + stat) would double-count the stat bonus.
-          var _firstDiceSid = Object.keys(diceOutcomes).map(Number).sort(function(a,b){return a-b;})[0];
-          var _ds = _firstDiceSid !== undefined ? getDiceState(_firstDiceSid) : null;
-          var _diceScore = _ds ? (_ds.cargoScore || 0) : 0;
+          // All XP sources (sections, runner, dice cargo) are already accumulated in the worker
+          // via /session/visit-section calls made in real-time as they were earned.
+          // Send diceXP: 0 — the worker just adds stat bonus once and returns the signed total.
           var winResp = await fetch(WORKER_URL + '/session/win', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: _diceScore }),
+            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: 0 }),
           }).then(function(r) { return r.json(); });
           if (winResp && winResp.ok) {
             workerCells = winResp.xpAmount;
