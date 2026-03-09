@@ -13,5 +13,10 @@
     "name": "Episode 1 - A New Home",
     "slug": "episode-1-a-new-home",
     "questId": 2
+  },
+  {
+    "name": "Episode 1 - A New Home (Demo)",
+    "slug": "episode-1-a-new-home-demo",
+    "questId": 3
   }
 ]
