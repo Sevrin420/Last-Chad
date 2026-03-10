@@ -23,6 +23,7 @@ on:
           - gamble-open      # Open the gambling den (authorize Gamble in LastChad)
           - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
           - award-owner-cells # Award 100 open cells to every Chad in the owner wallet
+          - approve-market   # Whitelist LastChad + Items on the Market contract
       network:
         description: 'Network (ignored if target=worker)'
         required: true
@@ -299,3 +300,29 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/awardOwnerCells.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 8: Whitelist LastChad + Items on the Market contract
+  # Run this after deploying a new Market, or after an all-contracts redeploy
+  # if the Market address was already set in js/config.js beforehand.
+  # ───────────────────────────────────────────────────────────────────────────
+  approve-market:
+    name: Approve Contracts on Market (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'approve-market'
+    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Whitelist LastChad + Items on Market contract
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/approveMarketContracts.js --network ${{ inputs.network }}

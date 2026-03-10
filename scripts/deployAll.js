@@ -20,9 +20,14 @@
 const hre  = require("hardhat");
 const fs   = require("fs");
 const path = require("path");
+const { MARKET: MARKET_ADDRESS } = require('./addresses');
 
 const SET_GAME_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
+];
+
+const MARKET_ABI = [
+  'function setApprovedContract(address nftContract, bool approved) external',
 ];
 
 async function main() {
@@ -96,6 +101,19 @@ async function main() {
   await tx.wait();
   console.log("  Quest 1 → 10 cells on completion ✓");
 
+  // ── Wire: Market approves LastChad + Items ────────────────────────────────
+  if (MARKET_ADDRESS && hre.ethers.isAddress(MARKET_ADDRESS)) {
+    const market = new hre.ethers.Contract(MARKET_ADDRESS, MARKET_ABI, deployer);
+    tx = await market.setApprovedContract(lastChadAddress, true);
+    await tx.wait();
+    console.log("  Market.setApprovedContract(LastChad) ✓");
+    tx = await market.setApprovedContract(itemsAddress, true);
+    await tx.wait();
+    console.log("  Market.setApprovedContract(Items) ✓");
+  } else {
+    console.warn("  Market address not set — skipping market approval. Run approve-market after deploying Market.");
+  }
+
   // ── Patch js/config.js ───────────────────────────────────────────────────
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
   if (fs.existsSync(configPath)) {
@@ -142,11 +160,12 @@ async function main() {
   console.log(`  Items:         ${itemsAddress}`);
   console.log(`  QuestRewards:  ${questRewardsAddress}`);
   console.log(`  Oracle:        ${oracleAddress ? "✓  " + oracleAddress : "⚠  not set"}`);
+  console.log(`  Market:        ${MARKET_ADDRESS && hre.ethers.isAddress(MARKET_ADDRESS) ? "✓  approved on " + MARKET_ADDRESS : "⚠  not set — run approve-market"}`);
   console.log("════════════════════════════════════════════\n");
   console.log("Next steps:");
   console.log("  1. Commit and push js/config.js + js/quest-globals.js");
   if (!oracleAddress) {
-    console.log("  3. Set oracle: ORACLE_ADDRESS=0x... npx hardhat run scripts/deployAll.js");
+    console.log("  2. Set oracle: ORACLE_ADDRESS=0x... npx hardhat run scripts/deployAll.js");
   }
 }
 
