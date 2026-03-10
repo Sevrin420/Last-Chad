@@ -648,11 +648,21 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       background: rgba(30, 20, 10, 0.9);
       border-bottom: 2px solid #5c4409;
       backdrop-filter: blur(8px);
+      /* needed so .chad-name absolute positioning is contained */
+      overflow: visible;
     }
     .chad-name {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
       font-size: 0.55rem;
       color: #c9a84c;
+      text-align: center;
       text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
+      white-space: nowrap;
+      max-width: 50%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .main {
