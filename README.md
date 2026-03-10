@@ -1,8 +1,8 @@
 # Last Chad
 
-> A text-based adventure RPG with upgradable NFT characters on Avalanche.
+> A Mobile text-based adventure RPG with upgradable NFT characters on Avalanche.
 
-Mint a Chad. Send them on quests. Roll dice. Earn XP. Level up. Equip items. Don't die.
+Mint a Chad. Send them on quests. Roll dice. Play Mini-Games. Earn XP. Level up. Equip items. Don't die.
 
 ---
 
@@ -14,10 +14,10 @@ Mint a Chad. Send them on quests. Roll dice. Earn XP. Level up. Equip items. Don
 
 ## The Game
 
-Last Chad is a fully on-chain RPG where your character is an ERC-721 NFT that permanently changes based on your choices. XP, levels, stats, and items are all stored on-chain. There is no reset.
+Last Chad is a mobile fully on-chain RPG where your character is an ERC-721 NFT that permanently changes based on your choices. XP, levels, stats, and items are all stored on-chain. There is no reset.
 
 ### Characters
-- 2,000 total supply, 2 AVAX to mint
+- 10,000 total supply, 2 AVAX to mint
 - 4 stats: Strength, Intelligence, Dexterity, Charisma
 - Distribute 2 points at setup, earn 1 more per level-up
 - Level = total XP / 100
