@@ -917,11 +917,8 @@
         <select id="filterSort">
           <option value="price-asc">Price: Low → High</option>
           <option value="price-desc">Price: High → Low</option>
-          <option value="level-desc">Level: High → Low</option>
-          <option value="str-desc">STR: High → Low</option>
-          <option value="int-desc">INT: High → Low</option>
-          <option value="dex-desc">DEX: High → Low</option>
-          <option value="cha-desc">CHA: High → Low</option>
+          <option value="cells-asc">Locked Cells: Low → High</option>
+          <option value="cells-desc">Locked Cells: High → Low</option>
         </select>
         <input type="text" id="filterSearch" placeholder="Search by name or ID..." style="flex:1;min-width:160px;">
       </div>
@@ -1037,6 +1034,7 @@
       'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
       'function getExperience(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
+      'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
     ];
 
@@ -1379,10 +1377,11 @@
         const tid = l.tokenId.toString();
         if (statsCache.has(tid)) return;
         try {
-          const [stats, xp, level, name] = await Promise.all([
+          const [stats, xp, level, cells, name] = await Promise.all([
             nft.getStats(l.tokenId),
             nft.getExperience(l.tokenId),
             nft.getLevel(l.tokenId),
+            nft.getClosedCells(l.tokenId),
             nft.tokenName(l.tokenId),
           ]);
           statsCache.set(tid, {
@@ -1392,10 +1391,11 @@
             cha:   stats.charisma.toNumber(),
             xp:    xp.toNumber(),
             level: level.toNumber(),
+            cells: cells.toNumber(),
             name:  name || '',
           });
         } catch (_) {
-          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, name: '' });
+          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, name: '' });
         }
       }));
     }
@@ -1452,11 +1452,8 @@
       const stat = key => l => (statsCache.get(l.tokenId.toString()) || {})[key] || 0;
       if (sortBy === 'price-asc')   filtered.sort((a, b) => a.price.lt(b.price) ? -1 : 1);
       if (sortBy === 'price-desc')  filtered.sort((a, b) => b.price.lt(a.price) ? -1 : 1);
-      if (sortBy === 'level-desc')  filtered.sort((a, b) => stat('level')(b) - stat('level')(a));
-      if (sortBy === 'str-desc')    filtered.sort((a, b) => stat('str')(b) - stat('str')(a));
-      if (sortBy === 'int-desc')    filtered.sort((a, b) => stat('int')(b) - stat('int')(a));
-      if (sortBy === 'dex-desc')    filtered.sort((a, b) => stat('dex')(b) - stat('dex')(a));
-      if (sortBy === 'cha-desc')    filtered.sort((a, b) => stat('cha')(b) - stat('cha')(a));
+      if (sortBy === 'cells-asc')   filtered.sort((a, b) => stat('cells')(a) - stat('cells')(b));
+      if (sortBy === 'cells-desc')  filtered.sort((a, b) => stat('cells')(b) - stat('cells')(a));
 
       if (filtered.length === 0) {
         listingsGrid.innerHTML = '<div class="empty-state">No listings found.</div>';
