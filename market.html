@@ -1354,7 +1354,7 @@
           </div>
           <div class="nft-card-body">
             ${isOwn ? '<div class="my-listing-badge">YOUR LISTING</div>' : ''}
-            <div class="nft-card-name" data-token="${tid}">${displayName}</div>
+            <div class="nft-card-name" data-token="${tid}">CHAD #${tid}${s.name ? ' — ' + s.name : ''}</div>
             <div class="stat-badges">
               <span class="stat-badge sb-str">STR ${s.str}</span>
               <span class="stat-badge sb-int">INT ${s.int}</span>
@@ -1497,7 +1497,7 @@
       const displayName = s.name ? s.name : 'CHAD #' + tid;
       const maxStat     = Math.max(s.str, s.int, s.dex, s.cha, 1);
 
-      detailTitle.textContent = 'CHAD #' + tid;
+      detailTitle.textContent = 'CHAD #' + tid + (s.name ? ' — ' + s.name : '');
       detailImg.src = COLLECTIONS.chads.imageBase + tid + '.png';
       detailImg.alt = displayName;
       detailName.textContent = displayName;
