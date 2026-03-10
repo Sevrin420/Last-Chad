@@ -670,7 +670,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       position: relative;
       width: 100%;
       max-width: 310px;
-      margin-bottom: 20px;
+      margin: 0 auto 20px;
       background: url('../../assets/dialogue.jpg') no-repeat center / 100% 100%;
       padding: 28px;
     }
@@ -678,6 +678,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       width: 100%;
       height: auto;
       display: block;
+      margin: 0 auto;
       opacity: 0;
     }
     .section-game-frame {
