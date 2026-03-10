@@ -512,6 +512,16 @@
       padding: 24px 20px;
       line-height: 2;
     }
+    .loading {
+      color: #ffaa40;
+      font-size: 0.6rem;
+      animation: blink 1s step-end infinite;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
 
     /* ── Wallet modal ── */
     .modal-overlay {
@@ -729,6 +739,7 @@
       <div class="gallery-section">
         <div class="gallery-label">YOUR CHADS</div>
         <div id="galleryContainer">
+          <div class="loading" id="loadMsg" style="display:none;">Loading your Chads...</div>
           <div class="gallery-empty" id="galleryEmpty">No Chads found in this wallet</div>
           <div class="gallery-scroll" id="galleryScroll"></div>
         </div>
@@ -821,6 +832,7 @@
     const battleBtn = document.getElementById('battleBtn');
     const galleryScroll = document.getElementById('galleryScroll');
     const galleryEmpty = document.getElementById('galleryEmpty');
+    const loadMsg = document.getElementById('loadMsg');
 
     // ========== STATE ==========
     let userAddress = null;
@@ -919,6 +931,9 @@
 
       galleryScroll.innerHTML = '';
       ownedTokens = [];
+      loadMsg.style.display = 'block';
+      galleryEmpty.style.display = 'none';
+      galleryScroll.style.display = 'none';
 
       try {
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
@@ -933,6 +948,8 @@
             }
           } catch (e) {}
         }
+
+        loadMsg.style.display = 'none';
 
         if (ownedTokens.length === 0) {
           galleryEmpty.style.display = 'block';
@@ -955,6 +972,7 @@
 
       } catch (err) {
         console.error('Failed to load Chads:', err);
+        loadMsg.style.display = 'none';
         galleryEmpty.textContent = 'Failed to load Chads';
         galleryEmpty.style.display = 'block';
         galleryScroll.style.display = 'none';

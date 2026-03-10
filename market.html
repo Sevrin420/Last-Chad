@@ -67,9 +67,9 @@
     }
     .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
     .wallet-btn.connected {
-      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
-      border-color: #4caf50;
-      color: #a5d6a7;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border-color: #d4a017;
+      color: #1a1005;
       font-size: 0.65rem;
     }
 
@@ -414,6 +414,18 @@
       margin-top: 4px;
     }
     .delist-btn:hover { background: rgba(229,57,53,0.15); }
+
+    /* --- Blinking loading --- */
+    .loading {
+      color: #ffaa40;
+      font-size: 0.6rem;
+      animation: blink 1s step-end infinite;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
 
     /* --- Empty / loading --- */
     .empty-state {
@@ -905,11 +917,8 @@
         <select id="filterSort">
           <option value="price-asc">Price: Low → High</option>
           <option value="price-desc">Price: High → Low</option>
-          <option value="level-desc">Level: High → Low</option>
-          <option value="str-desc">STR: High → Low</option>
-          <option value="int-desc">INT: High → Low</option>
-          <option value="dex-desc">DEX: High → Low</option>
-          <option value="cha-desc">CHA: High → Low</option>
+          <option value="cells-asc">Locked Cells: Low → High</option>
+          <option value="cells-desc">Locked Cells: High → Low</option>
         </select>
         <input type="text" id="filterSearch" placeholder="Search by name or ID..." style="flex:1;min-width:160px;">
       </div>
@@ -924,6 +933,9 @@
       <div id="sellConnectPrompt" class="connect-prompt" style="display:none">
         <p>Connect your wallet<br>to list an NFT for sale.</p>
       </div>
+
+      <!-- Loading indicator -->
+      <div class="loading" id="loadMsg" style="display:none;">Loading your Chads...</div>
 
       <!-- NFT grid: chads first, items below -->
       <div class="sell-nft-grid" id="myNftGrid" style="display:none"></div>
@@ -1022,6 +1034,7 @@
       'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
       'function getExperience(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
+      'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
     ];
 
@@ -1062,6 +1075,7 @@
     const resetFiltersBtn = document.getElementById('resetFilters');
 
     const sellConnectPrompt   = document.getElementById('sellConnectPrompt');
+    const loadMsg             = document.getElementById('loadMsg');
     const sellItemForm        = document.getElementById('sellItemForm');
     const sellItemToken       = document.getElementById('sellItemToken');
     const sellItemPrice       = document.getElementById('sellItemPrice');
@@ -1363,10 +1377,11 @@
         const tid = l.tokenId.toString();
         if (statsCache.has(tid)) return;
         try {
-          const [stats, xp, level, name] = await Promise.all([
+          const [stats, xp, level, cells, name] = await Promise.all([
             nft.getStats(l.tokenId),
             nft.getExperience(l.tokenId),
             nft.getLevel(l.tokenId),
+            nft.getClosedCells(l.tokenId),
             nft.tokenName(l.tokenId),
           ]);
           statsCache.set(tid, {
@@ -1376,10 +1391,11 @@
             cha:   stats.charisma.toNumber(),
             xp:    xp.toNumber(),
             level: level.toNumber(),
+            cells: cells.toNumber(),
             name:  name || '',
           });
         } catch (_) {
-          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, name: '' });
+          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, name: '' });
         }
       }));
     }
@@ -1436,11 +1452,8 @@
       const stat = key => l => (statsCache.get(l.tokenId.toString()) || {})[key] || 0;
       if (sortBy === 'price-asc')   filtered.sort((a, b) => a.price.lt(b.price) ? -1 : 1);
       if (sortBy === 'price-desc')  filtered.sort((a, b) => b.price.lt(a.price) ? -1 : 1);
-      if (sortBy === 'level-desc')  filtered.sort((a, b) => stat('level')(b) - stat('level')(a));
-      if (sortBy === 'str-desc')    filtered.sort((a, b) => stat('str')(b) - stat('str')(a));
-      if (sortBy === 'int-desc')    filtered.sort((a, b) => stat('int')(b) - stat('int')(a));
-      if (sortBy === 'dex-desc')    filtered.sort((a, b) => stat('dex')(b) - stat('dex')(a));
-      if (sortBy === 'cha-desc')    filtered.sort((a, b) => stat('cha')(b) - stat('cha')(a));
+      if (sortBy === 'cells-asc')   filtered.sort((a, b) => stat('cells')(a) - stat('cells')(b));
+      if (sortBy === 'cells-desc')  filtered.sort((a, b) => stat('cells')(b) - stat('cells')(a));
 
       if (filtered.length === 0) {
         listingsGrid.innerHTML = '<div class="empty-state">No listings found.</div>';
@@ -1702,16 +1715,18 @@
 
       if (!userAddress) {
         sellConnectPrompt.style.display = 'block';
+        loadMsg.style.display = 'none';
         gridEl.style.display = 'none';
         return;
       }
-      gridEl.style.display = 'grid';
+      loadMsg.style.display = 'block';
+      gridEl.style.display = 'none';
       buildSellGrid();
     }
 
     async function buildSellGrid() {
       const gridEl = document.getElementById('myNftGrid');
-      gridEl.innerHTML = '<div style="grid-column:1/-1;font-size:0.45rem;color:#8a7a5a;padding:12px 0">Loading your NFTs...</div>';
+      gridEl.innerHTML = '';
 
       const marketCt = MARKET_ADDRESS
         ? new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider)
@@ -1769,6 +1784,9 @@
 
       // Silently populate item select for form use
       populateSellItems();
+
+      loadMsg.style.display = 'none';
+      gridEl.style.display = 'grid';
 
       if (chads.length === 0 && items.length === 0) {
         gridEl.innerHTML = '<div style="grid-column:1/-1;font-size:0.45rem;color:#8a7a5a;text-align:center;padding:20px 0">No NFTs in wallet</div>';
