@@ -415,6 +415,18 @@
     }
     .delist-btn:hover { background: rgba(229,57,53,0.15); }
 
+    /* --- Blinking loading --- */
+    .loading {
+      color: #ffaa40;
+      font-size: 0.6rem;
+      animation: blink 1s step-end infinite;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
     /* --- Empty / loading --- */
     .empty-state {
       text-align: center;
@@ -925,6 +937,9 @@
         <p>Connect your wallet<br>to list an NFT for sale.</p>
       </div>
 
+      <!-- Loading indicator -->
+      <div class="loading" id="loadMsg" style="display:none;">Loading your Chads...</div>
+
       <!-- NFT grid: chads first, items below -->
       <div class="sell-nft-grid" id="myNftGrid" style="display:none"></div>
 
@@ -1062,6 +1077,7 @@
     const resetFiltersBtn = document.getElementById('resetFilters');
 
     const sellConnectPrompt   = document.getElementById('sellConnectPrompt');
+    const loadMsg             = document.getElementById('loadMsg');
     const sellItemForm        = document.getElementById('sellItemForm');
     const sellItemToken       = document.getElementById('sellItemToken');
     const sellItemPrice       = document.getElementById('sellItemPrice');
@@ -1702,16 +1718,18 @@
 
       if (!userAddress) {
         sellConnectPrompt.style.display = 'block';
+        loadMsg.style.display = 'none';
         gridEl.style.display = 'none';
         return;
       }
-      gridEl.style.display = 'grid';
+      loadMsg.style.display = 'block';
+      gridEl.style.display = 'none';
       buildSellGrid();
     }
 
     async function buildSellGrid() {
       const gridEl = document.getElementById('myNftGrid');
-      gridEl.innerHTML = '<div style="grid-column:1/-1;font-size:0.45rem;color:#8a7a5a;padding:12px 0">Loading your NFTs...</div>';
+      gridEl.innerHTML = '';
 
       const marketCt = MARKET_ADDRESS
         ? new ethers.Contract(MARKET_ADDRESS, MARKET_ABI, readProvider)
@@ -1769,6 +1787,9 @@
 
       // Silently populate item select for form use
       populateSellItems();
+
+      loadMsg.style.display = 'none';
+      gridEl.style.display = 'grid';
 
       if (chads.length === 0 && items.length === 0) {
         gridEl.innerHTML = '<div style="grid-column:1/-1;font-size:0.45rem;color:#8a7a5a;text-align:center;padding:20px 0">No NFTs in wallet</div>';
