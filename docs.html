@@ -331,6 +331,78 @@
       .lobby-choice-btn { max-width: 420px; font-size: 0.7rem; }
       #lobby1-img { max-width: 280px; }
     }
+
+    /* === Collapsible Sections === */
+    .doc-toggle {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+    }
+    .doc-toggle::after {
+      content: '▶';
+      font-size: 0.55rem;
+      color: #5c4409;
+      transition: transform 0.25s ease, color 0.2s;
+      flex-shrink: 0;
+    }
+    .doc-section.open .doc-toggle::after {
+      transform: rotate(90deg);
+      color: #c9a84c;
+    }
+    .doc-toggle:hover::after { color: #e8c060; }
+    .doc-body {
+      display: none;
+      margin-top: 16px;
+    }
+    .doc-section.open .doc-body { display: block; }
+
+    /* === Stat Bonuses Section === */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    @media (min-width: 600px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
+    .stat-card {
+      background: rgba(10,8,3,0.5);
+      border: 2px solid #3a2a0a;
+      border-radius: 4px;
+      padding: 14px 10px;
+      text-align: center;
+    }
+    .stat-card .stat-icon { font-size: 1.4rem; margin-bottom: 8px; display: block; }
+    .stat-card .stat-name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.42rem;
+      color: #c9a84c;
+      letter-spacing: 1px;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .stat-card .stat-desc {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.35rem;
+      color: #8a7a5a;
+      line-height: 1.8;
+      display: block;
+    }
+    .stat-rule-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      background: rgba(10,8,3,0.4);
+      border-left: 3px solid #c9a84c;
+    }
+    .stat-rule-row .rule-icon { font-size: 1rem; flex-shrink: 0; margin-top: 2px; }
+    .stat-rule-row p { margin: 0 !important; font-size: 0.38rem; line-height: 2; color: #d4c4a0; }
   </style>
 </head>
 <body>
@@ -349,72 +421,76 @@
   </header>
 
   <main class="main">
+
+    <!-- CELO TECH -->
     <div class="doc-section">
-      <h2 style="color: #e8c060; font-size: 0.975rem;">CELO TECH</h2>
-      <img id="celotech-img" src="assets/docs_lobby/celotech.jpg" alt="Celo Tech" style="display:block; width:100%; max-width:420px; margin:16px auto 0;">
-      <button class="lobby-btn" id="enterLobbyBtn">Enter the Lobby</button>
-      <div id="lobby-scene" style="display:none;">
-        <img id="lobby1-img" src="assets/docs_lobby/lobby1.jpg" alt="Celo Tech Lobby">
-        <div id="lobby-text-box">
-          <span id="lobby-line"></span>
-        </div>
-        <div id="lobby-choices">
-          <button class="lobby-choice-btn" id="choiceYes">Yes, I'm very excited</button>
-          <button class="lobby-choice-btn" id="choiceFlirt">Actually, I'm here for you baby</button>
-        </div>
-        <div id="lobby-nft-wrap" style="text-align:center; margin-top:12px; opacity:0; pointer-events:none; transition: opacity 0.5s ease;">
-          <button class="lobby-choice-btn" id="nftBtn">Ask for Chad nft</button>
-        </div>
-        <div id="lobby-cindycode-choices" style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:12px; opacity:0; transition: opacity 0.5s ease; pointer-events:none;">
-          <button class="lobby-choice-btn" id="cindycodeBtn">Put code in your wallet</button>
-          <button class="lobby-choice-btn" id="forgotWalletBtn">I forgot my wallet</button>
-        </div>
-        <div id="dice-frame-wrap" style="width:100%; margin-top:6px; display:none; opacity:0; transition: opacity 0.6s ease;">
-          <div id="lobby-dice-section">
-            <div class="dice-row">
-              <div class="dice-col">
-                <div class="dice-box" id="die0"><div class="dice-face" id="face0"></div></div>
-                <button class="keep-btn" id="keep0" disabled>LOCK</button>
-              </div>
-              <div class="dice-col">
-                <div class="dice-box" id="die1"><div class="dice-face" id="face1"></div></div>
-                <button class="keep-btn" id="keep1" disabled>LOCK</button>
-              </div>
-              <div class="dice-col">
-                <div class="dice-box" id="die2"><div class="dice-face" id="face2"></div></div>
-                <button class="keep-btn" id="keep2" disabled>LOCK</button>
-              </div>
-              <div class="dice-col">
-                <div class="dice-box" id="die3"><div class="dice-face" id="face3"></div></div>
-                <button class="keep-btn" id="keep3" disabled>LOCK</button>
-              </div>
-              <div class="dice-col">
-                <div class="dice-box" id="die4"><div class="dice-face" id="face4"></div></div>
-                <button class="keep-btn" id="keep4" disabled>LOCK</button>
-              </div>
-            </div>
-            <div class="roll-section">
-              <button class="roll-btn" id="rollBtn">ROLL</button>
-              <div class="rolls-left" id="rollsLeft">3 ROLLS LEFT</div>
-            </div>
-            <div class="score-box" id="scoreBox">
-              <div class="checklist">
-                <div class="check-item" id="check6">
-                  <div class="check-box"><span class="check-mark">✓</span></div>
-                  <span>6 = Ship</span>
+      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">CELO TECH</h2>
+      <div class="doc-body">
+        <img id="celotech-img" src="assets/docs_lobby/celotech.jpg" alt="Celo Tech" style="display:block; width:100%; max-width:420px; margin:0 auto 0;">
+        <button class="lobby-btn" id="enterLobbyBtn">Enter the Lobby</button>
+        <div id="lobby-scene" style="display:none;">
+          <img id="lobby1-img" src="assets/docs_lobby/lobby1.jpg" alt="Celo Tech Lobby">
+          <div id="lobby-text-box">
+            <span id="lobby-line"></span>
+          </div>
+          <div id="lobby-choices">
+            <button class="lobby-choice-btn" id="choiceYes">Yes, I'm very excited</button>
+            <button class="lobby-choice-btn" id="choiceFlirt">Actually, I'm here for you baby</button>
+          </div>
+          <div id="lobby-nft-wrap" style="text-align:center; margin-top:12px; opacity:0; pointer-events:none; transition: opacity 0.5s ease;">
+            <button class="lobby-choice-btn" id="nftBtn">Ask for Chad nft</button>
+          </div>
+          <div id="lobby-cindycode-choices" style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:12px; opacity:0; transition: opacity 0.5s ease; pointer-events:none;">
+            <button class="lobby-choice-btn" id="cindycodeBtn">Put code in your wallet</button>
+            <button class="lobby-choice-btn" id="forgotWalletBtn">I forgot my wallet</button>
+          </div>
+          <div id="dice-frame-wrap" style="width:100%; margin-top:6px; display:none; opacity:0; transition: opacity 0.6s ease;">
+            <div id="lobby-dice-section">
+              <div class="dice-row">
+                <div class="dice-col">
+                  <div class="dice-box" id="die0"><div class="dice-face" id="face0"></div></div>
+                  <button class="keep-btn" id="keep0" disabled>LOCK</button>
                 </div>
-                <div class="check-item" id="check5">
-                  <div class="check-box"><span class="check-mark">✓</span></div>
-                  <span>5 = Captain</span>
+                <div class="dice-col">
+                  <div class="dice-box" id="die1"><div class="dice-face" id="face1"></div></div>
+                  <button class="keep-btn" id="keep1" disabled>LOCK</button>
                 </div>
-                <div class="check-item" id="check4">
-                  <div class="check-box"><span class="check-mark">✓</span></div>
-                  <span>4 = Mate</span>
+                <div class="dice-col">
+                  <div class="dice-box" id="die2"><div class="dice-face" id="face2"></div></div>
+                  <button class="keep-btn" id="keep2" disabled>LOCK</button>
+                </div>
+                <div class="dice-col">
+                  <div class="dice-box" id="die3"><div class="dice-face" id="face3"></div></div>
+                  <button class="keep-btn" id="keep3" disabled>LOCK</button>
+                </div>
+                <div class="dice-col">
+                  <div class="dice-box" id="die4"><div class="dice-face" id="face4"></div></div>
+                  <button class="keep-btn" id="keep4" disabled>LOCK</button>
                 </div>
               </div>
-              <div class="score-right">
-                <div class="score-label" id="scoreLabel">ROLL THE DICE</div>
-                <div class="score-value" id="scoreValue">-</div>
+              <div class="roll-section">
+                <button class="roll-btn" id="rollBtn">ROLL</button>
+                <div class="rolls-left" id="rollsLeft">3 ROLLS LEFT</div>
+              </div>
+              <div class="score-box" id="scoreBox">
+                <div class="checklist">
+                  <div class="check-item" id="check6">
+                    <div class="check-box"><span class="check-mark">✓</span></div>
+                    <span>6 = Ship</span>
+                  </div>
+                  <div class="check-item" id="check5">
+                    <div class="check-box"><span class="check-mark">✓</span></div>
+                    <span>5 = Captain</span>
+                  </div>
+                  <div class="check-item" id="check4">
+                    <div class="check-box"><span class="check-mark">✓</span></div>
+                    <span>4 = Mate</span>
+                  </div>
+                </div>
+                <div class="score-right">
+                  <div class="score-label" id="scoreLabel">ROLL THE DICE</div>
+                  <div class="score-value" id="scoreValue">-</div>
+                </div>
               </div>
             </div>
           </div>
@@ -422,72 +498,148 @@
       </div>
     </div>
 
+    <!-- LORE -->
     <div class="doc-section">
-      <h2 style="color: #e8c060; font-size: 0.975rem;">&#9876; LORE</h2>
-      <p style="margin-bottom: 16px !important;">Earth 2050.</p>
-      <p style="margin-bottom: 16px !important;">The world stands still during the <span style="color: #e8c060 !important;">2 week</span> competition known as <span style="color: #c0392b !important; font-weight: bold;">Last Chad</span></p>
-      <p style="margin-bottom: 16px !important;">Billions are glued to their televisions as <span style="color: #e8c060 !important;">10,000</span> lucky contestants compete for <span style="color: #f7931a !important; font-weight: bold;">&#8383; 1 Bitcoin</span></p>
-      <p style="margin-bottom: 0 !important;">Darkness lies ahead for the <span style="color: #e8c060 !important;">once loyal Synthettes</span> have <span style="color: #c0392b !important; font-weight: bold;">annihilation</span> on their mind</p>
-    </div>
-
-    <div class="doc-section">
-      <h2 style="color: #e8c060; font-size: 0.975rem;">&#9670; MINT</h2>
-      <div class="info-card" style="display: inline-block; margin-top: 8px;">
-        <p style="color: #4caf50 !important; margin-bottom: 6px !important; font-weight: bold; letter-spacing: 1px;">&#9670; Supply: <span style="color: #66bb6a !important;">10,000</span></p>
-        <p style="color: #4caf50 !important; margin-bottom: 0 !important; font-weight: bold; letter-spacing: 1px;">&#9670; Mint: <span style="color: #66bb6a !important;">2 Avax</span></p>
+      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">&#9876; LORE</h2>
+      <div class="doc-body">
+        <p style="margin-bottom: 16px !important;">Earth 2050.</p>
+        <p style="margin-bottom: 16px !important;">The world stands still during the <span style="color: #e8c060 !important;">2 week</span> competition known as <span style="color: #c0392b !important; font-weight: bold;">Last Chad</span></p>
+        <p style="margin-bottom: 16px !important;">Billions are glued to their televisions as <span style="color: #e8c060 !important;">10,000</span> lucky contestants compete for <span style="color: #f7931a !important; font-weight: bold;">&#8383; 1 Bitcoin</span></p>
+        <p style="margin-bottom: 0 !important;">Darkness lies ahead for the <span style="color: #e8c060 !important;">once loyal Synthettes</span> have <span style="color: #c0392b !important; font-weight: bold;">annihilation</span> on their mind</p>
       </div>
     </div>
 
+    <!-- MINT -->
     <div class="doc-section">
-      <h2 style="color: #e8c060; font-size: 0.975rem;">&#9881; GAMEPLAY</h2>
-      <p style="margin-bottom: 14px !important;"><span style="color: #c0392b !important; font-weight: bold;">Last Chad</span> is an <span style="color: #e8c060 !important;">adventure</span> role playing game.</p>
-      <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important;">Logic</span>, <span style="color: #4caf50 !important;">skill</span> and <span style="color: #f7931a !important;">luck</span> are required to complete quests and earn <span style="color: #e8c060 !important; font-weight: bold;">power cells</span>.</p>
-      <p>Level ups, stat bonuses, power cells and items are all logged <span style="color: #4caf50 !important;">on-chain</span> to the <span style="color: #c0392b !important; font-weight: bold;">Chad nft</span>.</p>
-    </div>
-
-    <div class="doc-section">
-      <h2 style="color: #e8c060; font-size: 0.975rem;">&#9889; POWER CELLS</h2>
-      <p style="margin-bottom: 14px !important;">Chad NFTs require <span style="color: #e8c060 !important; font-weight: bold;">power cells</span> to stay strong</p>
-      <p style="margin-bottom: 14px !important;">Cells are awarded for <span style="color: #4caf50 !important; font-weight: bold;">completing quests</span></p>
-      <p style="margin-bottom: 14px !important;">Lock <span style="color: #e8c060 !important; font-weight: bold;">100 cells</span> to level up your Chad NFT</p>
-      <p style="margin-bottom: 14px !important;"><span style="color: #c0392b !important; font-weight: bold;">Monthly culls</span> remove weak Chads from the game</p>
-      <p style="margin-bottom: 0 !important;">Lock cells to <span style="color: #4caf50 !important; font-weight: bold;">avoid the cull</span> &#9889;</p>
-    </div>
-
-    <div class="doc-section">
-      <h2 style="color: #e8c060; font-size: 0.975rem;">&#9851; DEFI</h2>
-      <p style="margin-bottom: 20px !important;"><span style="color: #e8c060 !important; font-weight: bold;">90%</span> of mint funds enter defi protocols to generate <span style="color: #e8c060 !important;">yield</span></p>
-
-      <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 14px !important; letter-spacing: 1px;">&#9674; Yield Breakdown</p>
-      <div class="yield-card">
-        <p style="margin-bottom: 0 !important;"><span style="color: #e8c060 !important; font-weight: bold;">100%</span> &#9852; Buys and burns <span style="color: #c0392b !important;">Chad</span> NFTs</p>
+      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">&#9670; MINT</h2>
+      <div class="doc-body">
+        <div class="info-card" style="display: inline-block; margin-top: 8px;">
+          <p style="color: #4caf50 !important; margin-bottom: 6px !important; font-weight: bold; letter-spacing: 1px;">&#9670; Supply: <span style="color: #66bb6a !important;">10,000</span></p>
+          <p style="color: #4caf50 !important; margin-bottom: 0 !important; font-weight: bold; letter-spacing: 1px;">&#9670; Mint: <span style="color: #66bb6a !important;">2 Avax</span></p>
+        </div>
       </div>
     </div>
 
+    <!-- GAMEPLAY -->
     <div class="doc-section">
-      <h2 style="color: #c0392b; font-size: 0.975rem;">&#9760; THE CULL</h2>
-      <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">Duration:</span> <span style="color: #ffffff !important;">6 months</span></p>
-      <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">When:</span> <span style="color: #ffffff !important;">Last day of each month</span></p>
-      <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">What:</span> The bottom <span style="color: #c0392b !important; font-weight: bold;">20%</span> of Chads by lowest locked cells are <span style="color: #c0392b !important; font-weight: bold;">eliminated</span> from the game</p>
-      <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 10px !important; letter-spacing: 1px;">&#9674; Consequences</p>
-      <div class="yield-card">
-        <p style="margin-bottom: 6px !important;"><span style="color: #c0392b !important;">&#10007;</span> No playing quests</p>
-        <p style="margin-bottom: 6px !important;"><span style="color: #c0392b !important;">&#10007;</span> No access to buy/burns</p>
-        <p style="margin-bottom: 6px !important;"><span style="color: #c0392b !important;">&#10007;</span> No access to endgame</p>
-        <p style="margin-bottom: 0 !important;"><span style="color: #c0392b !important; font-weight: bold;">&#9760; GAME OVER</span></p>
+      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">&#9881; GAMEPLAY</h2>
+      <div class="doc-body">
+        <p style="margin-bottom: 14px !important;"><span style="color: #c0392b !important; font-weight: bold;">Last Chad</span> is an <span style="color: #e8c060 !important;">adventure</span> role playing game.</p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important;">Logic</span>, <span style="color: #4caf50 !important;">skill</span> and <span style="color: #f7931a !important;">luck</span> are required to complete quests and earn <span style="color: #e8c060 !important; font-weight: bold;">power cells</span>.</p>
+        <p style="margin-bottom: 0 !important;">Level ups, stat bonuses, power cells and items are all logged <span style="color: #4caf50 !important;">on-chain</span> to the <span style="color: #c0392b !important; font-weight: bold;">Chad nft</span>.</p>
       </div>
     </div>
 
+    <!-- STAT BONUSES -->
     <div class="doc-section">
-      <h2 style="color: #f7931a; font-size: 0.975rem;">&#9733; ENDGAME</h2>
-      <p style="margin-bottom: 14px !important;">After <span style="color: #e8c060 !important; font-weight: bold;">6 months</span> the cull ends</p>
-      <p style="margin-bottom: 14px !important;">Yield continues to <span style="color: #c0392b !important; font-weight: bold;">buy &amp; burn</span> Chads until <span style="color: #f7931a !important; font-weight: bold;">1,000</span> remain</p>
-      <p style="margin-bottom: 20px !important;"><span style="color: #f7931a !important; font-weight: bold;">1,000 Chads = Endgame</span></p>
-      <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 14px !important; letter-spacing: 1px;">&#9674; Yield Distribution</p>
-      <div class="yield-card">
-        <p style="margin-bottom: 6px !important;"><span style="color: #f7931a !important; font-weight: bold;">50%</span> &#127381; Airdrop to holders</p>
-        <p style="margin-bottom: 6px !important;"><span style="color: #e8c060 !important; font-weight: bold;">25%</span> &#9852; Buy &amp; burn</p>
-        <p style="margin-bottom: 0 !important;"><span style="color: #4caf50 !important; font-weight: bold;">25%</span> &#9881; Ecosystem development</p>
+      <h2 class="doc-toggle" style="color: #c9a84c; font-size: 0.975rem;">&#9670; STAT BONUSES</h2>
+      <div class="doc-body">
+
+        <p style="margin-bottom: 16px !important;">Every Chad has <span style="color: #e8c060 !important; font-weight: bold;">4 core stats</span>. At creation you assign <span style="color: #4caf50 !important; font-weight: bold;">2 stat points</span> to your NFT. Each level-up awards <span style="color: #4caf50 !important; font-weight: bold;">+1 additional point</span> to spend.</p>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-icon">&#9876;</span>
+            <span class="stat-name">STRENGTH</span>
+            <span class="stat-desc">Raw power &amp; physical force. Sprint through enemies, break down doors, brute-force your way forward.</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">&#128311;</span>
+            <span class="stat-name">DEXTERITY</span>
+            <span class="stat-desc">Speed, agility &amp; precision. Adds a direct bonus to your total XP score on every quest completed.</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">&#128161;</span>
+            <span class="stat-name">INTELLIGENCE</span>
+            <span class="stat-desc">Cunning &amp; arcane knowledge. Crack codes, detect traps, outsmart opponents with logic and wit.</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">&#127908;</span>
+            <span class="stat-name">CHARISMA</span>
+            <span class="stat-desc">Charm &amp; force of personality. Persuade NPCs, unlock hidden dialogue, and roll social challenges.</span>
+          </div>
+        </div>
+
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.7rem; margin-bottom: 12px !important; letter-spacing: 1px;">&#9674; How Stat Rolls Work</p>
+
+        <div class="stat-rule-row">
+          <span class="rule-icon">&#9876;</span>
+          <p>Dice rolls in quests are tied to a <span style="color: #e8c060 !important; font-weight: bold;">specific stat</span>. Need to sprint for the exit? The roll is strength-based — your final score equals your <span style="color: #e8c060 !important;">dice result + your Strength bonus</span>.</p>
+        </div>
+        <div class="stat-rule-row">
+          <span class="rule-icon">&#128311;</span>
+          <p>Dexterity is special — it adds a <span style="color: #4caf50 !important; font-weight: bold;">flat XP bonus</span> to every quest completion. Every point of DEX you invest pays off on every run.</p>
+        </div>
+        <div class="stat-rule-row">
+          <span class="rule-icon">&#127381;</span>
+          <p>Higher stats don't just improve rolls — they unlock <span style="color: #e8c060 !important; font-weight: bold;">better narrative choices</span> and <span style="color: #f7931a !important; font-weight: bold;">rarer item rewards</span> as quests evolve.</p>
+        </div>
+
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.7rem; margin-bottom: 12px !important; letter-spacing: 1px;">&#9674; Items &amp; Equipment</p>
+
+        <div class="yield-card">
+          <p style="margin-bottom: 10px !important;">Items earned in-game often carry <span style="color: #c9a84c !important; font-weight: bold;">stat bonuses</span> that directly boost your roll totals.</p>
+          <p style="margin-bottom: 10px !important;">&#128184; Equip items before starting a quest via the <span style="color: #e8c060 !important; font-weight: bold;">Load Out screen</span> on your character page.</p>
+          <p style="margin-bottom: 0 !important;"><span style="color: #4caf50 !important;">&#9670;</span> The right loadout for the right quest — matching your gear to the stat a quest tests can be the difference between glory and the cull.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- POWER CELLS -->
+    <div class="doc-section">
+      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">&#9889; POWER CELLS</h2>
+      <div class="doc-body">
+        <p style="margin-bottom: 14px !important;">Chad NFTs require <span style="color: #e8c060 !important; font-weight: bold;">power cells</span> to stay strong</p>
+        <p style="margin-bottom: 14px !important;">Cells are awarded for <span style="color: #4caf50 !important; font-weight: bold;">completing quests</span></p>
+        <p style="margin-bottom: 14px !important;">Lock <span style="color: #e8c060 !important; font-weight: bold;">100 cells</span> to level up your Chad NFT</p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #c0392b !important; font-weight: bold;">Monthly culls</span> remove weak Chads from the game</p>
+        <p style="margin-bottom: 0 !important;">Lock cells to <span style="color: #4caf50 !important; font-weight: bold;">avoid the cull</span> &#9889;</p>
+      </div>
+    </div>
+
+    <!-- DEFI -->
+    <div class="doc-section">
+      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">&#9851; DEFI</h2>
+      <div class="doc-body">
+        <p style="margin-bottom: 20px !important;"><span style="color: #e8c060 !important; font-weight: bold;">90%</span> of mint funds enter defi protocols to generate <span style="color: #e8c060 !important;">yield</span></p>
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 14px !important; letter-spacing: 1px;">&#9674; Yield Breakdown</p>
+        <div class="yield-card">
+          <p style="margin-bottom: 0 !important;"><span style="color: #e8c060 !important; font-weight: bold;">100%</span> &#9852; Buys and burns <span style="color: #c0392b !important;">Chad</span> NFTs</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- THE CULL -->
+    <div class="doc-section">
+      <h2 class="doc-toggle" style="color: #c0392b; font-size: 0.975rem;">&#9760; THE CULL</h2>
+      <div class="doc-body">
+        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">Duration:</span> <span style="color: #ffffff !important;">6 months</span></p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">When:</span> <span style="color: #ffffff !important;">Last day of each month</span></p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">What:</span> The bottom <span style="color: #c0392b !important; font-weight: bold;">20%</span> of Chads by lowest locked cells are <span style="color: #c0392b !important; font-weight: bold;">eliminated</span> from the game</p>
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 10px !important; letter-spacing: 1px;">&#9674; Consequences</p>
+        <div class="yield-card">
+          <p style="margin-bottom: 6px !important;"><span style="color: #c0392b !important;">&#10007;</span> No playing quests</p>
+          <p style="margin-bottom: 6px !important;"><span style="color: #c0392b !important;">&#10007;</span> No access to buy/burns</p>
+          <p style="margin-bottom: 6px !important;"><span style="color: #c0392b !important;">&#10007;</span> No access to endgame</p>
+          <p style="margin-bottom: 0 !important;"><span style="color: #c0392b !important; font-weight: bold;">&#9760; GAME OVER</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ENDGAME -->
+    <div class="doc-section">
+      <h2 class="doc-toggle" style="color: #f7931a; font-size: 0.975rem;">&#9733; ENDGAME</h2>
+      <div class="doc-body">
+        <p style="margin-bottom: 14px !important;">After <span style="color: #e8c060 !important; font-weight: bold;">6 months</span> the cull ends</p>
+        <p style="margin-bottom: 14px !important;">Yield continues to <span style="color: #c0392b !important; font-weight: bold;">buy &amp; burn</span> Chads until <span style="color: #f7931a !important; font-weight: bold;">1,000</span> remain</p>
+        <p style="margin-bottom: 20px !important;"><span style="color: #f7931a !important; font-weight: bold;">1,000 Chads = Endgame</span></p>
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 14px !important; letter-spacing: 1px;">&#9674; Yield Distribution</p>
+        <div class="yield-card">
+          <p style="margin-bottom: 6px !important;"><span style="color: #f7931a !important; font-weight: bold;">50%</span> &#127381; Airdrop to holders</p>
+          <p style="margin-bottom: 6px !important;"><span style="color: #e8c060 !important; font-weight: bold;">25%</span> &#9852; Buy &amp; burn</p>
+          <p style="margin-bottom: 0 !important;"><span style="color: #4caf50 !important; font-weight: bold;">25%</span> &#9881; Ecosystem development</p>
+        </div>
       </div>
     </div>
 
@@ -568,6 +720,13 @@
 
     // ========== AUTO-RECONNECT ==========
     autoReconnect({ onConnected, onDisconnected });
+
+    // ========== COLLAPSIBLE SECTIONS ==========
+    document.querySelectorAll('.doc-toggle').forEach(h2 => {
+      h2.addEventListener('click', () => {
+        h2.closest('.doc-section').classList.toggle('open');
+      });
+    });
 
     const img = document.getElementById('lobby1-img');
     const lineEl = document.getElementById('lobby-line');

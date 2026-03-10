@@ -179,51 +179,6 @@
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
-    /* --- Stat filter bar --- */
-    .stat-filter-bar {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-      margin-bottom: 12px;
-      padding: 12px 14px;
-      background: rgba(10,8,3,0.4);
-      border: 1px solid #3a2a0a;
-      border-radius: 4px;
-    }
-    .stat-filter-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .stat-filter-group label {
-      font-size: 0.42rem;
-      color: #8a7a5a;
-      white-space: nowrap;
-    }
-    .stat-filter-group select {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.45rem;
-      padding: 5px 8px;
-      background: rgba(10,8,3,0.8);
-      border: 1px solid #5c4409;
-      border-radius: 3px;
-      color: #f5e6c8;
-      outline: none;
-    }
-    .stat-filter-group select option { background: #1e1608; }
-    .reset-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.4rem;
-      padding: 5px 9px;
-      background: transparent;
-      border: 1px solid #5c4409;
-      border-radius: 3px;
-      color: #8a7a5a;
-      cursor: pointer;
-      margin-left: auto;
-    }
-    .reset-btn:hover { color: #d4a017; border-color: #d4a017; }
 
     /* --- Filter bar --- */
     .filter-bar {
@@ -868,50 +823,6 @@
     <!-- Browse Tab -->
     <div class="tab-panel active" id="tab-browse">
 
-      <!-- Stat / XP filter bar (Chads only) -->
-      <div class="stat-filter-bar" id="statFilterBar">
-        <div class="stat-filter-group">
-          <label>STR ≥</label>
-          <select id="filterStr">
-            <option value="0">Any</option>
-            <option value="1">1+</option><option value="2">2+</option>
-            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
-          </select>
-        </div>
-        <div class="stat-filter-group">
-          <label>INT ≥</label>
-          <select id="filterInt">
-            <option value="0">Any</option>
-            <option value="1">1+</option><option value="2">2+</option>
-            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
-          </select>
-        </div>
-        <div class="stat-filter-group">
-          <label>DEX ≥</label>
-          <select id="filterDex">
-            <option value="0">Any</option>
-            <option value="1">1+</option><option value="2">2+</option>
-            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
-          </select>
-        </div>
-        <div class="stat-filter-group">
-          <label>CHA ≥</label>
-          <select id="filterCha">
-            <option value="0">Any</option>
-            <option value="1">1+</option><option value="2">2+</option>
-            <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
-          </select>
-        </div>
-        <div class="stat-filter-group">
-          <label>LVL ≥</label>
-          <select id="filterLevel">
-            <option value="1">Any</option>
-            <option value="2">2+</option><option value="3">3+</option>
-            <option value="4">4+</option><option value="5">5+</option>
-          </select>
-        </div>
-        <button class="reset-btn" id="resetFilters">RESET</button>
-      </div>
 
       <div class="filter-bar">
         <select id="filterSort">
@@ -1066,13 +977,6 @@
     const listingsGrid  = document.getElementById('listingsGrid');
     const filterSort    = document.getElementById('filterSort');
     const filterSearch  = document.getElementById('filterSearch');
-    const statFilterBar = document.getElementById('statFilterBar');
-    const filterStr     = document.getElementById('filterStr');
-    const filterInt     = document.getElementById('filterInt');
-    const filterDex     = document.getElementById('filterDex');
-    const filterCha     = document.getElementById('filterCha');
-    const filterLevel   = document.getElementById('filterLevel');
-    const resetFiltersBtn = document.getElementById('resetFilters');
 
     const sellConnectPrompt   = document.getElementById('sellConnectPrompt');
     const loadMsg             = document.getElementById('loadMsg');
@@ -1169,33 +1073,20 @@
         document.querySelectorAll('.coll-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         activeCollection = btn.dataset.coll;
-        statFilterBar.style.display = activeCollection === 'chads' ? 'flex' : 'none';
         updateSellPanel();
         loadListings();
       });
     });
 
     // ====================================================================
-    // Stat filter listeners
+    // Filter / sort listeners
     // ====================================================================
     function rerender() {
       if (activeCollection === 'items') renderListings1155(allListings1155);
       else renderListings(allListings);
     }
-    [filterStr, filterInt, filterDex, filterCha, filterLevel, filterSort].forEach(el => {
-      el.addEventListener('change', rerender);
-    });
+    filterSort.addEventListener('change', rerender);
     filterSearch.addEventListener('input', rerender);
-    resetFiltersBtn.addEventListener('click', () => {
-      filterStr.value    = '0';
-      filterInt.value    = '0';
-      filterDex.value    = '0';
-      filterCha.value    = '0';
-      filterLevel.value  = '1';
-      filterSearch.value = '';
-      filterSort.value   = 'price-asc';
-      rerender();
-    });
 
     // ====================================================================
     // Marketplace fee
@@ -1421,31 +1312,16 @@
     // Render listings with filters + sort
     // ====================================================================
     function renderListings(listings) {
-      const sortBy   = filterSort.value;
-      const search   = filterSearch.value.toLowerCase().trim();
-      const minStr   = parseInt(filterStr.value)   || 0;
-      const minInt   = parseInt(filterInt.value)   || 0;
-      const minDex   = parseInt(filterDex.value)   || 0;
-      const minCha   = parseInt(filterCha.value)   || 0;
-      const minLevel = parseInt(filterLevel.value) || 1;
+      const sortBy = filterSort.value;
+      const search = filterSearch.value.toLowerCase().trim();
 
       let filtered = listings.filter(l => {
+        if (!search) return true;
         const tid = l.tokenId.toString();
-        const s   = statsCache.get(tid) || { str: 0, int: 0, dex: 0, cha: 0, level: 1, name: '' };
-
-        if (s.str   < minStr)   return false;
-        if (s.int   < minInt)   return false;
-        if (s.dex   < minDex)   return false;
-        if (s.cha   < minCha)   return false;
-        if (s.level < minLevel) return false;
-
-        if (search) {
-          const nameHit = s.name.toLowerCase().includes(search);
-          const idHit   = ('chad #' + tid).includes(search) || tid.includes(search);
-          if (!nameHit && !idHit) return false;
-        }
-
-        return true;
+        const s   = statsCache.get(tid) || { name: '' };
+        const nameHit = s.name.toLowerCase().includes(search);
+        const idHit   = ('chad #' + tid).includes(search) || tid.includes(search);
+        return nameHit || idHit;
       });
 
       // Sort
