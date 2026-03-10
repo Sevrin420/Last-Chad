@@ -146,3 +146,14 @@ body {
   .main { padding: 80px 16px 40px; }
   .doc-section { padding: 16px; }
 }
+
+/* === Desktop === */
+@media (min-width: 900px) {
+  .main { max-width: 960px; padding: 100px 40px 80px; }
+  .doc-section { padding: 28px 32px; }
+  .doc-section h2 { font-size: 1rem; }
+  .doc-section p,
+  .doc-section li { font-size: 0.75rem; }
+  .page-title { font-size: 2rem; margin-bottom: 40px; }
+  .header { padding: 18px 36px; }
+}
