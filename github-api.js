@@ -764,7 +764,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       font-size: 0.85rem;
       color: #c9a84c;
     }
-    .hud-stat-value.boosted { color: #4caf50; }
+    .hud-stat-value.boosted { color: #f7931a; text-shadow: 0 0 8px rgba(247,147,26,0.6); }
     .hud-items-row {
       display: none;
       flex-direction: row;
@@ -1903,7 +1903,7 @@ function showPanel(id) {
         function setStatEl(elId, base, mod) {
           var el = document.getElementById(elId);
           if (!el) return;
-          el.textContent = mod > 0 ? (base + mod) + ' (+' + mod + ')' : '' + base;
+          el.textContent = '' + (base + mod);
           if (mod > 0) el.classList.add('boosted');
         }
         setStatEl('hudStr_' + sid, baseStr, modStr);
