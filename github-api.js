@@ -1033,6 +1033,17 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       .dice-row { gap: 5px; }
     }
 
+    /* === Desktop === */
+    @media (min-width: 900px) {
+      .quest-panel { max-width: 680px; padding: 32px 36px; }
+      .quest-hud { max-width: 680px; }
+      .intro-box { max-width: 680px; padding: 48px 44px; }
+      .dice-box { width: 90px; height: 90px; }
+      .keep-btn { width: 90px; font-size: 0.45rem; }
+      .score-box { min-width: 360px; }
+      .roll-btn { padding: 16px 52px; }
+    }
+
     /* Intro overlay */
     #intro-overlay {
       position: fixed;
