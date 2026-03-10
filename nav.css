@@ -49,3 +49,25 @@
 .nav-link:last-child { border-bottom: none; }
 .nav-link:hover { background: rgba(92, 68, 9, 0.3); color: #c9a84c; }
 .nav-link.active { color: #c9a84c; background: rgba(92, 68, 9, 0.15); }
+
+/* === Desktop === */
+@media (min-width: 900px) {
+  .nav-toggle { display: none; }
+  .nav-dropdown {
+    display: flex !important;
+    position: static;
+    background: none;
+    border: none;
+    box-shadow: none;
+    min-width: auto;
+    flex-direction: row;
+    gap: 4px;
+  }
+  .nav-link {
+    padding: 8px 14px;
+    border-bottom: none;
+    border-radius: 3px;
+    font-size: 0.6rem;
+  }
+  .nav-link:hover { background: rgba(92, 68, 9, 0.25); }
+}
