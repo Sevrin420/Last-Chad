@@ -764,7 +764,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       font-size: 0.85rem;
       color: #c9a84c;
     }
-    .hud-stat-value.boosted { color: #4caf50; }
+    .hud-stat-value.boosted { color: #f7931a; text-shadow: 0 0 8px rgba(247,147,26,0.6); }
     .hud-items-row {
       display: none;
       flex-direction: row;
@@ -1176,13 +1176,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     .modal-close { display: block; margin: 16px auto 0; font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: #5c4409; background: none; border: none; cursor: pointer; padding: 8px; }
     .modal-close:hover { color: #c9a84c; }
 
-    /* Level-up stat buttons */
-    .lu-stat-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; margin-bottom: 10px; font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: #f5e6c8; background: rgba(61,46,10,0.3); border: 2px solid #3d2e0a; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
-    .lu-stat-btn:hover { border-color: #8b6914; background: rgba(92,68,9,0.3); }
-    .lu-stat-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .lu-stat-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
-    .lu-points { font-size: 0.45rem; color: #c9a84c; text-align: center; margin-bottom: 6px; line-height: 2; }
-    .lu-token  { font-size: 0.38rem; color: #8a7a5a; text-align: center; margin-bottom: 16px; }
     .loading-text { font-size: 0.4rem; color: #8a7a5a; text-align: center; padding: 10px 0; }
 
     /* Quest complete panel extras */
@@ -1440,27 +1433,7 @@ ${completePanelHtml}
     </div>
   </div>
 
-  <!-- Level Up Modal -->
-  <div class="modal-overlay" id="levelUpModal">
-    <div class="modal">
-      <h2 class="modal-title">LEVEL UP!</h2>
-      <div class="lu-points" id="luPointsLeft">1 POINT TO ASSIGN</div>
-      <div class="lu-token" id="luTokenId"></div>
-      <button class="lu-stat-btn" onclick="spendStatPoint(0)">
-        <span class="lu-stat-icon" style="background:#c0392b;">&#9876;</span>STRENGTH +1
-      </button>
-      <button class="lu-stat-btn" onclick="spendStatPoint(1)">
-        <span class="lu-stat-icon" style="background:#2980b9;">&#128218;</span>INTELLIGENCE +1
-      </button>
-      <button class="lu-stat-btn" onclick="spendStatPoint(2)">
-        <span class="lu-stat-icon" style="background:#27ae60;">&#127939;</span>DEXTERITY +1
-      </button>
-      <button class="lu-stat-btn" onclick="spendStatPoint(3)">
-        <span class="lu-stat-icon" style="background:#8e44ad;">&#128081;</span>CHARISMA +1
-      </button>
-      <div class="loading-text" id="luStatus" style="display:none; margin-top:10px;"></div>
-    </div>
-  </div>
+
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"><\/script>
   <script src="../../js/quest-globals.js"><\/script>
@@ -1903,7 +1876,7 @@ function showPanel(id) {
         function setStatEl(elId, base, mod) {
           var el = document.getElementById(elId);
           if (!el) return;
-          el.textContent = mod > 0 ? (base + mod) + ' (+' + mod + ')' : '' + base;
+          el.textContent = '' + (base + mod);
           if (mod > 0) el.classList.add('boosted');
         }
         setStatEl('hudStr_' + sid, baseStr, modStr);
@@ -2455,7 +2428,6 @@ ${diceInitJs}
     var walletSigner = null;
     var userAddress = null;
     var chadId = null;
-    var _luPending = 0;
 
     // Read chad from URL param
     (function() {
@@ -2825,57 +2797,6 @@ ${diceInitJs}
       var rw = document.getElementById('returnWrap');
       if (rw) rw.style.display = '';
       checkQuestCompletion();
-
-      // Check for pending stat points from level-up
-      await checkAndShowLevelUp(chadId);
-    }
-
-    // ===== LEVEL-UP =====
-    async function checkAndShowLevelUp(tokenId) {
-      if (!tokenId || !userAddress) return;
-      try {
-        var readProvider = _getReadProvider();
-        var readContract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
-        var pending = await readContract.getPendingStatPoints(tokenId);
-        var pts = pending.toNumber ? pending.toNumber() : Number(pending);
-        if (pts > 0) showLevelUpModal(tokenId, pts);
-      } catch(e) { console.warn('Level-up check failed:', e); }
-    }
-
-    function showLevelUpModal(tokenId, points) {
-      _luPending = points;
-      document.getElementById('luPointsLeft').textContent = points + ' POINT' + (points !== 1 ? 'S' : '') + ' TO ASSIGN';
-      document.getElementById('luTokenId').textContent = 'CHAD #' + tokenId;
-      document.getElementById('luStatus').style.display = 'none';
-      document.getElementById('luStatus').textContent = '';
-      document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
-      document.getElementById('levelUpModal').classList.add('show');
-    }
-
-    async function spendStatPoint(statIndex) {
-      if (!userAddress || !chadId) return;
-      var statusEl = document.getElementById('luStatus');
-      statusEl.style.display = 'block';
-      _setText(statusEl, 'SIGNING...');
-      document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = true; });
-      try {
-        var contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, walletSigner);
-        var tx = await contract.spendStatPoint(chadId, statIndex);
-        _setText(statusEl, 'CONFIRMING...');
-        await tx.wait();
-        _luPending--;
-        if (_luPending > 0) {
-          document.getElementById('luPointsLeft').textContent = _luPending + ' POINT' + (_luPending !== 1 ? 'S' : '') + ' TO ASSIGN';
-          _setText(statusEl, 'ASSIGNED! CHOOSE NEXT STAT.');
-          document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
-        } else {
-          _setText(statusEl, 'ALL STATS ASSIGNED!');
-          setTimeout(function() { document.getElementById('levelUpModal').classList.remove('show'); }, 1500);
-        }
-      } catch(err) {
-        _setText(statusEl, err.code !== 4001 ? 'ERROR: ' + (err.reason || err.message || 'Failed') : 'CANCELLED');
-        document.querySelectorAll('.lu-stat-btn').forEach(function(b) { b.disabled = false; });
-      }
     }
 
     // ===== SECTION ITEM CLAIM =====
