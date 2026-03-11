@@ -22,7 +22,7 @@ NOBG_DIR   = os.path.join(BASE_DIR, 'assets', 'chads', 'nobg')
 
 # Colour-match tolerance for BFS flood-fill.
 # Lower = preserves dark border; higher = removes more purple texture.
-TOLERANCE = 55
+TOLERANCE = 40
 
 # Cleanup passes: after BFS, pixels with this many transparent neighbours
 # (out of 4) are also made transparent. Removes leftover dark texture spots
