@@ -50,11 +50,10 @@ def remove_background(img):
     for y in range(0, h, step):
         edge_samples.append(pixels[0, y][:3])
         edge_samples.append(pixels[w-1, y][:3])
-    n = len(edge_samples)
     bg_color = (
-        sum(s[0] for s in edge_samples) // n,
-        sum(s[1] for s in edge_samples) // n,
-        sum(s[2] for s in edge_samples) // n,
+        sorted(s[0] for s in edge_samples)[len(edge_samples) // 2],
+        sorted(s[1] for s in edge_samples)[len(edge_samples) // 2],
+        sorted(s[2] for s in edge_samples)[len(edge_samples) // 2],
     )
 
     visited = [[False] * h for _ in range(w)]
@@ -62,7 +61,13 @@ def remove_background(img):
 
     def enqueue_if_bg(x, y):
         if 0 <= x < w and 0 <= y < h and not visited[x][y]:
-            if color_distance(pixels[x, y][:3], bg_color) <= TOLERANCE:
+            r, g, b = pixels[x, y][:3]
+            # Hue guard: purple has B > G; brown borders and dark neutral
+            # interiors do not — this stops the BFS from ever leaking through
+            # the card border even if a pixel is close in distance to bg_color.
+            if b <= g:
+                return
+            if color_distance((r, g, b), bg_color) <= TOLERANCE:
                 visited[x][y] = True
                 queue.append((x, y))
 
