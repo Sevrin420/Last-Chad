@@ -43,7 +43,7 @@ def remove_background(img):
 
     # Sample many points along all four edges for a robust background reference
     edge_samples = []
-    step = max(1, min(w, h) // 20)
+    step = max(1, min(w, h) // 200)
     for x in range(0, w, step):
         edge_samples.append(pixels[x, 0][:3])
         edge_samples.append(pixels[x, h-1][:3])
