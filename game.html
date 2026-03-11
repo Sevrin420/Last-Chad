@@ -972,7 +972,7 @@
     const chadId = params.get('chad');
     const questId = params.get('questId'); // optional; if absent, dice work immediately (demo mode)
     if (!chadId) { window.location.replace('quest.html'); }
-    const chadImg = 'assets/chads/' + chadId + '.png';
+    const chadImg = 'assets/chads/framed/' + chadId + '.png';
 
     document.getElementById('portraitImg').src = chadImg;
     document.getElementById('chadName').textContent = 'CHAD #' + chadId;

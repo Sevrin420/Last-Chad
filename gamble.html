@@ -710,7 +710,7 @@
         const card = document.createElement('div');
         card.className = 'nft-card';
         card.innerHTML = `
-          <img src="assets/chads/${token.id}.png" alt="Chad #${token.id}" />
+          <img src="assets/chads/framed/${token.id}.png" alt="Chad #${token.id}" />
           <div class="nft-id">#${token.id} (${token.cells} cells)</div>
         `;
         card.addEventListener('click', () => selectChad(token, ownedTokens));
@@ -754,7 +754,7 @@
       const sel = document.createElement('div');
       sel.id = 'selected-chad';
       sel.innerHTML = `
-        <img src="assets/chads/${token.id}.png" alt="Chad #${token.id}" />
+        <img src="assets/chads/framed/${token.id}.png" alt="Chad #${token.id}" />
         <div id="chad-info">
           <div>Chad #${token.id}</div>
           <div class="cells-count">${token.cells} cells</div>
