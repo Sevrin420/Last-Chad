@@ -1,0 +1,33 @@
+name: Remove Purple Background & Rename
+
+on:
+  workflow_dispatch:
+
+jobs:
+  process-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install Pillow numpy
+
+      - name: Remove purple backgrounds & rename
+        run: python scripts/remove_purple_bg.py
+
+      - name: Commit processed images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/update/processed/
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: remove purple bg, rename to 00001_Brownbg [skip ci]"
+          git push
