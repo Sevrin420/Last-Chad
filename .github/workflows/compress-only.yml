@@ -1,0 +1,191 @@
+name: Compress Images Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_url:
+        description: 'Google Drive share link or direct ZIP URL'
+        required: false
+        default: 'https://drive.google.com/file/d/1637OU0tZ7EAUwZT0ADeVbBPpdzXBI2jL/view?usp=sharing'
+      extract_to:
+        description: 'Folder to extract zip into'
+        required: false
+        default: 'assets/chads/update'
+      path:
+        description: 'Folder to process (ignored if zip_url is set)'
+        required: false
+        default: '.'
+
+jobs:
+  compress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y imagemagick pngquant optipng jpegoptim unzip
+
+      # ── DOWNLOAD ─────────────────────────────────────────────────────────────
+      - name: Download and extract zip
+        if: ${{ github.event.inputs.zip_url != '' }}
+        run: |
+          DEST="${{ github.event.inputs.extract_to }}"
+          mkdir -p "$DEST"
+          ZIP_URL="${{ github.event.inputs.zip_url }}"
+          echo "Downloading from: $ZIP_URL"
+
+          if echo "$ZIP_URL" | grep -q "drive.google.com"; then
+            FILE_ID=$(echo "$ZIP_URL" | grep -oP '(?<=/d/)[^/]+')
+            echo "Google Drive file ID: $FILE_ID"
+            curl -L --fail --show-error \
+              "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&authuser=0&confirm=t" \
+              -o /tmp/images.zip
+          else
+            curl -L --fail --show-error "$ZIP_URL" -o /tmp/images.zip
+          fi
+
+          echo "Downloaded: $(du -sh /tmp/images.zip | cut -f1)"
+          unzip -o /tmp/images.zip -d "$DEST"
+
+          # Flatten single top-level folder if zip has one
+          SUBDIRS=$(find "$DEST" -maxdepth 1 -mindepth 1 -type d)
+          SUBDIR_COUNT=$(echo "$SUBDIRS" | grep -c . || true)
+          if [ "$SUBDIR_COUNT" -eq 1 ] && [ -n "$SUBDIRS" ]; then
+            echo "Flattening: $SUBDIRS/ → $DEST/"
+            mv "$SUBDIRS"/* "$DEST/" 2>/dev/null || true
+            rmdir "$SUBDIRS" 2>/dev/null || true
+          fi
+          echo "Extracted $(find "$DEST" -type f | wc -l) files"
+
+      - name: Set working path
+        id: target
+        run: |
+          if [ -n "${{ github.event.inputs.zip_url }}" ]; then
+            echo "path=${{ github.event.inputs.extract_to }}" >> $GITHUB_OUTPUT
+          else
+            echo "path=${{ github.event.inputs.path }}" >> $GITHUB_OUTPUT
+          fi
+
+      # ── COMPRESS PNGs ────────────────────────────────────────────────────────
+      - name: Compress PNGs to under 250KB
+        run: |
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          LIMIT_BYTES=256000
+          echo "=== Compressing PNGs (hard limit: 250KB) ==="
+
+          find "$SEARCH_PATH" -type f -iname "*.png" \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -print0 | while IFS= read -r -d '' file; do
+              ORIG=$(stat -c%s "$file")
+              ORIG_KB=$(( ORIG / 1024 ))
+
+              if [ "$ORIG" -le "$LIMIT_BYTES" ]; then
+                echo "  ✓ $(basename "$file")  ${ORIG_KB}KB — already under 250KB, skipping"
+                continue
+              fi
+
+              # Pass 1: high-quality lossy (preserves colour well)
+              pngquant --quality=65-85 --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+              optipng -o2 -quiet "$file" 2>/dev/null || true
+              NEW=$(stat -c%s "$file")
+
+              if [ "$NEW" -gt "$LIMIT_BYTES" ]; then
+                # Pass 2: mid-quality
+                pngquant --quality=45-70 --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+                optipng -o2 -quiet "$file" 2>/dev/null || true
+                NEW=$(stat -c%s "$file")
+              fi
+
+              if [ "$NEW" -gt "$LIMIT_BYTES" ]; then
+                # Pass 3: reduce resolution by 50% — last resort
+                convert "$file" -resize 50% "$file" 2>/dev/null || true
+                pngquant --quality=65-85 --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+                optipng -o2 -quiet "$file" 2>/dev/null || true
+                NEW=$(stat -c%s "$file")
+              fi
+
+              NEW_KB=$(( NEW / 1024 ))
+              SAVED=$(( (ORIG - NEW) * 100 / ORIG ))
+              FLAG=""
+              [ "$NEW" -gt "$LIMIT_BYTES" ] && FLAG="  ⚠ STILL OVER 250KB"
+              echo "  $(basename "$file")  ${ORIG_KB}KB → ${NEW_KB}KB  (-${SAVED}%)${FLAG}"
+          done
+
+      # ── COMPRESS JPEGs ───────────────────────────────────────────────────────
+      - name: Compress JPEGs to under 250KB
+        run: |
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          LIMIT_BYTES=256000
+          echo "=== Compressing JPEGs (hard limit: 250KB) ==="
+
+          find "$SEARCH_PATH" -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -print0 | while IFS= read -r -d '' file; do
+              ORIG=$(stat -c%s "$file")
+              ORIG_KB=$(( ORIG / 1024 ))
+
+              if [ "$ORIG" -le "$LIMIT_BYTES" ]; then
+                echo "  ✓ $(basename "$file")  ${ORIG_KB}KB — already under 250KB, skipping"
+                continue
+              fi
+
+              # Pass 1: quality 82 (good quality, noticeable size reduction)
+              jpegoptim --max=82 --strip-none --preserve "$file" 2>/dev/null || true
+              NEW=$(stat -c%s "$file")
+
+              if [ "$NEW" -gt "$LIMIT_BYTES" ]; then
+                # Pass 2: quality 70
+                jpegoptim --max=70 --strip-none --preserve "$file" 2>/dev/null || true
+                NEW=$(stat -c%s "$file")
+              fi
+
+              if [ "$NEW" -gt "$LIMIT_BYTES" ]; then
+                # Pass 3: resize 75% + re-compress
+                convert "$file" -resize 75% "$file" 2>/dev/null || true
+                jpegoptim --max=82 --strip-none --preserve "$file" 2>/dev/null || true
+                NEW=$(stat -c%s "$file")
+              fi
+
+              NEW_KB=$(( NEW / 1024 ))
+              SAVED=$(( (ORIG - NEW) * 100 / ORIG ))
+              FLAG=""
+              [ "$NEW" -gt "$LIMIT_BYTES" ] && FLAG="  ⚠ STILL OVER 250KB"
+              echo "  $(basename "$file")  ${ORIG_KB}KB → ${NEW_KB}KB  (-${SAVED}%)${FLAG}"
+          done
+
+      # ── SUMMARY ──────────────────────────────────────────────────────────────
+      - name: Size summary
+        run: |
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          TOTAL=$(find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
+          OVER=$(find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" -size +250k | wc -l)
+          echo "=== Summary ==="
+          echo "Total images : $TOTAL"
+          echo "Under 250KB  : $(( TOTAL - OVER ))"
+          echo "Still >250KB : $OVER"
+          echo ""
+          echo "Top 10 largest:"
+          find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -exec du -sh {} + 2>/dev/null | sort -rh | head -10
+
+      # ── COMMIT ───────────────────────────────────────────────────────────────
+      - name: Commit images
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            COUNT=$(git diff --cached --name-only | wc -l)
+            BRANCH="${{ github.ref_name }}"
+            git commit -m "chore: compress ${COUNT} image(s) to under 250KB [skip ci]"
+            git push origin "$BRANCH"
+            echo "✅ Pushed $COUNT image(s) to $BRANCH"
+          fi
