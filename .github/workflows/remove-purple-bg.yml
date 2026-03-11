@@ -27,7 +27,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets/update/processed/
+          git add assets/chads/update/processed/
           git diff --staged --quiet && echo "Nothing to commit" && exit 0
           git commit -m "chore: remove purple bg, rename to 00001_Brownbg [skip ci]"
           git push
