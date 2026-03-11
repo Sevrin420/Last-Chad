@@ -42,11 +42,25 @@ jobs:
         run: |
           DEST="${{ github.event.inputs.extract_to }}"
           mkdir -p "$DEST"
-          echo "Downloading zip..."
-          curl -L --fail --show-error \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.inputs.zip_url }}" \
-            -o /tmp/images.zip
+          ZIP_URL="${{ github.event.inputs.zip_url }}"
+          echo "Downloading zip from: $ZIP_URL"
+
+          # Google Drive: extract file ID and use usercontent download endpoint
+          if echo "$ZIP_URL" | grep -q "drive.google.com"; then
+            FILE_ID=$(echo "$ZIP_URL" | grep -oP '(?<=/d/)[^/]+')
+            echo "Detected Google Drive link (file ID: $FILE_ID)"
+            curl -L --fail --show-error \
+              "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&authuser=0&confirm=t" \
+              -o /tmp/images.zip
+          else
+            # GitHub Release asset or other direct URL
+            curl -L --fail --show-error \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "$ZIP_URL" \
+              -o /tmp/images.zip
+          fi
+
+          echo "Download complete. File size: $(du -sh /tmp/images.zip | cut -f1)"
           echo "Extracting to $DEST ..."
           unzip -o /tmp/images.zip -d "$DEST"
           # Flatten one extra directory level if zip contained a top-level folder
