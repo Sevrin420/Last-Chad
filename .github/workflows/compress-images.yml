@@ -4,25 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       zip_url:
-        description: 'URL of zip file to download (GitHub Release asset URL). Leave blank to compress images already in repo.'
+        description: 'URL of zip file to download (Google Drive share link or GitHub Release URL). Leave blank to process images already in repo.'
         required: false
-        default: ''
+        default: 'https://drive.google.com/file/d/1637OU0tZ7EAUwZT0ADeVbBPpdzXBI2jL/view?usp=sharing'
       extract_to:
         description: 'Folder to extract zip into (e.g. assets/chads). Only used if zip_url is set.'
         required: false
-        default: 'assets/chads'
+        default: 'assets/chads/update'
       path:
-        description: 'Folder to compress (leave blank for entire repo). Ignored if zip_url is set.'
+        description: 'Folder to process (leave blank for entire repo). Ignored if zip_url is set.'
         required: false
         default: '.'
-      png_quality:
-        description: 'PNG quality range (e.g. 65-80). Lower = smaller file.'
+      bg_fuzz:
+        description: 'Background removal fuzz % (0 = skip removal). Higher = removes more color variation around edges.'
         required: false
-        default: '65-80'
-      jpeg_quality:
-        description: 'JPEG quality 1-100. Lower = smaller file.'
-        required: false
-        default: '82'
+        default: '18'
 
 jobs:
   compress:
@@ -31,50 +27,46 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install compression tools
+      - name: Install tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y pngquant jpegoptim webp unzip
+          sudo apt-get install -y imagemagick pngquant optipng jpegoptim webp unzip
 
-      # ── ZIP MODE ─────────────────────────────────────────────────────────────
+      # ── DOWNLOAD ─────────────────────────────────────────────────────────────
       - name: Download and extract zip
         if: ${{ github.event.inputs.zip_url != '' }}
         run: |
           DEST="${{ github.event.inputs.extract_to }}"
           mkdir -p "$DEST"
           ZIP_URL="${{ github.event.inputs.zip_url }}"
-          echo "Downloading zip from: $ZIP_URL"
+          echo "Downloading from: $ZIP_URL"
 
-          # Google Drive: extract file ID and use usercontent download endpoint
           if echo "$ZIP_URL" | grep -q "drive.google.com"; then
             FILE_ID=$(echo "$ZIP_URL" | grep -oP '(?<=/d/)[^/]+')
-            echo "Detected Google Drive link (file ID: $FILE_ID)"
+            echo "Google Drive file ID: $FILE_ID"
             curl -L --fail --show-error \
               "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&authuser=0&confirm=t" \
               -o /tmp/images.zip
           else
-            # GitHub Release asset or other direct URL
             curl -L --fail --show-error \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              "$ZIP_URL" \
-              -o /tmp/images.zip
+              "$ZIP_URL" -o /tmp/images.zip
           fi
 
-          echo "Download complete. File size: $(du -sh /tmp/images.zip | cut -f1)"
-          echo "Extracting to $DEST ..."
+          echo "Downloaded: $(du -sh /tmp/images.zip | cut -f1)"
           unzip -o /tmp/images.zip -d "$DEST"
-          # Flatten one extra directory level if zip contained a top-level folder
+
+          # Flatten single top-level folder if zip has one
           SUBDIRS=$(find "$DEST" -maxdepth 1 -mindepth 1 -type d)
-          SUBDIR_COUNT=$(echo "$SUBDIRS" | wc -l)
+          SUBDIR_COUNT=$(echo "$SUBDIRS" | grep -c . || true)
           if [ "$SUBDIR_COUNT" -eq 1 ] && [ -n "$SUBDIRS" ]; then
-            echo "Flattening: moving $SUBDIRS/* → $DEST/"
+            echo "Flattening: $SUBDIRS/ → $DEST/"
             mv "$SUBDIRS"/* "$DEST/" 2>/dev/null || true
             rmdir "$SUBDIRS" 2>/dev/null || true
           fi
-          echo "Files extracted:"
-          find "$DEST" -type f | wc -l
+          echo "Extracted $(find "$DEST" -type f | wc -l) files"
 
-      - name: Set compression target path
+      - name: Set working path
         id: target
         run: |
           if [ -n "${{ github.event.inputs.zip_url }}" ]; then
@@ -83,77 +75,107 @@ jobs:
             echo "path=${{ github.event.inputs.path }}" >> $GITHUB_OUTPUT
           fi
 
-      # ── COMPRESS ─────────────────────────────────────────────────────────────
-      - name: Compress PNGs
+      # ── STEP 1: REMOVE PURPLE BACKGROUND ────────────────────────────────────
+      - name: Remove purple background
+        if: ${{ github.event.inputs.bg_fuzz != '0' }}
         run: |
-          QUALITY="${{ github.event.inputs.png_quality }}"
+          FUZZ="${{ github.event.inputs.bg_fuzz }}"
           SEARCH_PATH="${{ steps.target.outputs.path }}"
-          echo "=== Compressing PNGs in: $SEARCH_PATH (quality: $QUALITY) ==="
           PNG_COUNT=$(find "$SEARCH_PATH" -type f -iname "*.png" ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
-          echo "Found $PNG_COUNT PNG(s)"
+          echo "=== Removing purple background from $PNG_COUNT PNG(s) (fuzz: ${FUZZ}%) ==="
+
+          find "$SEARCH_PATH" -type f -iname "*.png" \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -print0 | while IFS= read -r -d '' file; do
+              # Sample the top-left corner pixel as the background color
+              BG=$(convert "$file" -format "%[pixel:u.p{0,0}]" info: 2>/dev/null || echo "")
+              if [ -z "$BG" ]; then
+                echo "  ✗ $(basename "$file")  (could not read pixel)"
+                continue
+              fi
+              # Flood-fill from all 4 corners to handle gradient edges
+              convert "$file" \
+                -fuzz "${FUZZ}%" \
+                -fill none \
+                -draw "color 0,0 floodfill" \
+                -draw "color %[fx:w-1],0 floodfill" \
+                -draw "color 0,%[fx:h-1] floodfill" \
+                -draw "color %[fx:w-1],%[fx:h-1] floodfill" \
+                -alpha set \
+                "$file" 2>/dev/null \
+              && echo "  ✓ $(basename "$file")  bg=$BG removed" \
+              || echo "  ✗ $(basename "$file")  (skipped)"
+          done
+
+      # ── STEP 2: COMPRESS TO ~250KB ───────────────────────────────────────────
+      - name: Compress PNGs to ~250KB
+        run: |
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          echo "=== Compressing PNGs (target: ~250KB) ==="
+
           find "$SEARCH_PATH" -type f -iname "*.png" \
             ! -path "*/node_modules/*" ! -path "*/.git/*" \
             -print0 | while IFS= read -r -d '' file; do
               ORIG=$(stat -c%s "$file")
-              pngquant --quality="$QUALITY" --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+
+              # Pass 1: pngquant lossy compression (quality 40-65 targets ~250KB)
+              pngquant --quality=40-65 --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+
+              # Pass 2: optipng lossless squeeze (level 2 = fast, level 5 = thorough)
+              optipng -o2 -quiet "$file" 2>/dev/null || true
+
               NEW=$(stat -c%s "$file")
-              if [ "$NEW" -lt "$ORIG" ]; then
+              SAVED=$(( (ORIG - NEW) * 100 / ORIG ))
+              SIZE_KB=$(( NEW / 1024 ))
+
+              if [ "$SIZE_KB" -gt 250 ]; then
+                # Still over 250KB — push pngquant harder
+                pngquant --quality=20-45 --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+                optipng -o2 -quiet "$file" 2>/dev/null || true
+                NEW=$(stat -c%s "$file")
                 SAVED=$(( (ORIG - NEW) * 100 / ORIG ))
-                echo "  ✓ $(basename "$file")  $(( ORIG/1024 ))KB → $(( NEW/1024 ))KB  (-${SAVED}%)"
-              else
-                echo "  – $(basename "$file")  already optimal"
+                SIZE_KB=$(( NEW / 1024 ))
               fi
+
+              echo "  $(basename "$file")  $(( ORIG/1024 ))KB → ${SIZE_KB}KB  (-${SAVED}%)"
           done
 
       - name: Compress JPEGs
         run: |
-          QUALITY="${{ github.event.inputs.jpeg_quality }}"
           SEARCH_PATH="${{ steps.target.outputs.path }}"
           JPEG_COUNT=$(find "$SEARCH_PATH" -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
-          echo "=== Compressing $JPEG_COUNT JPEG(s) in: $SEARCH_PATH (quality: $QUALITY) ==="
+          echo "=== Compressing $JPEG_COUNT JPEG(s) (target: ~250KB) ==="
           find "$SEARCH_PATH" -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) \
             ! -path "*/node_modules/*" ! -path "*/.git/*" \
-            -print0 | xargs -0 -r jpegoptim \
-              --max="$QUALITY" --strip-none --preserve --verbose 2>/dev/null || true
+            -print0 | xargs -0 -r jpegoptim --max=75 --strip-none --preserve --verbose 2>/dev/null || true
 
-      - name: Compress WebP
-        run: |
-          SEARCH_PATH="${{ steps.target.outputs.path }}"
-          WEBP_COUNT=$(find "$SEARCH_PATH" -type f -iname "*.webp" ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
-          echo "=== Compressing $WEBP_COUNT WebP(s) ==="
-          find "$SEARCH_PATH" -type f -iname "*.webp" \
-            ! -path "*/node_modules/*" ! -path "*/.git/*" \
-            -print0 | while IFS= read -r -d '' file; do
-              ORIG=$(stat -c%s "$file")
-              TMP="${file}.tmp.webp"
-              cwebp -q 82 -quiet "$file" -o "$TMP" 2>/dev/null && mv "$TMP" "$file" || rm -f "$TMP"
-              NEW=$(stat -c%s "$file")
-              if [ "$NEW" -lt "$ORIG" ]; then
-                SAVED=$(( (ORIG - NEW) * 100 / ORIG ))
-                echo "  ✓ $(basename "$file")  $(( ORIG/1024 ))KB → $(( NEW/1024 ))KB  (-${SAVED}%)"
-              fi
-          done
-
+      # ── SUMMARY ──────────────────────────────────────────────────────────────
       - name: Size summary
         run: |
           SEARCH_PATH="${{ steps.target.outputs.path }}"
-          echo "=== Top 10 largest images after compression ==="
-          find "$SEARCH_PATH" -type f \
-            \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" \) \
+          TOTAL=$(find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
+          OVER=$(find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) ! -path "*/node_modules/*" ! -path "*/.git/*" -size +250k | wc -l)
+          echo "=== Summary ==="
+          echo "Total images : $TOTAL"
+          echo "Still >250KB : $OVER"
+          echo ""
+          echo "Top 10 largest:"
+          find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) \
             ! -path "*/node_modules/*" ! -path "*/.git/*" \
             -exec du -sh {} + 2>/dev/null | sort -rh | head -10
 
+      # ── COMMIT ───────────────────────────────────────────────────────────────
       - name: Commit images
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if git diff --cached --quiet; then
-            echo "No changes — images were already optimal or no new images."
+            echo "No changes to commit."
           else
             COUNT=$(git diff --cached --name-only | wc -l)
             BRANCH="${{ github.ref_name }}"
-            git commit -m "chore: compress and import ${COUNT} image(s) [skip ci]"
+            git commit -m "chore: remove bg + compress ${COUNT} image(s) to ~250KB [skip ci]"
             git push origin "$BRANCH"
             echo "✅ Pushed $COUNT image(s) to $BRANCH"
           fi
