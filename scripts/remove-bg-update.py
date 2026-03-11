@@ -22,7 +22,7 @@ NOBG_DIR   = os.path.join(BASE_DIR, 'assets', 'chads', 'nobg')
 
 # Colour-match tolerance — increase if edges look frayed, decrease if
 # non-background pixels are being removed.
-TOLERANCE = 38
+TOLERANCE = 80
 
 
 def color_distance(c1, c2):
@@ -35,12 +35,20 @@ def remove_background(img):
     w, h = img.size
     pixels = img.load()
 
-    corners = [(0, 0), (w-1, 0), (0, h-1), (w-1, h-1)]
-    samples = [pixels[x, y][:3] for (x, y) in corners]
+    # Sample many points along all four edges for a robust background reference
+    edge_samples = []
+    step = max(1, min(w, h) // 20)
+    for x in range(0, w, step):
+        edge_samples.append(pixels[x, 0][:3])
+        edge_samples.append(pixels[x, h-1][:3])
+    for y in range(0, h, step):
+        edge_samples.append(pixels[0, y][:3])
+        edge_samples.append(pixels[w-1, y][:3])
+    n = len(edge_samples)
     bg_color = (
-        sum(s[0] for s in samples) // 4,
-        sum(s[1] for s in samples) // 4,
-        sum(s[2] for s in samples) // 4,
+        sum(s[0] for s in edge_samples) // n,
+        sum(s[1] for s in edge_samples) // n,
+        sum(s[2] for s in edge_samples) // n,
     )
 
     visited = [[False] * h for _ in range(w)]
