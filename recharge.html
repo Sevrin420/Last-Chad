@@ -737,7 +737,7 @@
         const card = document.createElement('div');
         card.className = 'chad-card';
         card.dataset.tokenId = id;
-        card.innerHTML = `<img src="assets/chads/${id}.png" alt="Chad #${id}"><span class="chad-id">#${id}</span>`;
+        card.innerHTML = `<img src="assets/chads/framed/${id}.png" alt="Chad #${id}"><span class="chad-id">#${id}</span>`;
         card.addEventListener('click', () => selectChad(id));
         chadGrid.appendChild(card);
       }
@@ -752,7 +752,7 @@
 
       rechargePanel.style.display = 'block';
       setTimeout(() => rechargePanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-      portraitImg.src = `assets/chads/${tokenId}.png`;
+      portraitImg.src = `assets/chads/framed/${tokenId}.png`;
       portraitImg.classList.add('show');
       chadName.textContent = 'CHAD #' + tokenId;
       statusMsg.textContent = '';
