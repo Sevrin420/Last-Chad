@@ -10,8 +10,8 @@ import sys
 import numpy as np
 from PIL import Image
 
-INPUT_DIR = "assets/update"
-OUTPUT_DIR = "assets/update/processed"
+INPUT_DIR = "assets/chads/update"
+OUTPUT_DIR = "assets/chads/update/processed"
 SUFFIX = "_Brownbg"
 TOLERANCE = 40  # color similarity tolerance (0-255); raise if edges are choppy
 
