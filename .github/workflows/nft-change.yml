@@ -23,10 +23,40 @@ jobs:
       - name: Remove purple background from Chad NFTs
         run: python3 scripts/remove-bg.py
 
+      - name: Apply Last Chad border frame to all NFT images
+        run: python3 scripts/apply_frame.py
+
       - name: Commit updated images
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add assets/chads/
-          git diff --cached --quiet || git commit -m "chore(assets): remove purple background from chad NFT images"
+          git diff --cached --quiet || git commit -m "chore(assets): apply Last Chad border frame to chad NFT images"
+          git push
+
+  apply-frame:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Pillow
+        run: pip install Pillow
+
+      - name: Apply Last Chad border frame to all NFT images
+        run: python3 scripts/apply_frame.py
+
+      - name: Commit framed images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/chads/framed/
+          git diff --cached --quiet || git commit -m "chore(assets): regenerate framed chad NFT images"
           git push
