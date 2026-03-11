@@ -1,11 +1,6 @@
 name: Remove Purple Background & Rename
 
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - "assets/update/**"
-      - "!assets/update/processed/**"
   workflow_dispatch:
 
 jobs:
