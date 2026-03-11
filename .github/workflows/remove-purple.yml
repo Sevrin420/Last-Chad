@@ -1,0 +1,32 @@
+name: Remove Purple
+
+on:
+  workflow_dispatch:
+
+jobs:
+  remove-rename:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Pillow
+        run: pip install Pillow
+
+      - name: Remove purple background and rename update images
+        run: python3 scripts/remove-bg-update.py
+
+      - name: Commit nobg images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/chads/nobg/
+          git diff --cached --quiet || git commit -m "chore(assets): remove purple bg and rename update images to nobg"
+          git push
