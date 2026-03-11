@@ -23,10 +23,13 @@ jobs:
       - name: Remove purple background from Chad NFTs
         run: python3 scripts/remove-bg.py
 
+      - name: Apply Last Chad border frame to all NFT images
+        run: python3 scripts/apply_frame.py
+
       - name: Commit updated images
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add assets/chads/
-          git diff --cached --quiet || git commit -m "chore(assets): remove purple background from chad NFT images"
+          git diff --cached --quiet || git commit -m "chore(assets): apply Last Chad border frame to chad NFT images"
           git push
