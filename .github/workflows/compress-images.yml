@@ -1,0 +1,181 @@
+name: Compress Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_url:
+        description: 'URL of zip file to download (Google Drive share link or GitHub Release URL). Leave blank to process images already in repo.'
+        required: false
+        default: 'https://drive.google.com/file/d/1637OU0tZ7EAUwZT0ADeVbBPpdzXBI2jL/view?usp=sharing'
+      extract_to:
+        description: 'Folder to extract zip into (e.g. assets/chads). Only used if zip_url is set.'
+        required: false
+        default: 'assets/chads/update'
+      path:
+        description: 'Folder to process (leave blank for entire repo). Ignored if zip_url is set.'
+        required: false
+        default: '.'
+      bg_fuzz:
+        description: 'Background removal fuzz % (0 = skip removal). Higher = removes more color variation around edges.'
+        required: false
+        default: '18'
+
+jobs:
+  compress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y imagemagick pngquant optipng jpegoptim webp unzip
+
+      # ── DOWNLOAD ─────────────────────────────────────────────────────────────
+      - name: Download and extract zip
+        if: ${{ github.event.inputs.zip_url != '' }}
+        run: |
+          DEST="${{ github.event.inputs.extract_to }}"
+          mkdir -p "$DEST"
+          ZIP_URL="${{ github.event.inputs.zip_url }}"
+          echo "Downloading from: $ZIP_URL"
+
+          if echo "$ZIP_URL" | grep -q "drive.google.com"; then
+            FILE_ID=$(echo "$ZIP_URL" | grep -oP '(?<=/d/)[^/]+')
+            echo "Google Drive file ID: $FILE_ID"
+            curl -L --fail --show-error \
+              "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&authuser=0&confirm=t" \
+              -o /tmp/images.zip
+          else
+            curl -L --fail --show-error \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "$ZIP_URL" -o /tmp/images.zip
+          fi
+
+          echo "Downloaded: $(du -sh /tmp/images.zip | cut -f1)"
+          unzip -o /tmp/images.zip -d "$DEST"
+
+          # Flatten single top-level folder if zip has one
+          SUBDIRS=$(find "$DEST" -maxdepth 1 -mindepth 1 -type d)
+          SUBDIR_COUNT=$(echo "$SUBDIRS" | grep -c . || true)
+          if [ "$SUBDIR_COUNT" -eq 1 ] && [ -n "$SUBDIRS" ]; then
+            echo "Flattening: $SUBDIRS/ → $DEST/"
+            mv "$SUBDIRS"/* "$DEST/" 2>/dev/null || true
+            rmdir "$SUBDIRS" 2>/dev/null || true
+          fi
+          echo "Extracted $(find "$DEST" -type f | wc -l) files"
+
+      - name: Set working path
+        id: target
+        run: |
+          if [ -n "${{ github.event.inputs.zip_url }}" ]; then
+            echo "path=${{ github.event.inputs.extract_to }}" >> $GITHUB_OUTPUT
+          else
+            echo "path=${{ github.event.inputs.path }}" >> $GITHUB_OUTPUT
+          fi
+
+      # ── STEP 1: REMOVE PURPLE BACKGROUND ────────────────────────────────────
+      - name: Remove purple background
+        if: ${{ github.event.inputs.bg_fuzz != '0' }}
+        run: |
+          FUZZ="${{ github.event.inputs.bg_fuzz }}"
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          PNG_COUNT=$(find "$SEARCH_PATH" -type f -iname "*.png" ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
+          echo "=== Removing purple background from $PNG_COUNT PNG(s) (fuzz: ${FUZZ}%) ==="
+
+          find "$SEARCH_PATH" -type f -iname "*.png" \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -print0 | while IFS= read -r -d '' file; do
+              # Sample the top-left corner pixel as the background color
+              BG=$(convert "$file" -format "%[pixel:u.p{0,0}]" info: 2>/dev/null || echo "")
+              if [ -z "$BG" ]; then
+                echo "  ✗ $(basename "$file")  (could not read pixel)"
+                continue
+              fi
+              # Flood-fill from all 4 corners to handle gradient edges
+              convert "$file" \
+                -fuzz "${FUZZ}%" \
+                -fill none \
+                -draw "color 0,0 floodfill" \
+                -draw "color %[fx:w-1],0 floodfill" \
+                -draw "color 0,%[fx:h-1] floodfill" \
+                -draw "color %[fx:w-1],%[fx:h-1] floodfill" \
+                -alpha set \
+                "$file" 2>/dev/null \
+              && echo "  ✓ $(basename "$file")  bg=$BG removed" \
+              || echo "  ✗ $(basename "$file")  (skipped)"
+          done
+
+      # ── STEP 2: COMPRESS TO ~250KB ───────────────────────────────────────────
+      - name: Compress PNGs to ~250KB
+        run: |
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          echo "=== Compressing PNGs (target: ~250KB) ==="
+
+          find "$SEARCH_PATH" -type f -iname "*.png" \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -print0 | while IFS= read -r -d '' file; do
+              ORIG=$(stat -c%s "$file")
+
+              # Pass 1: pngquant lossy compression (quality 40-65 targets ~250KB)
+              pngquant --quality=40-65 --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+
+              # Pass 2: optipng lossless squeeze (level 2 = fast, level 5 = thorough)
+              optipng -o2 -quiet "$file" 2>/dev/null || true
+
+              NEW=$(stat -c%s "$file")
+              SAVED=$(( (ORIG - NEW) * 100 / ORIG ))
+              SIZE_KB=$(( NEW / 1024 ))
+
+              if [ "$SIZE_KB" -gt 250 ]; then
+                # Still over 250KB — push pngquant harder
+                pngquant --quality=20-45 --skip-if-larger --force --ext .png "$file" 2>/dev/null || true
+                optipng -o2 -quiet "$file" 2>/dev/null || true
+                NEW=$(stat -c%s "$file")
+                SAVED=$(( (ORIG - NEW) * 100 / ORIG ))
+                SIZE_KB=$(( NEW / 1024 ))
+              fi
+
+              echo "  $(basename "$file")  $(( ORIG/1024 ))KB → ${SIZE_KB}KB  (-${SAVED}%)"
+          done
+
+      - name: Compress JPEGs
+        run: |
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          JPEG_COUNT=$(find "$SEARCH_PATH" -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
+          echo "=== Compressing $JPEG_COUNT JPEG(s) (target: ~250KB) ==="
+          find "$SEARCH_PATH" -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -print0 | xargs -0 -r jpegoptim --max=75 --strip-none --preserve --verbose 2>/dev/null || true
+
+      # ── SUMMARY ──────────────────────────────────────────────────────────────
+      - name: Size summary
+        run: |
+          SEARCH_PATH="${{ steps.target.outputs.path }}"
+          TOTAL=$(find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l)
+          OVER=$(find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) ! -path "*/node_modules/*" ! -path "*/.git/*" -size +250k | wc -l)
+          echo "=== Summary ==="
+          echo "Total images : $TOTAL"
+          echo "Still >250KB : $OVER"
+          echo ""
+          echo "Top 10 largest:"
+          find "$SEARCH_PATH" -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) \
+            ! -path "*/node_modules/*" ! -path "*/.git/*" \
+            -exec du -sh {} + 2>/dev/null | sort -rh | head -10
+
+      # ── COMMIT ───────────────────────────────────────────────────────────────
+      - name: Commit images
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            COUNT=$(git diff --cached --name-only | wc -l)
+            BRANCH="${{ github.ref_name }}"
+            git commit -m "chore: remove bg + compress ${COUNT} image(s) to ~250KB [skip ci]"
+            git push origin "$BRANCH"
+            echo "✅ Pushed $COUNT image(s) to $BRANCH"
+          fi
