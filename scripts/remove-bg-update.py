@@ -27,8 +27,8 @@ TOLERANCE = 55
 # Cleanup passes: after BFS, pixels with this many transparent neighbours
 # (out of 4) are also made transparent. Removes leftover dark texture spots
 # without touching the dark border (which sits next to opaque brown pixels).
-CLEANUP_PASSES = 3
-CLEANUP_THRESHOLD = 3  # neighbours that must be transparent to trigger removal
+CLEANUP_PASSES = 1
+CLEANUP_THRESHOLD = 4  # all 4 neighbours must be transparent (fully isolated pixel only)
 
 
 def color_distance(c1, c2):
