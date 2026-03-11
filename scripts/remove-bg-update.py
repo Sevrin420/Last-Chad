@@ -20,9 +20,15 @@ BASE_DIR   = os.path.join(os.path.dirname(__file__), '..')
 UPDATE_DIR = os.path.join(BASE_DIR, 'assets', 'chads', 'update')
 NOBG_DIR   = os.path.join(BASE_DIR, 'assets', 'chads', 'nobg')
 
-# Colour-match tolerance — increase if edges look frayed, decrease if
-# non-background pixels are being removed.
-TOLERANCE = 80
+# Colour-match tolerance for BFS flood-fill.
+# Lower = preserves dark border; higher = removes more purple texture.
+TOLERANCE = 55
+
+# Cleanup passes: after BFS, pixels with this many transparent neighbours
+# (out of 4) are also made transparent. Removes leftover dark texture spots
+# without touching the dark border (which sits next to opaque brown pixels).
+CLEANUP_PASSES = 3
+CLEANUP_THRESHOLD = 3  # neighbours that must be transparent to trigger removal
 
 
 def color_distance(c1, c2):
@@ -72,6 +78,26 @@ def remove_background(img):
         pixels[x, y] = (0, 0, 0, 0)
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
             enqueue_if_bg(x + dx, y + dy)
+
+    # Cleanup passes: remove leftover dark texture spots that the BFS missed
+    # because they were too dark to match the background colour. A pixel is
+    # removed only if CLEANUP_THRESHOLD or more of its 4 neighbours are already
+    # transparent — this safely skips the dark border, which always has opaque
+    # brown pixels beside it.
+    for _ in range(CLEANUP_PASSES):
+        to_clear = []
+        for y in range(h):
+            for x in range(w):
+                if pixels[x, y][3] != 0:  # not already transparent
+                    transparent_neighbours = sum(
+                        1 for dx, dy in ((-1,0),(1,0),(0,-1),(0,1))
+                        if 0 <= x+dx < w and 0 <= y+dy < h
+                        and pixels[x+dx, y+dy][3] == 0
+                    )
+                    if transparent_neighbours >= CLEANUP_THRESHOLD:
+                        to_clear.append((x, y))
+        for x, y in to_clear:
+            pixels[x, y] = (0, 0, 0, 0)
 
     return img
 
