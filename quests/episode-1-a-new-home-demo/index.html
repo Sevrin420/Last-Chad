@@ -803,18 +803,7 @@
 
       <!-- Death Race -->
       <div class="panel active" id="panel-1773050725892">
-        
-        <div class="narrative">
-          <p>Make a break for the tunnels at the north quadrant.</p>
-          <p>Avoid all obstacles</p>
-          <p>You have 30 lives</p>
-          <p>Death is permanent</p>
-          <p>Slide finger across phone screen to move</p>
-          <p>At end of map be in the middle lane to run straight into the tunnel</p>
-          <p>Follow these rules or perish</p>
-          <p>Any extra lives at game end are added to your quest cell count</p>
-          <p>Good luck</p>
-        </div>
+        <div class="dialogue-frame"><img src="images/grok_image_1773322915015.jpg" alt="Runner briefing" class="section-img"></div>
         <div class="action-wrap">
           
         <div class="minigame-fullscreen-wrap" id="minigameWrap_1773050725892">
@@ -1588,7 +1577,7 @@ function showPanel(id) {
         await wait(30);
         if (!alive()) return;
         img.style.opacity = '1';
-        await wait(1800);
+        await wait(sid && minigameSectionMap[sid] ? 5000 : 1800);
         if (!alive()) return;
       }
 
