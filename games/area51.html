@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AREA 51 — Last Chad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: monospace;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: none;
+}
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+  touch-action: none;
+  cursor: none;
+}
+#death-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  cursor: none;
+}
+#death-overlay.visible { opacity: 1; }
+.death-dialogue {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 1.4rem;
+  color: #f44;
+  text-shadow: 2px 2px 0 #000;
+  text-align: center;
+  line-height: 2;
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="death-overlay">
+  <div class="death-dialogue">YOU ARE DEAD</div>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════
+//  AREA 51 — Rail Shooter for Last Chad
+//  Tap/click enemies to shoot. Click their attacks
+//  within a short window or take damage.
+//  5 rooms, 6 minutes total, escalating difficulty.
+// ═══════════════════════════════════════════════════════
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// ── Dimensions ──
+const W = 480;
+const H = 720;
+canvas.width = W;
+canvas.height = H;
+
+function resizeCanvas() {
+  const scaleX = window.innerWidth / W;
+  const scaleY = window.innerHeight / H;
+  const scale = Math.min(scaleX, scaleY);
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
+
+// ── Quest Integration (same pattern as runner) ──
+const _qp = new URLSearchParams(window.location.search);
+const GAME_TOKEN_ID   = _qp.get('tokenId')   || '';
+const GAME_QUEST_ID   = _qp.get('questId')   || '';
+const GAME_SECTION_ID = _qp.get('sectionId') || '';
+const GAME_PLAYER     = _qp.get('player')    || '';
+const WORKER_URL      = _qp.get('worker')    || '';
+
+async function callWorker(path, body) {
+  if (!WORKER_URL || !GAME_TOKEN_ID || !GAME_QUEST_ID) return null;
+  try {
+    const r = await fetch(WORKER_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+// ── Asset Loading ──
+const roomImages = [];
+const enemyImages = [];
+let loadedCount = 0;
+const ROOM_COUNT = 5;
+const ENEMY_COUNT = 4;
+const totalAssets = ROOM_COUNT + ENEMY_COUNT;
+
+for (let i = 1; i <= ROOM_COUNT; i++) {
+  const img = new Image();
+  img.onload = img.onerror = () => { loadedCount++; };
+  img.src = 'area 51/room' + i + '.jpg';
+  roomImages.push(img);
+}
+for (let i = 1; i <= ENEMY_COUNT; i++) {
+  const img = new Image();
+  img.onload = img.onerror = () => { loadedCount++; };
+  img.src = 'area 51/enemy' + i + '.png';
+  enemyImages.push(img);
+}
+
+// ── Game Constants ──
+const GAME_DURATION = 360; // 6 minutes in seconds
+const ROOM_DURATION = GAME_DURATION / ROOM_COUNT; // 72 seconds per room
+const MAX_HEALTH = 100;
+const CROSSHAIR_SIZE = 28;
+
+// ── Room Configurations ──
+// Each room defines where enemies can spawn and how big they appear
+// based on the perspective analysis of each background image.
+const ROOM_CONFIG = [
+  {
+    // Room 1: Exterior — "Flush Dolls" building, wide parking lot
+    // Front-facing, wide open. Enemies are close, medium-large.
+    name: 'PARKING LOT',
+    spawnZones: [
+      { x: 30,  y: 280, w: 100, h: 220, scale: 0.7 },  // far left by building
+      { x: 160, y: 300, w: 120, h: 240, scale: 0.85 },  // left of door
+      { x: 300, y: 300, w: 120, h: 240, scale: 0.85 },  // right of door
+      { x: 380, y: 280, w: 80,  h: 220, scale: 0.7 },   // far right
+      { x: 100, y: 440, w: 130, h: 200, scale: 1.0 },   // foreground left
+      { x: 280, y: 440, w: 130, h: 200, scale: 1.0 },   // foreground right
+    ],
+    enemyBaseH: 140,
+    spawnRate: 2.8,
+    maxEnemies: 3,
+    attackRate: 4.0,
+  },
+  {
+    // Room 2: Interior bar — cluttered, medium depth
+    name: 'THE BAR',
+    spawnZones: [
+      { x: 20,  y: 250, w: 100, h: 180, scale: 0.6 },   // behind bar counter
+      { x: 200, y: 220, w: 80,  h: 160, scale: 0.55 },   // doorway (far)
+      { x: 320, y: 260, w: 110, h: 200, scale: 0.7 },    // by pole/stage
+      { x: 50,  y: 420, w: 120, h: 220, scale: 0.9 },    // foreground left
+      { x: 200, y: 400, w: 100, h: 200, scale: 0.85 },   // center floor
+      { x: 340, y: 420, w: 110, h: 220, scale: 0.9 },    // foreground right
+    ],
+    enemyBaseH: 130,
+    spawnRate: 2.4,
+    maxEnemies: 4,
+    attackRate: 3.5,
+  },
+  {
+    // Room 3: Long narrow corridor — strong vanishing point
+    // Enemies start small (far) and appear larger near foreground
+    name: 'THE CORRIDOR',
+    spawnZones: [
+      { x: 180, y: 180, w: 80,  h: 100, scale: 0.35 },  // far end
+      { x: 140, y: 250, w: 100, h: 130, scale: 0.5 },   // mid-far left
+      { x: 250, y: 250, w: 100, h: 130, scale: 0.5 },   // mid-far right
+      { x: 100, y: 340, w: 120, h: 180, scale: 0.7 },   // mid left
+      { x: 280, y: 340, w: 120, h: 180, scale: 0.7 },   // mid right
+      { x: 60,  y: 460, w: 140, h: 200, scale: 1.0 },   // foreground left
+      { x: 300, y: 460, w: 140, h: 200, scale: 1.0 },   // foreground right
+    ],
+    enemyBaseH: 130,
+    spawnRate: 2.0,
+    maxEnemies: 5,
+    attackRate: 3.0,
+  },
+  {
+    // Room 4: Dead-end vault room — enclosed, medium depth
+    name: 'THE VAULT',
+    spawnZones: [
+      { x: 160, y: 220, w: 100, h: 140, scale: 0.5 },   // by vault door
+      { x: 60,  y: 280, w: 110, h: 180, scale: 0.65 },   // left wall
+      { x: 320, y: 280, w: 110, h: 180, scale: 0.65 },   // right wall
+      { x: 80,  y: 420, w: 130, h: 210, scale: 0.9 },    // foreground left
+      { x: 200, y: 400, w: 100, h: 200, scale: 0.85 },   // center
+      { x: 310, y: 420, w: 130, h: 210, scale: 0.9 },    // foreground right
+    ],
+    enemyBaseH: 135,
+    spawnRate: 1.8,
+    maxEnemies: 5,
+    attackRate: 2.5,
+  },
+  {
+    // Room 5: Lab — overhead angle, looking down stairs
+    // Enemies slightly smaller due to perspective
+    name: 'THE LAB',
+    spawnZones: [
+      { x: 80,  y: 200, w: 90,  h: 130, scale: 0.45 },  // far left equipment
+      { x: 220, y: 180, w: 80,  h: 120, scale: 0.4 },   // by robot table
+      { x: 340, y: 200, w: 90,  h: 130, scale: 0.45 },  // far right equipment
+      { x: 40,  y: 320, w: 120, h: 180, scale: 0.7 },   // mid left
+      { x: 320, y: 320, w: 120, h: 180, scale: 0.7 },   // mid right
+      { x: 100, y: 460, w: 140, h: 200, scale: 0.95 },  // stairs left
+      { x: 260, y: 460, w: 140, h: 200, scale: 0.95 },  // stairs right
+    ],
+    enemyBaseH: 125,
+    spawnRate: 1.5,
+    maxEnemies: 6,
+    attackRate: 2.0,
+  },
+];
+
+// ── Game State ──
+let state = 'loading'; // loading, title, playing, room_transition, dead, game_over, win
+let health = MAX_HEALTH;
+let score = 0;
+let gameTime = 0;
+let currentRoom = 0;
+let enemies = [];
+let projectiles = []; // enemy attacks the player must click
+let hitMarkers = [];  // visual feedback on hits
+let damageFlash = 0;
+let muzzleFlash = 0;
+let lastTime = 0;
+let spawnTimer = 0;
+let transitionTimer = 0;
+let transitionAlpha = 0;
+let mouseX = W / 2;
+let mouseY = H / 2;
+let killCount = 0;
+let shotsFired = 0;
+let shotsHit = 0;
+let comboCount = 0;
+let comboTimer = 0;
+let roomKills = 0;
+let deathOverlayShown = false;
+let winHandled = false;
+let shakeX = 0;
+let shakeY = 0;
+let shakeTimer = 0;
+
+// ── Enemy Class ──
+function createEnemy(room) {
+  const config = ROOM_CONFIG[room];
+  const zone = config.spawnZones[Math.floor(Math.random() * config.spawnZones.length)];
+  const spriteIdx = Math.floor(Math.random() * ENEMY_COUNT);
+  const baseH = config.enemyBaseH * zone.scale;
+  // Aspect ratio from sprite (roughly 0.55 width:height)
+  const baseW = baseH * 0.55;
+
+  const x = zone.x + Math.random() * (zone.w - baseW);
+  const y = zone.y + Math.random() * (zone.h - baseH * 0.5);
+
+  return {
+    x, y,
+    w: baseW,
+    h: baseH,
+    spriteIdx,
+    hp: 1 + Math.floor(room / 2), // 1 hp rooms 0-1, 2 hp rooms 2-3, 3 hp room 4
+    maxHp: 1 + Math.floor(room / 2),
+    alive: true,
+    spawnTime: gameTime,
+    enterAnim: 0,       // 0→1 pop-in animation
+    hitFlash: 0,
+    attackTimer: config.attackRate * (0.7 + Math.random() * 0.6),
+    depth: zone.scale,  // used for draw order (smaller scale = farther = drawn first)
+  };
+}
+
+// ── Projectile (enemy attack) ──
+function createProjectile(enemy) {
+  // Projectile originates from enemy, player must click it within a time window
+  const speed = 80 + currentRoom * 15;
+  const tx = W / 2 + (Math.random() - 0.5) * 120; // target near center screen
+  const ty = H - 60 + (Math.random() - 0.5) * 40;
+  const dx = tx - (enemy.x + enemy.w / 2);
+  const dy = ty - (enemy.y + enemy.h * 0.3);
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  return {
+    x: enemy.x + enemy.w / 2,
+    y: enemy.y + enemy.h * 0.3,
+    vx: (dx / dist) * speed,
+    vy: (dy / dist) * speed,
+    radius: 10 + currentRoom * 2,
+    alive: true,
+    timeLeft: 2.5 - currentRoom * 0.2, // shrinking window per room
+    maxTime: 2.5 - currentRoom * 0.2,
+    damage: 8 + currentRoom * 2,
+    color: `hsl(${0 + currentRoom * 30}, 100%, 55%)`,
+  };
+}
+
+// ── Input ──
+function getCanvasPos(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
+  };
+}
+
+function handleShoot(cx, cy) {
+  if (state === 'title') {
+    if (loadedCount >= totalAssets) startGame();
+    return;
+  }
+  if (state === 'dead') {
+    respawn();
+    return;
+  }
+  if (state !== 'playing') return;
+
+  shotsFired++;
+  muzzleFlash = 0.12;
+  shakeTimer = 0.06;
+  shakeX = (Math.random() - 0.5) * 4;
+  shakeY = (Math.random() - 0.5) * 3;
+
+  // Check projectiles first (higher priority — defensive)
+  let hitProjectile = false;
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    if (!p.alive) continue;
+    const dx = cx - p.x;
+    const dy = cy - p.y;
+    const clickRadius = p.radius + 15; // generous click area
+    if (dx * dx + dy * dy < clickRadius * clickRadius) {
+      p.alive = false;
+      hitProjectile = true;
+      score += 5;
+      hitMarkers.push({ x: p.x, y: p.y, text: 'BLOCKED', color: '#4ff', timer: 0.6 });
+      break;
+    }
+  }
+
+  if (hitProjectile) return;
+
+  // Check enemies (sort by depth — closer enemies take priority)
+  const sorted = enemies.filter(e => e.alive && e.enterAnim >= 0.5)
+    .sort((a, b) => b.depth - a.depth);
+
+  for (const e of sorted) {
+    // Hitbox slightly smaller than visual for fairness
+    const hbx = e.x + e.w * 0.1;
+    const hby = e.y + e.h * 0.05;
+    const hbw = e.w * 0.8;
+    const hbh = e.h * 0.9;
+
+    if (cx >= hbx && cx <= hbx + hbw && cy >= hby && cy <= hby + hbh) {
+      e.hp--;
+      e.hitFlash = 0.15;
+      shotsHit++;
+
+      if (e.hp <= 0) {
+        e.alive = false;
+        killCount++;
+        roomKills++;
+        comboCount++;
+        comboTimer = 1.5;
+        const pts = 10 * Math.max(1, comboCount);
+        score += pts;
+        hitMarkers.push({
+          x: e.x + e.w / 2,
+          y: e.y + e.h * 0.3,
+          text: comboCount > 1 ? `+${pts} x${comboCount}` : `+${pts}`,
+          color: comboCount > 3 ? '#ff0' : '#fff',
+          timer: 0.8,
+        });
+        // Spawn particles
+        for (let p = 0; p < 8; p++) {
+          hitMarkers.push({
+            x: e.x + e.w * 0.2 + Math.random() * e.w * 0.6,
+            y: e.y + e.h * 0.2 + Math.random() * e.h * 0.4,
+            text: '',
+            color: '#f80',
+            timer: 0.4 + Math.random() * 0.3,
+            particle: true,
+            vx: (Math.random() - 0.5) * 120,
+            vy: (Math.random() - 0.5) * 120,
+            size: 2 + Math.random() * 4,
+          });
+        }
+      } else {
+        hitMarkers.push({
+          x: e.x + e.w / 2,
+          y: e.y + e.h * 0.3,
+          text: 'HIT',
+          color: '#f80',
+          timer: 0.4,
+        });
+      }
+      return; // Only hit one enemy per click
+    }
+  }
+
+  // Miss
+  hitMarkers.push({
+    x: cx, y: cy,
+    text: '',
+    color: '#ff0',
+    timer: 0.15,
+    particle: true,
+    vx: 0, vy: 0,
+    size: 3,
+  });
+}
+
+// Mouse
+canvas.addEventListener('mousemove', e => {
+  const p = getCanvasPos(e.clientX, e.clientY);
+  mouseX = p.x;
+  mouseY = p.y;
+});
+canvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  const p = getCanvasPos(e.clientX, e.clientY);
+  mouseX = p.x;
+  mouseY = p.y;
+  handleShoot(p.x, p.y);
+});
+// Touch
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const p = getCanvasPos(t.clientX, t.clientY);
+  mouseX = p.x;
+  mouseY = p.y;
+  handleShoot(p.x, p.y);
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const p = getCanvasPos(t.clientX, t.clientY);
+  mouseX = p.x;
+  mouseY = p.y;
+}, { passive: false });
+
+// Keyboard (Enter/Space for title/respawn)
+window.addEventListener('keydown', e => {
+  if (state === 'title' && loadedCount >= totalAssets && (e.key === 'Enter' || e.key === ' ')) startGame();
+  if (state === 'dead' && (e.key === 'Enter' || e.key === ' ')) respawn();
+});
+
+// ── Game Functions ──
+function startGame() {
+  state = 'playing';
+  health = MAX_HEALTH;
+  score = 0;
+  gameTime = 0;
+  currentRoom = 0;
+  enemies = [];
+  projectiles = [];
+  hitMarkers = [];
+  killCount = 0;
+  shotsFired = 0;
+  shotsHit = 0;
+  comboCount = 0;
+  comboTimer = 0;
+  roomKills = 0;
+  spawnTimer = 1.5; // brief grace period
+  damageFlash = 0;
+  deathOverlayShown = false;
+  winHandled = false;
+  callWorker('/session/start', { tokenId: GAME_TOKEN_ID, questId: GAME_QUEST_ID, player: GAME_PLAYER });
+}
+
+function respawn() {
+  // Respawn costs some score
+  score = Math.max(0, score - 50);
+  health = Math.floor(MAX_HEALTH * 0.6);
+  state = 'playing';
+  enemies = [];
+  projectiles = [];
+  damageFlash = 0;
+  spawnTimer = 2.0; // grace period after respawn
+}
+
+function takeDamage(amount) {
+  health -= amount;
+  damageFlash = 0.3;
+  shakeTimer = 0.15;
+  shakeX = (Math.random() - 0.5) * 10;
+  shakeY = (Math.random() - 0.5) * 8;
+  if (health <= 0) {
+    health = 0;
+    state = 'dead';
+  }
+}
+
+function showDeathOverlay() {
+  if (deathOverlayShown) return;
+  deathOverlayShown = true;
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'runner_death' }, '*');
+    return;
+  }
+  const overlay = document.getElementById('death-overlay');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 1s ease';
+    overlay.classList.remove('visible');
+    setTimeout(() => { window.location.href = '../../index.html'; }, 1000);
+  }, 3000);
+}
+
+async function onWin() {
+  if (winHandled) return;
+  winHandled = true;
+  const xp = Math.floor(score / 10);
+  if (window.parent !== window) {
+    await callWorker('/session/visit-section', {
+      tokenId: GAME_TOKEN_ID,
+      questId: GAME_QUEST_ID,
+      sectionId: 'area51_' + (GAME_SECTION_ID || 'default'),
+      sectionXp: xp,
+    });
+    window.parent.postMessage({ type: 'runner_win', runnerXP: xp }, '*');
+  }
+}
+
+// ── Update ──
+function update(dt) {
+  if (state !== 'playing' && state !== 'room_transition') return;
+
+  // Combo decay
+  if (comboTimer > 0) {
+    comboTimer -= dt;
+    if (comboTimer <= 0) comboCount = 0;
+  }
+
+  // Screen shake decay
+  if (shakeTimer > 0) {
+    shakeTimer -= dt;
+    if (shakeTimer <= 0) { shakeX = 0; shakeY = 0; }
+  }
+
+  // Hit markers / particles
+  for (const h of hitMarkers) {
+    h.timer -= dt;
+    if (h.particle && h.vx !== undefined) {
+      h.x += h.vx * dt;
+      h.y += h.vy * dt;
+    } else if (!h.particle) {
+      h.y -= 40 * dt;
+    }
+  }
+  hitMarkers = hitMarkers.filter(h => h.timer > 0);
+
+  // Muzzle flash decay
+  if (muzzleFlash > 0) muzzleFlash -= dt;
+  if (damageFlash > 0) damageFlash -= dt;
+
+  // Room transition
+  if (state === 'room_transition') {
+    transitionTimer -= dt;
+    if (transitionTimer > 1.0) {
+      transitionAlpha = Math.min(1, (2.0 - transitionTimer) / 1.0);
+    } else {
+      transitionAlpha = Math.max(0, transitionTimer / 1.0);
+    }
+    if (transitionTimer <= 0) {
+      state = 'playing';
+      transitionAlpha = 0;
+      spawnTimer = 1.5; // grace at room start
+    }
+    return;
+  }
+
+  gameTime += dt;
+
+  // Check room progression
+  const newRoom = Math.min(ROOM_COUNT - 1, Math.floor(gameTime / ROOM_DURATION));
+  if (newRoom > currentRoom) {
+    currentRoom = newRoom;
+    state = 'room_transition';
+    transitionTimer = 2.0;
+    transitionAlpha = 0;
+    enemies = [];
+    projectiles = [];
+    roomKills = 0;
+    return;
+  }
+
+  // Check win
+  if (gameTime >= GAME_DURATION) {
+    state = 'win';
+    onWin();
+    return;
+  }
+
+  const config = ROOM_CONFIG[currentRoom];
+
+  // Spawn enemies
+  spawnTimer -= dt;
+  if (spawnTimer <= 0 && enemies.filter(e => e.alive).length < config.maxEnemies) {
+    enemies.push(createEnemy(currentRoom));
+    spawnTimer = config.spawnRate * (0.6 + Math.random() * 0.8);
+  }
+
+  // Update enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+
+    // Pop-in animation
+    if (e.enterAnim < 1) {
+      e.enterAnim = Math.min(1, e.enterAnim + dt * 3);
+    }
+
+    // Hit flash decay
+    if (e.hitFlash > 0) e.hitFlash -= dt;
+
+    // Attack timer
+    e.attackTimer -= dt;
+    if (e.attackTimer <= 0 && e.enterAnim >= 1) {
+      projectiles.push(createProjectile(e));
+      e.attackTimer = config.attackRate * (0.5 + Math.random() * 1.0);
+    }
+  }
+
+  // Remove dead enemies after a brief delay (for death animation)
+  enemies = enemies.filter(e => e.alive || e.hitFlash > 0);
+
+  // Update projectiles
+  for (const p of projectiles) {
+    if (!p.alive) continue;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.timeLeft -= dt;
+
+    // Hit player (reached bottom or timed out close enough)
+    if (p.y >= H - 30 || p.timeLeft <= 0) {
+      if (p.alive) {
+        takeDamage(p.damage);
+        hitMarkers.push({
+          x: W / 2 + (Math.random() - 0.5) * 80,
+          y: H - 80,
+          text: `-${p.damage}`,
+          color: '#f44',
+          timer: 0.7,
+        });
+      }
+      p.alive = false;
+    }
+    // Off screen
+    if (p.x < -20 || p.x > W + 20 || p.y < -20) {
+      p.alive = false;
+    }
+  }
+  projectiles = projectiles.filter(p => p.alive);
+}
+
+// ── Drawing Helpers ──
+function drawText(text, x, y, size, color, align, font) {
+  ctx.save();
+  ctx.font = `bold ${size}px ${font || 'monospace'}`;
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000';
+  ctx.fillText(text, x + 2, y + 2);
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawStyledText(text, x, y, size) {
+  ctx.save();
+  ctx.font = `bold ${size}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let ox = -2; ox <= 2; ox++) {
+    for (let oy = -2; oy <= 2; oy++) {
+      ctx.fillStyle = '#000';
+      ctx.fillText(text, x + ox, y + oy);
+    }
+  }
+  ctx.fillStyle = '#a00';
+  ctx.fillText(text, x + 1, y + 1);
+  ctx.fillStyle = '#f33';
+  ctx.fillText(text, x, y);
+  ctx.fillStyle = '#f88';
+  ctx.fillText(text, x - 1, y - 1);
+  ctx.restore();
+}
+
+function drawRoom() {
+  const img = roomImages[currentRoom];
+  if (img && img.complete && img.naturalWidth > 0) {
+    // Cover the canvas, preserving aspect ratio (crop if needed)
+    const imgAsp = img.naturalWidth / img.naturalHeight;
+    const canAsp = W / H;
+    let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+    if (imgAsp > canAsp) {
+      // Image wider — crop sides
+      sw = img.naturalHeight * canAsp;
+      sx = (img.naturalWidth - sw) / 2;
+    } else {
+      // Image taller — crop top/bottom
+      sh = img.naturalWidth / canAsp;
+      sy = (img.naturalHeight - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function drawEnemy(e) {
+  if (!e.alive && e.hitFlash <= 0) return;
+
+  const img = enemyImages[e.spriteIdx];
+  const animScale = easeOutBack(Math.min(1, e.enterAnim));
+  const drawW = e.w * animScale;
+  const drawH = e.h * animScale;
+  const drawX = e.x + (e.w - drawW) / 2;
+  const drawY = e.y + (e.h - drawH);
+
+  ctx.save();
+
+  // Death fade
+  if (!e.alive) {
+    ctx.globalAlpha = Math.max(0, e.hitFlash / 0.15);
+  }
+
+  // Hit flash — white overlay
+  if (e.hitFlash > 0 && e.alive) {
+    ctx.filter = `brightness(${1 + e.hitFlash * 8})`;
+  }
+
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  } else {
+    // Fallback rectangle
+    ctx.fillStyle = '#33f';
+    ctx.fillRect(drawX, drawY, drawW, drawH);
+  }
+
+  ctx.filter = 'none';
+
+  // Health bar for multi-hp enemies
+  if (e.alive && e.maxHp > 1 && e.enterAnim >= 0.8) {
+    const barW = drawW * 0.8;
+    const barH = 4;
+    const barX = drawX + (drawW - barW) / 2;
+    const barY = drawY - 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(barX, barY, barW * (e.hp / e.maxHp), barH);
+  }
+
+  ctx.restore();
+}
+
+function drawProjectile(p) {
+  ctx.save();
+
+  // Warning ring (pulses as time runs out)
+  const urgency = 1 - (p.timeLeft / p.maxTime);
+  const pulseSpeed = 4 + urgency * 12;
+  const pulse = Math.sin(gameTime * pulseSpeed) * 0.3 + 0.7;
+  const ringRadius = p.radius + 8 + pulse * 6;
+
+  // Outer warning ring
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, ringRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(255, ${Math.floor(80 * (1 - urgency))}, 0, ${0.3 + urgency * 0.5})`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Timer arc (countdown visual)
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, ringRadius + 2, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * (p.timeLeft / p.maxTime)), false);
+  ctx.strokeStyle = urgency > 0.7 ? '#f44' : '#ff0';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Core projectile
+  const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+  gradient.addColorStop(0, '#fff');
+  gradient.addColorStop(0.3, p.color);
+  gradient.addColorStop(1, 'rgba(255,0,0,0)');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner glow
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawCrosshair(x, y) {
+  const s = CROSSHAIR_SIZE;
+  ctx.save();
+  ctx.strokeStyle = muzzleFlash > 0 ? '#ff0' : '#0f0';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.9;
+
+  // Outer circle
+  ctx.beginPath();
+  ctx.arc(x, y, s / 2, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Cross lines
+  const gap = 4;
+  const len = s / 2 + 4;
+  ctx.beginPath();
+  ctx.moveTo(x - len, y); ctx.lineTo(x - gap, y);
+  ctx.moveTo(x + gap, y); ctx.lineTo(x + len, y);
+  ctx.moveTo(x, y - len); ctx.lineTo(x, y - gap);
+  ctx.moveTo(x, y + gap); ctx.lineTo(x, y + len);
+  ctx.stroke();
+
+  // Center dot
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.beginPath();
+  ctx.arc(x, y, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawHUD() {
+  // Top bar background
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, 52);
+
+  // Health bar
+  const hbX = 10;
+  const hbY = 8;
+  const hbW = 160;
+  const hbH = 16;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(hbX, hbY, hbW, hbH);
+  const hpFrac = health / MAX_HEALTH;
+  const hpColor = hpFrac > 0.5 ? '#4a4' : hpFrac > 0.25 ? '#aa4' : '#a44';
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(hbX, hbY, hbW * hpFrac, hbH);
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(hbX, hbY, hbW, hbH);
+  drawText('HP', hbX + hbW / 2, hbY + hbH / 2, 10, '#fff');
+
+  // Score
+  drawText(`SCORE: ${score}`, W - 10, 16, 12, '#ff0', 'right');
+
+  // Timer
+  const remaining = Math.max(0, GAME_DURATION - gameTime);
+  const min = Math.floor(remaining / 60);
+  const sec = Math.floor(remaining % 60);
+  drawText(`${min}:${sec.toString().padStart(2, '0')}`, W / 2, 16, 14, '#fff');
+
+  // Room name
+  const config = ROOM_CONFIG[currentRoom];
+  drawText(`ROOM ${currentRoom + 1}: ${config.name}`, W / 2, 38, 10, '#aaa');
+
+  // Room progress dots
+  for (let i = 0; i < ROOM_COUNT; i++) {
+    const dotX = W / 2 - (ROOM_COUNT * 10) / 2 + i * 10 + 5;
+    const dotY = 50;
+    // (We draw these outside the bar area, skip for cleanliness)
+  }
+
+  // Combo display
+  if (comboCount > 1 && comboTimer > 0) {
+    const comboAlpha = Math.min(1, comboTimer);
+    ctx.save();
+    ctx.globalAlpha = comboAlpha;
+    drawText(`COMBO x${comboCount}`, W / 2, 75, 16, '#ff0');
+    ctx.restore();
+  }
+
+  // Kill counter (bottom left)
+  drawText(`KILLS: ${killCount}`, 10, H - 12, 10, '#aaa', 'left');
+
+  // Accuracy (bottom right)
+  const acc = shotsFired > 0 ? Math.round((shotsHit / shotsFired) * 100) : 0;
+  drawText(`ACC: ${acc}%`, W - 10, H - 12, 10, '#aaa', 'right');
+}
+
+function easeOutBack(t) {
+  const c = 1.7;
+  return 1 + (t - 1) * (t - 1) * ((c + 1) * (t - 1) + c);
+}
+
+// ── Render ──
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Loading ──
+  if (state === 'loading') {
+    if (loadedCount >= totalAssets) {
+      state = 'title';
+    } else {
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, W, H);
+      const pulse = Math.sin(performance.now() / 350) * 0.5 + 0.5;
+      ctx.globalAlpha = 0.4 + pulse * 0.6;
+      drawText('LOADING...', W / 2, H / 2, 20, '#f5e6c8');
+      ctx.globalAlpha = 1;
+      drawText(`${loadedCount} / ${totalAssets}`, W / 2, H / 2 + 34, 12, '#8a7a5a');
+      return;
+    }
+  }
+
+  // ── Title ──
+  if (state === 'title') {
+    // Draw room 1 as background
+    const img = roomImages[0];
+    if (img && img.complete && img.naturalWidth > 0) {
+      const imgAsp = img.naturalWidth / img.naturalHeight;
+      const canAsp = W / H;
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+      if (imgAsp > canAsp) { sw = img.naturalHeight * canAsp; sx = (img.naturalWidth - sw) / 2; }
+      else { sh = img.naturalWidth / canAsp; sy = (img.naturalHeight - sh) / 2; }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, W, H);
+
+    drawStyledText('AREA 51', W / 2, H / 2 - 80, 48);
+    drawText('LAST CHAD', W / 2, H / 2 - 30, 16, '#f5e6c8');
+
+    drawText('Tap enemies to shoot', W / 2, H / 2 + 30, 12, '#aaa');
+    drawText('Tap their attacks to block', W / 2, H / 2 + 55, 12, '#aaa');
+    drawText('5 rooms. 6 minutes. Survive.', W / 2, H / 2 + 80, 11, '#888');
+
+    const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+    drawText('[ TAP TO START ]', W / 2, H / 2 + 140, 14, '#f44');
+    ctx.globalAlpha = 1;
+
+    drawCrosshair(mouseX, mouseY);
+    return;
+  }
+
+  // ── Gameplay / Transition / Dead ──
+  if (state === 'playing' || state === 'room_transition' || state === 'dead' || state === 'game_over') {
+    ctx.save();
+    if (shakeTimer > 0) {
+      ctx.translate(shakeX, shakeY);
+    }
+
+    drawRoom();
+
+    // Sort enemies by depth for proper layering (far enemies drawn first)
+    const sortedEnemies = [...enemies].sort((a, b) => a.depth - b.depth);
+    for (const e of sortedEnemies) {
+      drawEnemy(e);
+    }
+
+    // Projectiles
+    for (const p of projectiles) {
+      drawProjectile(p);
+    }
+
+    // Hit markers and particles
+    for (const h of hitMarkers) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, h.timer * 2);
+      if (h.particle) {
+        ctx.fillStyle = h.color;
+        ctx.fillRect(h.x - h.size / 2, h.y - h.size / 2, h.size, h.size);
+      } else {
+        drawText(h.text, h.x, h.y, 14, h.color);
+      }
+      ctx.restore();
+    }
+
+    // Muzzle flash overlay
+    if (muzzleFlash > 0) {
+      ctx.fillStyle = `rgba(255, 255, 200, ${muzzleFlash * 1.5})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Damage flash overlay
+    if (damageFlash > 0) {
+      ctx.fillStyle = `rgba(255, 0, 0, ${damageFlash * 0.6})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    ctx.restore(); // end shake transform
+
+    drawHUD();
+
+    // Room transition overlay
+    if (state === 'room_transition') {
+      ctx.fillStyle = `rgba(0,0,0,${transitionAlpha})`;
+      ctx.fillRect(0, 0, W, H);
+      if (transitionAlpha > 0.4) {
+        ctx.globalAlpha = Math.min(1, (transitionAlpha - 0.4) * 3);
+        const config = ROOM_CONFIG[currentRoom];
+        drawStyledText(`ROOM ${currentRoom + 1}`, W / 2, H / 2 - 30, 36);
+        drawText(config.name, W / 2, H / 2 + 20, 16, '#f5e6c8');
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Dead overlay
+    if (state === 'dead') {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, H / 2 - 70, W, 140);
+      drawStyledText('WASTED', W / 2, H / 2 - 25, 40);
+      drawText(`Score: ${score}`, W / 2, H / 2 + 15, 14, '#f5e6c8');
+      const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
+      ctx.globalAlpha = pulse;
+      drawText('[ TAP TO RESPAWN ]', W / 2, H / 2 + 45, 12, '#aaa');
+      ctx.globalAlpha = 1;
+    }
+
+    drawCrosshair(mouseX, mouseY);
+    return;
+  }
+
+  // ── Win ──
+  if (state === 'win') {
+    drawRoom();
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+
+    drawStyledText('AREA CLEARED', W / 2, H / 2 - 100, 32);
+    drawText('MISSION COMPLETE', W / 2, H / 2 - 55, 14, '#f5e6c8');
+
+    drawText(`SCORE: ${score}`, W / 2, H / 2, 20, '#ff0');
+    drawText(`KILLS: ${killCount}`, W / 2, H / 2 + 35, 14, '#aaa');
+    const acc = shotsFired > 0 ? Math.round((shotsHit / shotsFired) * 100) : 0;
+    drawText(`ACCURACY: ${acc}%`, W / 2, H / 2 + 60, 14, '#aaa');
+    const xp = Math.floor(score / 10);
+    drawText(`XP EARNED: ${xp}`, W / 2, H / 2 + 95, 16, '#4f4');
+
+    if (window.parent === window) {
+      const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
+      ctx.globalAlpha = pulse;
+      drawText('[ TAP TO CONTINUE ]', W / 2, H / 2 + 145, 12, '#aaa');
+      ctx.globalAlpha = 1;
+    }
+
+    drawCrosshair(mouseX, mouseY);
+  }
+}
+
+// ── Game Loop ──
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  update(dt);
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// Paint loading screen immediately
+ctx.fillStyle = '#111';
+ctx.fillRect(0, 0, W, H);
+drawText('LOADING...', W / 2, H / 2, 20, '#f5e6c8');
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
