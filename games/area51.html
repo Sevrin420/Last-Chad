@@ -283,8 +283,8 @@ function createEnemy(room) {
     w: baseW,
     h: baseH,
     spriteIdx,
-    hp: 1 + Math.floor(room / 2), // 1 hp rooms 0-1, 2 hp rooms 2-3, 3 hp room 4
-    maxHp: 1 + Math.floor(room / 2),
+    hp: 1 + Math.floor((room + 1) / 2), // 1 hp r1, 2 hp r2-3, 3 hp r4-5
+    maxHp: 1 + Math.floor((room + 1) / 2),
     alive: true,
     spawnTime: gameTime,
     enterAnim: 0,       // 0→1 pop-in animation
