@@ -373,6 +373,279 @@
     /* ── Nav ── */
     .nav-wrapper { position: static; }
 
+    /* ── Poker Rules Overlay ── */
+    #poker-rules-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      align-items: center; justify-content: center;
+      flex-direction: column; padding: 20px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.95);
+    }
+    #poker-rules-overlay.active { display: flex; }
+
+    .rules-box {
+      max-width: 480px; width: 100%;
+      background: linear-gradient(180deg, #0a0814 0%, #12091e 100%);
+      border: 2px solid #ff2060;
+      border-radius: 8px;
+      padding: 28px 22px;
+      box-shadow: 0 0 40px rgba(255,32,96,0.2), 0 0 80px rgba(255,32,96,0.05);
+      position: relative; overflow: hidden;
+    }
+    .rules-box::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,32,96,0.03) 2px, rgba(255,32,96,0.03) 4px);
+      pointer-events: none;
+    }
+    .rules-title {
+      font-size: clamp(1.1rem, 4vw, 1.6rem);
+      color: #ff2060;
+      text-align: center;
+      text-shadow: 0 0 20px #ff2060, 0 0 40px rgba(255,32,96,0.5);
+      margin-bottom: 6px;
+      letter-spacing: 0.15em;
+    }
+    .rules-subtitle {
+      font-size: clamp(0.45rem, 1.3vw, 0.55rem);
+      color: #00ffcc;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(0,255,204,0.5);
+      margin-bottom: 20px;
+      letter-spacing: 0.1em;
+    }
+    .rules-text {
+      font-size: clamp(0.45rem, 1.2vw, 0.55rem);
+      line-height: 2.4; color: #c0b0d0;
+      margin-bottom: 24px;
+    }
+    .rules-text strong { color: #00ffcc; }
+    .rules-continue {
+      display: block; margin: 0 auto;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.6rem, 1.8vw, 0.75rem);
+      color: #0a0814;
+      background: #ff2060;
+      border: none;
+      border-bottom: 4px solid #a01040;
+      padding: 14px 36px;
+      cursor: pointer; letter-spacing: 0.08em;
+      transition: all 0.15s;
+    }
+    .rules-continue:hover { background: #ff4080; }
+    .rules-continue:active { border-bottom-width: 2px; transform: translateY(2px); }
+
+    /* ── Poker Game Overlay ── */
+    #poker-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: #0a0814;
+      flex-direction: column; overflow-y: auto;
+    }
+    #poker-overlay.active { display: flex; }
+    #poker-overlay::before {
+      content: ''; position: fixed; inset: 0; z-index: 1;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,204,0.012) 2px, rgba(0,255,204,0.012) 4px);
+      pointer-events: none;
+    }
+
+    .poker-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(10,8,20,0.95);
+      border-bottom: 2px solid #ff2060;
+      position: relative; z-index: 2;
+    }
+    .poker-title {
+      font-size: clamp(0.55rem, 1.8vw, 0.8rem);
+      color: #ff2060;
+      text-shadow: 0 0 10px #ff2060;
+      letter-spacing: 0.12em;
+    }
+    .poker-wager-display {
+      font-size: clamp(0.4rem, 1.1vw, 0.5rem);
+      color: #00ffcc;
+      text-shadow: 0 0 8px rgba(0,255,204,0.5);
+    }
+    .poker-back-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; color: #ff2060;
+      background: none; border: 1px solid #ff2060;
+      padding: 6px 10px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .poker-back-btn:hover { background: rgba(255,32,96,0.15); }
+
+    /* Game image + payout area */
+    .poker-top {
+      display: flex; gap: 0; position: relative; z-index: 2; flex-shrink: 0;
+    }
+    .poker-image-wrap {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #0d0a18;
+      border-bottom: 1px solid #1a1030;
+      padding: 8px; max-height: 28vh; overflow: hidden;
+    }
+    .poker-image-wrap span {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem; color: #2a1840;
+      border: 2px dashed #2a1840;
+      padding: 30px 20px;
+    }
+    .poker-image-wrap img {
+      max-width: 100%; max-height: 100%;
+      object-fit: contain; border: 1px solid #2a1840;
+    }
+    .poker-payout {
+      width: 155px; flex-shrink: 0;
+      background: linear-gradient(180deg, #0d0a18 0%, #100820 100%);
+      border-left: 1px solid #2a1040;
+      border-bottom: 1px solid #1a1030;
+      padding: 6px 8px; overflow-y: auto; max-height: 28vh;
+    }
+    .payout-title {
+      font-size: 0.38rem; color: #ff2060;
+      text-align: center; margin-bottom: 6px;
+      letter-spacing: 0.1em;
+      text-shadow: 0 0 8px rgba(255,32,96,0.4);
+    }
+    .payout-row {
+      display: flex; justify-content: space-between;
+      font-size: 0.33rem; color: #504060;
+      padding: 3px 4px;
+      border-bottom: 1px solid rgba(40,20,60,0.4);
+      transition: all 0.3s;
+    }
+    .payout-row.active {
+      color: #00ffcc;
+      background: rgba(0,255,204,0.08);
+      text-shadow: 0 0 6px rgba(0,255,204,0.5);
+    }
+    .payout-row .payout-mult { color: #7a6020; }
+    .payout-row.active .payout-mult {
+      color: #ffe96a;
+      text-shadow: 0 0 8px rgba(255,233,106,0.6);
+    }
+
+    /* Cards */
+    .poker-cards-area {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 12px 8px; position: relative; z-index: 2; min-height: 0;
+    }
+    .poker-hand {
+      display: flex; gap: 8px; justify-content: center; margin-bottom: 8px;
+    }
+    .poker-card-slot {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .held-label {
+      font-size: 0.32rem; color: #00ffcc;
+      text-shadow: 0 0 6px rgba(0,255,204,0.5);
+      height: 14px; display: flex; align-items: center;
+      letter-spacing: 0.1em;
+    }
+    .poker-card {
+      width: clamp(50px, 14vw, 70px);
+      height: clamp(72px, 20vw, 100px);
+      background: linear-gradient(180deg, #1a1030 0%, #0d0818 100%);
+      border: 2px solid #2a1840; border-radius: 6px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.2s;
+      position: relative; overflow: hidden; user-select: none;
+    }
+    .poker-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,32,96,0.02) 3px, rgba(255,32,96,0.02) 6px);
+      pointer-events: none;
+    }
+    .poker-card.face-down {
+      background: repeating-linear-gradient(45deg, #1a1030, #1a1030 4px, #251845 4px, #251845 8px);
+      border-color: #3a2060;
+    }
+    .poker-card.face-down .card-rank,
+    .poker-card.face-down .card-suit { display: none; }
+    .poker-card.face-down::after {
+      content: '?'; font-size: clamp(1.2rem, 4vw, 1.8rem);
+      color: #5a3080; text-shadow: 0 0 10px rgba(90,48,128,0.5);
+    }
+    .poker-card.held {
+      border-color: #00ffcc;
+      box-shadow: 0 0 12px rgba(0,255,204,0.3), 0 0 24px rgba(0,255,204,0.1);
+    }
+    .poker-card .card-rank {
+      font-size: clamp(0.85rem, 3vw, 1.2rem); font-weight: bold; line-height: 1;
+    }
+    .poker-card .card-suit {
+      font-size: clamp(1rem, 3.5vw, 1.5rem); line-height: 1;
+    }
+    .poker-card.suit-red .card-rank,
+    .poker-card.suit-red .card-suit {
+      color: #ff2060; text-shadow: 0 0 8px rgba(255,32,96,0.5);
+    }
+    .poker-card.suit-black .card-rank,
+    .poker-card.suit-black .card-suit {
+      color: #00ffcc; text-shadow: 0 0 8px rgba(0,255,204,0.5);
+    }
+    .lock-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.28rem, 0.9vw, 0.38rem);
+      padding: 4px 8px;
+      background: rgba(20,10,30,0.8);
+      border: 1px solid #2a1840; color: #5a3080;
+      cursor: pointer; transition: all 0.2s; letter-spacing: 0.05em;
+    }
+    .lock-btn.locked {
+      border-color: #00ffcc; color: #00ffcc;
+      background: rgba(0,255,204,0.1);
+      box-shadow: 0 0 8px rgba(0,255,204,0.2);
+    }
+
+    .poker-actions {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 10px; margin-top: 8px;
+    }
+    .poker-deal-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.55rem, 1.8vw, 0.75rem);
+      color: #0a0814;
+      background: linear-gradient(180deg, #ff2060 0%, #c01848 100%);
+      border: none; border-bottom: 4px solid #801030;
+      padding: 14px 40px; cursor: pointer;
+      letter-spacing: 0.1em; transition: all 0.15s;
+    }
+    .poker-deal-btn:hover { background: linear-gradient(180deg, #ff4080 0%, #d02058 100%); }
+    .poker-deal-btn:active { border-bottom-width: 2px; transform: translateY(2px); }
+    .poker-deal-btn:disabled {
+      background: #2a1840; color: #5a3080;
+      border-color: #1a1030; cursor: not-allowed;
+    }
+    .poker-result {
+      font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+      text-align: center; min-height: 1.8em; letter-spacing: 0.08em;
+    }
+    .poker-result.win {
+      color: #00ffcc;
+      text-shadow: 0 0 12px rgba(0,255,204,0.6);
+      animation: result-pulse 0.6s ease-in-out infinite alternate;
+    }
+    .poker-result.lose {
+      color: #ff2060;
+      text-shadow: 0 0 12px rgba(255,32,96,0.4);
+    }
+
+    /* Mobile: stack image + payout vertically */
+    @media (max-width: 520px) {
+      .poker-top { flex-direction: column; }
+      .poker-payout {
+        width: 100%; border-left: none; border-top: 1px solid #1a1030;
+        max-height: none; display: flex; flex-wrap: wrap; gap: 0; padding: 4px 8px;
+      }
+      .payout-row { width: 50%; font-size: 0.3rem; }
+      .payout-title { width: 100%; }
+      .poker-image-wrap { max-height: 18vh; }
+    }
+
     /* === Desktop === */
     @media (min-width: 900px) {
       .dialogue-box { max-width: 520px; }
@@ -442,6 +715,55 @@
     </div>
   </div>
 
+  <!-- Poker Rules Overlay -->
+  <div id="poker-rules-overlay">
+    <div class="rules-box">
+      <div class="rules-title">VIDEO POKER</div>
+      <div class="rules-subtitle">5-CARD DRAW — JACKS OR BETTER</div>
+      <div class="rules-text">
+        ► You are dealt <strong>5 cards</strong><br>
+        ► Choose which cards to <strong>LOCK</strong> (keep)<br>
+        ► Unlocked cards are replaced on the <strong>DRAW</strong><br>
+        ► Win with a pair of <strong>Jacks or better</strong><br>
+        ► Higher hands pay bigger — check the payout table
+      </div>
+      <button class="rules-continue" id="poker-rules-continue">CONTINUE</button>
+    </div>
+  </div>
+
+  <!-- Poker Game Overlay -->
+  <div id="poker-overlay">
+    <div class="poker-header">
+      <button class="poker-back-btn" id="poker-back">EXIT</button>
+      <div class="poker-title">VIDEO POKER</div>
+      <div class="poker-wager-display" id="poker-wager-display">WAGER: 0</div>
+    </div>
+    <div class="poker-top">
+      <div class="poker-image-wrap" id="poker-image-placeholder">
+        <span>— TABLE IMAGE —</span>
+      </div>
+      <div class="poker-payout" id="poker-payout-table">
+        <div class="payout-title">— PAYOUTS —</div>
+        <div class="payout-row" data-hand="royal"><span>ROYAL FLUSH</span><span class="payout-mult">250x</span></div>
+        <div class="payout-row" data-hand="straight-flush"><span>STR. FLUSH</span><span class="payout-mult">50x</span></div>
+        <div class="payout-row" data-hand="four-kind"><span>4 OF A KIND</span><span class="payout-mult">25x</span></div>
+        <div class="payout-row" data-hand="full-house"><span>FULL HOUSE</span><span class="payout-mult">9x</span></div>
+        <div class="payout-row" data-hand="flush"><span>FLUSH</span><span class="payout-mult">6x</span></div>
+        <div class="payout-row" data-hand="straight"><span>STRAIGHT</span><span class="payout-mult">4x</span></div>
+        <div class="payout-row" data-hand="three-kind"><span>3 OF A KIND</span><span class="payout-mult">3x</span></div>
+        <div class="payout-row" data-hand="two-pair"><span>TWO PAIR</span><span class="payout-mult">2x</span></div>
+        <div class="payout-row" data-hand="jacks"><span>JACKS+</span><span class="payout-mult">1x</span></div>
+      </div>
+    </div>
+    <div class="poker-cards-area">
+      <div class="poker-result" id="poker-result"></div>
+      <div class="poker-hand" id="poker-hand"></div>
+      <div class="poker-actions">
+        <button class="poker-deal-btn" id="poker-deal-btn">DEAL</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect,
@@ -497,6 +819,7 @@
     let selectedTokenId = null;
     let selectedCells   = 0;
     let wagerAmount     = 0;
+    let currentGame     = 'flip'; // 'flip' or 'poker'
 
     const CONTRACT_ABI = LASTCHAD_ABI;
 
@@ -602,16 +925,7 @@
       ]);
       showChoices([
         { label: "Let's flip old man", action: startCoinFlip },
-        { label: "Let's shoot dice ya crazy bastard", action: () => {
-          clearDialogue();
-          const p = document.createElement('p');
-          p.style.color = '#ffaa40';
-          p.textContent = "Dice comin' soon... pick a flip for now!";
-          dialogueText.appendChild(p);
-          showChoices([
-            { label: "Let's flip old man", action: startCoinFlip },
-          ]);
-        }}
+        { label: "Get out the cards you crazy bastard", action: showPokerRules }
       ]);
     }
 
@@ -620,6 +934,7 @@
     let _maxWager = 50;
 
     async function startCoinFlip() {
+      currentGame = 'flip';
       clearDialogue();
       const addr = userAddress;
       if (!addr) {
@@ -780,9 +1095,15 @@
       });
       wagerAmount = sliderMin;
 
-      showChoices([
-        { label: "LET'S FLIP!", action: recordWagerAndFlip }
-      ]);
+      if (currentGame === 'poker') {
+        showChoices([
+          { label: "ANTE UP!", action: beginPokerRound }
+        ]);
+      } else {
+        showChoices([
+          { label: "LET'S FLIP!", action: recordWagerAndFlip }
+        ]);
+      }
     }
 
     // ── Flow: Record wager on-chain → flip ──
@@ -925,18 +1246,232 @@
       ]);
       showChoices([
         { label: "Let's flip old man", action: startCoinFlip },
-        { label: "Let's shoot dice ya crazy bastard", action: () => {
-          clearDialogue();
-          const p = document.createElement('p');
-          p.style.color = '#ffaa40';
-          p.textContent = "Dice comin' soon... pick a flip for now!";
-          dialogueText.appendChild(p);
-          showChoices([
-            { label: "Let's flip old man", action: startCoinFlip },
-          ]);
-        }}
+        { label: "Get out the cards you crazy bastard", action: showPokerRules }
       ]);
     }
+
+    // ── Poker: Constants ──
+    const RANK_NAMES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    const SUIT_SYMBOLS = ['♠','♥','♦','♣'];
+    const SUIT_RED = [false, true, true, false];
+
+    const PAYOUTS = {
+      'ROYAL FLUSH': 250, 'STRAIGHT FLUSH': 50, 'FOUR OF A KIND': 25,
+      'FULL HOUSE': 9, 'FLUSH': 6, 'STRAIGHT': 4,
+      'THREE OF A KIND': 3, 'TWO PAIR': 2, 'JACKS OR BETTER': 1,
+    };
+    const HAND_DATA_ATTR = {
+      'ROYAL FLUSH': 'royal', 'STRAIGHT FLUSH': 'straight-flush',
+      'FOUR OF A KIND': 'four-kind', 'FULL HOUSE': 'full-house',
+      'FLUSH': 'flush', 'STRAIGHT': 'straight',
+      'THREE OF A KIND': 'three-kind', 'TWO PAIR': 'two-pair',
+      'JACKS OR BETTER': 'jacks',
+    };
+
+    let pokerDeck = [];
+    let pokerHand = [];
+    let pokerHeld = [false,false,false,false,false];
+    let pokerPhase = 'idle'; // idle, dealt, done
+    let pokerWager = 0;
+
+    function createDeck() {
+      const d = [];
+      for (let s = 0; s < 4; s++)
+        for (let r = 0; r < 13; r++)
+          d.push({ rank: r, suit: s });
+      return d;
+    }
+
+    function shuffleDeck(d) {
+      for (let i = d.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [d[i], d[j]] = [d[j], d[i]];
+      }
+      return d;
+    }
+
+    function evaluateHand(cards) {
+      const ranks = cards.map(c => c.rank).sort((a,b) => a - b);
+      const suits = cards.map(c => c.suit);
+      const isFlush = suits.every(s => s === suits[0]);
+
+      let isStraight = false;
+      if (new Set(ranks).size === 5) {
+        if (ranks[4] - ranks[0] === 4) isStraight = true;
+        if (ranks[0]===0 && ranks[1]===1 && ranks[2]===2 && ranks[3]===3 && ranks[4]===12) isStraight = true;
+      }
+
+      const counts = {};
+      for (const r of ranks) counts[r] = (counts[r]||0) + 1;
+      const freq = Object.values(counts).sort((a,b) => b - a);
+
+      if (isFlush && isStraight && ranks[0]===8 && ranks[4]===12) return 'ROYAL FLUSH';
+      if (isFlush && isStraight) return 'STRAIGHT FLUSH';
+      if (freq[0]===4) return 'FOUR OF A KIND';
+      if (freq[0]===3 && freq[1]===2) return 'FULL HOUSE';
+      if (isFlush) return 'FLUSH';
+      if (isStraight) return 'STRAIGHT';
+      if (freq[0]===3) return 'THREE OF A KIND';
+      if (freq[0]===2 && freq[1]===2) return 'TWO PAIR';
+      if (freq[0]===2) {
+        const pairRank = parseInt(Object.entries(counts).find(([r,c]) => c===2)[0]);
+        if (pairRank >= 9) return 'JACKS OR BETTER';
+      }
+      return null;
+    }
+
+    // ── Poker: Rules Screen ──
+    function showPokerRules() {
+      document.getElementById('poker-rules-overlay').classList.add('active');
+    }
+
+    document.getElementById('poker-rules-continue').addEventListener('click', () => {
+      document.getElementById('poker-rules-overlay').classList.remove('active');
+      currentGame = 'poker';
+      startCoinFlip(); // reuses NFT selection + wager flow, routed via currentGame flag
+    });
+
+    // ── Poker: Begin Round ──
+    async function beginPokerRound() {
+      choicesDiv.innerHTML = '';
+      pokerWager = wagerAmount;
+
+      // TODO: Wire up poker contract here — spend cells on-chain
+      // For now, poker plays client-side in demo mode
+
+      dialogueBox.classList.remove('visible');
+      jiptImage.classList.remove('visible');
+
+      const overlay = document.getElementById('poker-overlay');
+      overlay.classList.add('active');
+      document.getElementById('poker-wager-display').textContent = `WAGER: ${pokerWager} CELLS`;
+
+      // Reset
+      pokerHeld = [false,false,false,false,false];
+      pokerPhase = 'idle';
+      document.querySelectorAll('.payout-row').forEach(r => r.classList.remove('active'));
+      document.getElementById('poker-result').textContent = '';
+      document.getElementById('poker-result').className = 'poker-result';
+
+      // Deal
+      pokerDeck = shuffleDeck(createDeck());
+      pokerHand = pokerDeck.splice(0, 5);
+      pokerPhase = 'dealt';
+      renderPokerHand();
+
+      const dealBtn = document.getElementById('poker-deal-btn');
+      dealBtn.textContent = 'DRAW';
+      dealBtn.disabled = false;
+    }
+
+    function renderPokerHand() {
+      const handEl = document.getElementById('poker-hand');
+      handEl.innerHTML = '';
+
+      for (let i = 0; i < 5; i++) {
+        const card = pokerHand[i];
+        const slot = document.createElement('div');
+        slot.className = 'poker-card-slot';
+
+        const heldLabel = document.createElement('div');
+        heldLabel.className = 'held-label';
+        heldLabel.textContent = pokerHeld[i] ? 'HELD' : '';
+        slot.appendChild(heldLabel);
+
+        const cardEl = document.createElement('div');
+        const isRed = SUIT_RED[card.suit];
+        cardEl.className = `poker-card ${isRed ? 'suit-red' : 'suit-black'} ${pokerHeld[i] ? 'held' : ''}`;
+        cardEl.innerHTML = `<span class="card-rank">${RANK_NAMES[card.rank]}</span><span class="card-suit">${SUIT_SYMBOLS[card.suit]}</span>`;
+
+        const idx = i;
+        cardEl.addEventListener('click', () => toggleHold(idx));
+        slot.appendChild(cardEl);
+
+        const lockBtn = document.createElement('button');
+        lockBtn.className = `lock-btn ${pokerHeld[i] ? 'locked' : ''}`;
+        lockBtn.textContent = 'LOCK';
+        lockBtn.addEventListener('click', () => toggleHold(idx));
+        slot.appendChild(lockBtn);
+
+        handEl.appendChild(slot);
+      }
+    }
+
+    function toggleHold(idx) {
+      if (pokerPhase !== 'dealt') return;
+      pokerHeld[idx] = !pokerHeld[idx];
+      renderPokerHand();
+    }
+
+    function pokerDraw() {
+      if (pokerPhase !== 'dealt') return;
+
+      for (let i = 0; i < 5; i++) {
+        if (!pokerHeld[i]) {
+          pokerHand[i] = pokerDeck.splice(0, 1)[0];
+        }
+      }
+
+      pokerPhase = 'done';
+      renderPokerHand();
+
+      const result = evaluateHand(pokerHand);
+      const resultEl = document.getElementById('poker-result');
+      const dealBtn = document.getElementById('poker-deal-btn');
+
+      // Disable lock buttons
+      document.querySelectorAll('.lock-btn').forEach(b => { b.style.pointerEvents = 'none'; });
+
+      if (result) {
+        const mult = PAYOUTS[result];
+        const winnings = pokerWager * mult;
+        resultEl.textContent = `${result}! +${winnings} CELLS`;
+        resultEl.className = 'poker-result win';
+
+        const attr = HAND_DATA_ATTR[result];
+        if (attr) {
+          const row = document.querySelector(`.payout-row[data-hand="${attr}"]`);
+          if (row) row.classList.add('active');
+        }
+
+        // TODO: Award cells on-chain
+      } else {
+        resultEl.textContent = 'NO WIN';
+        resultEl.className = 'poker-result lose';
+      }
+
+      dealBtn.textContent = 'NEW HAND';
+      dealBtn.disabled = false;
+    }
+
+    // ── Poker: Deal button handler ──
+    document.getElementById('poker-deal-btn').addEventListener('click', () => {
+      if (pokerPhase === 'dealt') {
+        pokerDraw();
+      } else if (pokerPhase === 'done') {
+        // New hand with same wager
+        pokerHeld = [false,false,false,false,false];
+        document.querySelectorAll('.payout-row').forEach(r => r.classList.remove('active'));
+        document.getElementById('poker-result').textContent = '';
+        document.getElementById('poker-result').className = 'poker-result';
+
+        pokerDeck = shuffleDeck(createDeck());
+        pokerHand = pokerDeck.splice(0, 5);
+        pokerPhase = 'dealt';
+        renderPokerHand();
+
+        document.getElementById('poker-deal-btn').textContent = 'DRAW';
+      }
+    });
+
+    // ── Poker: Back button ──
+    document.getElementById('poker-back').addEventListener('click', () => {
+      document.getElementById('poker-overlay').classList.remove('active');
+      pokerPhase = 'idle';
+      jiptImage.classList.add('visible');
+      dialogueBox.classList.add('visible');
+      showPlayAgain(false);
+    });
 
     // ── Init ──
     autoReconnect({ onConnected, onDisconnected });
