@@ -247,6 +247,8 @@ let shotsHit = 0;
 let comboCount = 0;
 let comboTimer = 0;
 let roomKills = 0;
+let roomTime = 0;
+let roomSpawnDone = false;
 let deathOverlayShown = false;
 let winHandled = false;
 let shakeX = 0;
@@ -259,7 +261,8 @@ const RELOAD_TIME = 1.2;
 let ammo = MAX_AMMO;
 let isReloading = false;
 let reloadTimer = 0;
-const RELOAD_BTN = { x: 8, y: H - 65, w: 90, h: 36 };
+const RELOAD_BTN = { x: 8, y: H - 82, w: 130, h: 56 };
+const ROOM_SPAWN_DURATION = 30; // seconds of enemy spawning per room
 
 // ── Enemy Class ──
 function createEnemy(room) {
@@ -332,16 +335,15 @@ function handleShoot(cx, cy) {
     if (loadedCount >= totalAssets) startGame();
     return;
   }
-  if (state === 'dead') {
-    respawn();
-    return;
-  }
   if (state !== 'playing') return;
+
+  // Block all shooting while reloading
+  if (isReloading) return;
 
   // Reload button tap
   if (cx >= RELOAD_BTN.x && cx <= RELOAD_BTN.x + RELOAD_BTN.w &&
       cy >= RELOAD_BTN.y && cy <= RELOAD_BTN.y + RELOAD_BTN.h) {
-    if (!isReloading && ammo < MAX_AMMO) {
+    if (ammo < MAX_AMMO) {
       isReloading = true;
       reloadTimer = RELOAD_TIME;
     }
@@ -484,7 +486,6 @@ canvas.addEventListener('touchmove', e => {
 // Keyboard (Enter/Space for title/respawn)
 window.addEventListener('keydown', e => {
   if (state === 'title' && loadedCount >= totalAssets && (e.key === 'Enter' || e.key === ' ')) startGame();
-  if (state === 'dead' && (e.key === 'Enter' || e.key === ' ')) respawn();
   if (state === 'playing' && (e.key === 'r' || e.key === 'R') && !isReloading && ammo < MAX_AMMO) {
     isReloading = true;
     reloadTimer = RELOAD_TIME;
@@ -507,6 +508,8 @@ function startGame() {
   comboCount = 0;
   comboTimer = 0;
   roomKills = 0;
+  roomTime = 0;
+  roomSpawnDone = false;
   spawnTimer = 1.5; // brief grace period
   damageFlash = 0;
   deathOverlayShown = false;
@@ -539,7 +542,7 @@ function takeDamage(amount) {
   shakeY = (Math.random() - 0.5) * 8;
   if (health <= 0) {
     health = 0;
-    state = 'dead';
+    state = 'game_over';
   }
 }
 
@@ -628,16 +631,28 @@ function update(dt) {
       state = 'playing';
       transitionAlpha = 0;
       spawnTimer = 1.5; // grace at room start
+      roomTime = 0;
+      roomSpawnDone = false;
     }
     return;
   }
 
   gameTime += dt;
+  roomTime += dt;
 
-  // Check room progression
-  const newRoom = Math.min(ROOM_COUNT - 1, Math.floor(gameTime / ROOM_DURATION));
-  if (newRoom > currentRoom) {
-    currentRoom = newRoom;
+  // Stop spawning after 30 seconds
+  if (!roomSpawnDone && roomTime >= ROOM_SPAWN_DURATION) {
+    roomSpawnDone = true;
+  }
+
+  // Advance room only when spawn phase is done AND all enemies are cleared
+  if (roomSpawnDone && enemies.filter(e => e.alive).length === 0) {
+    if (currentRoom >= ROOM_COUNT - 1) {
+      state = 'win';
+      onWin();
+      return;
+    }
+    currentRoom++;
     state = 'room_transition';
     transitionTimer = 2.0;
     transitionAlpha = 0;
@@ -647,18 +662,11 @@ function update(dt) {
     return;
   }
 
-  // Check win
-  if (gameTime >= GAME_DURATION) {
-    state = 'win';
-    onWin();
-    return;
-  }
-
   const config = ROOM_CONFIG[currentRoom];
 
-  // Spawn enemies
+  // Spawn enemies (only during spawn phase)
   spawnTimer -= dt;
-  if (spawnTimer <= 0 && enemies.filter(e => e.alive).length < config.maxEnemies) {
+  if (!roomSpawnDone && spawnTimer <= 0 && enemies.filter(e => e.alive).length < config.maxEnemies) {
     enemies.push(createEnemy(currentRoom));
     spawnTimer = config.spawnRate * (0.6 + Math.random() * 0.8);
   }
@@ -919,10 +927,12 @@ function drawHUD() {
   drawText(`SCORE: ${score}`, W - 10, 16, 12, '#ff0', 'right');
 
   // Timer
-  const remaining = Math.max(0, GAME_DURATION - gameTime);
-  const min = Math.floor(remaining / 60);
-  const sec = Math.floor(remaining % 60);
-  drawText(`${min}:${sec.toString().padStart(2, '0')}`, W / 2, 16, 14, '#fff');
+  if (roomSpawnDone) {
+    drawText('CLEAR!', W / 2, 16, 14, '#f80');
+  } else {
+    const sec = Math.ceil(Math.max(0, ROOM_SPAWN_DURATION - roomTime));
+    drawText(`${sec}s`, W / 2, 16, 14, '#fff');
+  }
 
   // Room name
   const config = ROOM_CONFIG[currentRoom];
@@ -975,7 +985,7 @@ function drawHUD() {
   ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
   if (isReloading) {
     const prog = 1 - reloadTimer / RELOAD_TIME;
-    ctx.fillStyle = '#665500';
+    ctx.fillStyle = '#ff6600';
     ctx.fillRect(btn.x, btn.y, btn.w * prog, btn.h);
   }
   ctx.strokeStyle = ammo === 0 && !isReloading ? '#f44' : '#666';
@@ -1038,7 +1048,7 @@ function render() {
 
     drawText('Tap enemies to shoot', W / 2, H / 2 + 30, 12, '#aaa');
     drawText('Tap their attacks to block', W / 2, H / 2 + 55, 12, '#aaa');
-    drawText('5 rooms. 6 minutes. Survive.', W / 2, H / 2 + 80, 11, '#888');
+    drawText('5 rooms. 30 seconds each. Survive.', W / 2, H / 2 + 80, 11, '#888');
 
     const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
     ctx.globalAlpha = pulse;
@@ -1111,16 +1121,14 @@ function render() {
       }
     }
 
-    // Dead overlay
-    if (state === 'dead') {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(0, H / 2 - 70, W, 140);
-      drawStyledText('WASTED', W / 2, H / 2 - 25, 40);
-      drawText(`Score: ${score}`, W / 2, H / 2 + 15, 14, '#f5e6c8');
-      const pulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
-      ctx.globalAlpha = pulse;
-      drawText('[ TAP TO RESPAWN ]', W / 2, H / 2 + 45, 12, '#aaa');
-      ctx.globalAlpha = 1;
+    // Game over overlay
+    if (state === 'game_over') {
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(0, 0, W, H);
+      drawStyledText('GAME OVER', W / 2, H / 2 - 60, 36);
+      drawText(`SCORE: ${score}`, W / 2, H / 2, 18, '#ff0');
+      drawText(`KILLS: ${killCount}`, W / 2, H / 2 + 35, 12, '#aaa');
+      drawText('Refresh page to play again', W / 2, H / 2 + 75, 9, '#888');
     }
 
     drawCrosshair(mouseX, mouseY);
