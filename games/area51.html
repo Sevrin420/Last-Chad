@@ -138,15 +138,16 @@ const CROSSHAIR_SIZE = 28;
 const ROOM_CONFIG = [
   {
     // Room 1: Exterior — "Flush Dolls" building, wide parking lot
-    // Front-facing, wide open. Enemies are close, medium-large.
+    // zone.y + zone.h = footY (street level). Feet anchored to ground.
+    // Street in front of building ≈ y=565. Foreground ground ≈ y=648.
     name: 'PARKING LOT',
     spawnZones: [
-      { x: 30,  y: 280, w: 100, h: 220, scale: 0.7 },  // far left by building
-      { x: 160, y: 300, w: 120, h: 240, scale: 0.85 },  // left of door
-      { x: 300, y: 300, w: 120, h: 240, scale: 0.85 },  // right of door
-      { x: 380, y: 280, w: 80,  h: 220, scale: 0.7 },   // far right
-      { x: 100, y: 440, w: 130, h: 200, scale: 1.0 },   // foreground left
-      { x: 280, y: 440, w: 130, h: 200, scale: 1.0 },   // foreground right
+      { x: 18,  y: 415, w: 105, h: 150, scale: 0.72 }, // far left  (footY=565)
+      { x: 130, y: 415, w: 120, h: 150, scale: 0.82 }, // left of door (footY=565)
+      { x: 255, y: 415, w: 120, h: 150, scale: 0.82 }, // right of door (footY=565)
+      { x: 362, y: 415, w: 100, h: 150, scale: 0.72 }, // far right (footY=565)
+      { x: 18,  y: 498, w: 155, h: 150, scale: 1.0 },  // foreground left (footY=648)
+      { x: 295, y: 498, w: 155, h: 150, scale: 1.0 },  // foreground right (footY=648)
     ],
     enemyBaseH: 140,
     spawnRate: 2.8,
@@ -252,6 +253,14 @@ let shakeX = 0;
 let shakeY = 0;
 let shakeTimer = 0;
 
+// ── Ammo ──
+const MAX_AMMO = 5;
+const RELOAD_TIME = 1.2;
+let ammo = MAX_AMMO;
+let isReloading = false;
+let reloadTimer = 0;
+const RELOAD_BTN = { x: 8, y: H - 65, w: 90, h: 36 };
+
 // ── Enemy Class ──
 function createEnemy(room) {
   const config = ROOM_CONFIG[room];
@@ -261,8 +270,10 @@ function createEnemy(room) {
   // Aspect ratio from sprite (roughly 0.55 width:height)
   const baseW = baseH * 0.55;
 
-  const x = zone.x + Math.random() * (zone.w - baseW);
-  const y = zone.y + Math.random() * (zone.h - baseH * 0.5);
+  // Anchor feet to bottom of spawn zone so enemies stand on the ground
+  const footY = zone.y + zone.h - Math.random() * zone.h * 0.08; // tiny variance
+  const y = footY - baseH;
+  const x = zone.x + Math.random() * Math.max(1, zone.w - baseW);
 
   return {
     x, y,
@@ -275,6 +286,7 @@ function createEnemy(room) {
     spawnTime: gameTime,
     enterAnim: 0,       // 0→1 pop-in animation
     hitFlash: 0,
+    deathTimer: 0,      // death drop animation (0.5s)
     attackTimer: config.attackRate * (0.7 + Math.random() * 0.6),
     depth: zone.scale,  // used for draw order (smaller scale = farther = drawn first)
   };
@@ -326,6 +338,23 @@ function handleShoot(cx, cy) {
   }
   if (state !== 'playing') return;
 
+  // Reload button tap
+  if (cx >= RELOAD_BTN.x && cx <= RELOAD_BTN.x + RELOAD_BTN.w &&
+      cy >= RELOAD_BTN.y && cy <= RELOAD_BTN.y + RELOAD_BTN.h) {
+    if (!isReloading && ammo < MAX_AMMO) {
+      isReloading = true;
+      reloadTimer = RELOAD_TIME;
+    }
+    return;
+  }
+
+  // Out of ammo
+  if (ammo <= 0) {
+    hitMarkers.push({ x: W / 2, y: H - 110, text: 'RELOAD!', color: '#f44', timer: 0.5 });
+    return;
+  }
+
+  ammo--;
   shotsFired++;
   muzzleFlash = 0.12;
   shakeTimer = 0.06;
@@ -369,6 +398,7 @@ function handleShoot(cx, cy) {
 
       if (e.hp <= 0) {
         e.alive = false;
+        e.deathTimer = 0.5; // triggers drop-down animation
         killCount++;
         roomKills++;
         comboCount++;
@@ -455,6 +485,10 @@ canvas.addEventListener('touchmove', e => {
 window.addEventListener('keydown', e => {
   if (state === 'title' && loadedCount >= totalAssets && (e.key === 'Enter' || e.key === ' ')) startGame();
   if (state === 'dead' && (e.key === 'Enter' || e.key === ' ')) respawn();
+  if (state === 'playing' && (e.key === 'r' || e.key === 'R') && !isReloading && ammo < MAX_AMMO) {
+    isReloading = true;
+    reloadTimer = RELOAD_TIME;
+  }
 });
 
 // ── Game Functions ──
@@ -477,6 +511,9 @@ function startGame() {
   damageFlash = 0;
   deathOverlayShown = false;
   winHandled = false;
+  ammo = MAX_AMMO;
+  isReloading = false;
+  reloadTimer = 0;
   callWorker('/session/start', { tokenId: GAME_TOKEN_ID, questId: GAME_QUEST_ID, player: GAME_PLAYER });
 }
 
@@ -489,6 +526,9 @@ function respawn() {
   projectiles = [];
   damageFlash = 0;
   spawnTimer = 2.0; // grace period after respawn
+  ammo = MAX_AMMO;
+  isReloading = false;
+  reloadTimer = 0;
 }
 
 function takeDamage(amount) {
@@ -567,6 +607,15 @@ function update(dt) {
   if (muzzleFlash > 0) muzzleFlash -= dt;
   if (damageFlash > 0) damageFlash -= dt;
 
+  // Reload timer
+  if (isReloading) {
+    reloadTimer -= dt;
+    if (reloadTimer <= 0) {
+      isReloading = false;
+      ammo = MAX_AMMO;
+    }
+  }
+
   // Room transition
   if (state === 'room_transition') {
     transitionTimer -= dt;
@@ -616,7 +665,10 @@ function update(dt) {
 
   // Update enemies
   for (const e of enemies) {
-    if (!e.alive) continue;
+    if (!e.alive) {
+      if (e.deathTimer > 0) e.deathTimer -= dt;
+      continue;
+    }
 
     // Pop-in animation
     if (e.enterAnim < 1) {
@@ -634,8 +686,8 @@ function update(dt) {
     }
   }
 
-  // Remove dead enemies after a brief delay (for death animation)
-  enemies = enemies.filter(e => e.alive || e.hitFlash > 0);
+  // Remove dead enemies once their death animation finishes
+  enemies = enemies.filter(e => e.alive || e.deathTimer > 0);
 
   // Update projectiles
   for (const p of projectiles) {
@@ -723,24 +775,24 @@ function drawRoom() {
 }
 
 function drawEnemy(e) {
-  if (!e.alive && e.hitFlash <= 0) return;
+  if (!e.alive && e.deathTimer <= 0) return;
 
   const img = enemyImages[e.spriteIdx];
   const animScale = easeOutBack(Math.min(1, e.enterAnim));
   const drawW = e.w * animScale;
   const drawH = e.h * animScale;
   const drawX = e.x + (e.w - drawW) / 2;
-  const drawY = e.y + (e.h - drawH);
+  let drawY = e.y + (e.h - drawH);
 
   ctx.save();
 
-  // Death fade
   if (!e.alive) {
-    ctx.globalAlpha = Math.max(0, e.hitFlash / 0.15);
-  }
-
-  // Hit flash — white overlay
-  if (e.hitFlash > 0 && e.alive) {
+    // Drop down and fade out over deathTimer duration (0.5s)
+    const t = Math.max(0, 1 - e.deathTimer / 0.5); // 0→1
+    drawY += e.h * 0.55 * t * t; // quadratic drop
+    ctx.globalAlpha = Math.max(0, 1 - t * 1.4);
+  } else if (e.hitFlash > 0) {
+    // Hit flash — white overlay
     ctx.filter = `brightness(${1 + e.hitFlash * 8})`;
   }
 
@@ -892,12 +944,53 @@ function drawHUD() {
     ctx.restore();
   }
 
-  // Kill counter (bottom left)
-  drawText(`KILLS: ${killCount}`, 10, H - 12, 10, '#aaa', 'left');
+  // ── Ammo slots ──
+  const slotW = 13;
+  const slotH = 22;
+  const slotGap = 5;
+  const ammoStartX = 10;
+  const ammoY = H - 100;
+  for (let i = 0; i < MAX_AMMO; i++) {
+    const sx = ammoStartX + i * (slotW + slotGap);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(sx - 1, ammoY - 1, slotW + 2, slotH + 2);
+    // Bullet casing color
+    if (i < ammo) {
+      ctx.fillStyle = '#ff0';
+      ctx.fillRect(sx, ammoY, slotW, slotH * 0.35); // tip
+      ctx.fillStyle = '#c80';
+      ctx.fillRect(sx, ammoY + slotH * 0.35, slotW, slotH * 0.65); // body
+    } else {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(sx, ammoY, slotW, slotH);
+    }
+  }
+
+  // ── Reload button ──
+  const btn = RELOAD_BTN;
+  const btnFlash = isReloading ? '#555' : (ammo === 0 ? '#880000' : '#333');
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(btn.x - 1, btn.y - 1, btn.w + 2, btn.h + 2);
+  ctx.fillStyle = btnFlash;
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  if (isReloading) {
+    const prog = 1 - reloadTimer / RELOAD_TIME;
+    ctx.fillStyle = '#665500';
+    ctx.fillRect(btn.x, btn.y, btn.w * prog, btn.h);
+  }
+  ctx.strokeStyle = ammo === 0 && !isReloading ? '#f44' : '#666';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+  const btnLabel = isReloading ? 'LOADING' : (ammo === 0 ? 'RELOAD!' : 'RELOAD');
+  const btnColor = isReloading ? '#ff0' : (ammo === 0 ? '#f44' : '#ccc');
+  drawText(btnLabel, btn.x + btn.w / 2, btn.y + btn.h / 2, 9, btnColor);
+
+  // Kill counter (bottom right)
+  drawText(`KILLS: ${killCount}`, W - 10, H - 50, 10, '#aaa', 'right');
 
   // Accuracy (bottom right)
   const acc = shotsFired > 0 ? Math.round((shotsHit / shotsFired) * 100) : 0;
-  drawText(`ACC: ${acc}%`, W - 10, H - 12, 10, '#aaa', 'right');
+  drawText(`ACC: ${acc}%`, W - 10, H - 30, 10, '#aaa', 'right');
 }
 
 function easeOutBack(t) {
