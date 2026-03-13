@@ -1,0 +1,33 @@
+name: NFT Creation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  frame-composite:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install Pillow gdown
+
+      - name: Composite images into frames
+        run: python scripts/frame_test.py
+
+      - name: Commit test output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/frames/test/
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: generate framed NFT test images [skip ci]"
+          git push
