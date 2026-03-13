@@ -138,68 +138,66 @@ const CROSSHAIR_SIZE = 28;
 const ROOM_CONFIG = [
   {
     // Room 1: Exterior — "Flush Dolls" building, wide parking lot
-    // zone.y + zone.h = footY (street level). Feet anchored to ground.
-    // Street in front of building ≈ y=565. Foreground ground ≈ y=648.
+    // Pavement starts ≈ y=480. Mid-ground feet ≈ y=560. Foreground feet ≈ y=660.
     name: 'PARKING LOT',
     spawnZones: [
-      { x: 18,  y: 325, w: 105, h: 240, scale: 0.72 }, // far left  (footY=565)
-      { x: 130, y: 325, w: 120, h: 240, scale: 0.82 }, // left of door (footY=565)
-      { x: 255, y: 325, w: 120, h: 240, scale: 0.82 }, // right of door (footY=565)
-      { x: 362, y: 325, w: 100, h: 240, scale: 0.72 }, // far right (footY=565)
-      { x: 18,  y: 408, w: 155, h: 240, scale: 1.0 },  // foreground left (footY=648)
-      { x: 295, y: 408, w: 155, h: 240, scale: 1.0 },  // foreground right (footY=648)
+      { x: 10,  y: 280, w: 110, h: 280, scale: 0.75 }, // far left  (footY≈560)
+      { x: 130, y: 280, w: 120, h: 280, scale: 0.85 }, // left of door (footY≈560)
+      { x: 255, y: 280, w: 120, h: 280, scale: 0.85 }, // right of door (footY≈560)
+      { x: 370, y: 280, w: 100, h: 280, scale: 0.75 }, // far right (footY≈560)
+      { x: 10,  y: 380, w: 200, h: 280, scale: 1.0 },  // foreground left (footY≈660)
+      { x: 270, y: 380, w: 200, h: 280, scale: 1.0 },  // foreground right (footY≈660)
     ],
-    enemyBaseH: 240,
+    enemyBaseH: 280,
     spawnRate: 2.8,
     maxEnemies: 3,
     attackRate: 8.0,
   },
   {
     // Room 2: Interior bar — cluttered, medium depth
+    // Floor tiles start ≈ y=500. Bar counter left, stage right.
+    // No spawns in the back hallway (narrow lit doorway center-left).
     name: 'THE BAR',
     spawnZones: [
-      { x: 20,  y: 200, w: 100, h: 230, scale: 0.6 },   // behind bar counter
-      { x: 200, y: 170, w: 80,  h: 210, scale: 0.55 },   // doorway (far)
-      { x: 320, y: 210, w: 110, h: 250, scale: 0.7 },    // by pole/stage
-      { x: 50,  y: 370, w: 120, h: 270, scale: 0.9 },    // foreground left
-      { x: 200, y: 350, w: 100, h: 250, scale: 0.85 },   // center floor
-      { x: 340, y: 370, w: 110, h: 270, scale: 0.9 },    // foreground right
+      { x: 15,  y: 280, w: 100, h: 260, scale: 0.7 },   // behind bar counter (footY≈540)
+      { x: 320, y: 260, w: 130, h: 280, scale: 0.75 },   // by pole/stage (footY≈540)
+      { x: 30,  y: 400, w: 150, h: 260, scale: 1.0 },    // foreground left (footY≈660)
+      { x: 180, y: 380, w: 120, h: 260, scale: 0.9 },    // center floor (footY≈640)
+      { x: 330, y: 400, w: 140, h: 260, scale: 1.0 },    // foreground right (footY≈660)
     ],
-    enemyBaseH: 220,
+    enemyBaseH: 260,
     spawnRate: 2.4,
     maxEnemies: 4,
     attackRate: 7.0,
   },
   {
     // Room 3: Long narrow corridor — strong vanishing point
-    // Enemies start small (far) and appear larger near foreground
+    // Floor is center strip only between the two walls/red neon lines.
+    // Walls converge: far ≈ x=200-280, mid ≈ x=150-330, near ≈ x=100-380
     name: 'THE CORRIDOR',
     spawnZones: [
-      { x: 180, y: 150, w: 80,  h: 130, scale: 0.35 },  // far end
-      { x: 140, y: 200, w: 100, h: 180, scale: 0.5 },   // mid-far left
-      { x: 250, y: 200, w: 100, h: 180, scale: 0.5 },   // mid-far right
-      { x: 80,  y: 290, w: 120, h: 230, scale: 0.7 },   // mid left
-      { x: 270, y: 290, w: 120, h: 230, scale: 0.7 },   // mid right
-      { x: 30,  y: 420, w: 160, h: 240, scale: 1.0 },   // foreground left
-      { x: 300, y: 420, w: 160, h: 240, scale: 1.0 },   // foreground right
+      { x: 200, y: 250, w: 80,  h: 120, scale: 0.3 },   // far center (footY≈370)
+      { x: 170, y: 340, w: 140, h: 140, scale: 0.5 },   // mid center (footY≈480)
+      { x: 140, y: 440, w: 200, h: 160, scale: 0.75 },   // near center (footY≈600)
+      { x: 110, y: 530, w: 260, h: 140, scale: 1.0 },    // foreground center (footY≈670)
     ],
-    enemyBaseH: 230,
+    enemyBaseH: 180,
     spawnRate: 2.0,
     maxEnemies: 5,
     attackRate: 6.0,
   },
   {
-    // Room 4: Dead-end vault room — enclosed, medium depth
+    // Room 4: Dead-end vault room — same narrow center floor as corridor
+    // Shorter room, vault door at back. Floor center strip between walls.
+    // Walls converge: far ≈ x=180-300, mid ≈ x=140-340, near ≈ x=100-380
     name: 'THE VAULT',
     spawnZones: [
-      { x: 160, y: 170, w: 100, h: 190, scale: 0.5 },   // by vault door
-      { x: 50,  y: 230, w: 110, h: 230, scale: 0.65 },   // left wall
-      { x: 320, y: 230, w: 110, h: 230, scale: 0.65 },   // right wall
-      { x: 60,  y: 380, w: 130, h: 260, scale: 0.9 },    // foreground left
-      { x: 185, y: 360, w: 100, h: 240, scale: 0.85 },   // center
-      { x: 300, y: 380, w: 130, h: 260, scale: 0.9 },    // foreground right
+      { x: 180, y: 320, w: 120, h: 130, scale: 0.4 },   // by vault door (footY≈450)
+      { x: 150, y: 410, w: 180, h: 150, scale: 0.65 },   // mid center (footY≈560)
+      { x: 120, y: 500, w: 240, h: 150, scale: 0.9 },    // near center (footY≈650)
+      { x: 100, y: 540, w: 280, h: 130, scale: 1.0 },    // foreground center (footY≈670)
     ],
-    enemyBaseH: 225,
+    enemyBaseH: 180,
     spawnRate: 1.8,
     maxEnemies: 5,
     attackRate: 5.0,
