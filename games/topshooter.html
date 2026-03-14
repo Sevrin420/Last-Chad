@@ -137,7 +137,7 @@
     for (let i = 0; i < count; i++) {
       let tries = 0, ox, oy;
       do {
-        ox = SZ/2 + Math.random() * (W() - SZ);
+        ox = SZ*2 + Math.random() * (W() - SZ*4);
         oy = 80 + Math.random() * (H() - 220);
         tries++;
       } while (tries < 50 && obstacles.some(o => dist(ox,oy,o.x,o.y) < SZ*1.8));
