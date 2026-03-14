@@ -2,9 +2,19 @@ name: NFT Creation
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Which action to run'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - 50
 
 jobs:
   frame-composite:
+    if: inputs.action == 'test'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,4 +40,33 @@ jobs:
           git add assets/frames/test/
           git diff --staged --quiet && echo "Nothing to commit" && exit 0
           git commit -m "chore: generate framed NFT test images [skip ci]"
+          git push
+
+  generate-50-chads:
+    if: inputs.action == '50'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install Pillow gdown requests
+
+      - name: Generate 50 framed chad NFTs (21–70)
+        run: python scripts/generate_50_chads.py
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/chads/
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: generate framed NFT images 21-70 [skip ci]"
           git push
