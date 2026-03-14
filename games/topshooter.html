@@ -132,15 +132,13 @@
 
   function placeObstacles() {
     obstacles = [];
-    // Place 5-8 random stationary obstacles in the play field (not near player spawn)
-    const count = 5 + Math.floor(Math.random() * 4);
-    for (let i = 0; i < count; i++) {
-      let tries = 0, ox, oy;
-      do {
-        ox = SZ*2 + Math.random() * (W() - SZ*4);
-        oy = 80 + Math.random() * (H() - 220);
-        tries++;
-      } while (tries < 50 && obstacles.some(o => dist(ox,oy,o.x,o.y) < SZ*1.8));
+    // 4 obstacles, one per row, at least 4 SZ above player bottom row
+    const maxY = H() - SZ - 10 - SZ * 4; // 4 spaces above player
+    const minY = 80;
+    const rowH = (maxY - minY) / 4;
+    for (let i = 0; i < 4; i++) {
+      const ox = SZ*2 + Math.random() * (W() - SZ*4);
+      const oy = minY + rowH * i + Math.random() * rowH;
       obstacles.push({
         x: ox, y: oy, w: SZ, h: SZ,
         img: obstacleImgs[Math.floor(Math.random()*obstacleImgs.length)]
