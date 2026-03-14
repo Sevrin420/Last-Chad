@@ -43,7 +43,7 @@
   </div>
   <div id="startOverlay">
     <h1>TOP SHOOTER</h1>
-    <p>Enemies descend from above!<br>Dodge their fire &amp; destroy them.<br><br>5 shots per clip &bull; 30 lives &bull; 90 seconds<br><br>Obstacles block bullets &amp; enemies!</p>
+    <p>Enemies descend from above!<br>Dodge their fire &amp; destroy them.<br><br>5 shots per clip &bull; 30 HP &bull; 90 seconds<br><br>Obstacles block bullets &amp; enemies!</p>
     <button id="startBtn">START</button>
   </div>
 </div>
@@ -215,13 +215,13 @@
       if (ammo <= 0) { reloading = true; reloadTimer = RELOAD_TIME; }
     }
 
-    // Enemy spawning — ramps from every 2s to every 0.4s
+    // Enemy spawning — ramps from every 2s to every 0.55s
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
       spawnEnemy();
-      if (difficulty > 0.5) spawnEnemy(); // double spawn mid-game
-      if (difficulty > 0.8) spawnEnemy(); // triple spawn late-game
-      spawnTimer = lerp(2.0, 0.4, difficulty);
+      if (difficulty > 0.55) spawnEnemy(); // double spawn mid-game
+      if (difficulty > 0.9) spawnEnemy();  // triple spawn late-game
+      spawnTimer = lerp(2.0, 0.55, difficulty);
     }
 
     // Update enemies
@@ -255,7 +255,7 @@
           x: e.x, y: e.y + SZ/2, w:6, h:6,
           vx: Math.cos(angle)*bspd, vy: Math.sin(angle)*bspd
         });
-        e.shootTimer = lerp(2.5, 0.6, difficulty) * (0.5 + Math.random());
+        e.shootTimer = lerp(2.5, 0.8, difficulty) * (0.5 + Math.random());
       }
 
       // Enemy off screen
