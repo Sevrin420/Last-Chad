@@ -775,6 +775,10 @@
   <!-- Wallet Modal -->
   <div id="wallet-modal-placeholder"></div>
 
+  <!-- Mint sound effects -->
+  <audio id="sfx-goodluck"  src="sound effects/goodluck.wav"  preload="auto"></audio>
+  <audio id="sfx-youneedit" src="sound effects/youneedit.wav" preload="auto"></audio>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import {
@@ -941,9 +945,45 @@
 
     document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
 
+    // ========== MINT SOUND EFFECTS ==========
+    const sfxGoodLuck  = document.getElementById('sfx-goodluck');
+    const sfxYouNeedIt = document.getElementById('sfx-youneedit');
+
+    // Unlock iOS/Android audio in the synchronous user-gesture window.
+    // Must run before any await — once async resumes, the gesture is gone.
+    function unlockMintAudio() {
+      for (const el of [sfxGoodLuck, sfxYouNeedIt]) {
+        el.load();
+        el.play().then(() => el.pause()).catch(() => {});
+      }
+      try {
+        const ACtx = window.AudioContext || window.webkitAudioContext;
+        if (ACtx) {
+          const ctx = new ACtx();
+          const buf = ctx.createBuffer(1, 1, 22050);
+          const src = ctx.createBufferSource();
+          src.buffer = buf; src.connect(ctx.destination); src.start(0);
+          ctx.resume().catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    // Play "good luck" → then "you're gonna need it" when it ends.
+    function playMintSfx() {
+      sfxGoodLuck.currentTime = 0;
+      sfxGoodLuck.play().catch(() => {});
+      sfxGoodLuck.onended = () => {
+        sfxYouNeedIt.currentTime = 0;
+        sfxYouNeedIt.play().catch(() => {});
+      };
+    }
+
     // ========== MINT ==========
     mintBtn.addEventListener('click', async function (e) {
       if (this.disabled || !getSigner()) return;
+
+      // Unlock audio NOW — synchronous, inside the click gesture.
+      unlockMintAudio();
 
       // Ripple effect
       const ripple = document.createElement('div');
@@ -986,10 +1026,13 @@
 
         btnText.textContent = 'MINTED!';
 
-        // Redirect to stats page after a short delay
+        // Play "good luck... you're gonna need it"
+        playMintSfx();
+
+        // Redirect to stats page after sounds finish (allow ~5s for both clips)
         setTimeout(() => {
           window.location.href = 'stats.html?tokens=' + mintedIds.join(',');
-        }, 1500);
+        }, 5000);
 
       } catch (err) {
         console.error('Mint failed:', err);
