@@ -79,6 +79,7 @@ def main():
             output=tmpdir,
             quiet=False,
             use_cookies=False,
+            remaining_ok=True,
         )
 
         # Collect all image files (recursively, in case of sub-folders)
