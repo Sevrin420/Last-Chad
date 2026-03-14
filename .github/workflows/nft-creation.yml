@@ -57,7 +57,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install Pillow gdown requests
+        run: pip install Pillow gdown
 
       - name: Generate 50 framed chad NFTs (21–70)
         run: python scripts/generate_50_chads.py
