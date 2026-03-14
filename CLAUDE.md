@@ -15,6 +15,9 @@
 - **`quest.html`** — IGNORE entirely unless the user specifically says to edit it.
 - **`quests/*/index.html`** (individual quest files) — NEVER modify. Quests are generated output from `github-api.js` + `quest-builder.html`. All quest template changes go in `github-api.js` only.
 
+### Implementation Plans
+- **`gamble.md`** — Poker (video poker / Jacks or Better) implementation plan. Read this before implementing any gambling/poker features. Covers Gamble.sol additions, Cloudflare Worker endpoints, frontend changes, and deploy steps.
+
 ---
 
 ## Project Overview
