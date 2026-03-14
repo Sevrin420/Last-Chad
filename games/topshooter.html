@@ -145,7 +145,7 @@
   const SZ = 40; // entity size
 
   let player, enemies, obstacles, playerBullets, enemyBullets, particles;
-  let lives, ammo, reloading, reloadTimer, score, kills;
+  let lives, ammo, reloading, reloadTimer, kills;
   let elapsed, running, gameOver, won;
   let difficulty; // 0-1
   let spawnTimer, bgY;
@@ -169,7 +169,7 @@
     ammo = MAX_AMMO;
     reloading = false;
     reloadTimer = 0;
-    score = 0;
+
     kills = 0;
     elapsed = 0;
     running = true;
@@ -227,7 +227,12 @@
   }
 
   /* ── difficulty curve ── */
-  function getDifficulty(t) { return Math.min(1, t / GAME_TIME); }
+  function getDifficulty(t) {
+    if (t <= 40) return t / GAME_TIME;           // normal ramp 0-40s
+    // after 40s: slow increase rate by 50%
+    const base = 40 / GAME_TIME;                 // difficulty at t=40
+    return Math.min(1, base + (t - 40) / (GAME_TIME * 2));
+  }
 
   function lerp(a, b, t) { return a + (b - a) * t; }
 
@@ -370,7 +375,7 @@
           enemies[j].hp--;
           if (enemies[j].hp <= 0) {
             spawnParticles(enemies[j].x, enemies[j].y, '#ff4', 10);
-            score += 10;
+
             kills++;
             enemies.splice(j, 1);
           } else {
@@ -601,7 +606,6 @@
     ctx.textAlign = 'right';
     ctx.fillStyle = '#c8a84e';
     ctx.fillText('K:' + kills, w - 8, 15);
-    ctx.fillText('S:' + score, w - 8, 34);
 
     // Difficulty bar
     const barW = 80;
@@ -629,7 +633,7 @@
       ctx.fillText('SURVIVED!', w/2, h/2 - 50);
       ctx.font = '10px "Press Start 2P"';
       ctx.fillStyle = '#fff';
-      ctx.fillText('Score: ' + score + '  Kills: ' + kills, w/2, h/2);
+      ctx.fillText('Kills: ' + kills, w/2, h/2);
       ctx.fillText('Lives left: ' + lives, w/2, h/2 + 25);
     } else {
       ctx.font = '18px "Press Start 2P"';
@@ -637,7 +641,7 @@
       ctx.fillText('GAME OVER', w/2, h/2 - 50);
       ctx.font = '10px "Press Start 2P"';
       ctx.fillStyle = '#fff';
-      ctx.fillText('Score: ' + score + '  Kills: ' + kills, w/2, h/2);
+      ctx.fillText('Kills: ' + kills, w/2, h/2);
       ctx.fillText('Survived: ' + Math.floor(elapsed) + 's', w/2, h/2 + 25);
     }
 
