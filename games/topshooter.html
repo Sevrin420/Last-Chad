@@ -31,6 +31,27 @@
     background:#c8a84e; color:#000; border:none; cursor:pointer;
   }
   #startBtn:hover { background:#e0c060; }
+
+  /* ── Result flash overlay ── */
+  #result-overlay {
+    display:none; position:absolute; inset:0; z-index:20;
+    align-items:center; justify-content:center;
+    flex-direction:column;
+    background:rgba(0,0,0,0.9);
+  }
+  #result-overlay.active { display:flex; }
+  #result-text {
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(2rem, 8vw, 5rem);
+    text-shadow:0 0 30px currentColor, 0 0 60px currentColor;
+    animation:result-pulse 0.6s ease-in-out infinite alternate;
+  }
+  #result-text.win  { color:#6dffaa; }
+  #result-text.lose { color:#e53935; }
+  @keyframes result-pulse {
+    from { transform:scale(1); }
+    to   { transform:scale(1.08); }
+  }
 </style>
 </head>
 <body>
@@ -41,6 +62,7 @@
     <button id="btnShoot">SHOOT</button>
     <button id="btnRight">RIGHT &#9654;</button>
   </div>
+  <div id="result-overlay"><span id="result-text"></span></div>
   <div id="startOverlay">
     <h1>TOP SHOOTER</h1>
     <p>Enemies descend from above!<br>Dodge their fire &amp; destroy them.<br><br>5 shots per clip &bull; 30 HP &bull; 90 seconds<br><br>Obstacles block bullets &amp; enemies!</p>
@@ -54,6 +76,39 @@
   const ctx = canvas.getContext('2d');
   const wrap = document.getElementById('wrap');
   const overlay = document.getElementById('startOverlay');
+
+  /* ── audio ── */
+  const bgm = new Audio('../music/adventure.mp3');
+  bgm.loop = true;
+  bgm.volume = 0.5;
+  const sfxWin = new Audio('../sound effects/youwin.wav');
+  const sfxLose = new Audio('../sound effects/youlose.wav');
+  sfxWin.volume = 1.0;
+  sfxLose.volume = 1.0;
+  let endSoundPlayed = false;
+
+  function startMusic() {
+    bgm.currentTime = 0;
+    bgm.play().catch(() => {});
+  }
+  function stopMusic() { bgm.pause(); bgm.currentTime = 0; }
+  const resultOverlay = document.getElementById('result-overlay');
+  const resultText = document.getElementById('result-text');
+
+  function playEndSound(win) {
+    if (endSoundPlayed) return;
+    endSoundPlayed = true;
+    stopMusic();
+    const sfx = win ? sfxWin : sfxLose;
+    sfx.currentTime = 0;
+    sfx.play().catch(() => {});
+
+    // Flash result text
+    resultText.textContent = win ? 'YOU WIN!' : 'YOU LOSE';
+    resultText.className = win ? 'win' : 'lose';
+    resultOverlay.classList.add('active');
+    setTimeout(() => { resultOverlay.classList.remove('active'); }, 3000);
+  }
 
   /* ── sizing ── */
   function resize() {
@@ -126,23 +181,39 @@
     inputLeft = inputRight = inputShoot = false;
     shootCooldown = 0;
     invincibleTimer = 0;
+    endSoundPlayed = false;
+    resultOverlay.classList.remove('active');
     lastTime = performance.now();
     placeObstacles();
   }
 
   function placeObstacles() {
     obstacles = [];
-    // 4 obstacles, one per row, at least 4 SZ above player bottom row
-    const maxY = H() - SZ - 10 - SZ * 4; // 4 spaces above player
+    const minGap = SZ * 3; // minimum 3 tile-widths between any two obstacles
+    const pad = SZ * 2;    // keep away from left/right edges
+    const maxY = H() - SZ - 10 - SZ * 4;
     const minY = 80;
     const rowH = (maxY - minY) / 4;
     for (let i = 0; i < 4; i++) {
-      const ox = SZ*2 + Math.random() * (W() - SZ*4);
-      const oy = minY + rowH * i + Math.random() * rowH;
-      obstacles.push({
-        x: ox, y: oy, w: SZ, h: SZ,
-        img: obstacleImgs[Math.floor(Math.random()*obstacleImgs.length)]
-      });
+      let ox, oy, tries = 0, ok = false;
+      while (tries < 50) {
+        ox = pad + Math.random() * (W() - pad * 2);
+        oy = minY + rowH * i + Math.random() * rowH;
+        ok = true;
+        for (const ob of obstacles) {
+          if (Math.abs(ox - ob.x) < minGap && Math.abs(oy - ob.y) < minGap) {
+            ok = false; break;
+          }
+        }
+        if (ok) break;
+        tries++;
+      }
+      if (ok) {
+        obstacles.push({
+          x: ox, y: oy, w: SZ, h: SZ,
+          img: obstacleImgs[Math.floor(Math.random()*obstacleImgs.length)]
+        });
+      }
     }
   }
 
@@ -187,6 +258,7 @@
       won = true;
       gameOver = true;
       running = false;
+      playEndSound(true);
       return;
     }
 
@@ -349,6 +421,7 @@
     if (lives <= 0) {
       gameOver = true;
       running = false;
+      playEndSound(false);
     }
   }
 
@@ -607,7 +680,7 @@
 
   // Restart on tap when game over
   canvas.addEventListener('pointerdown', () => {
-    if (gameOver) { init(); }
+    if (gameOver) { init(); startMusic(); }
   });
 
   /* ── game loop ── */
@@ -623,6 +696,7 @@
   document.getElementById('startBtn').addEventListener('click', () => {
     overlay.style.display = 'none';
     init();
+    startMusic();
     requestAnimationFrame(loop);
   });
 })();
