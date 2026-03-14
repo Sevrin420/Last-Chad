@@ -132,17 +132,31 @@
 
   function placeObstacles() {
     obstacles = [];
-    // 4 obstacles, one per row, at least 4 SZ above player bottom row
-    const maxY = H() - SZ - 10 - SZ * 4; // 4 spaces above player
+    const minGap = SZ * 3; // minimum 3 tile-widths between any two obstacles
+    const pad = SZ * 2;    // keep away from left/right edges
+    const maxY = H() - SZ - 10 - SZ * 4;
     const minY = 80;
     const rowH = (maxY - minY) / 4;
     for (let i = 0; i < 4; i++) {
-      const ox = SZ*2 + Math.random() * (W() - SZ*4);
-      const oy = minY + rowH * i + Math.random() * rowH;
-      obstacles.push({
-        x: ox, y: oy, w: SZ, h: SZ,
-        img: obstacleImgs[Math.floor(Math.random()*obstacleImgs.length)]
-      });
+      let ox, oy, tries = 0, ok = false;
+      while (tries < 50) {
+        ox = pad + Math.random() * (W() - pad * 2);
+        oy = minY + rowH * i + Math.random() * rowH;
+        ok = true;
+        for (const ob of obstacles) {
+          if (Math.abs(ox - ob.x) < minGap && Math.abs(oy - ob.y) < minGap) {
+            ok = false; break;
+          }
+        }
+        if (ok) break;
+        tries++;
+      }
+      if (ok) {
+        obstacles.push({
+          x: ox, y: oy, w: SZ, h: SZ,
+          img: obstacleImgs[Math.floor(Math.random()*obstacleImgs.length)]
+        });
+      }
     }
   }
 
