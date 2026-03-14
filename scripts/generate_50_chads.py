@@ -17,7 +17,7 @@ import gdown
 from PIL import Image
 
 GDRIVE_FOLDER_ID = "1xv9SJI4FJrl2A0EVrXpbqNiKUzyHrfDn"
-FRAME_PATH       = Path("assets/frames/frame.png")
+FRAME_PATH       = Path("assets/frames/steelbg.png")
 OUTPUT_DIR       = Path("assets/chads")
 START_INDEX      = 21
 BLACK_THRESH     = 25   # R,G,B all below this → transparent
