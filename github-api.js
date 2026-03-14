@@ -1494,6 +1494,7 @@ ${completePanelHtml}
       if (!src || musicMuted) { audio.pause(); audio.src = ''; return; }
       if (audio.src.endsWith(src.replace('../../', ''))) return; // already playing
       audio.src = src;
+      audio.volume = 0.3;
       audio.play().catch(function() {});
     }
 
