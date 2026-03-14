@@ -1,28 +1,25 @@
 """
-generate_50_chads.py — Download images from a public Google Drive folder,
-pick 50 at random, apply frame.png, and save as assets/chads/21-70.png.
+generate_50_chads.py — Download 50 images from a public Google Drive folder,
+apply frame.png, and save as assets/chads/21-70.png.
 
 Steps:
   1. Download the entire Drive folder via gdown.download_folder().
   2. Find all valid image files in the download.
-  3. Randomly pick 50 (or all if fewer than 50).
-  4. Apply assets/frames/frame.png (near-black pixels become transparent).
-  5. Save as assets/chads/21.png ... 70.png.
+  3. Apply assets/frames/frame.png (near-black pixels become transparent).
+  4. Save as assets/chads/21.png ... 70.png.
 """
 
 import sys
-import random
 import tempfile
 from pathlib import Path
 
 import gdown
 from PIL import Image
 
-GDRIVE_FOLDER_ID = "1ur5p7r2jSUDsMD2csbxh_ZUToN7wlsJW"
+GDRIVE_FOLDER_ID = "1xv9SJI4FJrl2A0EVrXpbqNiKUzyHrfDn"
 FRAME_PATH       = Path("assets/frames/frame.png")
 OUTPUT_DIR       = Path("assets/chads")
 START_INDEX      = 21
-COUNT            = 50
 BLACK_THRESH     = 25   # R,G,B all below this → transparent
 IMAGE_EXTS       = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
@@ -96,9 +93,8 @@ def main():
 
         print(f"\nFound {len(all_images)} image(s) in folder.")
 
-        n        = min(COUNT, len(all_images))
-        selected = random.sample(all_images, n)
-        print(f"Selected {n} at random.\n")
+        selected = sorted(all_images)
+        print(f"Using all {len(selected)} image(s).\n")
 
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
