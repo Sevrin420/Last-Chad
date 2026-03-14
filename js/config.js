@@ -91,6 +91,13 @@ export const GAMBLE_ABI = [
   // Events
   'event CoinFlip(uint256 indexed tokenId, address indexed player, uint256 wager, bool won, bytes32 seed)',
   'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
+  // Two-tx settlement (poker, craps, etc.) — requires contract redeploy
+  'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
+  'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
+  'function wagerAmounts(uint256 nonce) view returns (uint256)',
+  'function nextNonce() view returns (uint256)',
+  'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
+  'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
 ];
 
 export const MARKET_ABI = [

@@ -72,6 +72,7 @@ Register game types here as they are built:
 | 0      | (reserved) | —          |
 | 1      | Blackjack  | Planned    |
 | 2      | Poker      | Planned    |
+| 3      | Craps      | **Active** |
 
 ---
 
@@ -369,3 +370,180 @@ Replace the `// TODO` blocks in `gamble.html` poker logic:
 | 2      | Poker      | **Active** |
 
 Note: Poker uses `commitWager` + `claimWinnings` (two-tx), NOT `resolveGame` (single-tx). The `gameId` field is not used in the two-tx path but is reserved for event tracking if needed later.
+
+---
+
+## Craps — Implementation Plan
+
+### Overview
+
+Craps uses the same `commitWager` + `claimWinnings` two-tx architecture as poker. Player buys in with cells (TX 1), plays unlimited rolls off-chain with the Worker tracking all bets and state, then cashes out (TX 2). The frontend (`craps.html`) runs the full game locally for instant UX, with the Worker validating and signing the final payout.
+
+### Contract Changes Required (Monday Redeploy)
+
+**No new functions needed** — craps reuses `commitWager()` and `claimWinnings()` exactly as specced for poker above. The only contract changes are the ones already listed in the poker section:
+
+1. Add `commitWager(uint256 tokenId, uint256 wager) → uint256 nonce`
+2. Add `claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig)`
+3. Add storage: `wagerAmounts`, `wagerPlayers`, `nextNonce`
+4. Add events: `WagerCommitted`, `WinningsClaimed`
+
+**ABI additions** (same as poker — add once, both games use them):
+```js
+// Add to GAMBLE_ABI in js/config.js:
+'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
+'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
+'function wagerAmounts(uint256 nonce) view returns (uint256)',
+'function nextNonce() view returns (uint256)',
+'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
+'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
+```
+
+### Craps Session Flow
+
+```
+Player                       Blockchain                  Cloudflare Worker
+  │                              │                              │
+  ├─ BUY IN ───────────────────►│                              │
+  │              commitWager(tokenId, buyIn)                    │
+  │              → spendCells(tokenId, buyIn)                   │
+  │              → emit WagerCommitted(..., nonce)              │
+  │                              │                              │
+  ├─ POST /craps/start ───────────────────────────────────────►│
+  │  { tokenId, nonce, player }  │            Verify wager on-chain
+  │                              │            Create session in KV
+  │◄──────────────────────────── { ok, sessionId, stack } ─────┤
+  │                              │                              │
+  │  Player places bets          │                              │
+  │  Player rolls dice           │                              │
+  │  (all computed locally)      │                              │
+  │  ... repeats many times ...  │                              │
+  │                              │                              │
+  ├─ POST /craps/cashout ─────────────────────────────────────►│
+  │  { tokenId, nonce,           │            Validate game log
+  │    finalStack, gameLog }     │            Verify math
+  │                              │            Sign payout
+  │◄───────── { payout, nonce, signature } ────────────────────┤
+  │                              │                              │
+  │  (if payout > 0)             │                              │
+  ├─ CASH OUT ─────────────────►│                              │
+  │        claimWinnings(tokenId, payout, nonce, oracleSig)    │
+  │              → awardCells(tokenId, payout)                  │
+  │              → emit WinningsClaimed(...)                    │
+  │                              │                              │
+  │  (if payout == 0)            │                              │
+  │  Nothing — cells already gone│                              │
+```
+
+### Bet Types & Payouts
+
+#### Multi-Roll Bets (persist across rolls)
+
+| Bet | When Placed | Wins | Loses | Payout |
+|-----|-------------|------|-------|--------|
+| Pass Line | Come-out only | 7/11 come-out, or hit point | 2/3/12 come-out, or 7 after point | 1:1 |
+| Pass Odds | After point set | Hit point | 7-out | True odds (see below) |
+| Come | After point set | 7/11 on next roll, or hit come-point | 2/3/12 on next roll, or 7 after come-point | 1:1 |
+| Come Odds | After come-point set | Hit come-point | 7-out | True odds (see below) |
+| Place 4/10 | After point set | That number before 7 | 7 | 9:5 |
+| Place 5/9 | After point set | That number before 7 | 7 | 7:5 |
+| Place 6/8 | After point set | That number before 7 | 7 | 7:6 |
+| Hard 4 | Any time | 2+2 before 7 or easy 4 | 7 or easy 4 (1+3) | 7:1 |
+| Hard 6 | Any time | 3+3 before 7 or easy 6 | 7 or easy 6 | 9:1 |
+| Hard 8 | Any time | 4+4 before 7 or easy 8 | 7 or easy 8 | 9:1 |
+| Hard 10 | Any time | 5+5 before 7 or easy 10 | 7 or easy 10 | 7:1 |
+
+#### One-Roll Bets (resolve immediately)
+
+| Bet | Wins | Payout |
+|-----|------|--------|
+| Field | 2, 3, 4, 9, 10, 11, 12 | 1:1 (2 pays 2:1, 12 pays 3:1) |
+
+#### True Odds Payouts (behind Pass/Come)
+
+| Point | Odds Payout |
+|-------|-------------|
+| 4 or 10 | 2:1 |
+| 5 or 9 | 3:2 |
+| 6 or 8 | 6:5 |
+
+### Worker Endpoints
+
+**`POST /craps/start`** `{ tokenId, nonce, player }`
+1. Verify `wagerAmounts[nonce] > 0` on-chain
+2. Verify `wagerPlayers[nonce] == player`
+3. Create session in KV: `craps:{nonce}` with initial stack = wager amount
+4. Return `{ ok: true, sessionId: nonce, stack: wagerAmount }`
+
+**`POST /craps/cashout`** `{ tokenId, nonce, finalStack, gameLog }`
+1. Load session from KV
+2. Validate game log integrity (replay all bets/rolls, verify final stack matches)
+3. Sign `keccak256(tokenId, payout, nonce, player)` with `ORACLE_PRIVATE_KEY`
+4. Delete session from KV
+5. Return `{ ok: true, payout: finalStack, nonce, signature }`
+
+**KV schema:**
+```json
+{
+  "key": "craps:{nonce}",
+  "value": {
+    "tokenId": "5",
+    "player": "0xabc...",
+    "initialStack": 25,
+    "gameLog": [],
+    "createdAt": 1710000000
+  },
+  "ttl": 3600
+}
+```
+
+### Frontend: craps.html
+
+Full craps table rendered as a top-down SVG/CSS layout. All game logic runs client-side with `Math.random()` for dice (not on-chain — this is gambling, not quest scoring). The Worker only validates the final stack at cashout.
+
+### Anti-Cheat
+
+- Player commits cells on-chain BEFORE playing — can't back out
+- Worker verifies the game log at cashout — replays every bet and roll to confirm final stack
+- Oracle signature prevents fabricating a payout
+- Frontend uses `crypto.getRandomValues()` for dice entropy (not `Math.random()`)
+- Game log is append-only: each entry = `{ action, bets, dice, stackAfter }`
+
+---
+
+## Craps — Required Assets
+
+### Must-Have (game will not look right without these)
+
+| Asset | Format | Dimensions | Description |
+|-------|--------|------------|-------------|
+| **Craps table felt** | PNG | ~900x500 | Top-down view of felt layout: pass line, come area, place numbers (4-5-6-8-9-10), field strip, hard ways center. Dark green felt with gold/white line markings. This is the main visual centerpiece. |
+| **NPC dealer portrait** | PNG | ~400x600 | Craps dealer character for the dialogue box. Should match the Last Chad art style. Consider 2-3 expressions: neutral, excited (big win), sympathetic (seven-out). |
+| **Chip sprites** | PNG (spritesheet or individual) | ~40x40 each | 4-5 denominations: 1 cell (white), 5 cells (red), 10 cells (blue), 25 cells (green), 50 cells (black). Used to show bets on the table. |
+| **ON/OFF puck** | PNG | ~30x30 | The classic craps puck — white "ON" side, black "OFF" side. Placed on the point number when established. |
+
+### Nice-to-Have (elevates the experience significantly)
+
+| Asset | Format | Description |
+|-------|--------|-------------|
+| **Dice roll video** | MP4 (short, ~2-3s) | Two dice tumbling on green felt, filmed top-down. Plays during each roll for dramatic effect. Multiple variations ideal. |
+| **Dice roll sound effect** | WAV/MP3 | Dice rattling and bouncing on felt. Short, punchy. |
+| **Chip stacking sound** | WAV/MP3 | Chips clinking when bet is placed or winnings collected. |
+| **Crowd cheer** | WAV/MP3 | Excited crowd reaction for big wins (hitting point, field 12, hard ways). |
+| **Crowd groan** | WAV/MP3 | Sympathetic crowd reaction for seven-out. |
+| **Win jingle** | WAV/MP3 | Cash-out celebration sound. |
+| **Table background** | PNG | ~1920x1080 | Full-screen casino environment behind the table (dark felt, wood rail, moody lighting). |
+| **Stickman calls** | WAV/MP3 (multiple) | Classic dealer calls: "Seven out!", "Winner!", "New shooter coming out!", "Hard eight!", "Yo eleven!" |
+| **Background music** | MP3 (loop) | Moody casino ambience. Jazzy or lounge vibe. Separate from the gamble.html music. |
+
+### Can Reuse From Existing Code (no new assets needed)
+
+| What | Source |
+|------|--------|
+| Dice dot rendering (CSS) | game.html — 3x3 dot grid, stainless steel dice boxes |
+| Roll animation | game.html — `@keyframes dice-tumble` |
+| Win/lose sound effects | `sound effects/youwin.wav`, `sound effects/youlose.wav` |
+| NPC dialogue system | gamble.html — typewriter, choice buttons |
+| Wallet connection | `js/wallet.js`, `js/wallet-modal.js` |
+| Character selection grid | gamble.html — NFT cards with cells display |
+| Background image | `assets/mainbg.png` (or create a craps-specific one) |
