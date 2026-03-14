@@ -773,14 +773,7 @@
   </header>
 
   <!-- Wallet Modal -->
-  <div class="modal-overlay" id="walletModal">
-    <div class="modal-box">
-      <div class="modal-title">CONNECT WALLET</div>
-      <button class="wallet-option" data-wallet="rabby">🟣 Rabby</button>
-      <button class="wallet-option" data-wallet="walletconnect">🔗 WalletConnect</button>
-      <button class="modal-close" id="modalClose">CANCEL</button>
-    </div>
-  </div>
+  <div id="wallet-modal-placeholder"></div>
 
   <!-- Detail Modal -->
   <div class="detail-overlay" id="detailOverlay">
@@ -971,8 +964,6 @@
     const walletBtn          = document.getElementById('walletBtn');
     const disconnectDropdown = document.getElementById('disconnectDropdown');
     const disconnectBtn      = document.getElementById('disconnectBtn');
-    const walletModal        = document.getElementById('walletModal');
-    const modalClose         = document.getElementById('modalClose');
 
     const listingsGrid  = document.getElementById('listingsGrid');
     const filterSort    = document.getElementById('filterSort');
@@ -1035,7 +1026,7 @@
 
     walletBtn.addEventListener('click', () => {
       if (userAddress) disconnectDropdown.classList.toggle('show');
-      else walletModal.classList.add('show');
+      else openWalletModal();
     });
     disconnectBtn.addEventListener('click', () => {
       disconnect();
@@ -1044,14 +1035,7 @@
     document.addEventListener('click', e => {
       if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
     });
-    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
-    walletModal.addEventListener('click', e => { if (e.target === walletModal) walletModal.classList.remove('show'); });
-    document.querySelectorAll('.wallet-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        walletModal.classList.remove('show');
-        connectWallet(opt.dataset.wallet, { onConnected, onDisconnected });
-      });
-    });
+    document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
 
     // ====================================================================
     // Tabs
@@ -1226,7 +1210,7 @@
     }
 
     async function buyItem(nftContract, tokenId, seller, price, btn) {
-      if (!userAddress) { walletModal.classList.add('show'); return; }
+      if (!userAddress) { openWalletModal(); return; }
       btn.disabled = true;
       btn.textContent = 'BUYING...';
       try {
@@ -1420,7 +1404,7 @@
     // Buy
     // ====================================================================
     async function buyNFT(nftContract, tokenId, price, btn) {
-      if (!userAddress) { walletModal.classList.add('show'); return; }
+      if (!userAddress) { openWalletModal(); return; }
       btn.disabled = true;
       btn.textContent = 'BUYING...';
       try {
@@ -1540,7 +1524,7 @@
       } else {
         detailFooter.innerHTML = `<button class="detail-buy-btn" id="dbBtn">BUY — ${priceAvax} AVAX</button>`;
         document.getElementById('dbBtn').addEventListener('click', async e => {
-          if (!userAddress) { walletModal.classList.add('show'); return; }
+          if (!userAddress) { openWalletModal(); return; }
           const btn = e.currentTarget;
           btn.disabled = true;
           btn.textContent = 'BUYING...';
@@ -1843,7 +1827,7 @@
     }
 
     approveItemBtn.addEventListener('click', async () => {
-      if (!signer) { walletModal.classList.add('show'); return; }
+      if (!signer) { openWalletModal(); return; }
       approveItemBtn.disabled    = true;
       approveItemBtn.textContent = 'APPROVING...';
       try {
@@ -1862,7 +1846,7 @@
     });
 
     listItemBtn.addEventListener('click', async () => {
-      if (!signer) { walletModal.classList.add('show'); return; }
+      if (!signer) { openWalletModal(); return; }
       const tokenId = sellItemToken.value || selectedItemId;
       const price   = sellItemPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
@@ -1943,7 +1927,7 @@
     }
 
     approveBtn.addEventListener('click', async () => {
-      if (!signer) { walletModal.classList.add('show'); return; }
+      if (!signer) { openWalletModal(); return; }
       approveBtn.disabled    = true;
       approveBtn.textContent = 'APPROVING...';
       try {
@@ -1962,7 +1946,7 @@
     });
 
     listBtn.addEventListener('click', async () => {
-      if (!signer) { walletModal.classList.add('show'); return; }
+      if (!signer) { openWalletModal(); return; }
       const tokenId = sellToken.value || selectedChadId;
       const price   = sellPrice.value;
       if (!tokenId || !price || parseFloat(price) <= 0) {
@@ -2013,6 +1997,7 @@
     sellConnectPrompt.style.display = 'block';
     sellForm.style.display = 'none';
   </script>
+  <script src="js/wallet-modal.js"></script>
   <script src="nav.js"></script>
 </body>
 </html>
