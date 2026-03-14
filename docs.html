@@ -646,20 +646,7 @@
   </main>
 
   <!-- Wallet Modal -->
-  <div class="modal-overlay" id="walletModal">
-    <div class="modal">
-      <h2 class="modal-title">Connect Wallet</h2>
-      <button class="wallet-option" data-wallet="rabby">
-        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
-        Rabby
-      </button>
-      <button class="wallet-option" data-wallet="walletconnect">
-        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
-        WalletConnect
-      </button>
-      <button class="modal-close" id="modalClose">CANCEL</button>
-    </div>
-  </div>
+  <div id="wallet-modal-placeholder"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script src="nav.js"></script>
@@ -671,8 +658,7 @@
     const CINDYCODE_ITEM_ID = 1;
 
     const walletBtn = document.getElementById('walletBtn');
-    const walletModal = document.getElementById('walletModal');
-    const modalClose = document.getElementById('modalClose');
+
     const disconnectDropdown = document.getElementById('disconnectDropdown');
     const disconnectBtn = document.getElementById('disconnectBtn');
 
@@ -682,7 +668,7 @@
       userAddress = addr;
       walletBtn.textContent = truncateAddress(addr);
       walletBtn.classList.add('connected');
-      walletModal.classList.remove('show');
+      closeWalletModal();
     }
 
     function onDisconnected() {
@@ -694,7 +680,7 @@
     // ========== MODAL EVENTS ==========
     walletBtn.addEventListener('click', () => {
       if (userAddress) { disconnectDropdown.classList.toggle('show'); return; }
-      walletModal.classList.add('show');
+      openWalletModal();
     });
 
     disconnectBtn.addEventListener('click', () => {
@@ -706,17 +692,7 @@
       if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
     });
 
-    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
-    walletModal.addEventListener('click', (e) => {
-      if (e.target === walletModal) walletModal.classList.remove('show');
-    });
-
-    document.querySelectorAll('.wallet-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        walletModal.classList.remove('show');
-        connectWallet(opt.dataset.wallet, { onConnected, onDisconnected });
-      });
-    });
+    document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
 
     // ========== AUTO-RECONNECT ==========
     autoReconnect({ onConnected, onDisconnected });
@@ -1133,5 +1109,7 @@
       }, 500);
     });
   </script>
+  <script src="js/wallet-modal.js"></script>
+  <script src="nav.js"></script>
 </body>
 </html>

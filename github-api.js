@@ -1422,23 +1422,13 @@ ${completePanelHtml}
   </main>
 
   <!-- Wallet Modal -->
-  <div class="modal-overlay" id="walletModal">
-    <div class="modal">
-      <h2 class="modal-title">Connect Wallet</h2>
-      <button class="wallet-option" data-wallet="rabby">
-        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>Rabby
-      </button>
-      <button class="wallet-option" data-wallet="walletconnect">
-        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>WalletConnect
-      </button>
-      <button class="modal-close" id="modalClose">CANCEL</button>
-    </div>
-  </div>
+  <div id="wallet-modal-placeholder"></div>
 
 
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"><\/script>
   <script src="../../js/quest-globals.js"><\/script>
+  <script src="../../js/wallet-modal.js"><\/script>
   <script src="../../nav.js"><\/script>
   <script>
     var _animGen = 0;
@@ -2455,7 +2445,7 @@ ${diceInitJs}
       userAddress = addr;
       document.getElementById('walletBtn').textContent = truncateAddress(addr);
       document.getElementById('walletBtn').classList.add('connected');
-      document.getElementById('walletModal').classList.remove('show');
+      closeWalletModal();
       checkQuestCompletion();
       checkEscrowStatus();
       if (currentSectionId && !_questSeed) _startOnChainQuest();
@@ -2525,17 +2515,10 @@ ${diceInitJs}
     // Wallet button events
     document.getElementById('walletBtn').addEventListener('click', function() {
       if (userAddress) { document.getElementById('disconnectDropdown').classList.toggle('show'); }
-      else { document.getElementById('walletModal').classList.add('show'); }
+      else { openWalletModal(); }
     });
     document.getElementById('disconnectBtn').addEventListener('click', onDisconnected);
-    document.getElementById('modalClose').addEventListener('click', function() { document.getElementById('walletModal').classList.remove('show'); });
-    document.getElementById('walletModal').addEventListener('click', function(e) { if (e.target === document.getElementById('walletModal')) document.getElementById('walletModal').classList.remove('show'); });
-    document.querySelectorAll('.wallet-option').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        document.getElementById('walletModal').classList.remove('show');
-        connectWallet(btn.dataset.wallet);
-      });
-    });
+    document.addEventListener('wallet-selected', function(e) { connectWallet(e.detail.wallet); });
     document.addEventListener('click', function(e) { if (!e.target.closest('.wallet-wrapper')) document.getElementById('disconnectDropdown').classList.remove('show'); });
 
 
@@ -2683,7 +2666,7 @@ ${diceInitJs}
       var statusEl = document.getElementById('claimXpStatus');
 
       if (!userAddress) {
-        document.getElementById('walletModal').classList.add('show');
+        openWalletModal();
         return;
       }
 
@@ -2821,7 +2804,7 @@ ${diceInitJs}
       var statusEl = document.getElementById('claimItemStatus_' + sectionId);
 
       if (!userAddress) {
-        document.getElementById('walletModal').classList.add('show');
+        openWalletModal();
         return;
       }
 

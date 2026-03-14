@@ -773,20 +773,7 @@
   </main>
 
   <!-- Wallet Modal -->
-  <div class="modal-overlay" id="walletModal">
-    <div class="modal">
-      <h2 class="modal-title">Connect Wallet</h2>
-      <button class="wallet-option" data-wallet="rabby">
-        <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>
-        Rabby
-      </button>
-      <button class="wallet-option" data-wallet="walletconnect">
-        <span class="wallet-icon" style="background:#3b99fc;">&#128279;</span>
-        WalletConnect
-      </button>
-      <button class="modal-close" id="modalClose">CANCEL</button>
-    </div>
-  </div>
+  <div id="wallet-modal-placeholder"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
@@ -814,8 +801,6 @@
     const sliderFill = document.getElementById('sliderFill');
     const mintBtn = document.getElementById('mintBtn');
     const walletBtn = document.getElementById('walletBtn');
-    const walletModal = document.getElementById('walletModal');
-    const modalClose = document.getElementById('modalClose');
     const qtyMinus = document.getElementById('qtyMinus');
     const qtyPlus = document.getElementById('qtyPlus');
     const pipsContainer = document.getElementById('sliderPips');
@@ -916,7 +901,7 @@
         btnText.textContent = 'MINT NOW';
         mintBtn.classList.add('ready');
       }
-      walletModal.classList.remove('show');
+      closeWalletModal();
       updateSupply();
     }
 
@@ -939,7 +924,7 @@
         disconnectDropdown.classList.toggle('show');
         return;
       }
-      walletModal.classList.add('show');
+      openWalletModal();
     });
 
     disconnectBtn.addEventListener('click', () => {
@@ -954,17 +939,7 @@
       }
     });
 
-    modalClose.addEventListener('click', () => walletModal.classList.remove('show'));
-    walletModal.addEventListener('click', (e) => {
-      if (e.target === walletModal) walletModal.classList.remove('show');
-    });
-
-    document.querySelectorAll('.wallet-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        walletModal.classList.remove('show');
-        connectWallet(opt.dataset.wallet, { onConnected, onDisconnected });
-      });
-    });
+    document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
 
     // ========== MINT ==========
     mintBtn.addEventListener('click', async function (e) {
@@ -1050,6 +1025,7 @@
     // Poll supply every 15 seconds to keep it fresh
     setInterval(updateSupply, 15000);
   </script>
+  <script src="js/wallet-modal.js"></script>
   <script src="nav.js"></script>
 </body>
 </html>
