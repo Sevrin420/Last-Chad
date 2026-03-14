@@ -21,7 +21,7 @@ import gdown
 
 FRAMES_DIR = Path("assets/frames")
 OUTPUT_DIR = FRAMES_DIR / "test"
-GDRIVE_FOLDER_ID = "1ur5p7r2jSUDsMD2csbxh_ZUToN7wlsJW"
+GDRIVE_FOLDER_ID = "1xv9SJI4FJrl2A0EVrXpbqNiKUzyHrfDn"
 # Image fills this fraction of the frame's smaller dimension (tweak if needed)
 IMAGE_SCALE = 0.72
 
