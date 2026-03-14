@@ -137,7 +137,7 @@
     for (let i = 0; i < count; i++) {
       let tries = 0, ox, oy;
       do {
-        ox = SZ/2 + Math.random() * (W() - SZ);
+        ox = SZ*2 + Math.random() * (W() - SZ*4);
         oy = 80 + Math.random() * (H() - 220);
         tries++;
       } while (tries < 50 && obstacles.some(o => dist(ox,oy,o.x,o.y) < SZ*1.8));
@@ -484,17 +484,47 @@
     ctx.fillStyle = lives <= 5 ? '#f44' : '#4f4';
     ctx.fillText('HP:' + lives, 8, 34);
 
-    // Ammo
-    ctx.textAlign = 'center';
+    // Ammo — bottom-left of canvas
+    const ammoY = H() - 38;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, ammoY - 18, 160, 40);
+    ctx.textAlign = 'left';
     if (reloading) {
+      ctx.font = '10px "Press Start 2P"';
       ctx.fillStyle = '#fa0';
-      ctx.fillText('RELOAD...', w/2, 15);
+      ctx.fillText('RELOADING', 8, ammoY - 6);
+      // Reload progress bar — orange
+      const reloadPct = 1 - (reloadTimer / RELOAD_TIME);
+      const barW = 140, barH = 12;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(8, ammoY + 4, barW, barH);
+      ctx.fillStyle = '#fa0';
+      ctx.fillRect(8, ammoY + 4, barW * reloadPct, barH);
+      ctx.strokeStyle = '#fa0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(8, ammoY + 4, barW, barH);
     } else {
-      ctx.fillStyle = '#4f4';
-      let ammoStr = '';
-      for (let i = 0; i < MAX_AMMO; i++) ammoStr += i < ammo ? '|' : '.';
-      ctx.fillText(ammoStr, w/2, 15);
+      ctx.font = '10px "Press Start 2P"';
+      ctx.fillStyle = '#fc0';
+      ctx.fillText('AMMO', 8, ammoY - 6);
+      // Fat yellow ammo bars
+      const barW = 22, barH = 14, gap = 6, startX = 8;
+      for (let i = 0; i < MAX_AMMO; i++) {
+        const bx = startX + i * (barW + gap);
+        if (i < ammo) {
+          ctx.fillStyle = '#fc0';
+          ctx.fillRect(bx, ammoY + 4, barW, barH);
+        } else {
+          ctx.fillStyle = '#333';
+          ctx.fillRect(bx, ammoY + 4, barW, barH);
+          ctx.strokeStyle = '#555';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx, ammoY + 4, barW, barH);
+        }
+      }
     }
+    ctx.font = '9px "Press Start 2P"';
+    ctx.textBaseline = 'middle';
 
     // Score / Kills
     ctx.textAlign = 'right';
