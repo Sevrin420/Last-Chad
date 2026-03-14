@@ -132,3 +132,240 @@ The script will:
 6. Read the `GameResolved` event from the receipt to confirm outcome
 
 No contract changes or redeployment needed for new games.
+
+---
+
+## Video Poker — Implementation Plan
+
+### Why Two Transactions (Not `resolveGame`)
+
+`resolveGame` deducts wager + awards payout atomically in a single tx. Problem: a losing player simply never calls it and keeps their cells. Poker requires the wager to be **committed before the game starts** so the player can't back out after seeing their cards.
+
+### Architecture Overview
+
+```
+Player                       Blockchain                  Cloudflare Worker
+  │                              │                              │
+  ├─ ANTE UP! ──────────────────►│                              │
+  │                  commitWager(tokenId, wager)                │
+  │                  → spendCells(tokenId, wager)               │
+  │                  → emit WagerCommitted(..., nonce)          │
+  │                              │                              │
+  ├─ POST /poker/deal ──────────────────────────────────────────►│
+  │  { tokenId, nonce, player }  │                  Verify wager on-chain
+  │                              │                  Generate deck, store in KV
+  │◄─────────────────────────────────────────── { cards: [5] } ─┤
+  │                              │                              │
+  │  Player locks/holds cards    │                              │
+  │                              │                              │
+  ├─ POST /poker/draw ──────────────────────────────────────────►│
+  │  { tokenId, nonce,           │                  Replace unheld from KV deck
+  │    held: [b,b,b,b,b] }      │                  Evaluate hand
+  │                              │                  Compute payout
+  │                              │                  Sign (tokenId, payout, nonce, player)
+  │◄──────────────── { cards, hand, payout, nonce, signature } ─┤
+  │                              │                              │
+  │  (if payout > 0)             │                              │
+  ├─ CLAIM ─────────────────────►│                              │
+  │           claimWinnings(tokenId, payout, nonce, oracleSig)  │
+  │                  → verify oracle signature                  │
+  │                  → awardCells(tokenId, payout)              │
+  │                  → emit WinningsClaimed(...)                │
+  │                              │                              │
+  │  (if payout == 0)            │                              │
+  │  Nothing — cells already gone│                              │
+```
+
+### Step 1: Gamble.sol — Add Two Functions
+
+Add to `contracts/Gamble.sol` (no changes to existing `flip` or `resolveGame`):
+
+```solidity
+// ── Poker / two-tx settlement ──────────────────────────────────────────
+
+mapping(uint256 => uint256) public wagerAmounts;  // nonce → wager
+mapping(uint256 => address) public wagerPlayers;   // nonce → player
+uint256 public nextNonce;
+
+event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce);
+event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce);
+
+/// @notice TX 1 — Player commits cells before the game starts.
+///         Cells are spent immediately. Returns a nonce for the session.
+function commitWager(uint256 tokenId, uint256 wager) external returns (uint256) {
+    require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
+    require(!lastChad.eliminated(tokenId), "Chad eliminated");
+    require(wager >= minWager && wager <= maxWager, "Wager out of range");
+
+    uint256 nonce = nextNonce++;
+    wagerAmounts[nonce] = wager;
+    wagerPlayers[nonce] = msg.sender;
+    lastChad.spendCells(tokenId, wager);
+
+    emit WagerCommitted(tokenId, msg.sender, wager, nonce);
+    return nonce;
+}
+
+/// @notice TX 2 — Player claims winnings after the Worker signs the result.
+///         Only called on a win (payout > 0). Losses need no TX 2.
+function claimWinnings(
+    uint256 tokenId,
+    uint256 payout,
+    uint256 nonce,
+    bytes calldata oracleSig
+) external {
+    require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
+    require(wagerAmounts[nonce] > 0, "No active wager");
+    require(wagerPlayers[nonce] == msg.sender, "Not wager owner");
+    require(!usedNonces[nonce], "Already claimed");
+
+    if (oracle != address(0)) {
+        bytes32 message = keccak256(abi.encodePacked(
+            tokenId, payout, nonce, msg.sender
+        ));
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+        address signer  = ECDSA.recover(ethHash, oracleSig);
+        require(signer == oracle, "Invalid oracle signature");
+    }
+
+    usedNonces[nonce] = true;
+    delete wagerAmounts[nonce];
+    delete wagerPlayers[nonce];
+
+    if (payout > 0) {
+        lastChad.awardCells(tokenId, payout);
+    }
+
+    emit WinningsClaimed(tokenId, msg.sender, payout, nonce);
+}
+```
+
+**Signature format for `claimWinnings`:**
+```
+keccak256(abi.encodePacked(tokenId, payout, nonce, playerAddress))
+```
+Signed with EIP-191 (`eth_sign`) using the same `ORACLE_PRIVATE_KEY` as the quest worker.
+
+**ABI additions for `js/config.js`:**
+```js
+// Add to GAMBLE_ABI:
+'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
+'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
+'function wagerAmounts(uint256 nonce) view returns (uint256)',
+'function nextNonce() view returns (uint256)',
+'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
+'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
+```
+
+**Test file:** `test/Gamble.test.js` — test commitWager, claimWinnings, nonce replay prevention, invalid signatures.
+
+### Step 2: Worker — Add Poker Endpoints
+
+Add to `worker/runner-worker.js` (or a separate `poker-worker.js` if preferred):
+
+**`POST /poker/deal`** `{ tokenId, nonce, player }`
+1. Verify `wagerAmounts[nonce] > 0` on-chain (player actually committed cells)
+2. Verify `wagerPlayers[nonce] == player` on-chain
+3. Generate shuffled 52-card deck using `crypto.getRandomValues()` (Worker-side, not manipulable by player)
+4. Deal first 5 cards
+5. Store full deck + nonce + player in KV: `poker:{nonce}` (TTL: 10 minutes)
+6. Return `{ ok: true, cards: [{rank, suit}, ...] }` — only the 5 dealt cards, NOT the rest of the deck
+
+**`POST /poker/draw`** `{ tokenId, nonce, held: [bool,bool,bool,bool,bool] }`
+1. Load session from KV: `poker:{nonce}`
+2. Validate: session exists, not already drawn, player matches
+3. Replace unheld cards from the stored deck (positions 5, 6, 7... in order)
+4. Evaluate the final 5-card hand (Jacks or Better rules)
+5. Compute payout: `wager * PAYOUTS[hand]` (or 0 if no winning hand)
+6. Sign `keccak256(tokenId, payout, nonce, player)` with `ORACLE_PRIVATE_KEY`
+7. Mark session as complete in KV
+8. Return `{ ok: true, cards: [5], hand: "FLUSH"|null, payout: 30, nonce, signature }`
+
+**Payout table (Jacks or Better, multiplied by wager):**
+
+| Hand | Multiplier |
+|------|-----------|
+| Royal Flush | 250x |
+| Straight Flush | 50x |
+| Four of a Kind | 25x |
+| Full House | 9x |
+| Flush | 6x |
+| Straight | 4x |
+| Three of a Kind | 3x |
+| Two Pair | 2x |
+| Jacks or Better | 1x |
+| No win | 0x |
+
+**KV schema:**
+```json
+{
+  "key": "poker:{nonce}",
+  "value": {
+    "tokenId": "5",
+    "player": "0xabc...",
+    "wager": 10,
+    "deck": [0,1,2,...,51],
+    "dealt": 5,
+    "drawn": false,
+    "finalHand": null,
+    "payout": null
+  },
+  "ttl": 600
+}
+```
+
+**Anti-cheat guarantees:**
+- Player never sees cards beyond their initial 5 (deck stored server-side)
+- Worker generates deck with `crypto.getRandomValues()` — player can't influence shuffle
+- Draw is one-shot (KV `drawn` flag) — can't retry draws to get better cards
+- Oracle signature ties payout to the specific nonce — can't replay a winning sig with a different nonce
+- On-chain nonce check prevents claiming twice
+
+### Step 3: Frontend — Wire Up gamble.html
+
+Replace the `// TODO` blocks in `gamble.html` poker logic:
+
+**`beginPokerRound()` changes:**
+1. Call `gamble.commitWager(selectedTokenId, wagerAmount)` → wait for tx
+2. Read `WagerCommitted` event from receipt → extract `nonce`
+3. Call Worker `POST /poker/deal { tokenId, nonce, player }` → get 5 cards
+4. Display cards (replace current `Math.random()` deck with worker-dealt cards)
+5. Show DRAW button
+
+**`pokerDraw()` changes:**
+1. Call Worker `POST /poker/draw { tokenId, nonce, held }` → get final cards + hand + payout + signature
+2. Display final cards and result
+3. If `payout > 0`: show CLAIM button → calls `gamble.claimWinnings(tokenId, payout, nonce, signature)`
+4. If `payout == 0`: show "NO WIN" — no TX needed, cells already gone
+
+**Remove from frontend:**
+- `createDeck()`, `shuffleDeck()`, `evaluateHand()` — all move to Worker
+- `Math.random()` card dealing — replaced by Worker `/poker/deal` response
+
+**Keep on frontend:**
+- Card rendering (`renderPokerHand`)
+- Hold/lock toggle (`toggleHold`)
+- All CSS and UI overlays
+- Payout table display + highlight
+
+### Step 4: Deploy & Configure
+
+1. Compile and deploy updated `Gamble.sol`:
+   ```bash
+   npx hardhat run scripts/deployGamble.js --network fuji
+   ```
+2. Authorize: `lastChad.setGameContract(newGambleAddress, true)`
+3. Set oracle: `gamble.setOracle(ORACLE_ADDRESS)`
+4. Update `js/config.js` with new `GAMBLE_ADDRESS` and expanded `GAMBLE_ABI`
+5. Deploy updated Worker: `cd worker && npx wrangler deploy`
+6. Update `GAMBLE_ADDRESS` in Worker `wrangler.toml` if it changed
+
+### Game ID
+
+| gameId | Game       | Status     |
+|--------|------------|------------|
+| 0      | (reserved) | —          |
+| 1      | Blackjack  | Planned    |
+| 2      | Poker      | **Active** |
+
+Note: Poker uses `commitWager` + `claimWinnings` (two-tx), NOT `resolveGame` (single-tx). The `gameId` field is not used in the two-tx path but is reserved for event tracking if needed later.
