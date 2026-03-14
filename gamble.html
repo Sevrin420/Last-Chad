@@ -762,7 +762,7 @@
     const bgMusic    = document.getElementById('bg-music');
     const enterOverlay = document.getElementById('enter-overlay');
     const dialogueBox = document.getElementById('dialogue-box');
-    bgMusic.volume = 0.45;
+    bgMusic.volume = 0.27;
     let hasEntered = false;
 
     const muteBtn = document.getElementById('mute-btn');
@@ -786,7 +786,7 @@
       showIntro();
     });
 
-    function duckMusic(targetVol = 0.08, ms = 400) {
+    function duckMusic(targetVol = 0.05, ms = 400) {
       const step = (bgMusic.volume - targetVol) / (ms / 30);
       const t = setInterval(() => {
         bgMusic.volume = Math.max(targetVol, +(bgMusic.volume - step).toFixed(3));
@@ -794,7 +794,7 @@
       }, 30);
     }
 
-    function restoreMusic(targetVol = 0.45, ms = 800) {
+    function restoreMusic(targetVol = 0.27, ms = 800) {
       const step = (targetVol - bgMusic.volume) / (ms / 30);
       const t = setInterval(() => {
         bgMusic.volume = Math.min(targetVol, +(bgMusic.volume + step).toFixed(3));
