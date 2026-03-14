@@ -194,8 +194,12 @@ async function connectWalletConnect({ onConnected, onDisconnected }) {
 export async function connectWallet(walletName, callbacks) {
   const hasInjected = window.ethereum || window.avalanche;
 
+  const coreInjected = window.avalanche ||
+    (window.core && window.core.ethereum) ||
+    (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
+
   if (walletName === 'walletconnect' ||
-      (walletName === 'core' && isMobile() && !window.avalanche && !(window.core && window.core.ethereum))) {
+      (walletName === 'core' && isMobile() && !coreInjected)) {
     await connectWalletConnect(callbacks);
     return;
   }
