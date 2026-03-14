@@ -252,7 +252,7 @@
       if (e.shootTimer <= 0 && e.y > 0 && e.y < H() - 100) {
         // Aim at player
         const angle = Math.atan2(player.y - e.y, player.x - e.x);
-        const bspd = lerp(120, 280, difficulty);
+        const bspd = 180;
         enemyBullets.push({
           x: e.x, y: e.y + SZ/2, w:6, h:6,
           vx: Math.cos(angle)*bspd, vy: Math.sin(angle)*bspd
