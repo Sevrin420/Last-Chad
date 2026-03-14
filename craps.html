@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Craps Table — Last Chad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 100vw; height: 100vh; overflow: hidden;
+      background: #0a0a0f;
+      font-family: 'Press Start 2P', monospace;
+      color: #ffe96a;
+    }
+
+    /* ── Header ── */
+    .game-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(10, 10, 15, 0.95);
+      border-bottom: 2px solid #2a5a1a;
+      backdrop-filter: blur(8px);
+    }
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem; padding: 8px 14px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017; border-radius: 4px;
+      color: #1a1005; cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255,220,120,0.4), 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
+    .wallet-btn.connected { font-size: 0.45rem; }
+    .wallet-wrapper { position: relative; }
+    .disconnect-dropdown {
+      display: none; position: absolute; top: calc(100% + 6px); right: 0;
+      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
+      border: 2px solid #5c4409; border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7); z-index: 110; min-width: 160px;
+    }
+    .disconnect-dropdown.show { display: block; }
+    .disconnect-btn {
+      width: 100%; padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.45rem;
+      color: #e53935; background: none; border: none; cursor: pointer;
+    }
+    .disconnect-btn:hover { background: rgba(229,57,53,0.15); }
+
+    /* ── Stack display ── */
+    .stack-display {
+      font-size: 0.55rem; color: #4caf50;
+      text-shadow: 0 0 8px rgba(76,175,80,0.5);
+    }
+
+    .nav-wrapper { position: static; }
+
+    /* ── Full-screen overlay states ── */
+    .screen-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.92);
+      transition: opacity 0.4s;
+    }
+    .screen-overlay.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── Setup screen (NFT select + buy-in) ── */
+    #setup-screen {
+      padding: 20px; overflow-y: auto;
+    }
+    .setup-title {
+      font-size: clamp(0.8rem, 3vw, 1.2rem);
+      color: #4caf50;
+      text-shadow: 0 0 20px rgba(76,175,80,0.4);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .setup-subtitle {
+      font-size: 0.45rem; color: #8a7a5a;
+      text-align: center; margin-bottom: 16px;
+    }
+    #nft-grid {
+      display: flex; gap: 0.8em; flex-wrap: wrap;
+      justify-content: center; margin-bottom: 16px;
+      max-height: 30vh; overflow-y: auto;
+    }
+    .nft-card {
+      width: 80px; height: 100px; border: 2px solid #555;
+      border-radius: 6px; cursor: pointer; position: relative;
+      overflow: hidden; transition: all 0.2s;
+      background: rgba(0,0,0,0.5);
+    }
+    .nft-card img { width: 100%; height: 70%; object-fit: cover; image-rendering: pixelated; }
+    .nft-card .nft-id { font-size: 0.35rem; text-align: center; padding: 2px; color: #ffe96a; }
+    .nft-card:hover { border-color: #4caf50; transform: scale(1.06); }
+    .nft-card.selected { border-color: #4caf50; box-shadow: 0 0 14px rgba(76,175,80,0.5); }
+
+    #buyin-section {
+      display: none; flex-direction: column; align-items: center; gap: 10px;
+      margin-top: 10px;
+    }
+    #buyin-section.visible { display: flex; }
+    #buyin-label { font-size: 0.45rem; color: #4caf50; }
+    #buyin-slider { width: 60%; max-width: 400px; accent-color: #4caf50; }
+    #buyin-amount { font-size: 0.6rem; color: #ffe96a; }
+    .buyin-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem; color: #0a0a0f;
+      background: linear-gradient(180deg, #4caf50 0%, #2e7d32 100%);
+      border: none; border-bottom: 4px solid #1b5e20;
+      padding: 14px 36px; cursor: pointer;
+      letter-spacing: 0.08em; transition: all 0.15s;
+    }
+    .buyin-btn:hover { background: linear-gradient(180deg, #66bb6a 0%, #388e3c 100%); }
+    .buyin-btn:active { border-bottom-width: 2px; transform: translateY(2px); }
+    .buyin-btn:disabled { background: #333; border-color: #222; color: #666; cursor: not-allowed; }
+    .setup-status {
+      font-size: 0.38rem; color: #4caf50; min-height: 1.4em;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .setup-error { color: #e53935 !important; animation: none !important; }
+
+    /* ── Table screen ── */
+    #table-screen {
+      position: fixed; inset: 0; z-index: 100;
+      display: none; flex-direction: column;
+      background: #0a0a0f;
+    }
+    #table-screen.active { display: flex; }
+
+    /* ── Craps table ── */
+    .table-area {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 44px 8px 8px;
+      overflow-y: auto;
+    }
+
+    .craps-table {
+      width: 100%; max-width: 720px;
+      background: #1a5c1a;
+      border: 4px solid #8b6914;
+      border-radius: 12px;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 30px rgba(139,105,20,0.3);
+      padding: 8px;
+      display: flex; flex-direction: column; gap: 4px;
+      position: relative;
+    }
+
+    /* Puck */
+    .puck {
+      position: absolute; top: 4px; right: 8px;
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.25rem; font-weight: bold; z-index: 5;
+      transition: all 0.3s;
+    }
+    .puck.off { background: #222; color: #888; border: 2px solid #555; }
+    .puck.on { background: #fff; color: #000; border: 2px solid #c9a84c; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+
+    /* Table rows */
+    .table-row {
+      display: flex; gap: 4px;
+    }
+
+    .bet-zone {
+      flex: 1; min-height: 36px;
+      background: rgba(0,80,0,0.4);
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 4px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s;
+      padding: 3px 2px;
+      position: relative;
+    }
+    .bet-zone:hover { background: rgba(0,120,0,0.5); border-color: rgba(255,255,255,0.5); }
+    .bet-zone.active-bet { border-color: #ffe96a; box-shadow: 0 0 8px rgba(255,233,106,0.4); }
+    .bet-zone.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+    .bet-zone.win-flash { animation: win-flash 0.5s ease 3; }
+    .bet-zone.lose-flash { animation: lose-flash 0.4s ease 2; }
+
+    @keyframes win-flash {
+      0%, 100% { background: rgba(0,80,0,0.4); }
+      50% { background: rgba(76,175,80,0.6); }
+    }
+    @keyframes lose-flash {
+      0%, 100% { background: rgba(0,80,0,0.4); }
+      50% { background: rgba(229,57,53,0.4); }
+    }
+
+    .bet-zone .zone-label {
+      font-size: 0.28rem; color: #fff;
+      text-shadow: 1px 1px 0 #000;
+      text-align: center; line-height: 1.4;
+      pointer-events: none;
+    }
+    .bet-zone .zone-payout {
+      font-size: 0.22rem; color: #c9a84c;
+      pointer-events: none;
+    }
+    .bet-zone .bet-amount {
+      position: absolute; bottom: 2px; right: 4px;
+      font-size: 0.22rem; color: #ffe96a;
+      text-shadow: 0 0 4px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+
+    /* Special zones */
+    .pass-line { min-height: 40px; background: rgba(0,80,0,0.5); }
+    .come-area { min-height: 36px; }
+    .field-zone {
+      background: rgba(120,80,0,0.35);
+      border-color: rgba(255,200,0,0.3);
+    }
+    .field-zone:hover { background: rgba(120,80,0,0.5); }
+    .hard-zone {
+      background: rgba(120,0,0,0.3);
+      border-color: rgba(255,100,100,0.3);
+    }
+    .hard-zone:hover { background: rgba(120,0,0,0.45); }
+
+    /* Place numbers row */
+    .place-zone .zone-label { font-size: 0.35rem; }
+
+    /* ── Dice area ── */
+    .dice-area {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; padding: 8px 0;
+    }
+
+    .craps-die {
+      width: clamp(44px, 10vw, 60px);
+      height: clamp(44px, 10vw, 60px);
+      background: linear-gradient(145deg, #f8f8f8 0%, #d2d2d2 50%, #929292 100%);
+      border: 2px solid #9a9a9a; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow:
+        inset 2px 2px 6px rgba(255,255,255,0.8),
+        inset -2px -2px 4px rgba(0,0,0,0.25),
+        2px 2px 0 #878787, 3px 3px 0 #767676,
+        4px 4px 8px rgba(0,0,0,0.6);
+      transition: transform 0.15s;
+    }
+    .craps-die.rolling {
+      animation: dice-tumble 0.28s linear infinite;
+      border-color: #4caf50;
+      box-shadow:
+        inset 2px 2px 6px rgba(255,255,255,0.8),
+        inset -2px -2px 4px rgba(0,0,0,0.25),
+        0 0 14px rgba(76,175,80,0.5);
+    }
+    @keyframes dice-tumble {
+      0%   { transform: rotateX(0deg) rotateZ(0deg); }
+      100% { transform: rotateX(360deg) rotateZ(270deg); }
+    }
+    .dice-face {
+      width: 100%; height: 100%;
+      display: grid; grid-template: 1fr 1fr 1fr / 1fr 1fr 1fr;
+      padding: 14%; gap: 2px;
+    }
+    .dice-face .dot {
+      width: 100%; aspect-ratio: 1; background: #111; border-radius: 50%;
+      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.95), 0 1px 1px rgba(255,255,255,0.18);
+      visibility: hidden;
+    }
+
+    /* ── Controls bar ── */
+    .controls-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 6px 8px;
+      background: rgba(10,10,15,0.9);
+      border-top: 2px solid #2a5a1a;
+    }
+
+    .roll-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.5rem, 2vw, 0.65rem);
+      color: #fff; padding: 10px 28px;
+      background: linear-gradient(180deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%);
+      border: 2px solid #66bb6a; border-radius: 4px;
+      cursor: pointer;
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.2),
+        inset 0 -2px 0 rgba(0,0,0,0.3),
+        0 3px 0 #1b5e20, 0 4px 10px rgba(0,0,0,0.5);
+      text-shadow: 1px 1px 0 #000;
+      transition: all 0.15s;
+    }
+    .roll-btn:hover {
+      background: linear-gradient(180deg, #66bb6a 0%, #43a047 50%, #2e7d32 100%);
+    }
+    .roll-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); }
+    .roll-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .bet-input {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .bet-input label { font-size: 0.35rem; color: #c9a84c; }
+    .bet-input input {
+      width: 60px; font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; background: #111; color: #ffe96a;
+      border: 2px solid #5c4409; border-radius: 4px;
+      padding: 6px 8px; text-align: center;
+    }
+
+    .cashout-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; color: #ffe96a;
+      background: rgba(92,68,9,0.4); border: 2px solid #8b6914;
+      border-radius: 4px; padding: 8px 14px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .cashout-btn:hover { background: rgba(139,105,20,0.4); }
+
+    /* ── Message bar (stickman calls) ── */
+    .message-bar {
+      text-align: center; padding: 4px 8px;
+      font-size: 0.35rem; color: #4caf50;
+      text-shadow: 0 0 8px rgba(76,175,80,0.4);
+      min-height: 1.8em;
+      background: rgba(0,0,0,0.5);
+    }
+
+    /* ── Result overlay ── */
+    #result-overlay {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      align-items: center; justify-content: center;
+      flex-direction: column; background: rgba(0,0,0,0.85);
+    }
+    #result-overlay.active { display: flex; }
+    .result-text {
+      font-size: clamp(1rem, 5vw, 2.5rem);
+      text-shadow: 0 0 30px currentColor;
+      animation: result-pulse 0.6s ease-in-out infinite alternate;
+      margin-bottom: 20px;
+    }
+    .result-text.win { color: #4caf50; }
+    .result-text.lose { color: #e53935; }
+    @keyframes result-pulse { from { transform: scale(1); } to { transform: scale(1.06); } }
+    .result-detail { font-size: 0.5rem; color: #c9a84c; margin-bottom: 20px; }
+    .result-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem; color: #0a0a0f; padding: 12px 32px;
+      background: #c9a84c; border: none; border-bottom: 4px solid #8b6914;
+      cursor: pointer;
+    }
+    .result-btn:hover { background: #e8c060; }
+
+    /* ── Cashout confirm modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85);
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: #0a0a0f; border: 3px solid #4caf50;
+      border-radius: 8px; padding: 28px 24px;
+      max-width: 380px; width: 90%; text-align: center;
+    }
+    .modal-title { font-size: 0.7rem; color: #4caf50; margin-bottom: 16px; }
+    .modal-text { font-size: 0.4rem; color: #c9a84c; line-height: 2.4; margin-bottom: 20px; }
+    .modal-btns { display: flex; gap: 12px; justify-content: center; }
+    .modal-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; padding: 10px 16px;
+      border-radius: 4px; cursor: pointer; border: 2px solid;
+    }
+    .modal-btn.cancel { color: #8a7a5a; background: transparent; border-color: #5c4409; }
+    .modal-btn.confirm {
+      color: #fff; background: linear-gradient(180deg, #4caf50, #2e7d32);
+      border-color: #66bb6a;
+    }
+    .modal-status {
+      font-size: 0.32rem; color: #4caf50; margin-top: 12px; min-height: 1.4em;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 520px) {
+      .craps-table { padding: 4px; gap: 2px; }
+      .bet-zone { min-height: 28px; }
+      .bet-zone .zone-label { font-size: 0.22rem; }
+      .bet-zone .zone-payout { font-size: 0.18rem; }
+      .controls-bar { flex-wrap: wrap; gap: 6px; }
+      .game-header { padding: 8px 10px; }
+    }
+
+    /* ── Desktop ── */
+    @media (min-width: 900px) {
+      .craps-table { max-width: 860px; }
+      .bet-zone { min-height: 44px; }
+      .bet-zone .zone-label { font-size: 0.32rem; }
+      .craps-die { width: 70px; height: 70px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="game-header">
+    <div id="nav-placeholder"></div>
+    <div class="stack-display" id="stackDisplay">STACK: --</div>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Setup screen: NFT select + buy-in -->
+  <div class="screen-overlay" id="setup-screen">
+    <div class="setup-title">CRAPS TABLE</div>
+    <div class="setup-subtitle">Select a Chad and buy in with cells</div>
+    <div class="setup-subtitle" id="setup-wallet-msg" style="color:#e53935; display:none;">Connect your wallet first!</div>
+    <div id="nft-grid"></div>
+    <div id="buyin-section">
+      <label id="buyin-label">BUY-IN (cells)</label>
+      <input type="range" id="buyin-slider" min="1" max="50" value="10" />
+      <div id="buyin-amount">10 cells</div>
+      <button class="buyin-btn" id="buyin-btn">SIT DOWN</button>
+      <div class="setup-status" id="setup-status"></div>
+    </div>
+  </div>
+
+  <!-- Table screen -->
+  <div id="table-screen">
+    <div class="table-area">
+      <div class="craps-table" id="crapsTable">
+
+        <!-- Puck -->
+        <div class="puck off" id="puck">OFF</div>
+
+        <!-- Row 1: Pass Line -->
+        <div class="table-row">
+          <div class="bet-zone pass-line" data-bet="pass">
+            <span class="zone-label">PASS LINE</span>
+            <span class="zone-payout">1:1</span>
+            <span class="bet-amount" id="bet-pass"></span>
+          </div>
+        </div>
+
+        <!-- Row 2: Place numbers -->
+        <div class="table-row">
+          <div class="bet-zone place-zone disabled" data-bet="place4">
+            <span class="zone-label">4</span>
+            <span class="zone-payout">9:5</span>
+            <span class="bet-amount" id="bet-place4"></span>
+          </div>
+          <div class="bet-zone place-zone disabled" data-bet="place5">
+            <span class="zone-label">5</span>
+            <span class="zone-payout">7:5</span>
+            <span class="bet-amount" id="bet-place5"></span>
+          </div>
+          <div class="bet-zone place-zone disabled" data-bet="place6">
+            <span class="zone-label">6</span>
+            <span class="zone-payout">7:6</span>
+            <span class="bet-amount" id="bet-place6"></span>
+          </div>
+          <div class="bet-zone place-zone disabled" data-bet="place8">
+            <span class="zone-label">8</span>
+            <span class="zone-payout">7:6</span>
+            <span class="bet-amount" id="bet-place8"></span>
+          </div>
+          <div class="bet-zone place-zone disabled" data-bet="place9">
+            <span class="zone-label">9</span>
+            <span class="zone-payout">7:5</span>
+            <span class="bet-amount" id="bet-place9"></span>
+          </div>
+          <div class="bet-zone place-zone disabled" data-bet="place10">
+            <span class="zone-label">10</span>
+            <span class="zone-payout">9:5</span>
+            <span class="bet-amount" id="bet-place10"></span>
+          </div>
+        </div>
+
+        <!-- Row 3: Come -->
+        <div class="table-row">
+          <div class="bet-zone come-area disabled" data-bet="come">
+            <span class="zone-label">COME</span>
+            <span class="zone-payout">1:1</span>
+            <span class="bet-amount" id="bet-come"></span>
+          </div>
+          <div class="bet-zone disabled" data-bet="passOdds" id="pass-odds-zone">
+            <span class="zone-label">ODDS</span>
+            <span class="zone-payout">True Odds</span>
+            <span class="bet-amount" id="bet-passOdds"></span>
+          </div>
+        </div>
+
+        <!-- Row 4: Field -->
+        <div class="table-row">
+          <div class="bet-zone field-zone" data-bet="field">
+            <span class="zone-label">FIELD — 2 3 4 9 10 11 12</span>
+            <span class="zone-payout">1:1 (2 pays 2:1, 12 pays 3:1)</span>
+            <span class="bet-amount" id="bet-field"></span>
+          </div>
+        </div>
+
+        <!-- Row 5: Hardways -->
+        <div class="table-row">
+          <div class="bet-zone hard-zone" data-bet="hard4">
+            <span class="zone-label">HARD 4</span>
+            <span class="zone-payout">7:1</span>
+            <span class="bet-amount" id="bet-hard4"></span>
+          </div>
+          <div class="bet-zone hard-zone" data-bet="hard6">
+            <span class="zone-label">HARD 6</span>
+            <span class="zone-payout">9:1</span>
+            <span class="bet-amount" id="bet-hard6"></span>
+          </div>
+          <div class="bet-zone hard-zone" data-bet="hard8">
+            <span class="zone-label">HARD 8</span>
+            <span class="zone-payout">9:1</span>
+            <span class="bet-amount" id="bet-hard8"></span>
+          </div>
+          <div class="bet-zone hard-zone" data-bet="hard10">
+            <span class="zone-label">HARD 10</span>
+            <span class="zone-payout">7:1</span>
+            <span class="bet-amount" id="bet-hard10"></span>
+          </div>
+        </div>
+
+        <!-- Dice -->
+        <div class="dice-area">
+          <div class="craps-die" id="die0"><div class="dice-face" id="face0"></div></div>
+          <div class="craps-die" id="die1"><div class="dice-face" id="face1"></div></div>
+        </div>
+
+      </div>
+
+      <!-- Message bar -->
+      <div class="message-bar" id="messageBar">Place your bets!</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <div class="bet-input">
+        <label>BET:</label>
+        <input type="number" id="betAmountInput" value="1" min="1" />
+      </div>
+      <button class="roll-btn" id="rollBtn" disabled>ROLL</button>
+      <button class="cashout-btn" id="cashoutBtn">CASH OUT</button>
+    </div>
+  </div>
+
+  <!-- Cashout modal -->
+  <div class="modal-overlay" id="cashoutModal">
+    <div class="modal-box">
+      <div class="modal-title">CASH OUT</div>
+      <div class="modal-text" id="cashout-text">
+        Your stack: <span id="cashout-amount">0</span> cells<br>
+        Return these cells to your Chad?
+      </div>
+      <div class="modal-btns">
+        <button class="modal-btn cancel" id="cashout-cancel">KEEP PLAYING</button>
+        <button class="modal-btn confirm" id="cashout-confirm">CASH OUT</button>
+      </div>
+      <div class="modal-status" id="cashout-status"></div>
+    </div>
+  </div>
+
+  <!-- Result overlay -->
+  <div id="result-overlay">
+    <div class="result-text" id="result-text"></div>
+    <div class="result-detail" id="result-detail"></div>
+    <button class="result-btn" id="result-btn">CONTINUE</button>
+  </div>
+
+  <!-- Wallet Modal placeholder -->
+  <div id="wallet-modal-placeholder"></div>
+
+  <!-- Sound effects (reuse existing) -->
+  <audio id="sfx-win" src="sound effects/youwin.wav" preload="auto"></audio>
+  <audio id="sfx-lose" src="sound effects/youlose.wav" preload="auto"></audio>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script type="module">
+    import { connectWallet, autoReconnect, disconnect,
+             getSigner, truncateAddress } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC,
+             GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
+
+    // ════════════════════════════════════════
+    //  STATE
+    // ════════════════════════════════════════
+    let userAddress = null;
+    let selectedTokenId = null;
+    let selectedCells = 0;
+    let stack = 0;            // current chip stack (off-chain during play)
+    let nonce = null;         // from commitWager
+    let gameLog = [];         // append-only log for Worker validation
+
+    // Craps state
+    let phase = 'comeout';    // 'comeout' or 'point'
+    let point = 0;            // the point number (4,5,6,8,9,10)
+    let isRolling = false;
+
+    // Active bets: { betType: amount }
+    let bets = {};
+
+    // Come bet state: { point: amount } for come bets that have traveled to a number
+    let comeBets = {};        // e.g. { 6: 5, 8: 3 }
+    let comeOdds = {};        // odds behind come bets { 6: 10 }
+
+    // ════════════════════════════════════════
+    //  WALLET
+    // ════════════════════════════════════════
+    const walletBtn = document.getElementById('walletBtn');
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+
+    function onConnected(addr) {
+      userAddress = addr;
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      document.getElementById('setup-wallet-msg').style.display = 'none';
+      loadNFTs();
+    }
+    function onDisconnected() {
+      userAddress = null;
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+    }
+
+    walletBtn.addEventListener('click', () => {
+      if (userAddress) { disconnectDropdown.classList.toggle('show'); return; }
+      document.dispatchEvent(new CustomEvent('open-wallet-modal'));
+    });
+    document.getElementById('disconnectBtn').addEventListener('click', () => {
+      disconnectDropdown.classList.remove('show');
+      disconnect(onDisconnected);
+    });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
+    });
+    document.addEventListener('wallet-selected', e =>
+      connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
+    autoReconnect({ onConnected, onDisconnected });
+
+    // ════════════════════════════════════════
+    //  LOAD NFTs
+    // ════════════════════════════════════════
+    async function loadNFTs() {
+      const grid = document.getElementById('nft-grid');
+      grid.innerHTML = '<div style="font-size:0.4rem;color:#4caf50" class="setup-status">Loading Chads...</div>';
+
+      const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+
+      let totalSupply;
+      try { totalSupply = (await contract.totalSupply()).toNumber(); }
+      catch { grid.innerHTML = '<div style="color:#e53935;font-size:0.4rem">Error loading NFTs</div>'; return; }
+
+      const owned = [];
+      for (let id = 1; id <= totalSupply; id++) {
+        try {
+          const owner = await contract.ownerOf(id);
+          if (owner.toLowerCase() === userAddress.toLowerCase()) {
+            const cells = (await contract.getCells(id)).toNumber();
+            owned.push({ id, cells });
+          }
+        } catch {}
+      }
+
+      grid.innerHTML = '';
+      if (owned.length === 0) {
+        grid.innerHTML = '<div style="color:#e53935;font-size:0.4rem">No Chads found. Mint one first!</div>';
+        return;
+      }
+
+      for (const token of owned) {
+        const card = document.createElement('div');
+        card.className = 'nft-card';
+        card.innerHTML = `
+          <img src="assets/chads/framed/${token.id}.png" alt="Chad #${token.id}" />
+          <div class="nft-id">#${token.id} (${token.cells})</div>
+        `;
+        card.addEventListener('click', () => selectNFT(token, owned));
+        grid.appendChild(card);
+      }
+    }
+
+    function selectNFT(token, allTokens) {
+      selectedTokenId = token.id;
+      selectedCells = token.cells;
+
+      document.querySelectorAll('.nft-card').forEach((c, i) => {
+        c.classList.toggle('selected', allTokens[i].id === token.id);
+      });
+
+      const section = document.getElementById('buyin-section');
+      section.classList.add('visible');
+
+      const slider = document.getElementById('buyin-slider');
+      const maxBuy = Math.min(selectedCells, 50);
+      slider.max = maxBuy;
+      slider.min = 1;
+      slider.value = Math.min(10, maxBuy);
+      document.getElementById('buyin-amount').textContent = slider.value + ' cells';
+
+      slider.oninput = () => {
+        document.getElementById('buyin-amount').textContent = slider.value + ' cells';
+      };
+
+      document.getElementById('setup-status').textContent = '';
+    }
+
+    // ════════════════════════════════════════
+    //  BUY IN
+    // ════════════════════════════════════════
+    document.getElementById('buyin-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('buyin-btn');
+      const status = document.getElementById('setup-status');
+      const buyIn = parseInt(document.getElementById('buyin-slider').value);
+
+      if (!userAddress) {
+        document.getElementById('setup-wallet-msg').style.display = '';
+        return;
+      }
+      if (buyIn < 1) { status.textContent = 'Min buy-in is 1'; status.classList.add('setup-error'); return; }
+
+      btn.disabled = true;
+      status.textContent = 'Committing wager on-chain...';
+      status.classList.remove('setup-error');
+
+      try {
+        const signer = getSigner();
+        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+
+        const tx = await gamble.commitWager(selectedTokenId, buyIn);
+        status.textContent = 'Confirming transaction...';
+        const receipt = await tx.wait();
+
+        // Extract nonce from WagerCommitted event
+        const iface = new ethers.utils.Interface(GAMBLE_ABI);
+        const wagerLog = receipt.logs
+          .map(log => { try { return iface.parseLog(log); } catch { return null; } })
+          .find(e => e && e.name === 'WagerCommitted');
+
+        if (wagerLog) {
+          nonce = wagerLog.args.nonce.toNumber();
+        } else {
+          nonce = Date.now(); // fallback
+        }
+
+        stack = buyIn;
+        gameLog = [{ action: 'buyin', amount: buyIn, nonce }];
+        enterTable();
+
+      } catch (err) {
+        const reason = err.reason || err.data?.message || err.message || String(err);
+        status.textContent = reason.slice(0, 80);
+        status.classList.add('setup-error');
+        btn.disabled = false;
+      }
+    });
+
+    // ════════════════════════════════════════
+    //  ENTER TABLE
+    // ════════════════════════════════════════
+    function enterTable() {
+      document.getElementById('setup-screen').classList.add('hidden');
+      document.getElementById('table-screen').classList.add('active');
+      updateStackDisplay();
+      updateBetZoneStates();
+      setMessage("New shooter coming out! Place your pass line bet.");
+    }
+
+    function updateStackDisplay() {
+      document.getElementById('stackDisplay').textContent = 'STACK: ' + stack;
+    }
+
+    // ════════════════════════════════════════
+    //  DICE RENDERING
+    // ════════════════════════════════════════
+    const dotLayouts = {
+      1: [0,0,0, 0,1,0, 0,0,0],
+      2: [0,0,1, 0,0,0, 1,0,0],
+      3: [0,0,1, 0,1,0, 1,0,0],
+      4: [1,0,1, 0,0,0, 1,0,1],
+      5: [1,0,1, 0,1,0, 1,0,1],
+      6: [1,0,1, 1,0,1, 1,0,1]
+    };
+
+    function renderFace(faceId, value) {
+      const face = document.getElementById(faceId);
+      face.innerHTML = '';
+      if (!value) return;
+      const layout = dotLayouts[value];
+      for (let i = 0; i < 9; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        if (layout[i]) dot.style.visibility = 'visible';
+        face.appendChild(dot);
+      }
+    }
+
+    // Init empty faces
+    renderFace('face0', 0);
+    renderFace('face1', 0);
+
+    // ════════════════════════════════════════
+    //  BET PLACEMENT
+    // ════════════════════════════════════════
+    function getBetAmount() {
+      const val = parseInt(document.getElementById('betAmountInput').value) || 1;
+      return Math.max(1, val);
+    }
+
+    function updateBetZoneStates() {
+      const placeZones = document.querySelectorAll('.place-zone');
+      const comeZone = document.querySelector('[data-bet="come"]');
+      const passOddsZone = document.getElementById('pass-odds-zone');
+
+      if (phase === 'comeout') {
+        // Come-out: only pass line, field, hardways
+        placeZones.forEach(z => z.classList.add('disabled'));
+        comeZone.classList.add('disabled');
+        passOddsZone.classList.add('disabled');
+      } else {
+        // Point phase: place, come, field, hardways, pass odds
+        placeZones.forEach(z => z.classList.remove('disabled'));
+        comeZone.classList.remove('disabled');
+        passOddsZone.classList.remove('disabled');
+      }
+
+      // Enable roll button if there are any active bets
+      const hasAnyBet = Object.values(bets).some(v => v > 0)
+                     || Object.values(comeBets).some(v => v > 0);
+      document.getElementById('rollBtn').disabled = !hasAnyBet || isRolling;
+    }
+
+    function updateBetDisplays() {
+      for (const [key, val] of Object.entries(bets)) {
+        const el = document.getElementById('bet-' + key);
+        if (el) el.textContent = val > 0 ? val : '';
+      }
+      // Mark active
+      document.querySelectorAll('.bet-zone').forEach(z => {
+        const bet = z.dataset.bet;
+        const hasAmount = (bets[bet] && bets[bet] > 0);
+        z.classList.toggle('active-bet', hasAmount);
+      });
+    }
+
+    // Click handler for bet zones
+    document.querySelectorAll('.bet-zone').forEach(zone => {
+      zone.addEventListener('click', () => {
+        if (zone.classList.contains('disabled')) return;
+        if (isRolling) return;
+
+        const betType = zone.dataset.bet;
+        const amount = getBetAmount();
+
+        if (amount > stack) {
+          setMessage("Not enough cells! You have " + stack);
+          return;
+        }
+
+        // Some bets have restrictions
+        if (betType === 'pass' && phase !== 'comeout') {
+          setMessage("Pass line bets only on come-out roll!");
+          return;
+        }
+        if (betType === 'passOdds' && phase !== 'point') {
+          setMessage("Odds bets only after point is set!");
+          return;
+        }
+        if (betType === 'passOdds' && !bets.pass) {
+          setMessage("Place a pass line bet first!");
+          return;
+        }
+
+        // Place bet
+        if (!bets[betType]) bets[betType] = 0;
+        bets[betType] += amount;
+        stack -= amount;
+
+        updateStackDisplay();
+        updateBetDisplays();
+        updateBetZoneStates();
+
+        setMessage(betType.toUpperCase().replace(/([0-9])/g, ' $1') + ' — ' + amount + ' cells');
+      });
+    });
+
+    // ════════════════════════════════════════
+    //  ROLL DICE
+    // ════════════════════════════════════════
+    document.getElementById('rollBtn').addEventListener('click', rollDice);
+
+    async function rollDice() {
+      if (isRolling) return;
+      isRolling = true;
+      document.getElementById('rollBtn').disabled = true;
+
+      // Start rolling animation
+      document.getElementById('die0').classList.add('rolling');
+      document.getElementById('die1').classList.add('rolling');
+
+      // Rapid cycling
+      const cycleInterval = setInterval(() => {
+        renderFace('face0', Math.floor(Math.random() * 6) + 1);
+        renderFace('face1', Math.floor(Math.random() * 6) + 1);
+      }, 60);
+
+      // Use crypto for better entropy
+      const arr = new Uint32Array(2);
+      crypto.getRandomValues(arr);
+      const d1 = (arr[0] % 6) + 1;
+      const d2 = (arr[1] % 6) + 1;
+      const total = d1 + d2;
+      const isHard = (d1 === d2);
+
+      await new Promise(r => setTimeout(r, 1800));
+      clearInterval(cycleInterval);
+
+      // Show final values
+      renderFace('face0', d1);
+      renderFace('face1', d2);
+      document.getElementById('die0').classList.remove('rolling');
+      document.getElementById('die1').classList.remove('rolling');
+
+      // Log for worker validation
+      gameLog.push({
+        action: 'roll',
+        dice: [d1, d2],
+        total,
+        phase,
+        point,
+        bets: { ...bets },
+        comeBets: { ...comeBets },
+        comeOdds: { ...comeOdds },
+        stackBefore: stack
+      });
+
+      // Resolve all bets
+      await resolveRoll(d1, d2, total, isHard);
+
+      isRolling = false;
+      updateStackDisplay();
+      updateBetDisplays();
+      updateBetZoneStates();
+
+      // Check if busted
+      if (stack <= 0 && !Object.values(bets).some(v => v > 0)
+                     && !Object.values(comeBets).some(v => v > 0)) {
+        await new Promise(r => setTimeout(r, 800));
+        showBusted();
+      }
+    }
+
+    // ════════════════════════════════════════
+    //  RESOLVE ROLL
+    // ════════════════════════════════════════
+    async function resolveRoll(d1, d2, total, isHard) {
+      let netWin = 0;
+      const flashWin = [];
+      const flashLose = [];
+
+      // ── FIELD (one-roll) ──
+      if (bets.field) {
+        const fieldNums = [2,3,4,9,10,11,12];
+        if (fieldNums.includes(total)) {
+          let payout = bets.field;
+          if (total === 2) payout = bets.field * 2;
+          else if (total === 12) payout = bets.field * 3;
+          netWin += payout;
+          stack += bets.field + payout;
+          flashWin.push('field');
+          setMessage('FIELD ' + total + '! +' + payout);
+        } else {
+          flashLose.push('field');
+        }
+        bets.field = 0;
+      }
+
+      // ── HARDWAYS ──
+      const hardMap = { hard4: 4, hard6: 6, hard8: 8, hard10: 10 };
+      const hardPay = { hard4: 7, hard6: 9, hard8: 9, hard10: 7 };
+      for (const [key, num] of Object.entries(hardMap)) {
+        if (!bets[key]) continue;
+        if (total === num && isHard) {
+          const payout = bets[key] * hardPay[key];
+          netWin += payout;
+          stack += bets[key] + payout;
+          flashWin.push(key);
+          setMessage('HARD ' + num + '! +' + payout);
+        } else if (total === 7 || (total === num && !isHard)) {
+          flashLose.push(key);
+          bets[key] = 0;
+        }
+        if (total === num && isHard) bets[key] = 0;
+      }
+
+      // ── COME BETS (already on a number) ──
+      for (const [numStr, amt] of Object.entries(comeBets)) {
+        const num = parseInt(numStr);
+        if (total === num) {
+          // Come bet wins
+          const payout = amt;
+          netWin += payout;
+          stack += amt + payout;
+          setMessage('COME ' + num + ' wins! +' + payout);
+          // Come odds
+          if (comeOdds[numStr]) {
+            const oddsPay = calcOddsPayout(num, comeOdds[numStr]);
+            netWin += oddsPay;
+            stack += comeOdds[numStr] + oddsPay;
+            delete comeOdds[numStr];
+          }
+          delete comeBets[numStr];
+        } else if (total === 7) {
+          // Come bet loses
+          delete comeBets[numStr];
+          if (comeOdds[numStr]) delete comeOdds[numStr];
+        }
+      }
+
+      // ── COME (new come bet) ──
+      if (bets.come) {
+        if (total === 7 || total === 11) {
+          const payout = bets.come;
+          netWin += payout;
+          stack += bets.come + payout;
+          flashWin.push('come');
+          setMessage('COME wins! +' + payout);
+          bets.come = 0;
+        } else if (total === 2 || total === 3 || total === 12) {
+          flashLose.push('come');
+          bets.come = 0;
+        } else {
+          // Travels to the number
+          const numKey = String(total);
+          if (!comeBets[numKey]) comeBets[numKey] = 0;
+          comeBets[numKey] += bets.come;
+          setMessage('Come bet moves to ' + total);
+          bets.come = 0;
+        }
+      }
+
+      // ── PLACE BETS ──
+      const placeNums = [4,5,6,8,9,10];
+      const placePay = { 4: [9,5], 5: [7,5], 6: [7,6], 8: [7,6], 9: [7,5], 10: [9,5] };
+      for (const num of placeNums) {
+        const key = 'place' + num;
+        if (!bets[key]) continue;
+        if (total === num) {
+          const [payNum, payDen] = placePay[num];
+          const payout = Math.floor(bets[key] * payNum / payDen);
+          netWin += payout;
+          stack += bets[key] + payout;
+          flashWin.push(key);
+          setMessage('PLACE ' + num + ' hits! +' + payout);
+          bets[key] = 0;
+        } else if (total === 7) {
+          flashLose.push(key);
+          bets[key] = 0;
+        }
+      }
+
+      // ── PASS LINE + ODDS ──
+      if (phase === 'comeout') {
+        if (bets.pass) {
+          if (total === 7 || total === 11) {
+            const payout = bets.pass;
+            netWin += payout;
+            stack += bets.pass + payout;
+            flashWin.push('pass');
+            setMessage(total === 7 ? 'SEVEN! Winner!' : 'YO ELEVEN! Winner!');
+            bets.pass = 0;
+          } else if (total === 2 || total === 3 || total === 12) {
+            flashLose.push('pass');
+            setMessage(total === 12 ? 'TWELVE! Craps!' : total === 2 ? 'SNAKE EYES! Craps!' : 'THREE CRAPS!');
+            bets.pass = 0;
+          } else {
+            // Point is set
+            point = total;
+            phase = 'point';
+            updatePuck();
+            setMessage('Point is ' + point + '!');
+          }
+        }
+      } else {
+        // Point phase
+        if (total === point) {
+          // Pass line wins
+          if (bets.pass) {
+            const payout = bets.pass;
+            netWin += payout;
+            stack += bets.pass + payout;
+            flashWin.push('pass');
+            setMessage('WINNER! Point ' + point + '!');
+            // Odds
+            if (bets.passOdds) {
+              const oddsPay = calcOddsPayout(point, bets.passOdds);
+              netWin += oddsPay;
+              stack += bets.passOdds + oddsPay;
+              bets.passOdds = 0;
+            }
+            bets.pass = 0;
+          }
+          // Reset to come-out
+          phase = 'comeout';
+          point = 0;
+          updatePuck();
+        } else if (total === 7) {
+          // Seven out — pass loses
+          if (bets.pass) {
+            flashLose.push('pass');
+            bets.pass = 0;
+          }
+          if (bets.passOdds) {
+            bets.passOdds = 0;
+          }
+          setMessage('SEVEN OUT!');
+          // Reset
+          phase = 'comeout';
+          point = 0;
+          updatePuck();
+        }
+      }
+
+      // Flash animations
+      await new Promise(r => setTimeout(r, 200));
+      for (const key of flashWin) {
+        const zone = document.querySelector(`[data-bet="${key}"]`);
+        if (zone) zone.classList.add('win-flash');
+      }
+      for (const key of flashLose) {
+        const zone = document.querySelector(`[data-bet="${key}"]`);
+        if (zone) zone.classList.add('lose-flash');
+      }
+      await new Promise(r => setTimeout(r, 1500));
+      document.querySelectorAll('.win-flash, .lose-flash').forEach(z => {
+        z.classList.remove('win-flash', 'lose-flash');
+      });
+
+      // Log result
+      gameLog.push({
+        action: 'result',
+        netWin,
+        stackAfter: stack,
+        phase,
+        point
+      });
+    }
+
+    function calcOddsPayout(pointNum, bet) {
+      // True odds: 4/10 = 2:1, 5/9 = 3:2, 6/8 = 6:5
+      switch (pointNum) {
+        case 4: case 10: return bet * 2;
+        case 5: case 9:  return Math.floor(bet * 3 / 2);
+        case 6: case 8:  return Math.floor(bet * 6 / 5);
+        default: return 0;
+      }
+    }
+
+    function updatePuck() {
+      const puck = document.getElementById('puck');
+      if (phase === 'comeout') {
+        puck.className = 'puck off';
+        puck.textContent = 'OFF';
+      } else {
+        puck.className = 'puck on';
+        puck.textContent = point;
+      }
+    }
+
+    function setMessage(msg) {
+      document.getElementById('messageBar').textContent = msg;
+    }
+
+    // ════════════════════════════════════════
+    //  BUSTED / CASHOUT
+    // ════════════════════════════════════════
+    function showBusted() {
+      const overlay = document.getElementById('result-overlay');
+      const text = document.getElementById('result-text');
+      const detail = document.getElementById('result-detail');
+      text.textContent = 'BUSTED';
+      text.className = 'result-text lose';
+      detail.textContent = 'You lost all your cells.';
+      overlay.classList.add('active');
+
+      const sfx = document.getElementById('sfx-lose');
+      sfx.currentTime = 0;
+      sfx.play().catch(() => {});
+
+      document.getElementById('result-btn').onclick = () => {
+        overlay.classList.remove('active');
+        window.location.reload();
+      };
+    }
+
+    document.getElementById('cashoutBtn').addEventListener('click', () => {
+      if (isRolling) return;
+
+      // Return any active bets to stack first
+      let betsOnTable = 0;
+      for (const [key, val] of Object.entries(bets)) {
+        betsOnTable += val;
+      }
+      for (const [key, val] of Object.entries(comeBets)) {
+        betsOnTable += val;
+      }
+      for (const [key, val] of Object.entries(comeOdds)) {
+        betsOnTable += val;
+      }
+
+      document.getElementById('cashout-amount').textContent = stack + betsOnTable;
+      document.getElementById('cashoutModal').classList.add('active');
+    });
+
+    document.getElementById('cashout-cancel').addEventListener('click', () => {
+      document.getElementById('cashoutModal').classList.remove('active');
+    });
+
+    document.getElementById('cashout-confirm').addEventListener('click', async () => {
+      const statusEl = document.getElementById('cashout-status');
+      const confirmBtn = document.getElementById('cashout-confirm');
+      confirmBtn.disabled = true;
+
+      // Return all bets to stack
+      for (const [key, val] of Object.entries(bets)) {
+        stack += val; bets[key] = 0;
+      }
+      for (const [key, val] of Object.entries(comeBets)) {
+        stack += val; delete comeBets[key];
+      }
+      for (const [key, val] of Object.entries(comeOdds)) {
+        stack += val; delete comeOdds[key];
+      }
+
+      const finalPayout = stack;
+      gameLog.push({ action: 'cashout', finalStack: finalPayout });
+
+      if (finalPayout <= 0) {
+        document.getElementById('cashoutModal').classList.remove('active');
+        showBusted();
+        return;
+      }
+
+      statusEl.textContent = 'Claiming cells on-chain...';
+
+      try {
+        const signer = getSigner();
+        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+
+        // Call claimWinnings with oracle signature
+        // For now (pre-oracle), we simulate the cashout
+        // In production: POST /craps/cashout → get signature → call claimWinnings
+        const tx = await gamble.claimWinnings(
+          selectedTokenId,
+          finalPayout,
+          nonce,
+          '0x' // placeholder sig — Worker will provide real one
+        );
+        statusEl.textContent = 'Confirming...';
+        await tx.wait();
+
+        document.getElementById('cashoutModal').classList.remove('active');
+
+        // Show result
+        const overlay = document.getElementById('result-overlay');
+        const text = document.getElementById('result-text');
+        const detail = document.getElementById('result-detail');
+
+        const buyIn = gameLog[0].amount;
+        const profit = finalPayout - buyIn;
+
+        if (profit > 0) {
+          text.textContent = 'WINNER!';
+          text.className = 'result-text win';
+          detail.textContent = '+' + profit + ' cells profit!';
+          const sfx = document.getElementById('sfx-win');
+          sfx.currentTime = 0; sfx.play().catch(() => {});
+        } else if (profit < 0) {
+          text.textContent = 'TOUGH LUCK';
+          text.className = 'result-text lose';
+          detail.textContent = profit + ' cells';
+          const sfx = document.getElementById('sfx-lose');
+          sfx.currentTime = 0; sfx.play().catch(() => {});
+        } else {
+          text.textContent = 'BREAK EVEN';
+          text.className = 'result-text win';
+          detail.textContent = 'Got your cells back!';
+        }
+
+        overlay.classList.add('active');
+        document.getElementById('result-btn').onclick = () => {
+          overlay.classList.remove('active');
+          window.location.reload();
+        };
+
+      } catch (err) {
+        const reason = err.reason || err.data?.message || err.message || String(err);
+        statusEl.textContent = reason.slice(0, 80);
+        confirmBtn.disabled = false;
+      }
+    });
+
+    // ════════════════════════════════════════
+    //  INIT
+    // ════════════════════════════════════════
+    if (!userAddress) {
+      document.getElementById('setup-wallet-msg').style.display = '';
+    }
+
+  </script>
+  <script src="js/wallet-modal.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>
