@@ -227,7 +227,13 @@
   }
 
   /* ── difficulty curve ── */
-  function getDifficulty(t) { return Math.min(1, t / GAME_TIME); }
+  function getDifficulty(t) {
+    if (t <= 40) return 0;                       // flat for first 40s
+    if (t <= 50) return (t - 40) / GAME_TIME;    // normal ramp 40-50s
+    // after 50s: slow increase rate by 50%
+    const base = 10 / GAME_TIME;                 // difficulty at t=50
+    return Math.min(1, base + (t - 50) / (GAME_TIME * 2));
+  }
 
   function lerp(a, b, t) { return a + (b - a) * t; }
 
