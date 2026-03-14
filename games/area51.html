@@ -149,9 +149,10 @@ const ROOM_CONFIG = [
       { x: 270, y: 380, w: 200, h: 280, scale: 1.0 },  // foreground right (footY≈660)
     ],
     enemyBaseH: 280,
-    spawnRate: 2.4,
-    maxEnemies: 4,
+    spawnRate: 1.8,
+    maxEnemies: 6,
     attackRate: 5.5,
+    spawnBatch: [1, 1, 2],  // weighted random: mostly 1, sometimes 2
   },
   {
     // Room 2: Interior bar — cluttered, medium depth
@@ -166,9 +167,10 @@ const ROOM_CONFIG = [
       { x: 330, y: 400, w: 140, h: 260, scale: 1.0 },    // foreground right (footY≈660)
     ],
     enemyBaseH: 260,
-    spawnRate: 2.0,
-    maxEnemies: 5,
+    spawnRate: 1.5,
+    maxEnemies: 7,
     attackRate: 4.5,
+    spawnBatch: [1, 1, 2],  // weighted random: mostly 1, sometimes 2
   },
   {
     // Room 3: Long narrow corridor — strong vanishing point
@@ -182,9 +184,10 @@ const ROOM_CONFIG = [
       { x: 110, y: 530, w: 260, h: 140, scale: 1.0 },    // foreground center (footY≈670)
     ],
     enemyBaseH: 180,
-    spawnRate: 1.7,
-    maxEnemies: 5,
+    spawnRate: 1.1,
+    maxEnemies: 7,
     attackRate: 4.0,
+    spawnBatch: [1, 2, 2, 3],  // often 2, sometimes 3
   },
   {
     // Room 4: Dead-end vault room — same narrow center floor as corridor
@@ -198,9 +201,10 @@ const ROOM_CONFIG = [
       { x: 100, y: 540, w: 280, h: 130, scale: 1.0 },    // foreground center (footY≈670)
     ],
     enemyBaseH: 250,
-    spawnRate: 2.0,
-    maxEnemies: 4,
+    spawnRate: 1.4,
+    maxEnemies: 7,
     attackRate: 5.0,
+    spawnBatch: [1, 2, 2, 3],  // double/triple spawns
   },
   {
     // Room 5: Lab — overhead angle, looking down stairs
@@ -216,9 +220,10 @@ const ROOM_CONFIG = [
       { x: 260, y: 460, w: 140, h: 200, scale: 0.95 },  // stairs right
     ],
     enemyBaseH: 125,
-    spawnRate: 2.2,
-    maxEnemies: 4,
+    spawnRate: 1.4,
+    maxEnemies: 7,
     attackRate: 5.5,
+    spawnBatch: [2, 2, 3, 3],  // double/triple spawns
   },
 ];
 
@@ -281,8 +286,8 @@ function createEnemy(room) {
     w: baseW,
     h: baseH,
     spriteIdx,
-    hp: 1 + Math.floor((room + 1) / 2), // 1 hp r1, 2 hp r2-3, 3 hp r4-5
-    maxHp: 1 + Math.floor((room + 1) / 2),
+    hp: 1,
+    maxHp: 1,
     alive: true,
     spawnTime: gameTime,
     enterAnim: 0,       // 0→1 pop-in animation
@@ -665,7 +670,13 @@ function update(dt) {
   // Spawn enemies (only during spawn phase)
   spawnTimer -= dt;
   if (!roomSpawnDone && spawnTimer <= 0 && enemies.filter(e => e.alive).length < config.maxEnemies) {
-    enemies.push(createEnemy(currentRoom));
+    const batch = config.spawnBatch || [1];
+    const count = batch[Math.floor(Math.random() * batch.length)];
+    const aliveCount = enemies.filter(e => e.alive).length;
+    const canSpawn = Math.min(count, config.maxEnemies - aliveCount);
+    for (let i = 0; i < canSpawn; i++) {
+      enemies.push(createEnemy(currentRoom));
+    }
     spawnTimer = config.spawnRate * (0.6 + Math.random() * 0.8);
   }
 
