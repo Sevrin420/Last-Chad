@@ -55,6 +55,30 @@
   const wrap = document.getElementById('wrap');
   const overlay = document.getElementById('startOverlay');
 
+  /* ── audio ── */
+  const bgm = new Audio('../music/adventure.mp3');
+  bgm.loop = true;
+  bgm.volume = 0.5;
+  const sfxWin = new Audio('../sound effects/youwin.wav');
+  const sfxLose = new Audio('../sound effects/youlose.wav');
+  sfxWin.volume = 1.0;
+  sfxLose.volume = 1.0;
+  let endSoundPlayed = false;
+
+  function startMusic() {
+    bgm.currentTime = 0;
+    bgm.play().catch(() => {});
+  }
+  function stopMusic() { bgm.pause(); bgm.currentTime = 0; }
+  function playEndSound(win) {
+    if (endSoundPlayed) return;
+    endSoundPlayed = true;
+    stopMusic();
+    const sfx = win ? sfxWin : sfxLose;
+    sfx.currentTime = 0;
+    sfx.play().catch(() => {});
+  }
+
   /* ── sizing ── */
   function resize() {
     const h = wrap.clientHeight - 72;
@@ -126,6 +150,7 @@
     inputLeft = inputRight = inputShoot = false;
     shootCooldown = 0;
     invincibleTimer = 0;
+    endSoundPlayed = false;
     lastTime = performance.now();
     placeObstacles();
   }
@@ -201,6 +226,7 @@
       won = true;
       gameOver = true;
       running = false;
+      playEndSound(true);
       return;
     }
 
@@ -363,6 +389,7 @@
     if (lives <= 0) {
       gameOver = true;
       running = false;
+      playEndSound(false);
     }
   }
 
@@ -621,7 +648,7 @@
 
   // Restart on tap when game over
   canvas.addEventListener('pointerdown', () => {
-    if (gameOver) { init(); }
+    if (gameOver) { init(); startMusic(); }
   });
 
   /* ── game loop ── */
@@ -637,6 +664,7 @@
   document.getElementById('startBtn').addEventListener('click', () => {
     overlay.style.display = 'none';
     init();
+    startMusic();
     requestAnimationFrame(loop);
   });
 })();
