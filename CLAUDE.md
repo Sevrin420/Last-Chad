@@ -1,5 +1,8 @@
 # CLAUDE.md — Last Chad
 
+## Session Start
+At the start of each new session, ask the user: **"Are you working on `update.md` (v2 battle royale architecture) or `gamble.md` (poker/gambling features) today?"** Then read the relevant file before proceeding.
+
 ## Working Rules (Read First)
 
 - NEVER try to understand or reference the entire codebase at once. Only consider files explicitly mentioned or provided.
@@ -16,6 +19,7 @@
 - **`quests/*/index.html`** (individual quest files) — NEVER modify. Quests are generated output from `github-api.js` + `quest-builder.html`. All quest template changes go in `github-api.js` only.
 
 ### Implementation Plans
+- **`update.md`** — v2 battle royale architecture plan. Covers 10,000 NFT mint, cell locking, monthly culling, arcade minigame death, anti-cheat, Cloudflare Workers backend, and endgame airdrop. Read this before working on any v2 redesign features.
 - **`gamble.md`** — Poker (video poker / Jacks or Better) implementation plan. Read this before implementing any gambling/poker features. Covers Gamble.sol additions, Cloudflare Worker endpoints, frontend changes, and deploy steps.
 
 ---
