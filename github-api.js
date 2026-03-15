@@ -919,24 +919,62 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     /* Dice system */
     .dice-section { width: 100%; margin-top: 8px; }
     .dice-row { display: flex; justify-content: center; gap: 8px; }
-    .dice-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .dice-col { display: flex; flex-direction: column; align-items: center; gap: 8px; perspective: 400px; }
 
     .dice-box {
       width: clamp(48px, 13vw, 72px);
       height: clamp(48px, 13vw, 72px);
-      background: rgba(20, 14, 6, 0.9);
-      border: 3px solid #5c4409;
-      border-radius: 6px;
+      background: linear-gradient(145deg,
+        #f8f8f8 0%,
+        #e6e6e6 18%,
+        #d2d2d2 36%,
+        #c4c4c4 52%,
+        #b2b2b2 68%,
+        #a2a2a2 82%,
+        #929292 100%
+      );
+      border: 2px solid #9a9a9a;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s;
-      box-shadow: inset 0 0 15px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow:
+        inset 3px 3px 8px rgba(255, 255, 255, 0.88),
+        inset -2px -2px 6px rgba(0, 0, 0, 0.28),
+        2px 2px 0 #878787,
+        3px 3px 0 #767676,
+        4px 4px 0 #656565,
+        5px 5px 12px rgba(0, 0, 0, 0.72);
     }
-    .dice-box.rolling { border-color: #c9a84c; box-shadow: inset 0 0 15px rgba(0,0,0,0.4), 0 0 12px rgba(201,168,76,0.3); }
-    .dice-box.kept    { border-color: #4caf50; box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 0 10px rgba(76,175,80,0.25); }
+    @keyframes dice-tumble {
+      0%   { transform: rotateX(0deg)   rotateZ(0deg); }
+      100% { transform: rotateX(360deg) rotateZ(270deg); }
+    }
+    .dice-box.rolling {
+      animation: dice-tumble 0.28s linear infinite;
+      border-color: #c9a84c;
+      box-shadow:
+        inset 3px 3px 8px rgba(255, 255, 255, 0.88),
+        inset -2px -2px 6px rgba(0, 0, 0, 0.28),
+        2px 2px 0 #878787,
+        3px 3px 0 #767676,
+        4px 4px 0 #656565,
+        5px 5px 12px rgba(0, 0, 0, 0.72),
+        0 0 18px rgba(201, 168, 76, 0.45);
+    }
+    .dice-box.kept {
+      border-color: #4caf50;
+      box-shadow:
+        inset 3px 3px 8px rgba(255, 255, 255, 0.88),
+        inset -2px -2px 6px rgba(0, 0, 0, 0.24),
+        2px 2px 0 #878787,
+        3px 3px 0 #767676,
+        4px 4px 0 #656565,
+        5px 5px 12px rgba(0, 0, 0, 0.72),
+        0 0 12px rgba(76, 175, 80, 0.35);
+    }
     .dice-box.settled { border-color: #c9a84c; }
 
     .dice-face {
@@ -944,17 +982,24 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       display: grid;
       grid-template-rows: 1fr 1fr 1fr;
       grid-template-columns: 1fr 1fr 1fr;
-      padding: 15%;
+      padding: 14%;
       gap: 2px;
     }
     .dice-face .dot {
       width: 100%;
       aspect-ratio: 1;
-      background: #c9a84c;
+      background: #111;
       border-radius: 50%;
-      box-shadow: 0 0 4px rgba(201,168,76,0.5);
+      box-shadow:
+        inset 1px 1px 3px rgba(0, 0, 0, 0.95),
+        0 1px 1px rgba(255, 255, 255, 0.18);
     }
-    .dice-box.kept .dice-face .dot { background: #4caf50; box-shadow: 0 0 4px rgba(76,175,80,0.5); }
+    .dice-box.kept .dice-face .dot {
+      background: #111;
+      box-shadow:
+        inset 1px 1px 3px rgba(0, 0, 0, 0.95),
+        0 1px 1px rgba(255, 255, 255, 0.18);
+    }
     .dot { visibility: hidden; }
 
     .dice-box.settled { cursor: pointer; }
@@ -2047,7 +2092,7 @@ function showPanel(id) {
           totalScore: 0
         };
         for (var i = 0; i < 5; i++) {
-          renderFace(i, 0, sid);
+          renderFace(i, 1, sid);
         }
       }
       return diceState[sid];
