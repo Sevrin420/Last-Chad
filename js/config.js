@@ -33,6 +33,42 @@ export const LASTCHAD_ABI = [
   'function tokenName(uint256 tokenId) view returns (string)',
   'function authorizedGame(address game) view returns (bool)',
   'function setGameContract(address game, bool enabled)',
+  // Elimination & active status
+  'function eliminated(uint256 tokenId) view returns (bool)',
+  'function eliminatedCount() view returns (uint256)',
+  'function isActive(uint256 tokenId) view returns (bool)',
+  'function setActive(uint256 tokenId, bool active)',
+  'function eliminate(uint256 tokenId)',
+  'function batchEliminate(uint256[] tokenIds)',
+  'function reinstate(uint256 tokenId)',
+  'function batchReinstate(uint256[] tokenIds)',
+  // Batch helpers
+  'function batchAwardCells(uint256[] tokenIds, uint256[] amounts)',
+  'function getClosedCellsBatch(uint256[] tokenIds) view returns (uint256[])',
+  'function getTotalCells(uint256 tokenId) view returns (uint256)',
+  // Cull system
+  'function cullMode() view returns (uint8)',
+  'function cullValue() view returns (uint256)',
+  'function getCullCount() view returns (uint256)',
+  'function setCullMode(uint8 mode, uint256 value)',
+  'function announceCull(uint256 executeAfterTimestamp)',
+  'function cullAnnouncedAt() view returns (uint256)',
+  'function cullExecuteAfter() view returns (uint256)',
+  // Team system
+  'function createTeam(string name, address nftContract) returns (uint256)',
+  'function setTeamActive(uint256 teamId, bool active)',
+  'function getTeam(uint256 teamId) view returns (string name, address nftContract, bool active, uint256 memberCount)',
+  'function getTeamCount() view returns (uint256)',
+  'function tokenTeam(uint256 tokenId) view returns (uint256)',
+  'function teamMemberCount(uint256 teamId) view returns (uint256)',
+  'function mintWithTeam(uint256 quantity, uint256 teamId) payable',
+  // Unique names
+  'function isNameTaken(string name) view returns (bool)',
+  // Events
+  'event Eliminated(uint256 indexed tokenId, uint256 closedCells)',
+  'event Reinstated(uint256 indexed tokenId)',
+  'event TeamCreated(uint256 indexed teamId, string name, address nftContract)',
+  'event CullAnnounced(uint256 cullAt, uint8 mode, uint256 value, uint256 estimatedCount)',
 ];
 
 export const ITEMS_ABI = [
@@ -116,4 +152,6 @@ export const MARKET_ABI = [
   'function list1155(address nftContract, uint256 tokenId, uint256 price)',
   'function delist1155(address nftContract, uint256 tokenId)',
   'event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice)',
+  'function setLastChadContract(address _lastChad)',
+  'function lastChadContract() view returns (address)',
 ];

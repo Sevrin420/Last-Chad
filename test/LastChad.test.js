@@ -480,4 +480,241 @@ describe("LastChad", function () {
       expect(balance).to.equal(PRICE * 3n);
     });
   });
+
+  // ──────────────────────────────────────────────────────────
+  // Unique Names
+  // ──────────────────────────────────────────────────────────
+  describe("Unique Names", function () {
+    beforeEach(async function () {
+      await contract.connect(addr1).mint(2, { value: PRICE * 2n });
+    });
+
+    it("prevents duplicate names (case-insensitive)", async function () {
+      await contract.connect(addr1).setStats(1, "Chad", 2, 0, 0, 0);
+      await expect(
+        contract.connect(addr1).setStats(2, "chad", 0, 2, 0, 0)
+      ).to.be.revertedWith("Name already taken");
+    });
+
+    it("prevents duplicate names (mixed case)", async function () {
+      await contract.connect(addr1).setStats(1, "BIGBOY", 2, 0, 0, 0);
+      await expect(
+        contract.connect(addr1).setStats(2, "BigBoy", 0, 2, 0, 0)
+      ).to.be.revertedWith("Name already taken");
+    });
+
+    it("allows different names", async function () {
+      await contract.connect(addr1).setStats(1, "Alpha", 2, 0, 0, 0);
+      await expect(
+        contract.connect(addr1).setStats(2, "Beta", 0, 2, 0, 0)
+      ).to.not.be.reverted;
+    });
+
+    it("isNameTaken returns correct values", async function () {
+      expect(await contract.isNameTaken("Chad")).to.be.false;
+      await contract.connect(addr1).setStats(1, "Chad", 2, 0, 0, 0);
+      expect(await contract.isNameTaken("Chad")).to.be.true;
+      expect(await contract.isNameTaken("chad")).to.be.true;
+      expect(await contract.isNameTaken("CHAD")).to.be.true;
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Transfer Lock (isActive)
+  // ──────────────────────────────────────────────────────────
+  describe("Transfer Lock", function () {
+    beforeEach(async function () {
+      await contract.connect(addr1).mint(1, { value: PRICE });
+      await contract.setGameContract(addr3.address, true);
+    });
+
+    it("game contract can set isActive", async function () {
+      await contract.connect(addr3).setActive(1, true);
+      expect(await contract.isActive(1)).to.be.true;
+    });
+
+    it("blocks transfer while isActive", async function () {
+      await contract.connect(addr3).setActive(1, true);
+      await expect(
+        contract.connect(addr1).transferFrom(addr1.address, addr2.address, 1)
+      ).to.be.revertedWith("Token is active in quest/arcade");
+    });
+
+    it("allows transfer after isActive cleared", async function () {
+      await contract.connect(addr3).setActive(1, true);
+      await contract.connect(addr3).setActive(1, false);
+      await expect(
+        contract.connect(addr1).transferFrom(addr1.address, addr2.address, 1)
+      ).to.not.be.reverted;
+    });
+
+    it("non-game cannot set isActive", async function () {
+      await expect(
+        contract.connect(addr1).setActive(1, true)
+      ).to.be.revertedWith("Not authorized");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Team System
+  // ──────────────────────────────────────────────────────────
+  describe("Team System", function () {
+    let mockNft;
+
+    beforeEach(async function () {
+      // Deploy a second LastChad as a mock team NFT
+      const Factory = await ethers.getContractFactory("LastChad");
+      mockNft = await Factory.deploy(BASE_URI);
+      // addr1 mints a team NFT
+      await mockNft.connect(addr1).mint(1, { value: PRICE });
+    });
+
+    it("owner can create a team", async function () {
+      const tx = await contract.createTeam("Apes", await mockNft.getAddress());
+      await expect(tx).to.emit(contract, "TeamCreated").withArgs(1, "Apes", await mockNft.getAddress());
+      expect(await contract.getTeamCount()).to.equal(1);
+    });
+
+    it("player with team NFT can mint with team", async function () {
+      await contract.createTeam("Apes", await mockNft.getAddress());
+      await contract.connect(addr1).mintWithTeam(1, 1, { value: PRICE });
+      expect(await contract.tokenTeam(1)).to.equal(1);
+      expect(await contract.teamMemberCount(1)).to.equal(1);
+    });
+
+    it("player without team NFT cannot mint with team", async function () {
+      await contract.createTeam("Apes", await mockNft.getAddress());
+      await expect(
+        contract.connect(addr2).mintWithTeam(1, 1, { value: PRICE })
+      ).to.be.revertedWith("Must hold team NFT");
+    });
+
+    it("player can mint without team (regular mint)", async function () {
+      await contract.createTeam("Apes", await mockNft.getAddress());
+      await contract.connect(addr2).mint(1, { value: PRICE });
+      expect(await contract.tokenTeam(1)).to.equal(0);
+    });
+
+    it("reverts for inactive team", async function () {
+      await contract.createTeam("Apes", await mockNft.getAddress());
+      await contract.setTeamActive(1, false);
+      await expect(
+        contract.connect(addr1).mintWithTeam(1, 1, { value: PRICE })
+      ).to.be.revertedWith("Team not active");
+    });
+
+    it("reverts for invalid team ID", async function () {
+      await expect(
+        contract.connect(addr1).mintWithTeam(1, 99, { value: PRICE })
+      ).to.be.revertedWith("Invalid team");
+    });
+
+    it("getTeam returns correct data", async function () {
+      await contract.createTeam("Apes", await mockNft.getAddress());
+      await contract.connect(addr1).mintWithTeam(2, 1, { value: PRICE * 2n });
+      const [name, nftAddr, active, count] = await contract.getTeam(1);
+      expect(name).to.equal("Apes");
+      expect(nftAddr).to.equal(await mockNft.getAddress());
+      expect(active).to.be.true;
+      expect(count).to.equal(2);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Cull System
+  // ──────────────────────────────────────────────────────────
+  describe("Cull System", function () {
+    it("setCullMode sets percentage mode", async function () {
+      await contract.setCullMode(1, 1000); // Percentage, 10%
+      expect(await contract.cullMode()).to.equal(1);
+      expect(await contract.cullValue()).to.equal(1000);
+    });
+
+    it("setCullMode sets fixed count mode", async function () {
+      await contract.setCullMode(0, 50); // FixedCount, 50
+      expect(await contract.cullMode()).to.equal(0);
+      expect(await contract.cullValue()).to.equal(50);
+    });
+
+    it("getCullCount returns correct value for percentage mode", async function () {
+      await contract.connect(addr1).mint(5, { value: PRICE * 5n });
+      await contract.setCullMode(1, 2000); // 20%
+      expect(await contract.getCullCount()).to.equal(1); // 20% of 5 = 1
+    });
+
+    it("getCullCount returns correct value for fixed count mode", async function () {
+      await contract.setCullMode(0, 3);
+      expect(await contract.getCullCount()).to.equal(3);
+    });
+
+    it("eliminatedCount tracks correctly", async function () {
+      await contract.connect(addr1).mint(3, { value: PRICE * 3n });
+      await contract.eliminate(1);
+      expect(await contract.eliminatedCount()).to.equal(1);
+      await contract.eliminate(2);
+      expect(await contract.eliminatedCount()).to.equal(2);
+      await contract.reinstate(1);
+      expect(await contract.eliminatedCount()).to.equal(1);
+    });
+
+    it("announceCull emits event", async function () {
+      await contract.connect(addr1).mint(5, { value: PRICE * 5n });
+      const futureTime = Math.floor(Date.now() / 1000) + 86400;
+      await expect(contract.announceCull(futureTime))
+        .to.emit(contract, "CullAnnounced");
+    });
+
+    it("batchEliminate with eliminatedCount", async function () {
+      await contract.connect(addr1).mint(5, { value: PRICE * 5n });
+      await contract.batchEliminate([1, 2, 3]);
+      expect(await contract.eliminatedCount()).to.equal(3);
+    });
+
+    it("batchReinstate works", async function () {
+      await contract.connect(addr1).mint(3, { value: PRICE * 3n });
+      await contract.batchEliminate([1, 2, 3]);
+      await contract.batchReinstate([1, 3]);
+      expect(await contract.eliminatedCount()).to.equal(1);
+      expect(await contract.eliminated(2)).to.be.true;
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Batch Helpers
+  // ──────────────────────────────────────────────────────────
+  describe("Batch Helpers", function () {
+    beforeEach(async function () {
+      await contract.connect(addr1).mint(3, { value: PRICE * 3n });
+    });
+
+    it("batchAwardCells awards to multiple tokens", async function () {
+      await contract.batchAwardCells([1, 2, 3], [10, 20, 30]);
+      expect(await contract.getOpenCells(1)).to.equal(15); // 5 base + 10
+      expect(await contract.getOpenCells(2)).to.equal(25);
+      expect(await contract.getOpenCells(3)).to.equal(35);
+    });
+
+    it("batchAwardCells reverts on array mismatch", async function () {
+      await expect(
+        contract.batchAwardCells([1, 2], [10])
+      ).to.be.revertedWith("Array length mismatch");
+    });
+
+    it("getClosedCellsBatch returns correct values", async function () {
+      await contract.awardCells(1, 95);
+      await contract.connect(addr1).lockCells(1, 50);
+      await contract.awardCells(2, 195);
+      await contract.connect(addr1).lockCells(2, 200);
+      const result = await contract.getClosedCellsBatch([1, 2, 3]);
+      expect(result[0]).to.equal(50);
+      expect(result[1]).to.equal(200);
+      expect(result[2]).to.equal(0);
+    });
+
+    it("getTotalCells returns open + closed", async function () {
+      await contract.awardCells(1, 95); // 5 + 95 = 100
+      await contract.connect(addr1).lockCells(1, 50); // 50 open, 50 closed
+      expect(await contract.getTotalCells(1)).to.equal(100);
+    });
+  });
 });

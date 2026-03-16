@@ -7,7 +7,8 @@
     'stats.html':     'base',
     'docs.html':      'docs',
     'market.html':    'base',
-    'chadbase.html':  'base'
+    'chadbase.html':  'base',
+    'leaderboard.html': 'leaderboard'
   }[page] || '';
 
   function link(href, label, key) {
@@ -23,6 +24,7 @@
       '<div class="nav-dropdown" id="navDropdown">' +
         link('/mint.html',     'MINT', 'mint') +
         link('/chadbase.html', 'BASE', 'base') +
+        link('/leaderboard.html', 'RANKS', 'leaderboard') +
         link('/docs.html',     'DOCS', 'docs') +
       '</div>' +
     '</div>';

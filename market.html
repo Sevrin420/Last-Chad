@@ -344,6 +344,38 @@
       margin-bottom: 6px;
     }
 
+    .recent-sales-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #3d2e0a;
+    }
+    .section-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      color: #c9a84c;
+      margin-bottom: 12px;
+    }
+    .recent-sales-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sale-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(30,20,10,0.6);
+      border: 1px solid #3d2e0a;
+      border-radius: 4px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.36rem;
+      color: #f5e6c8;
+    }
+    .sale-row .sale-id { color: #c9a84c; }
+    .sale-row .sale-price { color: #4dd0a0; }
+    .sale-row .sale-buyer { color: #9e8a6a; }
+
     .update-price-btn {
       width: 100%;
       font-family: 'Press Start 2P', monospace;
@@ -877,6 +909,12 @@
       <div class="nft-grid" id="listingsGrid">
         <div class="empty-state loading-dots">Loading listings</div>
       </div>
+
+      <!-- Recent Sales -->
+      <div id="recentSalesSection" class="recent-sales-section" style="display:none;">
+        <h3 class="section-title">RECENT SALES</h3>
+        <div id="recentSalesList" class="recent-sales-list"></div>
+      </div>
     </div>
 
     <!-- Sell Tab -->
@@ -1336,18 +1374,49 @@
     // ====================================================================
     // Load last sale prices from Sold events (best-effort, non-critical)
     // ====================================================================
+    let recentSales = []; // [{ tokenId, buyer, seller, price, blockNumber }]
+
     async function loadLastSales(market, collAddr) {
       try {
-        // Try a recent window (last 500 k blocks ≈ 11 days on Fuji).
-        // Sold events are historical and nice-to-have; we silently skip on failure.
         const latest = await market.provider.getBlockNumber();
         const from   = Math.max(0, latest - 500_000);
         const soldEvents = await market.queryFilter(market.filters.Sold(collAddr), from, 'latest');
+        recentSales = [];
         for (const ev of soldEvents) {
           const key = ev.args.nftContract.toLowerCase() + ':' + ev.args.tokenId.toString();
-          lastSaleCache.set(key, ethers.utils.formatEther(ev.args.price));
+          const priceAvax = ethers.utils.formatEther(ev.args.price);
+          lastSaleCache.set(key, priceAvax);
+          recentSales.push({
+            tokenId: ev.args.tokenId.toString(),
+            buyer: ev.args.buyer,
+            seller: ev.args.seller,
+            price: priceAvax,
+            blockNumber: ev.blockNumber,
+          });
         }
+        recentSales.sort((a, b) => b.blockNumber - a.blockNumber); // newest first
+        renderRecentSales();
       } catch (_) {}
+    }
+
+    function renderRecentSales() {
+      const section = document.getElementById('recentSalesSection');
+      const list = document.getElementById('recentSalesList');
+      if (!recentSales.length || activeCollection !== 'chads') {
+        section.style.display = 'none';
+        return;
+      }
+      section.style.display = 'block';
+      const display = recentSales.slice(0, 10); // show last 10
+      list.innerHTML = display.map(s => {
+        const name = (statsCache.get(s.tokenId) || {}).name || '';
+        const label = name ? name : 'CHAD #' + s.tokenId;
+        return `<div class="sale-row">
+          <span class="sale-id">${label}</span>
+          <span class="sale-price">${s.price} AVAX</span>
+          <span class="sale-buyer">${truncAddr(s.buyer)}</span>
+        </div>`;
+      }).join('');
     }
 
     // ====================================================================
@@ -1359,13 +1428,17 @@
         return;
       }
       let sum = 0, count = 0;
+      let floorWei = null;
       for (const l of listings) {
         const s = statsCache.get(l.tokenId.toString());
         if (s && !s.eliminated) { sum += s.totalCells; count++; }
+        if (!floorWei || l.price.lt(floorWei)) floorWei = l.price;
       }
       const avg = count > 0 ? (sum / count).toFixed(1) : '0';
+      const floor = floorWei ? ethers.utils.formatEther(floorWei) : '—';
       collectionStats.style.display = 'flex';
       collectionStats.innerHTML =
+        `<span><span class="stat-label">FLOOR:</span> <span class="stat-value">${floor} AVAX</span></span>` +
         `<span><span class="stat-label">LISTED:</span> <span class="stat-value">${count} CHADS</span></span>` +
         `<span><span class="stat-label">AVG TOTAL CELLS:</span> <span class="stat-value">${avg}</span></span>` +
         `<span><span class="stat-label">TOTAL CELLS (ALL LISTED):</span> <span class="stat-value">${sum}</span></span>`;

@@ -443,6 +443,30 @@
       text-shadow: 0 0 10px rgba(245, 230, 200, 0.2);
     }
 
+    /* --- Team selection --- */
+    .team-section { margin-bottom: 20px; }
+    .team-header { margin-bottom: 8px; }
+    .team-select {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      padding: 10px 12px;
+      background: rgba(30, 20, 10, 0.8);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      color: #f5e6c8;
+      cursor: pointer;
+    }
+    .team-select:focus { border-color: #c9a84c; outline: none; }
+    .team-select option { background: #1e140a; color: #f5e6c8; }
+    .team-status {
+      font-size: 0.38rem;
+      margin-top: 6px;
+      min-height: 1.2em;
+    }
+    .team-status.ok { color: #4caf50; }
+    .team-status.err { color: #ff4444; }
+
     /* --- Mint button --- */
     .mint-btn {
       width: 100%;
@@ -761,6 +785,17 @@
         <span class="total-value" id="totalValue">3 AVAX</span>
       </div>
 
+      <!-- Team Selection -->
+      <div class="team-section" id="teamSection" style="display:none;">
+        <div class="team-header">
+          <span class="quantity-label">TEAM</span>
+        </div>
+        <select id="teamSelect" class="team-select">
+          <option value="0">No Team (Free Agent)</option>
+        </select>
+        <div class="team-status" id="teamStatus"></div>
+      </div>
+
       <!-- Mint button -->
       <button class="mint-btn" id="mintBtn" disabled>
         <span class="btn-text">MINT</span>
@@ -795,8 +830,13 @@
     // Contract ABI — only the functions called in this file
     const CONTRACT_ABI = [
       'function mint(uint256 quantity) external payable',
-      'function totalSupply() external view returns (uint256)'
+      'function mintWithTeam(uint256 quantity, uint256 teamId) external payable',
+      'function totalSupply() external view returns (uint256)',
+      'function getTeamCount() external view returns (uint256)',
+      'function getTeam(uint256 teamId) external view returns (string name, address nftContract, bool active, uint256 memberCount)',
     ];
+
+    const ERC721_BALANCE_ABI = ['function balanceOf(address owner) view returns (uint256)'];
 
     // ========== DOM ==========
     const slider = document.getElementById('qtySlider');
@@ -812,10 +852,15 @@
     const supplyText = document.getElementById('supplyText');
     const supplyFill = document.getElementById('supplyFill');
 
+    const teamSection = document.getElementById('teamSection');
+    const teamSelect  = document.getElementById('teamSelect');
+    const teamStatus  = document.getElementById('teamStatus');
+
     // ========== STATE ==========
     let quantity = 1;
     let minted = 0;
     let maxQty = MAX_SUPPLY;
+    let teamData = []; // [{ id, name, nftContract, active, memberCount }]
 
     // ========== SUPPLY TRACKING ==========
     async function updateSupply() {
@@ -860,6 +905,59 @@
         console.error('Failed to read supply:', err);
       }
     }
+
+    // ========== TEAM LOADING ==========
+    async function loadTeams() {
+      if (!CONTRACT_ADDRESS) return;
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+        const count = await contract.getTeamCount();
+        teamData = [];
+        for (let i = 1; i <= count.toNumber(); i++) {
+          const [name, nftContract, active, memberCount] = await contract.getTeam(i);
+          if (active) teamData.push({ id: i, name, nftContract, memberCount: memberCount.toNumber() });
+        }
+        if (teamData.length > 0) {
+          teamSection.style.display = 'block';
+          teamSelect.innerHTML = '<option value="0">No Team (Free Agent)</option>';
+          for (const t of teamData) {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name + ' (' + t.memberCount + ' members)';
+            teamSelect.appendChild(opt);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load teams:', err);
+      }
+    }
+
+    async function checkTeamEligibility() {
+      const teamId = parseInt(teamSelect.value);
+      if (teamId === 0) { teamStatus.textContent = ''; teamStatus.className = 'team-status'; return; }
+      const addr = getUserAddress();
+      if (!addr) { teamStatus.textContent = 'Connect wallet first'; teamStatus.className = 'team-status err'; return; }
+      const team = teamData.find(t => t.id === teamId);
+      if (!team) return;
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const nft = new ethers.Contract(team.nftContract, ERC721_BALANCE_ABI, readProvider);
+        const bal = await nft.balanceOf(addr);
+        if (bal.toNumber() > 0) {
+          teamStatus.textContent = 'Eligible — you hold ' + team.name + ' NFT';
+          teamStatus.className = 'team-status ok';
+        } else {
+          teamStatus.textContent = 'You must hold a ' + team.name + ' NFT to join this team';
+          teamStatus.className = 'team-status err';
+        }
+      } catch (err) {
+        teamStatus.textContent = 'Could not verify NFT balance';
+        teamStatus.className = 'team-status err';
+      }
+    }
+
+    teamSelect.addEventListener('change', checkTeamEligibility);
 
     // ========== QUANTITY UI ==========
     function rebuildPips() {
@@ -907,6 +1005,7 @@
       }
       closeWalletModal();
       updateSupply();
+      loadTeams().then(checkTeamEligibility);
     }
 
     function onDisconnected() {
@@ -1011,7 +1110,10 @@
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        const tx = await contract.mint(quantity, { value: totalCost });
+        const selectedTeam = parseInt(teamSelect.value);
+        const tx = selectedTeam > 0
+          ? await contract.mintWithTeam(quantity, selectedTeam, { value: totalCost })
+          : await contract.mint(quantity, { value: totalCost });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
 
@@ -1060,8 +1162,8 @@
 
     // ========== AUTO-RECONNECT ==========
     (async () => {
-      // Fetch supply on page load (works without wallet)
       await updateSupply();
+      await loadTeams();
       await autoReconnect({ onConnected, onDisconnected });
     })();
 
