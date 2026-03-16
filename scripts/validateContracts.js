@@ -77,8 +77,8 @@ const ITEMS_ABI = [
 
 const QUEST_REWARDS_ABI = [
   'function lastChad() view returns (address)',
-  'function getLockedCount() view returns (uint256)',
   'function gameOwner() view returns (address)',
+  'function getQuestConfig(uint8 questId) view returns (uint16 cellReward, uint16 itemReward)',
 ];
 
 const MARKET_ABI = [
@@ -121,6 +121,9 @@ async function main() {
   await check("totalSupply()",           () => lc.totalSupply().then(v => v.toString()));
   await check("owner()",                 () => lc.owner());
   await check("QuestRewards authorized", () => lc.authorizedGame(cfg.questRewards).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
+  if (cfg.gamble) {
+    await check("Gamble authorized",      () => lc.authorizedGame(cfg.gamble).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
+  }
 
   // ── 2. LastChadItems ───────────────────────────────────────────────────────
   console.log("\n[2/5] LastChadItems");
@@ -141,7 +144,7 @@ async function main() {
     if (addr.toLowerCase() !== cfg.lastChad.toLowerCase()) throw new Error(`points to ${addr}`);
     return "correct";
   }));
-  await check("getLockedCount()",        () => qr.getLockedCount().then(v => `${v.toString()} NFTs in escrow`));
+  await check("quest 1 config seeded",   () => qr.getQuestConfig(1).then(r => `cells=${r.cellReward}, item=${r.itemReward}`));
 
   // ── 4. Market ──────────────────────────────────────────────────────────────
   if (cfg.market) {
