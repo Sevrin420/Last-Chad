@@ -192,6 +192,28 @@ async function main() {
     console.warn("  ⚠ js/config.js not found");
   }
 
+  // Patch worker/wrangler.toml (Cloudflare Worker — needs contract addresses for on-chain reads)
+  const wranglerPath = path.join(__dirname, '..', 'worker', 'wrangler.toml');
+  if (fs.existsSync(wranglerPath)) {
+    let wrangler = fs.readFileSync(wranglerPath, 'utf8');
+    wrangler = wrangler.replace(
+      /LASTCHAD_ADDRESS\s*=\s*"[^"]*"/,
+      `LASTCHAD_ADDRESS      = "${lastChadAddress}"`
+    );
+    wrangler = wrangler.replace(
+      /QUEST_REWARDS_ADDRESS\s*=\s*"[^"]*"/,
+      `QUEST_REWARDS_ADDRESS = "${questRewardsAddress}"`
+    );
+    wrangler = wrangler.replace(
+      /GAMBLE_ADDRESS\s*=\s*"[^"]*"/,
+      `GAMBLE_ADDRESS        = "${gambleAddress}"`
+    );
+    fs.writeFileSync(wranglerPath, wrangler, 'utf8');
+    console.log("  worker/wrangler.toml                     ✓  (3 addresses)");
+  } else {
+    console.warn("  ⚠ worker/wrangler.toml not found");
+  }
+
   // Patch js/quest-globals.js (vanilla JS — used by generated quest pages)
   const globalsPath = path.join(__dirname, '..', 'js', 'quest-globals.js');
   if (fs.existsSync(globalsPath)) {
@@ -239,6 +261,7 @@ async function main() {
   console.log("  Config files patched:");
   console.log("    js/config.js          (5 addresses)");
   console.log("    js/quest-globals.js   (3 addresses)");
+  console.log("    worker/wrangler.toml  (3 addresses)");
   console.log("════════════════════════════════════════════════════════════\n");
   console.log("Next: Commit config files, deploy Cloudflare Worker, verify on Snowtrace.");
 }

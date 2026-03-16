@@ -74,6 +74,20 @@ async function main() {
     console.warn("\nWarning: js/config.js not found — update GAMBLE_ADDRESS manually.");
   }
 
+  // ── 5. Patch worker/wrangler.toml ────────────────────────────────────
+  const wranglerPath = path.join(__dirname, '..', 'worker', 'wrangler.toml');
+  if (fs.existsSync(wranglerPath)) {
+    let wrangler = fs.readFileSync(wranglerPath, 'utf8');
+    wrangler = wrangler.replace(
+      /GAMBLE_ADDRESS\s*=\s*"[^"]*"/,
+      `GAMBLE_ADDRESS        = "${gambleAddress}"`
+    );
+    fs.writeFileSync(wranglerPath, wrangler, 'utf8');
+    console.log("Patched worker/wrangler.toml → GAMBLE_ADDRESS =", gambleAddress);
+  } else {
+    console.warn("Warning: worker/wrangler.toml not found — update GAMBLE_ADDRESS manually.");
+  }
+
   console.log("\n══════════════════════════════════════════════════");
   console.log("Deployment complete!");
   console.log("  Network:          ", network);

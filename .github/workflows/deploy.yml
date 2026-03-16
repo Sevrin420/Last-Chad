@@ -110,7 +110,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add js/config.js js/quest-globals.js
+          git add js/config.js js/quest-globals.js worker/wrangler.toml
           if git diff --cached --quiet; then
             echo "config files unchanged — skipping commit"
           else
@@ -130,10 +130,15 @@ jobs:
       always() &&
       (inputs.target == 'worker' ||
        (inputs.target == 'everything' && needs.deploy-contract.result != 'failure') ||
-       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure'))
+       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure') ||
+       (inputs.target == 'gamble' && needs.deploy-contract.result != 'failure'))
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Pull latest config (contract addresses from deploy step)
+        if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'gamble'
+        run: git pull origin ${{ github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
