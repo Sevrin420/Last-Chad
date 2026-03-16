@@ -221,6 +221,7 @@
     .nft-card-thumb {
       cursor: pointer;
       display: block;
+      position: relative;
     }
     .nft-card-thumb img {
       width: 100%;
@@ -298,6 +299,30 @@
     .my-listing-badge {
       font-size: 0.38rem;
       color: #4caf50;
+      margin-bottom: 6px;
+    }
+
+    .eliminated-card { opacity: 0.6; }
+    .eliminated-card .nft-card-thumb img { filter: grayscale(100%); }
+
+    .eliminated-overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-15deg);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      color: #ff4444;
+      background: rgba(0,0,0,0.7);
+      padding: 6px 12px;
+      border: 2px solid #ff4444;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .eliminated-badge {
+      font-size: 0.38rem;
+      color: #ff4444;
       margin-bottom: 6px;
     }
 
@@ -940,6 +965,7 @@
       'function getLevel(uint256 tokenId) view returns (uint256)',
       'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
+      'function eliminated(uint256 tokenId) view returns (bool)',
     ];
 
     // ====================================================================
@@ -1252,12 +1278,13 @@
         const tid = l.tokenId.toString();
         if (statsCache.has(tid)) return;
         try {
-          const [stats, xp, level, cells, name] = await Promise.all([
+          const [stats, xp, level, cells, name, dead] = await Promise.all([
             nft.getStats(l.tokenId),
             nft.getExperience(l.tokenId),
             nft.getLevel(l.tokenId),
             nft.getClosedCells(l.tokenId),
             nft.tokenName(l.tokenId),
+            nft.eliminated(l.tokenId),
           ]);
           statsCache.set(tid, {
             str:   stats.strength.toNumber(),
@@ -1268,9 +1295,10 @@
             level: level.toNumber(),
             cells: cells.toNumber(),
             name:  name || '',
+            eliminated: dead,
           });
         } catch (_) {
-          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, name: '' });
+          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, name: '', eliminated: false });
         }
       }));
     }
@@ -1330,13 +1358,17 @@
         const lastSale  = lastSaleCache.get(l.nftContract.toLowerCase() + ':' + tid) || null;
         const displayName = s.name ? s.name : 'CHAD #' + tid;
 
+        const isDead = s.eliminated;
+
         const card = document.createElement('div');
-        card.className = 'nft-card';
+        card.className = 'nft-card' + (isDead ? ' eliminated-card' : '');
         card.innerHTML = `
           <div class="nft-card-thumb" data-token="${tid}">
             <img src="${imgSrc}" alt="${displayName}" onerror="this.style.display='none'">
+            ${isDead ? '<div class="eliminated-overlay">ELIMINATED</div>' : ''}
           </div>
           <div class="nft-card-body">
+            ${isDead ? '<div class="eliminated-badge">ELIMINATED</div>' : ''}
             ${isOwn ? '<div class="my-listing-badge">YOUR LISTING</div>' : ''}
             <div class="nft-card-name" data-token="${tid}">CHAD #${tid}${s.name ? ' — ' + s.name : ''}</div>
             <div class="stat-badges">
@@ -1358,8 +1390,8 @@
               </div>
               <button class="delist-btn" data-contract="${l.nftContract}" data-token="${tid}">DELIST</button>
             ` : `
-              <button class="buy-btn" data-contract="${l.nftContract}" data-token="${tid}" data-price="${l.price}">
-                ${userAddress ? 'BUY' : 'CONNECT TO BUY'}
+              <button class="buy-btn" data-contract="${l.nftContract}" data-token="${tid}" data-price="${l.price}" ${isDead ? 'disabled' : ''}>
+                ${isDead ? 'ELIMINATED' : (userAddress ? 'BUY' : 'CONNECT TO BUY')}
               </button>
             `}
           </div>`;
@@ -1739,15 +1771,21 @@
         await Promise.all(checks);
 
         sellToken.innerHTML = '<option value="">Select token...</option>';
+        let listable = 0;
         for (const tid of owned) {
-          const name = await nft.tokenName(tid).catch(() => '');
+          const [name, dead] = await Promise.all([
+            nft.tokenName(tid).catch(() => ''),
+            nft.eliminated(tid).catch(() => false),
+          ]);
+          if (dead) continue;
           const opt  = document.createElement('option');
           opt.value       = tid;
           opt.textContent = name || 'CHAD #' + tid;
           sellToken.appendChild(opt);
+          listable++;
         }
-        if (owned.length === 0) {
-          sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
+        if (listable === 0) {
+          sellToken.innerHTML = '<option value="">No eligible Chads in wallet</option>';
         }
       } catch (err) {
         console.error('populateSellTokens error:', err);
