@@ -80,7 +80,11 @@ async function main() {
   }
 
   if (cfg.gamble) {
-    await verify(cfg.gamble, [cfg.lastChad], "Gamble");
+    // Gamble(address lastChadAddress, address _oracle) — read oracle() to get the constructor arg
+    const oracleAbi = ['function oracle() view returns (address)'];
+    const gambleContract = new hre.ethers.Contract(cfg.gamble, oracleAbi, hre.ethers.provider);
+    const gambleOracle = await gambleContract.oracle();
+    await verify(cfg.gamble, [cfg.lastChad, gambleOracle], "Gamble");
   } else {
     console.log("\nSkipping Gamble — GAMBLE_ADDRESS not set in js/config.js");
   }

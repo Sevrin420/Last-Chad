@@ -20,7 +20,7 @@
  *
  * Env vars:
  *   PRIVATE_KEY      — deployer wallet
- *   ORACLE_ADDRESS   — Cloudflare Worker public key (optional but recommended)
+ *   ORACLE_ADDRESS   — Cloudflare Worker public key (REQUIRED for Gamble constructor)
  */
 
 const hre  = require("hardhat");
@@ -36,19 +36,21 @@ const MARKET_WIRE_ABI = [
   'function setLastChadContract(address _lastChad) external',
 ];
 
-const SET_ORACLE_ABI = [
-  'function setOracle(address oracle) external',
-];
-
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   const network    = hre.network.name;
+
+  const oracleAddress = process.env.ORACLE_ADDRESS;
+  if (!oracleAddress || !hre.ethers.isAddress(oracleAddress)) {
+    throw new Error("ORACLE_ADDRESS env var is required (non-zero address). Gamble requires oracle at deploy.");
+  }
 
   console.log("\n╔════════════════════════════════════════════════════════════╗");
   console.log("║         Last Chad — Full Protocol Deploy                  ║");
   console.log("╚════════════════════════════════════════════════════════════╝");
   console.log(`  Network:   ${network}`);
-  console.log(`  Deployer:  ${deployer.address}\n`);
+  console.log(`  Deployer:  ${deployer.address}`);
+  console.log(`  Oracle:    ${oracleAddress}\n`);
 
   // ── 1. LastChad ──────────────────────────────────────────────────────────
   const baseURI = "https://lastchad.xyz/metadata/";
@@ -84,10 +86,10 @@ async function main() {
   const marketAddress = await market.getAddress();
   console.log("     ✓ Market:", marketAddress);
 
-  // ── 5. Gamble ────────────────────────────────────────────────────────────
+  // ── 5. Gamble (oracle required at construction) ─────────────────────────
   console.log("\n5/5  Deploying Gamble...");
   const Gamble = await hre.ethers.getContractFactory("Gamble");
-  const gamble = await Gamble.deploy(lastChadAddress);
+  const gamble = await Gamble.deploy(lastChadAddress, oracleAddress);
   await gamble.waitForDeployment();
   const gambleAddress = await gamble.getAddress();
   console.log("     ✓ Gamble:", gambleAddress);
@@ -134,20 +136,11 @@ async function main() {
   await tx.wait();
   console.log("  Market.setLastChadContract(LastChad)     ✓");
 
-  // Oracle for QuestRewards and Gamble
-  const oracleAddress = process.env.ORACLE_ADDRESS;
-  if (oracleAddress && hre.ethers.isAddress(oracleAddress)) {
-    tx = await questRewards.setOracle(oracleAddress);
-    await tx.wait();
-    console.log("  QuestRewards.setOracle                  ✓ →", oracleAddress);
-
-    const gambleOracle = new hre.ethers.Contract(gambleAddress, SET_ORACLE_ABI, deployer);
-    tx = await gambleOracle.setOracle(oracleAddress);
-    await tx.wait();
-    console.log("  Gamble.setOracle                        ✓ →", oracleAddress);
-  } else {
-    console.warn("  ⚠ Oracle not set — add ORACLE_ADDRESS env var");
-  }
+  // Oracle for QuestRewards (Gamble oracle was set in constructor)
+  tx = await questRewards.setOracle(oracleAddress);
+  await tx.wait();
+  console.log("  QuestRewards.setOracle                  ✓ →", oracleAddress);
+  console.log("  Gamble.oracle (set at deploy)            ✓ →", oracleAddress);
 
   // ── Seed quest configs ─────────────────────────────────────────────────
   console.log("\n── Seeding quest configs ─────────────────────────────────");
@@ -248,7 +241,7 @@ async function main() {
   console.log(`  QuestRewards:    ${questRewardsAddress}`);
   console.log(`  Market:          ${marketAddress}`);
   console.log(`  Gamble:          ${gambleAddress}`);
-  console.log(`  Oracle:          ${oracleAddress ? "✓  " + oracleAddress : "⚠  not set"}`);
+  console.log(`  Oracle:          ✓  ${oracleAddress}`);
   console.log("");
   console.log("  Wiring:");
   console.log("    LastChad ← authorized → QuestRewards  ✓");

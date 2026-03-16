@@ -88,6 +88,7 @@ const MARKET_ABI = [
 
 const GAMBLE_ABI = [
   'function lastChad() view returns (address)',
+  'function oracle() view returns (address)',
   'function minWager() view returns (uint256)',
   'function maxWager() view returns (uint256)',
   'function owner() view returns (address)',
@@ -163,8 +164,12 @@ async function main() {
       if (addr.toLowerCase() !== cfg.lastChad.toLowerCase()) throw new Error(`points to ${addr}`);
       return "correct";
     }));
-    await check("minWager()",              () => gmbl.minWager().then(v => hre.ethers.formatEther(v) + " AVAX"));
-    await check("maxWager()",              () => gmbl.maxWager().then(v => hre.ethers.formatEther(v) + " AVAX"));
+    await check("oracle() is set",         () => gmbl.oracle().then(addr => {
+      if (addr === "0x0000000000000000000000000000000000000000") throw new Error("oracle not set");
+      return addr;
+    }));
+    await check("minWager()",              () => gmbl.minWager().then(v => v.toString()));
+    await check("maxWager()",              () => gmbl.maxWager().then(v => v.toString()));
   } else {
     console.log("\n[5/5] Gamble — skipped (GAMBLE_ADDRESS not set)");
   }
