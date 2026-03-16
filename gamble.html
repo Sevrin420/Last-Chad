@@ -951,9 +951,9 @@
         _maxWager = (await gambleRead.maxWager()).toNumber();
       } catch (e) { /* use defaults */ }
 
-      let totalSupply;
+      let balance;
       try {
-        totalSupply = (await contract.totalSupply()).toNumber();
+        balance = (await contract.balanceOf(addr)).toNumber();
       } catch (e) {
         loadMsg.textContent = 'Error loading NFTs: ' + e.message;
         loadMsg.style.color = '#e53935';
@@ -961,14 +961,12 @@
       }
 
       const ownedTokens = [];
-      for (let id = 1; id <= totalSupply; id++) {
+      for (let idx = 0; idx < balance; idx++) {
         try {
-          const owner = await contract.ownerOf(id);
-          if (owner.toLowerCase() === addr.toLowerCase()) {
-            const cells = (await contract.getCells(id)).toNumber();
-            ownedTokens.push({ id, cells });
-          }
-        } catch (e) { /* burned or error */ }
+          const id = (await contract.tokenOfOwnerByIndex(addr, idx)).toNumber();
+          const cells = (await contract.getCells(id)).toNumber();
+          ownedTokens.push({ id, cells });
+        } catch (e) { /* error */ }
       }
 
       loadMsg.remove();

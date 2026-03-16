@@ -235,7 +235,7 @@
     import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
 
     const ABI = [
-      'function totalSupply() view returns (uint256)',
+      'function totalMinted() view returns (uint256)',
       'function eliminatedCount() view returns (uint256)',
       'function getCullCount() view returns (uint256)',
       'function cullAnnouncedAt() view returns (uint256)',
@@ -274,7 +274,7 @@
 
       try {
         const [total, elimCount, cullCount, cullAnnounced, cullAfter, cullModeVal, cullVal] = await Promise.all([
-          nft.totalSupply(),
+          nft.totalMinted(),
           nft.eliminatedCount(),
           nft.getCullCount(),
           nft.cullAnnouncedAt(),

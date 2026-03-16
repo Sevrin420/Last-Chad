@@ -809,10 +809,10 @@
       'function totalSupply() view returns (uint256)',
       'function balanceOf(address owner) view returns (uint256)',
       'function ownerOf(uint256 tokenId) view returns (address)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
       'function tokenURI(uint256 tokenId) view returns (string)',
       'function MAX_SUPPLY() view returns (uint256)',
       'function getStats(uint256 tokenId) view returns (uint32, uint32, uint32, uint32, bool)',
-      'function getExperience(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)'
     ];
 
@@ -942,14 +942,12 @@
       try {
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        const totalSupply = (await contract.totalSupply()).toNumber();
+        const balance = (await contract.balanceOf(userAddress)).toNumber();
 
-        for (let tokenId = 1; tokenId <= totalSupply; tokenId++) {
+        for (let idx = 0; idx < balance; idx++) {
           try {
-            const owner = await contract.ownerOf(tokenId);
-            if (owner.toLowerCase() === userAddress.toLowerCase()) {
-              ownedTokens.push(tokenId);
-            }
+            const tokenId = (await contract.tokenOfOwnerByIndex(userAddress, idx)).toNumber();
+            ownedTokens.push(tokenId);
           } catch (e) {}
         }
 

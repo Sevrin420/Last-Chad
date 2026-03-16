@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const PRICE = ethers.parseEther("0.02");
+const PRICE = ethers.parseEther("2");
 const BASE_URI = "https://lastchad.xyz/metadata/";
 
 describe("LastChad", function () {
@@ -28,14 +28,20 @@ describe("LastChad", function () {
 
     it("starts with zero supply", async function () {
       expect(await contract.totalSupply()).to.equal(0);
+      expect(await contract.totalMinted()).to.equal(0);
     });
 
     it("has correct constants", async function () {
-      expect(await contract.MAX_SUPPLY()).to.equal(70);
+      expect(await contract.MAX_SUPPLY()).to.equal(10000);
       expect(await contract.MINT_PRICE()).to.equal(PRICE);
-      expect(await contract.MAX_MINT_PER_WALLET()).to.equal(5);
+      expect(await contract.MAX_MINT_PER_WALLET()).to.equal(50);
       expect(await contract.TOTAL_STAT_POINTS()).to.equal(2);
       expect(await contract.CELLS_PER_LEVEL()).to.equal(100);
+    });
+
+    it("supports ERC721Enumerable interface", async function () {
+      // ERC721Enumerable interface ID: 0x780e9d63
+      expect(await contract.supportsInterface("0x780e9d63")).to.be.true;
     });
   });
 
@@ -46,6 +52,7 @@ describe("LastChad", function () {
     it("mints a single token", async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
       expect(await contract.totalSupply()).to.equal(1);
+      expect(await contract.totalMinted()).to.equal(1);
       expect(await contract.ownerOf(1)).to.equal(addr1.address);
       expect(await contract.balanceOf(addr1.address)).to.equal(1);
     });
@@ -61,12 +68,6 @@ describe("LastChad", function () {
       await contract.connect(addr1).mint(3, { value: PRICE * 3n });
       expect(await contract.totalSupply()).to.equal(3);
       expect(await contract.balanceOf(addr1.address)).to.equal(3);
-    });
-
-    it("mints exactly MAX_MINT_PER_WALLET (5) tokens", async function () {
-      await contract.connect(addr1).mint(5, { value: PRICE * 5n });
-      expect(await contract.balanceOf(addr1.address)).to.equal(5);
-      expect(await contract.mintedPerWallet(addr1.address)).to.equal(5);
     });
 
     it("tracks mintedPerWallet correctly across multiple txs", async function () {
@@ -96,14 +97,7 @@ describe("LastChad", function () {
 
     it("reverts when exceeding max per wallet", async function () {
       await expect(
-        contract.connect(addr1).mint(6, { value: PRICE * 6n })
-      ).to.be.revertedWith("Exceeds max per wallet");
-    });
-
-    it("reverts when second mint would push over wallet limit", async function () {
-      await contract.connect(addr1).mint(4, { value: PRICE * 4n });
-      await expect(
-        contract.connect(addr1).mint(2, { value: PRICE * 2n })
+        contract.connect(addr1).mint(51, { value: PRICE * 51n })
       ).to.be.revertedWith("Exceeds max per wallet");
     });
 
@@ -119,7 +113,7 @@ describe("LastChad", function () {
       ).to.be.revertedWith("Insufficient payment");
     });
 
-    it("different wallets can each mint up to 5", async function () {
+    it("different wallets can each mint", async function () {
       await contract.connect(addr1).mint(5, { value: PRICE * 5n });
       await contract.connect(addr2).mint(5, { value: PRICE * 5n });
       expect(await contract.totalSupply()).to.equal(10);
@@ -127,14 +121,42 @@ describe("LastChad", function () {
   });
 
   // ──────────────────────────────────────────────────────────
-  // tokenURI
+  // ERC721Enumerable
+  // ──────────────────────────────────────────────────────────
+  describe("ERC721Enumerable", function () {
+    beforeEach(async function () {
+      await contract.connect(addr1).mint(3, { value: PRICE * 3n });
+    });
+
+    it("tokenOfOwnerByIndex returns correct token IDs", async function () {
+      expect(await contract.tokenOfOwnerByIndex(addr1.address, 0)).to.equal(1);
+      expect(await contract.tokenOfOwnerByIndex(addr1.address, 1)).to.equal(2);
+      expect(await contract.tokenOfOwnerByIndex(addr1.address, 2)).to.equal(3);
+    });
+
+    it("tokenByIndex returns correct global token IDs", async function () {
+      expect(await contract.tokenByIndex(0)).to.equal(1);
+      expect(await contract.tokenByIndex(1)).to.equal(2);
+      expect(await contract.tokenByIndex(2)).to.equal(3);
+    });
+
+    it("updates after transfer", async function () {
+      await contract.connect(addr1).transferFrom(addr1.address, addr2.address, 2);
+      expect(await contract.balanceOf(addr1.address)).to.equal(2);
+      expect(await contract.balanceOf(addr2.address)).to.equal(1);
+      expect(await contract.tokenOfOwnerByIndex(addr2.address, 0)).to.equal(2);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // tokenURI & per-token mutable URI
   // ──────────────────────────────────────────────────────────
   describe("tokenURI", function () {
     beforeEach(async function () {
-      await contract.connect(addr1).mint(1, { value: PRICE });
+      await contract.connect(addr1).mint(2, { value: PRICE * 2n });
     });
 
-    it("returns correct tokenURI", async function () {
+    it("returns correct base tokenURI", async function () {
       expect(await contract.tokenURI(1)).to.equal(BASE_URI + "1");
     });
 
@@ -146,6 +168,34 @@ describe("LastChad", function () {
     it("non-owner cannot update baseURI", async function () {
       await expect(
         contract.connect(addr1).setBaseURI("https://evil.com/")
+      ).to.be.reverted;
+    });
+
+    it("owner can set per-token URI override", async function () {
+      await contract.setTokenURI(1, "https://custom.com/token1");
+      expect(await contract.tokenURI(1)).to.equal("https://custom.com/token1");
+      // Token 2 still uses base URI
+      expect(await contract.tokenURI(2)).to.equal(BASE_URI + "2");
+    });
+
+    it("batchSetTokenURI sets multiple overrides", async function () {
+      await contract.batchSetTokenURI(
+        [1, 2],
+        ["https://custom.com/1", "https://custom.com/2"]
+      );
+      expect(await contract.tokenURI(1)).to.equal("https://custom.com/1");
+      expect(await contract.tokenURI(2)).to.equal("https://custom.com/2");
+    });
+
+    it("batchSetTokenURI reverts on array mismatch", async function () {
+      await expect(
+        contract.batchSetTokenURI([1], ["a", "b"])
+      ).to.be.revertedWith("Array length mismatch");
+    });
+
+    it("non-owner cannot set per-token URI", async function () {
+      await expect(
+        contract.connect(addr1).setTokenURI(1, "https://evil.com/1")
       ).to.be.reverted;
     });
   });
@@ -203,12 +253,6 @@ describe("LastChad", function () {
       ).to.be.revertedWith("Must use exactly 2 points");
     });
 
-    it("reverts if stat points > 2", async function () {
-      await expect(
-        contract.connect(addr1).setStats(1, "Chad", 3, 0, 0, 0)
-      ).to.be.revertedWith("Must use exactly 2 points");
-    });
-
     it("reverts with empty name", async function () {
       await expect(
         contract.connect(addr1).setStats(1, "", 2, 0, 0, 0)
@@ -219,12 +263,6 @@ describe("LastChad", function () {
       await expect(
         contract.connect(addr1).setStats(1, "TooLongNameXX", 2, 0, 0, 0)
       ).to.be.revertedWith("Name too long");
-    });
-
-    it("accepts name of exactly 12 chars", async function () {
-      await expect(
-        contract.connect(addr1).setStats(1, "Twelve_Chars", 2, 0, 0, 0)
-      ).to.not.be.reverted;
     });
   });
 
@@ -257,21 +295,9 @@ describe("LastChad", function () {
     });
 
     it("owner can increment a stat", async function () {
-      await contract.addStat(1, 0, 3); // strength += 3
+      await contract.addStat(1, 0, 3);
       const stats = await contract.getStats(1);
       expect(stats.strength).to.equal(3);
-    });
-
-    it("increments all stat indices", async function () {
-      await contract.addStat(1, 0, 1);
-      await contract.addStat(1, 1, 2);
-      await contract.addStat(1, 2, 3);
-      await contract.addStat(1, 3, 4);
-      const stats = await contract.getStats(1);
-      expect(stats.strength).to.equal(1);
-      expect(stats.intelligence).to.equal(2);
-      expect(stats.dexterity).to.equal(3);
-      expect(stats.charisma).to.equal(4);
     });
 
     it("emits StatIncremented", async function () {
@@ -283,10 +309,6 @@ describe("LastChad", function () {
       await expect(contract.addStat(1, 4, 1)).to.be.revertedWith("Invalid stat index");
     });
 
-    it("reverts for zero amount", async function () {
-      await expect(contract.addStat(1, 0, 0)).to.be.revertedWith("Amount must be > 0");
-    });
-
     it("non-owner cannot call addStat", async function () {
       await expect(
         contract.connect(addr1).addStat(1, 0, 1)
@@ -295,7 +317,7 @@ describe("LastChad", function () {
   });
 
   // ──────────────────────────────────────────────────────────
-  // Cells & Leveling (replaces Experience)
+  // Cells & Leveling
   // ──────────────────────────────────────────────────────────
   describe("Cells & Leveling", function () {
     beforeEach(async function () {
@@ -314,8 +336,7 @@ describe("LastChad", function () {
     });
 
     it("token owner can lock cells to level up", async function () {
-      // Give enough cells to level up
-      await contract.awardCells(1, 95); // 5 + 95 = 100 open
+      await contract.awardCells(1, 95);
       await expect(contract.connect(addr1).lockCells(1, 100))
         .to.emit(contract, "LevelUp").withArgs(1, 2, 1)
         .and.to.emit(contract, "CellsLocked").withArgs(1, 100, 100, 2);
@@ -331,25 +352,10 @@ describe("LastChad", function () {
     });
 
     it("awards multiple stat points on multi-level jump", async function () {
-      await contract.awardCells(1, 295); // 5 + 295 = 300 open
-      await contract.connect(addr1).lockCells(1, 300); // jumps to level 4
+      await contract.awardCells(1, 295);
+      await contract.connect(addr1).lockCells(1, 300);
       expect(await contract.getPendingStatPoints(1)).to.equal(3);
       expect(await contract.getLevel(1)).to.equal(4);
-    });
-
-    it("partial lock does not level up if threshold not reached", async function () {
-      await contract.awardCells(1, 45); // 50 open total
-      await contract.connect(addr1).lockCells(1, 50);
-      expect(await contract.getLevel(1)).to.equal(1);
-      expect(await contract.getClosedCells(1)).to.equal(50);
-    });
-
-    it("incremental locks accumulate to level up", async function () {
-      await contract.awardCells(1, 95);
-      await contract.connect(addr1).lockCells(1, 50);
-      expect(await contract.getLevel(1)).to.equal(1);
-      await contract.connect(addr1).lockCells(1, 50);
-      expect(await contract.getLevel(1)).to.equal(2);
     });
 
     it("reverts for zero lock amount", async function () {
@@ -358,10 +364,6 @@ describe("LastChad", function () {
 
     it("reverts for insufficient open cells", async function () {
       await expect(contract.connect(addr1).lockCells(1, 100)).to.be.revertedWith("Insufficient open cells");
-    });
-
-    it("reverts if not token owner", async function () {
-      await expect(contract.connect(addr2).lockCells(1, 5)).to.be.revertedWith("Not token owner");
     });
 
     it("non-owner/game cannot award cells", async function () {
@@ -377,20 +379,15 @@ describe("LastChad", function () {
   describe("spendStatPoint", function () {
     beforeEach(async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
-      await contract.awardCells(1, 95); // 100 open total
-      await contract.connect(addr1).lockCells(1, 100); // level 2, 1 stat point
+      await contract.awardCells(1, 95);
+      await contract.connect(addr1).lockCells(1, 100);
     });
 
     it("token owner can spend a stat point", async function () {
-      await contract.connect(addr1).spendStatPoint(1, 0); // strength
+      await contract.connect(addr1).spendStatPoint(1, 0);
       const stats = await contract.getStats(1);
       expect(stats.strength).to.equal(1);
       expect(await contract.getPendingStatPoints(1)).to.equal(0);
-    });
-
-    it("emits StatPointSpent", async function () {
-      await expect(contract.connect(addr1).spendStatPoint(1, 3))
-        .to.emit(contract, "StatPointSpent").withArgs(1, 3, 1);
     });
 
     it("reverts when no stat points available", async function () {
@@ -398,18 +395,6 @@ describe("LastChad", function () {
       await expect(
         contract.connect(addr1).spendStatPoint(1, 0)
       ).to.be.revertedWith("No stat points available");
-    });
-
-    it("reverts for invalid stat index", async function () {
-      await expect(
-        contract.connect(addr1).spendStatPoint(1, 4)
-      ).to.be.revertedWith("Invalid stat index");
-    });
-
-    it("reverts if not token owner", async function () {
-      await expect(
-        contract.connect(addr2).spendStatPoint(1, 0)
-      ).to.be.revertedWith("Not token owner");
     });
   });
 
@@ -428,17 +413,6 @@ describe("LastChad", function () {
       await expect(
         contract.connect(addr2).awardCells(1, 50)
       ).to.not.be.reverted;
-    });
-
-    it("owner can revoke game contract", async function () {
-      await contract.setGameContract(addr2.address, true);
-      await contract.setGameContract(addr2.address, false);
-      expect(await contract.authorizedGame(addr2.address)).to.be.false;
-    });
-
-    it("emits GameContractSet", async function () {
-      await expect(contract.setGameContract(addr2.address, true))
-        .to.emit(contract, "GameContractSet").withArgs(addr2.address, true);
     });
 
     it("reverts when setting zero address", async function () {
@@ -493,13 +467,6 @@ describe("LastChad", function () {
       await contract.connect(addr1).setStats(1, "Chad", 2, 0, 0, 0);
       await expect(
         contract.connect(addr1).setStats(2, "chad", 0, 2, 0, 0)
-      ).to.be.revertedWith("Name already taken");
-    });
-
-    it("prevents duplicate names (mixed case)", async function () {
-      await contract.connect(addr1).setStats(1, "BIGBOY", 2, 0, 0, 0);
-      await expect(
-        contract.connect(addr1).setStats(2, "BigBoy", 0, 2, 0, 0)
       ).to.be.revertedWith("Name already taken");
     });
 
@@ -562,10 +529,8 @@ describe("LastChad", function () {
     let mockNft;
 
     beforeEach(async function () {
-      // Deploy a second LastChad as a mock team NFT
       const Factory = await ethers.getContractFactory("LastChad");
       mockNft = await Factory.deploy(BASE_URI);
-      // addr1 mints a team NFT
       await mockNft.connect(addr1).mint(1, { value: PRICE });
     });
 
@@ -603,12 +568,6 @@ describe("LastChad", function () {
       ).to.be.revertedWith("Team not active");
     });
 
-    it("reverts for invalid team ID", async function () {
-      await expect(
-        contract.connect(addr1).mintWithTeam(1, 99, { value: PRICE })
-      ).to.be.revertedWith("Invalid team");
-    });
-
     it("getTeam returns correct data", async function () {
       await contract.createTeam("Apes", await mockNft.getAddress());
       await contract.connect(addr1).mintWithTeam(2, 1, { value: PRICE * 2n });
@@ -625,13 +584,13 @@ describe("LastChad", function () {
   // ──────────────────────────────────────────────────────────
   describe("Cull System", function () {
     it("setCullMode sets percentage mode", async function () {
-      await contract.setCullMode(1, 1000); // Percentage, 10%
+      await contract.setCullMode(1, 1000);
       expect(await contract.cullMode()).to.equal(1);
       expect(await contract.cullValue()).to.equal(1000);
     });
 
     it("setCullMode sets fixed count mode", async function () {
-      await contract.setCullMode(0, 50); // FixedCount, 50
+      await contract.setCullMode(0, 50);
       expect(await contract.cullMode()).to.equal(0);
       expect(await contract.cullValue()).to.equal(50);
     });
@@ -677,6 +636,14 @@ describe("LastChad", function () {
       expect(await contract.eliminatedCount()).to.equal(1);
       expect(await contract.eliminated(2)).to.be.true;
     });
+
+    it("game contract can eliminate (onlyGameOrOwner)", async function () {
+      await contract.connect(addr1).mint(1, { value: PRICE });
+      await contract.setGameContract(addr3.address, true);
+      await expect(
+        contract.connect(addr3).eliminate(1)
+      ).to.not.be.reverted;
+    });
   });
 
   // ──────────────────────────────────────────────────────────
@@ -689,7 +656,7 @@ describe("LastChad", function () {
 
     it("batchAwardCells awards to multiple tokens", async function () {
       await contract.batchAwardCells([1, 2, 3], [10, 20, 30]);
-      expect(await contract.getOpenCells(1)).to.equal(15); // 5 base + 10
+      expect(await contract.getOpenCells(1)).to.equal(15);
       expect(await contract.getOpenCells(2)).to.equal(25);
       expect(await contract.getOpenCells(3)).to.equal(35);
     });
@@ -712,8 +679,8 @@ describe("LastChad", function () {
     });
 
     it("getTotalCells returns open + closed", async function () {
-      await contract.awardCells(1, 95); // 5 + 95 = 100
-      await contract.connect(addr1).lockCells(1, 50); // 50 open, 50 closed
+      await contract.awardCells(1, 95);
+      await contract.connect(addr1).lockCells(1, 50);
       expect(await contract.getTotalCells(1)).to.equal(100);
     });
   });

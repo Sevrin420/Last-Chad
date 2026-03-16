@@ -142,6 +142,13 @@ contract LastChadItems is ERC1155, Ownable {
         _mintItem(to, itemId, quantity);
     }
 
+    function batchAirdrop(address[] calldata recipients, uint256 itemId, uint256[] calldata quantities) external onlyOwner {
+        require(recipients.length == quantities.length, "Array length mismatch");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            _mintItem(recipients[i], itemId, quantities[i]);
+        }
+    }
+
     /**
      * @notice Update base metadata URI.
      */

@@ -757,7 +757,7 @@
       <!-- Price -->
       <div class="price-row">
         <span class="price-label">PRICE</span>
-        <span class="price-value">0.02<span class="price-eth"> AVAX</span></span>
+        <span class="price-value">2<span class="price-eth"> AVAX</span></span>
       </div>
 
       <!-- Quantity -->
@@ -772,7 +772,7 @@
             <div class="slider-track">
               <div class="slider-fill-bar" id="sliderFill" style="width: 0%"></div>
             </div>
-            <input type="range" min="1" max="5" value="1" id="qtySlider">
+            <input type="range" min="1" max="50" value="1" id="qtySlider">
           </div>
           <button class="qty-btn" id="qtyPlus">+</button>
         </div>
@@ -823,15 +823,15 @@
     import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
 
     // ========== CONFIG ==========
-    const PRICE = 0.02;
-    const MAX_SUPPLY = 70;
-    const MAX_MINT_PER_WALLET = 5;
+    const PRICE = 2;
+    const MAX_SUPPLY = 10000;
+    const MAX_MINT_PER_WALLET = 50;
 
     // Contract ABI — only the functions called in this file
     const CONTRACT_ABI = [
       'function mint(uint256 quantity) external payable',
       'function mintWithTeam(uint256 quantity, uint256 teamId) external payable',
-      'function totalSupply() external view returns (uint256)',
+      'function totalMinted() external view returns (uint256)',
       'function getTeamCount() external view returns (uint256)',
       'function getTeam(uint256 teamId) external view returns (string name, address nftContract, bool active, uint256 memberCount)',
     ];
@@ -868,7 +868,7 @@
       try {
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        const supply = await contract.totalSupply();
+        const supply = await contract.totalMinted();
         minted = supply.toNumber();
         const remaining = MAX_SUPPLY - minted;
 

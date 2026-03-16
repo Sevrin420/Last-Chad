@@ -654,18 +654,16 @@
       const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
 
-      let totalSupply;
-      try { totalSupply = (await contract.totalSupply()).toNumber(); }
+      let balance;
+      try { balance = (await contract.balanceOf(userAddress)).toNumber(); }
       catch { grid.innerHTML = '<div style="color:#e53935;font-size:0.4rem">Error loading NFTs</div>'; return; }
 
       const owned = [];
-      for (let id = 1; id <= totalSupply; id++) {
+      for (let idx = 0; idx < balance; idx++) {
         try {
-          const owner = await contract.ownerOf(id);
-          if (owner.toLowerCase() === userAddress.toLowerCase()) {
-            const cells = (await contract.getCells(id)).toNumber();
-            owned.push({ id, cells });
-          }
+          const id = (await contract.tokenOfOwnerByIndex(userAddress, idx)).toNumber();
+          const cells = (await contract.getCells(id)).toNumber();
+          owned.push({ id, cells });
         } catch {}
       }
 

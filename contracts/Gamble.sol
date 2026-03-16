@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 interface ILastChad {
     function ownerOf(uint256 tokenId) external view returns (address);
     function eliminated(uint256 tokenId) external view returns (bool);
+    function isActive(uint256 tokenId) external view returns (bool);
     function spendCells(uint256 tokenId, uint256 amount) external;
     function awardCells(uint256 tokenId, uint256 amount) external;
 }
@@ -78,6 +79,7 @@ contract Gamble {
     function flip(uint256 tokenId, uint256 wager) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!lastChad.eliminated(tokenId), "Chad eliminated");
+        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
         require(wager >= minWager && wager <= maxWager, "Wager out of range");
 
         lastChad.spendCells(tokenId, wager);
@@ -112,6 +114,7 @@ contract Gamble {
     ) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!lastChad.eliminated(tokenId), "Chad eliminated");
+        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
         require(wager > 0, "Invalid wager");
         require(!usedNonces[nonce], "Nonce already used");
 

@@ -1016,12 +1016,12 @@
     const ERC721_ABI = [
       'function balanceOf(address owner) view returns (uint256)',
       'function totalSupply() view returns (uint256)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
       'function isApprovedForAll(address owner, address operator) view returns (bool)',
       'function setApprovalForAll(address operator, bool approved)',
       'function getApproved(uint256 tokenId) view returns (address)',
       'function ownerOf(uint256 tokenId) view returns (address)',
       'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
-      'function getExperience(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
       'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
@@ -1757,13 +1757,14 @@
         const nft   = new ethers.Contract(COLLECTIONS.chads.address, ERC721_ABI, readProvider);
         const bal   = await nft.balanceOf(userAddress);
         if (bal.gt(0)) {
-          const total  = await nft.totalSupply();
+          const count = bal.toNumber();
           const checks = [];
-          for (let i = 1; i <= total.toNumber(); i++) {
+          for (let idx = 0; idx < count; idx++) {
             checks.push(
-              nft.ownerOf(i)
-                .then(async o => {
-                  if (o.toLowerCase() !== userAddress.toLowerCase()) return;
+              nft.tokenOfOwnerByIndex(userAddress, idx)
+                .then(async tokenId => {
+                  const i = tokenId.toNumber();
+                  const o = userAddress; // known owner
                   const name = await nft.tokenName(i).catch(() => '');
                   let price = null;
                   if (marketCt) {
@@ -1880,16 +1881,14 @@
           sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
           return;
         }
-        // Loop over totalSupply (max 70 on test contract) to find owned tokens.
-        // No ERC721Enumerable needed. For 5555-token contract, add ERC721Enumerable
-        // to LastChad.sol so tokenOfOwnerByIndex is available instead.
-        const total = await nft.totalSupply();
+        // Use ERC721Enumerable tokenOfOwnerByIndex for O(owned) lookup
+        const count = bal.toNumber();
         const owned = [];
         const checks = [];
-        for (let i = 1; i <= total.toNumber(); i++) {
+        for (let idx = 0; idx < count; idx++) {
           checks.push(
-            nft.ownerOf(i)
-              .then(o => { if (o.toLowerCase() === userAddress.toLowerCase()) owned.push(i); })
+            nft.tokenOfOwnerByIndex(userAddress, idx)
+              .then(tid => { owned.push(tid.toNumber()); })
               .catch(() => {})
           );
         }

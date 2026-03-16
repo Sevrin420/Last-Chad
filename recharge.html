@@ -626,7 +626,8 @@
     import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
 
     const CONTRACT_ABI = [
-      'function totalSupply() view returns (uint256)',
+      'function balanceOf(address owner) view returns (uint256)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
       'function ownerOf(uint256 tokenId) view returns (address)',
       'function getOpenCells(uint256 tokenId) view returns (uint256)',
       'function getClosedCells(uint256 tokenId) view returns (uint256)',
@@ -697,15 +698,15 @@
       const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
-      let total;
-      try { total = (await contract.totalSupply()).toNumber(); }
+      let balance;
+      try { balance = (await contract.balanceOf(userAddress)).toNumber(); }
       catch (e) { loadMsg.style.display = 'none'; connectPrompt.textContent = 'Error loading Chads'; connectPrompt.style.display = 'block'; return; }
 
       const owned = [];
-      for (let id = 1; id <= total; id++) {
+      for (let idx = 0; idx < balance; idx++) {
         try {
-          const owner = await contract.ownerOf(id);
-          if (owner.toLowerCase() === userAddress.toLowerCase()) owned.push(id);
+          const id = (await contract.tokenOfOwnerByIndex(userAddress, idx)).toNumber();
+          owned.push(id);
         } catch (_) {}
       }
 

@@ -924,14 +924,12 @@
       try {
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        const totalSupply = (await contract.totalSupply()).toNumber();
+        const balance = (await contract.balanceOf(userAddress)).toNumber();
 
-        for (let tokenId = 1; tokenId <= totalSupply; tokenId++) {
+        for (let idx = 0; idx < balance; idx++) {
           try {
-            const owner = await contract.ownerOf(tokenId);
-            if (owner.toLowerCase() === userAddress.toLowerCase()) {
-              ownedTokens.push(tokenId);
-            }
+            const tokenId = (await contract.tokenOfOwnerByIndex(userAddress, idx)).toNumber();
+            ownedTokens.push(tokenId);
           } catch (e) {}
         }
 

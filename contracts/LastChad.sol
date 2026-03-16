@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IERC721Minimal {
     function balanceOf(address owner) external view returns (uint256);
 }
 
-contract LastChad is ERC721, Ownable {
-    uint256 public constant MAX_SUPPLY = 70;
-    uint256 public constant MINT_PRICE = 0.02 ether; // 0.02 AVAX
+contract LastChad is ERC721Enumerable, Ownable {
+    uint256 public constant MAX_SUPPLY = 10000;
+    uint256 public constant MINT_PRICE = 2 ether; // 2 AVAX
     uint256 public constant TOTAL_STAT_POINTS = 2;
-    uint256 public constant MAX_MINT_PER_WALLET = 5;
+    uint256 public constant MAX_MINT_PER_WALLET = 50;
     uint256 public constant CELLS_PER_LEVEL = 100;
 
     struct Stats {
@@ -44,8 +44,9 @@ contract LastChad is ERC721, Ownable {
     uint256 public cullExecuteAfter;  // earliest timestamp the cull can execute
 
     // ── Core State ──
-    uint256 public totalSupply;
+    uint256 public totalMinted;  // sequential counter for token IDs
     string private _baseTokenURI;
+    mapping(uint256 => string) private _tokenURIs;  // per-token URI override
     mapping(uint256 => Stats) private _tokenStats;
     mapping(uint256 => string) public tokenName;
     mapping(bytes32 => bool) private _usedNames;             // keccak256(lowercase) → taken
@@ -87,13 +88,21 @@ contract LastChad is ERC721, Ownable {
     // ─────────────────────────────────────────────────────────
     // Transfer lock — block transfers while isActive
     // ─────────────────────────────────────────────────────────
-    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
+    function _update(address to, uint256 tokenId, address auth) internal override(ERC721Enumerable) returns (address) {
         address from = _ownerOf(tokenId);
         // Allow mints (from == address(0)) and burns, block transfers while active
         if (from != address(0) && to != address(0)) {
             require(!isActive[tokenId], "Token is active in quest/arcade");
         }
         return super._update(to, tokenId, auth);
+    }
+
+    function _increaseBalance(address account, uint128 value) internal override(ERC721Enumerable) {
+        super._increaseBalance(account, value);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721Enumerable) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 
     function setActive(uint256 tokenId, bool active) external onlyGameOrOwner {
@@ -145,17 +154,17 @@ contract LastChad is ERC721, Ownable {
 
     function _mintInternal(uint256 quantity, uint256 teamId) internal {
         require(quantity > 0, "Quantity must be > 0");
-        require(totalSupply + quantity <= MAX_SUPPLY, "Exceeds max supply");
+        require(totalMinted + quantity <= MAX_SUPPLY, "Exceeds max supply");
         require(mintedPerWallet[msg.sender] + quantity <= MAX_MINT_PER_WALLET, "Exceeds max per wallet");
         require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
 
         mintedPerWallet[msg.sender] += quantity;
         for (uint256 i = 0; i < quantity; i++) {
-            totalSupply++;
-            _safeMint(msg.sender, totalSupply);
-            _openCells[totalSupply] = 5;
+            totalMinted++;
+            _safeMint(msg.sender, totalMinted);
+            _openCells[totalMinted] = 5;
             if (teamId > 0) {
-                tokenTeam[totalSupply] = teamId;
+                tokenTeam[totalMinted] = teamId;
                 teamMemberCount[teamId]++;
             }
         }
@@ -240,7 +249,7 @@ contract LastChad is ERC721, Ownable {
 
     function getCullCount() public view returns (uint256) {
         if (cullMode == CullMode.FixedCount) return cullValue;
-        uint256 alive = totalSupply - eliminatedCount;
+        uint256 alive = totalMinted - eliminatedCount;
         return (alive * cullValue) / 10000;
     }
 
@@ -399,6 +408,26 @@ contract LastChad is ERC721, Ownable {
     /// @notice Get total cells (open + closed) for a token
     function getTotalCells(uint256 tokenId) external view returns (uint256) {
         return _openCells[tokenId] + _closedCells[tokenId];
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        _requireOwned(tokenId);
+        string memory _tokenURI = _tokenURIs[tokenId];
+        if (bytes(_tokenURI).length > 0) return _tokenURI;
+        return super.tokenURI(tokenId);
+    }
+
+    function setTokenURI(uint256 tokenId, string calldata uri) external onlyOwner {
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        _tokenURIs[tokenId] = uri;
+    }
+
+    function batchSetTokenURI(uint256[] calldata tokenIds, string[] calldata uris) external onlyOwner {
+        require(tokenIds.length == uris.length, "Array length mismatch");
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            require(_ownerOf(tokenIds[i]) != address(0), "Token does not exist");
+            _tokenURIs[tokenIds[i]] = uris[i];
+        }
     }
 
     function _baseURI() internal view override returns (string memory) {
