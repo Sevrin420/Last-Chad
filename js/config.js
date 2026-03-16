@@ -157,13 +157,20 @@ export const GAMBLE_ABI = [
   // Admin
   'function setOracle(address oracle) external',
   'function setWagerLimits(uint256 min, uint256 max) external',
+  // Two-tx settlement (poker, craps)
+  'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
+  'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
   // View
   'function minWager() view returns (uint256)',
   'function maxWager() view returns (uint256)',
   'function usedNonces(uint256 nonce) view returns (bool)',
+  'function wagerAmounts(uint256 nonce) view returns (uint256)',
+  'function nextNonce() view returns (uint256)',
   // Events
   'event CoinFlip(uint256 indexed tokenId, address indexed player, uint256 wager, bool won, bytes32 seed)',
   'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
+  'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
+  'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
 ];
 
 export const MARKET_ABI = [

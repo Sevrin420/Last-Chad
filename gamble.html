@@ -1240,57 +1240,17 @@
       'JACKS OR BETTER': 'jacks',
     };
 
-    let pokerDeck = [];
+    const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+
     let pokerHand = [];
     let pokerHeld = [false,false,false,false,false];
     let pokerPhase = 'idle'; // idle, dealt, done
     let pokerWager = 0;
+    let pokerNonce = null;   // nonce from commitWager
+    let pokerStack = 0;      // current bankroll tracked by worker
 
-    function createDeck() {
-      const d = [];
-      for (let s = 0; s < 4; s++)
-        for (let r = 0; r < 13; r++)
-          d.push({ rank: r, suit: s });
-      return d;
-    }
-
-    function shuffleDeck(d) {
-      for (let i = d.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [d[i], d[j]] = [d[j], d[i]];
-      }
-      return d;
-    }
-
-    function evaluateHand(cards) {
-      const ranks = cards.map(c => c.rank).sort((a,b) => a - b);
-      const suits = cards.map(c => c.suit);
-      const isFlush = suits.every(s => s === suits[0]);
-
-      let isStraight = false;
-      if (new Set(ranks).size === 5) {
-        if (ranks[4] - ranks[0] === 4) isStraight = true;
-        if (ranks[0]===0 && ranks[1]===1 && ranks[2]===2 && ranks[3]===3 && ranks[4]===12) isStraight = true;
-      }
-
-      const counts = {};
-      for (const r of ranks) counts[r] = (counts[r]||0) + 1;
-      const freq = Object.values(counts).sort((a,b) => b - a);
-
-      if (isFlush && isStraight && ranks[0]===8 && ranks[4]===12) return 'ROYAL FLUSH';
-      if (isFlush && isStraight) return 'STRAIGHT FLUSH';
-      if (freq[0]===4) return 'FOUR OF A KIND';
-      if (freq[0]===3 && freq[1]===2) return 'FULL HOUSE';
-      if (isFlush) return 'FLUSH';
-      if (isStraight) return 'STRAIGHT';
-      if (freq[0]===3) return 'THREE OF A KIND';
-      if (freq[0]===2 && freq[1]===2) return 'TWO PAIR';
-      if (freq[0]===2) {
-        const pairRank = parseInt(Object.entries(counts).find(([r,c]) => c===2)[0]);
-        if (pairRank >= 9) return 'JACKS OR BETTER';
-      }
-      return null;
-    }
+    // Deck creation, shuffling, and hand evaluation are handled server-side
+    // by the Worker to prevent manipulation. See /poker/deal and /poker/draw.
 
     // ── Poker: Rules Screen ──
     function showPokerRules() {
@@ -1308,32 +1268,121 @@
       choicesDiv.innerHTML = '';
       pokerWager = wagerAmount;
 
-      // TODO: Wire up poker contract here — spend cells on-chain
-      // For now, poker plays client-side in demo mode
+      // TX 1: Commit wager on-chain — cells deducted immediately
+      clearDialogue();
+      const msg = document.createElement('p');
+      dialogueText.appendChild(msg);
+      await typewrite(msg, "Placing your bet on-chain...", 40);
 
+      try {
+        const signer = await getSigner();
+        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+        const tx = await gamble.commitWager(selectedTokenId, pokerWager);
+        const receipt = await tx.wait();
+
+        // Extract nonce from WagerCommitted event
+        const iface = new ethers.utils.Interface(GAMBLE_ABI);
+        const wagerLog = receipt.logs
+          .map(log => { try { return iface.parseLog(log); } catch { return null; } })
+          .find(e => e && e.name === 'WagerCommitted');
+        pokerNonce = Number(wagerLog.args.nonce);
+      } catch (err) {
+        console.error('commitWager failed:', err);
+        clearDialogue();
+        const errMsg = document.createElement('p');
+        dialogueText.appendChild(errMsg);
+        await typewrite(errMsg, "Transaction failed. Try again?", 40);
+        showChoices([
+          { label: 'TRY AGAIN', action: beginPokerRound },
+          { label: 'BACK', action: () => showPlayAgain(false) },
+        ]);
+        return;
+      }
+
+      // Start session with Worker
+      try {
+        const res = await fetch(WORKER_URL + '/poker/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId: selectedTokenId, nonce: pokerNonce, player: userAddress }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Worker session start failed');
+        pokerStack = data.stack;
+      } catch (err) {
+        console.error('Poker session start failed:', err);
+        clearDialogue();
+        const errMsg = document.createElement('p');
+        dialogueText.appendChild(errMsg);
+        await typewrite(errMsg, "Session error. Your cells are committed — try refreshing.", 40);
+        return;
+      }
+
+      // Show poker overlay
       dialogueBox.classList.remove('visible');
       jiptImage.classList.remove('visible');
 
       const overlay = document.getElementById('poker-overlay');
       overlay.classList.add('active');
-      document.getElementById('poker-wager-display').textContent = `WAGER: ${pokerWager} CELLS`;
+      updatePokerWagerDisplay();
 
-      // Reset
+      // Deal first hand via Worker
+      await dealNewHand();
+    }
+
+    function updatePokerWagerDisplay() {
+      document.getElementById('poker-wager-display').textContent = `STACK: ${pokerStack} CELLS`;
+    }
+
+    async function dealNewHand() {
+      // Reset UI
       pokerHeld = [false,false,false,false,false];
       pokerPhase = 'idle';
       document.querySelectorAll('.payout-row').forEach(r => r.classList.remove('active'));
       document.getElementById('poker-result').textContent = '';
       document.getElementById('poker-result').className = 'poker-result';
 
-      // Deal
-      pokerDeck = shuffleDeck(createDeck());
-      pokerHand = pokerDeck.splice(0, 5);
-      pokerPhase = 'dealt';
-      renderPokerHand();
-
       const dealBtn = document.getElementById('poker-deal-btn');
-      dealBtn.textContent = 'DRAW';
-      dealBtn.disabled = false;
+      dealBtn.textContent = 'DEALING...';
+      dealBtn.disabled = true;
+
+      // Bet 1 cell per hand (or remaining stack if < 1)
+      const handWager = Math.min(1, pokerStack);
+      if (handWager < 1) {
+        // Out of cells — force cashout
+        pokerPhase = 'idle';
+        dealBtn.textContent = 'CASH OUT';
+        dealBtn.disabled = false;
+        document.getElementById('poker-result').textContent = 'OUT OF CELLS';
+        document.getElementById('poker-result').className = 'poker-result lose';
+        return;
+      }
+
+      try {
+        const res = await fetch(WORKER_URL + '/poker/deal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nonce: pokerNonce, handWager }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Deal failed');
+
+        pokerHand = data.cards;
+        pokerStack = data.stack;
+        pokerPhase = 'dealt';
+        updatePokerWagerDisplay();
+        renderPokerHand();
+
+        dealBtn.textContent = 'DRAW';
+        dealBtn.disabled = false;
+      } catch (err) {
+        console.error('Deal failed:', err);
+        dealBtn.textContent = 'DEAL';
+        dealBtn.disabled = false;
+        document.getElementById('poker-result').textContent = 'DEAL ERROR - TRY AGAIN';
+        document.getElementById('poker-result').className = 'poker-result lose';
+        pokerPhase = 'idle';
+      }
     }
 
     function renderPokerHand() {
@@ -1375,74 +1424,144 @@
       renderPokerHand();
     }
 
-    function pokerDraw() {
+    async function pokerDraw() {
       if (pokerPhase !== 'dealt') return;
 
-      for (let i = 0; i < 5; i++) {
-        if (!pokerHeld[i]) {
-          pokerHand[i] = pokerDeck.splice(0, 1)[0];
-        }
-      }
-
-      pokerPhase = 'done';
-      renderPokerHand();
-
-      const result = evaluateHand(pokerHand);
-      const resultEl = document.getElementById('poker-result');
       const dealBtn = document.getElementById('poker-deal-btn');
+      dealBtn.textContent = 'DRAWING...';
+      dealBtn.disabled = true;
 
-      // Disable lock buttons
-      document.querySelectorAll('.lock-btn').forEach(b => { b.style.pointerEvents = 'none'; });
+      try {
+        const res = await fetch(WORKER_URL + '/poker/draw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nonce: pokerNonce, held: pokerHeld }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Draw failed');
 
-      if (result) {
-        const mult = PAYOUTS[result];
-        const winnings = pokerWager * mult;
-        resultEl.textContent = `${result}! +${winnings} CELLS`;
-        resultEl.className = 'poker-result win';
+        pokerHand = data.cards;
+        pokerStack = data.stack;
+        pokerPhase = 'done';
+        renderPokerHand();
+        updatePokerWagerDisplay();
 
-        const attr = HAND_DATA_ATTR[result];
-        if (attr) {
-          const row = document.querySelector(`.payout-row[data-hand="${attr}"]`);
-          if (row) row.classList.add('active');
+        const resultEl = document.getElementById('poker-result');
+
+        // Disable lock buttons
+        document.querySelectorAll('.lock-btn').forEach(b => { b.style.pointerEvents = 'none'; });
+
+        if (data.hand) {
+          resultEl.textContent = `${data.hand}! +${data.winnings} CELLS`;
+          resultEl.className = 'poker-result win';
+
+          const attr = HAND_DATA_ATTR[data.hand];
+          if (attr) {
+            const row = document.querySelector(`.payout-row[data-hand="${attr}"]`);
+            if (row) row.classList.add('active');
+          }
+        } else {
+          resultEl.textContent = 'NO WIN';
+          resultEl.className = 'poker-result lose';
         }
 
-        // TODO: Award cells on-chain
-      } else {
-        resultEl.textContent = 'NO WIN';
-        resultEl.className = 'poker-result lose';
+        dealBtn.textContent = pokerStack >= 1 ? 'NEW HAND' : 'CASH OUT';
+        dealBtn.disabled = false;
+      } catch (err) {
+        console.error('Draw failed:', err);
+        dealBtn.textContent = 'DRAW';
+        dealBtn.disabled = false;
+        document.getElementById('poker-result').textContent = 'DRAW ERROR - TRY AGAIN';
+        document.getElementById('poker-result').className = 'poker-result lose';
+        pokerPhase = 'dealt'; // allow retry
       }
-
-      dealBtn.textContent = 'NEW HAND';
-      dealBtn.disabled = false;
     }
 
     // ── Poker: Deal button handler ──
-    document.getElementById('poker-deal-btn').addEventListener('click', () => {
+    document.getElementById('poker-deal-btn').addEventListener('click', async () => {
       if (pokerPhase === 'dealt') {
-        pokerDraw();
+        await pokerDraw();
       } else if (pokerPhase === 'done') {
-        // New hand with same wager
-        pokerHeld = [false,false,false,false,false];
-        document.querySelectorAll('.payout-row').forEach(r => r.classList.remove('active'));
-        document.getElementById('poker-result').textContent = '';
-        document.getElementById('poker-result').className = 'poker-result';
-
-        pokerDeck = shuffleDeck(createDeck());
-        pokerHand = pokerDeck.splice(0, 5);
-        pokerPhase = 'dealt';
-        renderPokerHand();
-
-        document.getElementById('poker-deal-btn').textContent = 'DRAW';
+        if (pokerStack >= 1) {
+          await dealNewHand();
+        } else {
+          await pokerCashout();
+        }
+      } else if (pokerPhase === 'idle') {
+        // "CASH OUT" or "DEAL" after error
+        if (pokerStack < 1) {
+          await pokerCashout();
+        } else {
+          await dealNewHand();
+        }
       }
     });
 
+    // ── Poker: Cash out (called on back button or when stack runs out) ──
+    async function pokerCashout() {
+      if (pokerNonce === null) {
+        document.getElementById('poker-overlay').classList.remove('active');
+        pokerPhase = 'idle';
+        jiptImage.classList.add('visible');
+        dialogueBox.classList.add('visible');
+        showPlayAgain(false);
+        return;
+      }
+
+      const dealBtn = document.getElementById('poker-deal-btn');
+      dealBtn.textContent = 'CASHING OUT...';
+      dealBtn.disabled = true;
+
+      try {
+        // Ask worker to sign final payout
+        const res = await fetch(WORKER_URL + '/poker/cashout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId: selectedTokenId, nonce: pokerNonce }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Cashout failed');
+
+        const won = data.payout > 0;
+
+        // TX 2: Claim winnings on-chain (only if payout > 0)
+        if (won) {
+          const signer = await getSigner();
+          const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+          const tx = await gamble.claimWinnings(selectedTokenId, data.payout, data.nonce, data.signature);
+          await tx.wait();
+        }
+
+        pokerNonce = null;
+        pokerPhase = 'idle';
+        document.getElementById('poker-overlay').classList.remove('active');
+        jiptImage.classList.add('visible');
+        dialogueBox.classList.add('visible');
+
+        if (won) {
+          showResult(true);
+          setTimeout(() => showPlayAgain(true), 3200);
+        } else {
+          showPlayAgain(false);
+        }
+      } catch (err) {
+        console.error('Cashout failed:', err);
+        dealBtn.textContent = 'CASH OUT';
+        dealBtn.disabled = false;
+        document.getElementById('poker-result').textContent = 'CASHOUT ERROR - TRY AGAIN';
+        document.getElementById('poker-result').className = 'poker-result lose';
+      }
+    }
+
     // ── Poker: Back button ──
-    document.getElementById('poker-back').addEventListener('click', () => {
-      document.getElementById('poker-overlay').classList.remove('active');
-      pokerPhase = 'idle';
-      jiptImage.classList.add('visible');
-      dialogueBox.classList.add('visible');
-      showPlayAgain(false);
+    document.getElementById('poker-back').addEventListener('click', async () => {
+      if (pokerPhase === 'dealt') {
+        // Can't leave mid-hand — must draw first
+        document.getElementById('poker-result').textContent = 'FINISH HAND FIRST';
+        document.getElementById('poker-result').className = 'poker-result lose';
+        return;
+      }
+      await pokerCashout();
     });
 
     // ── Init ──
