@@ -221,6 +221,7 @@
     .nft-card-thumb {
       cursor: pointer;
       display: block;
+      position: relative;
     }
     .nft-card-thumb img {
       width: 100%;
@@ -263,6 +264,24 @@
     .sb-dex { background: rgba(50,180,80,0.2);  color: #a5d6a7; border: 1px solid rgba(46,125,50,0.5); }
     .sb-cha { background: rgba(150,50,200,0.2); color: #ce93d8; border: 1px solid rgba(123,31,162,0.5); }
     .sb-lvl { background: rgba(212,160,23,0.15); color: #d4a017; border: 1px solid rgba(139,105,20,0.5); }
+    .sb-cells { background: rgba(0,200,150,0.15); color: #4dd0a0; border: 1px solid rgba(0,150,100,0.5); }
+
+    .collection-stats-box {
+      background: rgba(30,20,10,0.85);
+      border: 2px solid #5c4409;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #f5e6c8;
+    }
+    .collection-stats-box .stat-label { color: #9e8a6a; margin-right: 6px; }
+    .collection-stats-box .stat-value { color: #4dd0a0; }
 
     .nft-card-price {
       font-size: 0.65rem;
@@ -300,6 +319,62 @@
       color: #4caf50;
       margin-bottom: 6px;
     }
+
+    .eliminated-card { opacity: 0.6; }
+    .eliminated-card .nft-card-thumb img { filter: grayscale(100%); }
+
+    .eliminated-overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-15deg);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      color: #ff4444;
+      background: rgba(0,0,0,0.7);
+      padding: 6px 12px;
+      border: 2px solid #ff4444;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .eliminated-badge {
+      font-size: 0.38rem;
+      color: #ff4444;
+      margin-bottom: 6px;
+    }
+
+    .recent-sales-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #3d2e0a;
+    }
+    .section-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      color: #c9a84c;
+      margin-bottom: 12px;
+    }
+    .recent-sales-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sale-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(30,20,10,0.6);
+      border: 1px solid #3d2e0a;
+      border-radius: 4px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.36rem;
+      color: #f5e6c8;
+    }
+    .sale-row .sale-id { color: #c9a84c; }
+    .sale-row .sale-price { color: #4dd0a0; }
+    .sale-row .sale-buyer { color: #9e8a6a; }
 
     .update-price-btn {
       width: 100%;
@@ -817,18 +892,28 @@
     <div class="tab-panel active" id="tab-browse">
 
 
+      <div id="collectionStats" class="collection-stats-box" style="display:none;"></div>
+
       <div class="filter-bar">
         <select id="filterSort">
           <option value="price-asc">Price: Low → High</option>
           <option value="price-desc">Price: High → Low</option>
           <option value="cells-asc">Locked Cells: Low → High</option>
           <option value="cells-desc">Locked Cells: High → Low</option>
+          <option value="total-asc">Total Cells: Low → High</option>
+          <option value="total-desc">Total Cells: High → Low</option>
         </select>
         <input type="text" id="filterSearch" placeholder="Search by name or ID..." style="flex:1;min-width:160px;">
       </div>
 
       <div class="nft-grid" id="listingsGrid">
         <div class="empty-state loading-dots">Loading listings</div>
+      </div>
+
+      <!-- Recent Sales -->
+      <div id="recentSalesSection" class="recent-sales-section" style="display:none;">
+        <h3 class="section-title">RECENT SALES</h3>
+        <div id="recentSalesList" class="recent-sales-list"></div>
       </div>
     </div>
 
@@ -931,15 +1016,17 @@
     const ERC721_ABI = [
       'function balanceOf(address owner) view returns (uint256)',
       'function totalSupply() view returns (uint256)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
       'function isApprovedForAll(address owner, address operator) view returns (bool)',
       'function setApprovalForAll(address operator, bool approved)',
       'function getApproved(uint256 tokenId) view returns (address)',
       'function ownerOf(uint256 tokenId) view returns (address)',
       'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
-      'function getExperience(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
       'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
+      'function eliminated(uint256 tokenId) view returns (bool)',
+      'function getOpenCells(uint256 tokenId) view returns (uint256)',
     ];
 
     // ====================================================================
@@ -965,9 +1052,10 @@
     const disconnectDropdown = document.getElementById('disconnectDropdown');
     const disconnectBtn      = document.getElementById('disconnectBtn');
 
-    const listingsGrid  = document.getElementById('listingsGrid');
-    const filterSort    = document.getElementById('filterSort');
-    const filterSearch  = document.getElementById('filterSearch');
+    const listingsGrid     = document.getElementById('listingsGrid');
+    const filterSort       = document.getElementById('filterSort');
+    const filterSearch     = document.getElementById('filterSearch');
+    const collectionStats  = document.getElementById('collectionStats');
 
     const sellConnectPrompt   = document.getElementById('sellConnectPrompt');
     const loadMsg             = document.getElementById('loadMsg');
@@ -1157,6 +1245,7 @@
     }
 
     function renderListings1155(listings) {
+      collectionStats.style.display = 'none';
       const searchVal = filterSearch.value.trim().toLowerCase();
       const sortVal   = filterSort.value;
 
@@ -1252,13 +1341,17 @@
         const tid = l.tokenId.toString();
         if (statsCache.has(tid)) return;
         try {
-          const [stats, xp, level, cells, name] = await Promise.all([
+          const [stats, xp, level, closedCells, openCells, name, dead] = await Promise.all([
             nft.getStats(l.tokenId),
             nft.getExperience(l.tokenId),
             nft.getLevel(l.tokenId),
             nft.getClosedCells(l.tokenId),
+            nft.getOpenCells(l.tokenId),
             nft.tokenName(l.tokenId),
+            nft.eliminated(l.tokenId),
           ]);
+          const closed = closedCells.toNumber();
+          const open   = openCells.toNumber();
           statsCache.set(tid, {
             str:   stats.strength.toNumber(),
             int:   stats.intelligence.toNumber(),
@@ -1266,11 +1359,14 @@
             cha:   stats.charisma.toNumber(),
             xp:    xp.toNumber(),
             level: level.toNumber(),
-            cells: cells.toNumber(),
+            cells: closed,
+            openCells: open,
+            totalCells: closed + open,
             name:  name || '',
+            eliminated: dead,
           });
         } catch (_) {
-          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, name: '' });
+          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, openCells: 0, totalCells: 0, name: '', eliminated: false });
         }
       }));
     }
@@ -1278,24 +1374,78 @@
     // ====================================================================
     // Load last sale prices from Sold events (best-effort, non-critical)
     // ====================================================================
+    let recentSales = []; // [{ tokenId, buyer, seller, price, blockNumber }]
+
     async function loadLastSales(market, collAddr) {
       try {
-        // Try a recent window (last 500 k blocks ≈ 11 days on Fuji).
-        // Sold events are historical and nice-to-have; we silently skip on failure.
         const latest = await market.provider.getBlockNumber();
         const from   = Math.max(0, latest - 500_000);
         const soldEvents = await market.queryFilter(market.filters.Sold(collAddr), from, 'latest');
+        recentSales = [];
         for (const ev of soldEvents) {
           const key = ev.args.nftContract.toLowerCase() + ':' + ev.args.tokenId.toString();
-          lastSaleCache.set(key, ethers.utils.formatEther(ev.args.price));
+          const priceAvax = ethers.utils.formatEther(ev.args.price);
+          lastSaleCache.set(key, priceAvax);
+          recentSales.push({
+            tokenId: ev.args.tokenId.toString(),
+            buyer: ev.args.buyer,
+            seller: ev.args.seller,
+            price: priceAvax,
+            blockNumber: ev.blockNumber,
+          });
         }
+        recentSales.sort((a, b) => b.blockNumber - a.blockNumber); // newest first
+        renderRecentSales();
       } catch (_) {}
+    }
+
+    function renderRecentSales() {
+      const section = document.getElementById('recentSalesSection');
+      const list = document.getElementById('recentSalesList');
+      if (!recentSales.length || activeCollection !== 'chads') {
+        section.style.display = 'none';
+        return;
+      }
+      section.style.display = 'block';
+      const display = recentSales.slice(0, 10); // show last 10
+      list.innerHTML = display.map(s => {
+        const name = (statsCache.get(s.tokenId) || {}).name || '';
+        const label = name ? name : 'CHAD #' + s.tokenId;
+        return `<div class="sale-row">
+          <span class="sale-id">${label}</span>
+          <span class="sale-price">${s.price} AVAX</span>
+          <span class="sale-buyer">${truncAddr(s.buyer)}</span>
+        </div>`;
+      }).join('');
     }
 
     // ====================================================================
     // Render listings with filters + sort
     // ====================================================================
+    function updateCollectionStats(listings) {
+      if (!listings.length || activeCollection !== 'chads') {
+        collectionStats.style.display = 'none';
+        return;
+      }
+      let sum = 0, count = 0;
+      let floorWei = null;
+      for (const l of listings) {
+        const s = statsCache.get(l.tokenId.toString());
+        if (s && !s.eliminated) { sum += s.totalCells; count++; }
+        if (!floorWei || l.price.lt(floorWei)) floorWei = l.price;
+      }
+      const avg = count > 0 ? (sum / count).toFixed(1) : '0';
+      const floor = floorWei ? ethers.utils.formatEther(floorWei) : '—';
+      collectionStats.style.display = 'flex';
+      collectionStats.innerHTML =
+        `<span><span class="stat-label">FLOOR:</span> <span class="stat-value">${floor} AVAX</span></span>` +
+        `<span><span class="stat-label">LISTED:</span> <span class="stat-value">${count} CHADS</span></span>` +
+        `<span><span class="stat-label">AVG TOTAL CELLS:</span> <span class="stat-value">${avg}</span></span>` +
+        `<span><span class="stat-label">TOTAL CELLS (ALL LISTED):</span> <span class="stat-value">${sum}</span></span>`;
+    }
+
     function renderListings(listings) {
+      updateCollectionStats(listings);
       const sortBy = filterSort.value;
       const search = filterSearch.value.toLowerCase().trim();
 
@@ -1314,6 +1464,8 @@
       if (sortBy === 'price-desc')  filtered.sort((a, b) => b.price.lt(a.price) ? -1 : 1);
       if (sortBy === 'cells-asc')   filtered.sort((a, b) => stat('cells')(a) - stat('cells')(b));
       if (sortBy === 'cells-desc')  filtered.sort((a, b) => stat('cells')(b) - stat('cells')(a));
+      if (sortBy === 'total-asc')   filtered.sort((a, b) => stat('totalCells')(a) - stat('totalCells')(b));
+      if (sortBy === 'total-desc')  filtered.sort((a, b) => stat('totalCells')(b) - stat('totalCells')(a));
 
       if (filtered.length === 0) {
         listingsGrid.innerHTML = '<div class="empty-state">No listings found.</div>';
@@ -1330,13 +1482,17 @@
         const lastSale  = lastSaleCache.get(l.nftContract.toLowerCase() + ':' + tid) || null;
         const displayName = s.name ? s.name : 'CHAD #' + tid;
 
+        const isDead = s.eliminated;
+
         const card = document.createElement('div');
-        card.className = 'nft-card';
+        card.className = 'nft-card' + (isDead ? ' eliminated-card' : '');
         card.innerHTML = `
           <div class="nft-card-thumb" data-token="${tid}">
             <img src="${imgSrc}" alt="${displayName}" onerror="this.style.display='none'">
+            ${isDead ? '<div class="eliminated-overlay">ELIMINATED</div>' : ''}
           </div>
           <div class="nft-card-body">
+            ${isDead ? '<div class="eliminated-badge">ELIMINATED</div>' : ''}
             ${isOwn ? '<div class="my-listing-badge">YOUR LISTING</div>' : ''}
             <div class="nft-card-name" data-token="${tid}">CHAD #${tid}${s.name ? ' — ' + s.name : ''}</div>
             <div class="stat-badges">
@@ -1345,6 +1501,7 @@
               <span class="stat-badge sb-dex">DEX ${s.dex}</span>
               <span class="stat-badge sb-cha">CHA ${s.cha}</span>
               <span class="stat-badge sb-lvl">LV${s.level}</span>
+              <span class="stat-badge sb-cells">${s.totalCells} CELLS</span>
             </div>
             <div class="nft-card-price">${priceAvax} AVAX</div>
             <div class="nft-last-sale">${lastSale ? 'Last: ' + lastSale + ' AVAX' : 'No prior sales'}</div>
@@ -1358,8 +1515,8 @@
               </div>
               <button class="delist-btn" data-contract="${l.nftContract}" data-token="${tid}">DELIST</button>
             ` : `
-              <button class="buy-btn" data-contract="${l.nftContract}" data-token="${tid}" data-price="${l.price}">
-                ${userAddress ? 'BUY' : 'CONNECT TO BUY'}
+              <button class="buy-btn" data-contract="${l.nftContract}" data-token="${tid}" data-price="${l.price}" ${isDead ? 'disabled' : ''}>
+                ${isDead ? 'ELIMINATED' : (userAddress ? 'BUY' : 'CONNECT TO BUY')}
               </button>
             `}
           </div>`;
@@ -1600,13 +1757,14 @@
         const nft   = new ethers.Contract(COLLECTIONS.chads.address, ERC721_ABI, readProvider);
         const bal   = await nft.balanceOf(userAddress);
         if (bal.gt(0)) {
-          const total  = await nft.totalSupply();
+          const count = bal.toNumber();
           const checks = [];
-          for (let i = 1; i <= total.toNumber(); i++) {
+          for (let idx = 0; idx < count; idx++) {
             checks.push(
-              nft.ownerOf(i)
-                .then(async o => {
-                  if (o.toLowerCase() !== userAddress.toLowerCase()) return;
+              nft.tokenOfOwnerByIndex(userAddress, idx)
+                .then(async tokenId => {
+                  const i = tokenId.toNumber();
+                  const o = userAddress; // known owner
                   const name = await nft.tokenName(i).catch(() => '');
                   let price = null;
                   if (marketCt) {
@@ -1723,30 +1881,34 @@
           sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
           return;
         }
-        // Loop over totalSupply (max 70 on test contract) to find owned tokens.
-        // No ERC721Enumerable needed. For 5555-token contract, add ERC721Enumerable
-        // to LastChad.sol so tokenOfOwnerByIndex is available instead.
-        const total = await nft.totalSupply();
+        // Use ERC721Enumerable tokenOfOwnerByIndex for O(owned) lookup
+        const count = bal.toNumber();
         const owned = [];
         const checks = [];
-        for (let i = 1; i <= total.toNumber(); i++) {
+        for (let idx = 0; idx < count; idx++) {
           checks.push(
-            nft.ownerOf(i)
-              .then(o => { if (o.toLowerCase() === userAddress.toLowerCase()) owned.push(i); })
+            nft.tokenOfOwnerByIndex(userAddress, idx)
+              .then(tid => { owned.push(tid.toNumber()); })
               .catch(() => {})
           );
         }
         await Promise.all(checks);
 
         sellToken.innerHTML = '<option value="">Select token...</option>';
+        let hasAny = false;
         for (const tid of owned) {
-          const name = await nft.tokenName(tid).catch(() => '');
+          const [name, dead] = await Promise.all([
+            nft.tokenName(tid).catch(() => ''),
+            nft.eliminated(tid).catch(() => false),
+          ]);
           const opt  = document.createElement('option');
           opt.value       = tid;
-          opt.textContent = name || 'CHAD #' + tid;
+          opt.textContent = (name || 'CHAD #' + tid) + (dead ? ' [ELIMINATED]' : '');
+          opt.disabled    = dead;
           sellToken.appendChild(opt);
+          hasAny = true;
         }
-        if (owned.length === 0) {
+        if (!hasAny) {
           sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
         }
       } catch (err) {

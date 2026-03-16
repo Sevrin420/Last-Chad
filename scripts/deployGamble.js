@@ -25,13 +25,19 @@ async function main() {
   const [deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
+  const oracleAddress = process.env.ORACLE_ADDRESS;
+  if (!oracleAddress || !hre.ethers.isAddress(oracleAddress)) {
+    throw new Error("ORACLE_ADDRESS env var is required (non-zero address). Gamble requires oracle at deploy.");
+  }
+
   console.log(`\nDeploying Gamble on [${network}]`);
   console.log(`Deployer / game owner: ${deployer.address}`);
-  console.log(`LastChad:              ${LAST_CHAD_ADDRESS}\n`);
+  console.log(`LastChad:              ${LAST_CHAD_ADDRESS}`);
+  console.log(`Oracle:                ${oracleAddress}\n`);
 
-  // ── 1. Deploy Gamble ───────────────────────────────────────────────────
+  // ── 1. Deploy Gamble (oracle required at construction) ─────────────────
   const Gamble = await hre.ethers.getContractFactory("Gamble");
-  const gamble = await Gamble.deploy(LAST_CHAD_ADDRESS);
+  const gamble = await Gamble.deploy(LAST_CHAD_ADDRESS, oracleAddress);
   await gamble.waitForDeployment();
 
   const gambleAddress = await gamble.getAddress();
@@ -46,19 +52,8 @@ async function main() {
   await tx.wait();
   console.log("  lastChad.setGameContract ✓");
 
-  // ── 3. Set oracle address ──────────────────────────────────────────────
-  const oracleAddress = process.env.ORACLE_ADDRESS;
-  if (oracleAddress && hre.ethers.isAddress(oracleAddress)) {
-    console.log("\nSetting oracle address...");
-    const SET_ORACLE_ABI = ['function setOracle(address oracle) external'];
-    const gambleWrite = new hre.ethers.Contract(gambleAddress, SET_ORACLE_ABI, deployer);
-    const oracleTx = await gambleWrite.setOracle(oracleAddress);
-    await oracleTx.wait();
-    console.log("  setOracle ✓ →", oracleAddress);
-  } else {
-    console.warn("\nSkipping setOracle — set ORACLE_ADDRESS env var to wire it automatically.");
-    console.warn("  resolveGame() will skip signature checks until oracle is set.");
-  }
+  // Oracle was set atomically in the constructor — no separate tx needed.
+  console.log("\n  Oracle set at deploy ✓ →", oracleAddress);
 
   // ── 4. Patch js/config.js ──────────────────────────────────────────────
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
@@ -74,12 +69,26 @@ async function main() {
     console.warn("\nWarning: js/config.js not found — update GAMBLE_ADDRESS manually.");
   }
 
+  // ── 5. Patch worker/wrangler.toml ────────────────────────────────────
+  const wranglerPath = path.join(__dirname, '..', 'worker', 'wrangler.toml');
+  if (fs.existsSync(wranglerPath)) {
+    let wrangler = fs.readFileSync(wranglerPath, 'utf8');
+    wrangler = wrangler.replace(
+      /GAMBLE_ADDRESS\s*=\s*"[^"]*"/,
+      `GAMBLE_ADDRESS        = "${gambleAddress}"`
+    );
+    fs.writeFileSync(wranglerPath, wrangler, 'utf8');
+    console.log("Patched worker/wrangler.toml → GAMBLE_ADDRESS =", gambleAddress);
+  } else {
+    console.warn("Warning: worker/wrangler.toml not found — update GAMBLE_ADDRESS manually.");
+  }
+
   console.log("\n══════════════════════════════════════════════════");
   console.log("Deployment complete!");
   console.log("  Network:          ", network);
   console.log("  Gamble:           ", gambleAddress);
   console.log("  LastChad auth:    ✓");
-  console.log("  Oracle:           ", oracleAddress ? "✓  " + oracleAddress : "⚠  not set (resolveGame open)");
+  console.log("  Oracle:            ✓ ", oracleAddress);
   console.log("══════════════════════════════════════════════════\n");
   console.log("js/config.js has been updated. Commit and push to go live.");
 }

@@ -11,6 +11,7 @@ on:
         default: 'all-contracts'
         type: choice
         options:
+          - everything       # 1-CLICK: Deploy ALL 5 contracts, wire, commit configs, deploy worker, verify, validate
           - all-contracts    # Deploy LastChad + LastChadItems + QuestRewards (full redeploy)
           - lastchad-only    # Re-deploy LastChad only (e.g. stat point changes), re-auth QuestRewards
           - quest-only       # Deploy QuestRewards only (LastChad + Items already deployed)
@@ -55,7 +56,7 @@ jobs:
   deploy-contract:
     name: Deploy Contracts (${{ inputs.network }})
     runs-on: ubuntu-latest
-    if: inputs.target == 'all-contracts' || inputs.target == 'lastchad-only' || inputs.target == 'quest-only' || inputs.target == 'gamble'
+    if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'lastchad-only' || inputs.target == 'quest-only' || inputs.target == 'gamble'
     environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
 
     steps:
@@ -69,6 +70,13 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Deploy EVERYTHING (all 5 contracts + wire + patch)
+        if: inputs.target == 'everything'
+        env:
+          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
+        run: npx hardhat run scripts/deployEverything.js --network ${{ inputs.network }}
 
       - name: Deploy all contracts (LastChad + Items + QuestRewards)
         if: inputs.target == 'all-contracts'
@@ -102,7 +110,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add js/config.js js/quest-globals.js
+          git add js/config.js js/quest-globals.js worker/wrangler.toml
           if git diff --cached --quiet; then
             echo "config files unchanged — skipping commit"
           else
@@ -121,10 +129,16 @@ jobs:
     if: |
       always() &&
       (inputs.target == 'worker' ||
-       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure'))
+       (inputs.target == 'everything' && needs.deploy-contract.result != 'failure') ||
+       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure') ||
+       (inputs.target == 'gamble' && needs.deploy-contract.result != 'failure'))
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Pull latest config (contract addresses from deploy step)
+        if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'gamble'
+        run: git pull origin ${{ github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
@@ -326,3 +340,65 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/approveMarketContracts.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 9: Verify contracts (auto-runs after worker in 'everything' pipeline)
+  # ───────────────────────────────────────────────────────────────────────────
+  everything-verify:
+    name: Verify Contracts (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    needs: [deploy-worker]
+    if: |
+      always() &&
+      inputs.target == 'everything' &&
+      needs.deploy-worker.result != 'failure'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Pull latest config (deployed addresses)
+        run: git pull origin ${{ github.ref_name }}
+
+      - name: Verify all contracts on Snowtrace
+        env:
+          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
+        run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 10: Validate contracts (auto-runs after verify in 'everything' pipeline)
+  # ───────────────────────────────────────────────────────────────────────────
+  everything-validate:
+    name: Validate Contracts (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    needs: [everything-verify]
+    if: |
+      always() &&
+      inputs.target == 'everything' &&
+      needs.everything-verify.result != 'failure'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Pull latest config (deployed addresses)
+        run: git pull origin ${{ github.ref_name }}
+
+      - name: Validate all contracts on-chain
+        run: npx hardhat run scripts/validateContracts.js --network ${{ inputs.network }}

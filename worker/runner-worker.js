@@ -50,6 +50,24 @@ const MAX_XP_PER_QUEST  = 50;      // hard cap — Worker will never sign more
 const QUEST_CACHE_TTL   = 86_400;  // 24h — quest configs change rarely
 const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'charisma']);
 
+const POKER_SESSION_TTL = 600;    // 10 minutes per session (reset on every interaction)
+const POKER_PAYOUTS = {
+  'ROYAL FLUSH':      250,
+  'STRAIGHT FLUSH':    50,
+  'FOUR OF A KIND':    25,
+  'FULL HOUSE':         9,
+  'FLUSH':              6,
+  'STRAIGHT':           4,
+  'THREE OF A KIND':    3,
+  'TWO PAIR':           2,
+  'JACKS OR BETTER':    1,
+};
+
+const GAMBLE_ABI = [
+  'function wagerAmounts(uint256 nonce) view returns (uint256)',
+  'function wagerPlayers(uint256 nonce) view returns (address)',
+];
+
 const GETSTATS_ABI = [
   'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
 ];
@@ -80,6 +98,20 @@ export default {
       }
       if (request.method === 'GET' && url.pathname === '/session/status') {
         return await handleStatus(url, env);
+      }
+
+      // Poker endpoints
+      if (request.method === 'POST' && url.pathname === '/poker/start') {
+        return await handlePokerStart(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/poker/deal') {
+        return await handlePokerDeal(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/poker/draw') {
+        return await handlePokerDraw(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/poker/cashout') {
+        return await handlePokerCashout(request, env);
       }
     } catch (err) {
       console.error(err);
@@ -288,6 +320,288 @@ async function handleStatus(url, env) {
     canClaim:        !session.died && !session.completed && elapsed >= WIN_THRESHOLD_MS,
     visitedSections: session.visitedSections ?? {},
   });
+}
+
+// ===========================================================================
+// POKER ENDPOINTS
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// POST /poker/start  { tokenId, nonce, player }
+// Verify wager on-chain, create session with stack = wager amount.
+// ---------------------------------------------------------------------------
+async function handlePokerStart(request, env) {
+  const { tokenId, nonce, player } = await parseBody(request);
+  if (tokenId == null || nonce == null || !player) {
+    return json({ error: 'Missing tokenId, nonce, or player' }, 400);
+  }
+  if (!ethers.isAddress(player)) {
+    return json({ error: 'Invalid player address' }, 400);
+  }
+
+  // Verify wager exists on-chain
+  const provider = new ethers.JsonRpcProvider(env.READ_RPC);
+  const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
+  const wager    = Number(await gamble.wagerAmounts(BigInt(nonce)));
+  if (wager === 0) {
+    return json({ error: 'No active wager for this nonce' }, 403);
+  }
+  const onChainPlayer = (await gamble.wagerPlayers(BigInt(nonce))).toLowerCase();
+  if (onChainPlayer !== player.toLowerCase()) {
+    return json({ error: 'Player mismatch' }, 403);
+  }
+
+  const sessionToken = await generateSessionToken(nonce, player.toLowerCase(), env);
+
+  // Check if session already exists — return it with refreshed TTL
+  const key = `poker:${nonce}`;
+  const existing = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (existing) {
+    // Refresh TTL on reconnect
+    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: POKER_SESSION_TTL });
+    return json({ ok: true, stack: existing.stack, sessionToken });
+  }
+
+  await env.RUNNER_KV.put(key, JSON.stringify({
+    tokenId: String(tokenId),
+    player:  player.toLowerCase(),
+    stack:   wager,
+    phase:   'ready',
+    deck:    null,
+    hand:    null,
+    handWager: 0,
+    lastDrawResult: null, // cached draw result for retry
+    _expectedToken: sessionToken,
+  }), { expirationTtl: POKER_SESSION_TTL });
+
+  return json({ ok: true, stack: wager, sessionToken });
+}
+
+// ---------------------------------------------------------------------------
+// POST /poker/deal  { nonce, handWager }
+// Deal 5 cards from a fresh shuffled deck. handWager is deducted from stack.
+// ---------------------------------------------------------------------------
+async function handlePokerDeal(request, env) {
+  const { nonce, handWager, sessionToken } = await parseBody(request);
+  if (nonce == null || handWager == null) {
+    return json({ error: 'Missing nonce or handWager' }, 400);
+  }
+
+  const key     = `poker:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No poker session' }, 403);
+  if (!verifySessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+  if (session.phase !== 'ready') {
+    return json({ error: 'Must complete current hand first' }, 400);
+  }
+
+  const bet = Math.max(1, Math.min(Number(handWager), session.stack));
+  if (bet > session.stack || bet < 1) {
+    return json({ error: 'Invalid hand wager' }, 400);
+  }
+
+  // Shuffle a fresh 52-card deck using crypto-safe RNG
+  const deck = shuffleDeckCrypto();
+  const hand = deck.splice(0, 5);
+
+  session.deck      = deck;
+  session.hand      = hand;
+  session.handWager = bet;
+  session.stack    -= bet;
+  session.phase     = 'dealt';
+  session.lastDrawResult = null; // clear previous draw cache
+
+  // TTL resets on every interaction
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: POKER_SESSION_TTL });
+
+  return json({
+    ok: true,
+    cards: hand.map(cardFromIndex),
+    stack: session.stack,
+    handWager: bet,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// POST /poker/draw  { nonce, held: [bool,bool,bool,bool,bool] }
+// Replace unheld cards, evaluate hand, adjust stack.
+// ---------------------------------------------------------------------------
+async function handlePokerDraw(request, env) {
+  const { nonce, held, sessionToken } = await parseBody(request);
+  if (nonce == null || !Array.isArray(held) || held.length !== 5) {
+    return json({ error: 'Missing nonce or invalid held array' }, 400);
+  }
+
+  const key     = `poker:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No poker session' }, 403);
+  if (!verifySessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+
+  // If already drawn, return cached result (handles network retry gracefully)
+  if (session.phase === 'ready' && session.lastDrawResult) {
+    return json(session.lastDrawResult);
+  }
+
+  if (session.phase !== 'dealt') {
+    return json({ error: 'No hand dealt or already drawn' }, 400);
+  }
+
+  // Replace unheld cards
+  let drawIdx = 0;
+  for (let i = 0; i < 5; i++) {
+    if (!held[i]) {
+      session.hand[i] = session.deck[drawIdx++];
+    }
+  }
+
+  const cards  = session.hand.map(cardFromIndex);
+  const result = evaluatePokerHand(cards);
+  const mult   = result ? POKER_PAYOUTS[result] : 0;
+  const winnings = session.handWager * mult;
+
+  session.stack += winnings;
+  session.phase  = 'ready';
+  session.deck   = null;
+  session.hand   = null;
+
+  // Cache draw result so retries return the same outcome
+  const drawResponse = {
+    ok: true,
+    cards,
+    hand: result,
+    multiplier: mult,
+    winnings,
+    stack: session.stack,
+  };
+  session.lastDrawResult = drawResponse;
+
+  // TTL resets on every interaction
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: POKER_SESSION_TTL });
+
+  return json(drawResponse);
+}
+
+// ---------------------------------------------------------------------------
+// POST /poker/cashout  { tokenId, nonce }
+// Sign final payout so player can claim on-chain.
+// ---------------------------------------------------------------------------
+async function handlePokerCashout(request, env) {
+  const { tokenId, nonce, sessionToken } = await parseBody(request);
+  if (tokenId == null || nonce == null) {
+    return json({ error: 'Missing tokenId or nonce' }, 400);
+  }
+
+  const key     = `poker:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No poker session' }, 403);
+  if (!verifySessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+  if (session.phase === 'dealt') {
+    return json({ error: 'Finish current hand before cashing out' }, 400);
+  }
+  if (String(tokenId) !== session.tokenId) {
+    return json({ error: 'Token mismatch' }, 403);
+  }
+
+  const payout = session.stack;
+
+  // Skip signing if payout is 0 — no on-chain tx needed for losses
+  if (payout === 0) {
+    await env.RUNNER_KV.delete(key);
+    return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
+  }
+
+  // Sign keccak256(tokenId, payout, nonce, player)
+  const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
+  const messageHash  = ethers.solidityPackedKeccak256(
+    ['uint256', 'uint256', 'uint256', 'address'],
+    [BigInt(tokenId), BigInt(payout), BigInt(nonce), session.player]
+  );
+  const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
+
+  // Delete session — can't cash out twice
+  await env.RUNNER_KV.delete(key);
+
+  return json({ ok: true, payout, nonce: Number(nonce), signature });
+}
+
+// ---------------------------------------------------------------------------
+// Poker helpers
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Anti-cheat: HMAC session token — ties session to nonce+player, no extra txs
+// ---------------------------------------------------------------------------
+async function generateSessionToken(nonce, player, env) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(env.ORACLE_PRIVATE_KEY),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const data = new TextEncoder().encode(`poker:${nonce}:${player}`);
+  const sig = await crypto.subtle.sign('HMAC', key, data);
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function verifySessionToken(session, sessionToken) {
+  if (!session._expectedToken) return true; // legacy sessions without token
+  return session._expectedToken === sessionToken;
+}
+
+/** Fisher-Yates shuffle using crypto.getRandomValues for manipulation resistance */
+function shuffleDeckCrypto() {
+  const deck = Array.from({ length: 52 }, (_, i) => i);
+  const rng  = new Uint32Array(52);
+  crypto.getRandomValues(rng);
+  for (let i = 51; i > 0; i--) {
+    const j = rng[i] % (i + 1);
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+/** Convert card index (0-51) to { rank: 0-12, suit: 0-3 } */
+function cardFromIndex(idx) {
+  return { rank: idx % 13, suit: Math.floor(idx / 13) };
+}
+
+/** Evaluate a 5-card poker hand (Jacks or Better). Returns hand name or null. */
+function evaluatePokerHand(cards) {
+  const ranks = cards.map(c => c.rank).sort((a, b) => a - b);
+  const suits = cards.map(c => c.suit);
+  const isFlush = suits.every(s => s === suits[0]);
+
+  let isStraight = false;
+  if (new Set(ranks).size === 5) {
+    if (ranks[4] - ranks[0] === 4) isStraight = true;
+    // Ace-low straight: A-2-3-4-5  (ranks 0,1,2,3,12)
+    if (ranks[0] === 0 && ranks[1] === 1 && ranks[2] === 2 && ranks[3] === 3 && ranks[4] === 12) isStraight = true;
+  }
+
+  const counts = {};
+  for (const r of ranks) counts[r] = (counts[r] || 0) + 1;
+  const freq = Object.values(counts).sort((a, b) => b - a);
+
+  if (isFlush && isStraight && ranks[0] === 8 && ranks[4] === 12) return 'ROYAL FLUSH';
+  if (isFlush && isStraight) return 'STRAIGHT FLUSH';
+  if (freq[0] === 4) return 'FOUR OF A KIND';
+  if (freq[0] === 3 && freq[1] === 2) return 'FULL HOUSE';
+  if (isFlush) return 'FLUSH';
+  if (isStraight) return 'STRAIGHT';
+  if (freq[0] === 3) return 'THREE OF A KIND';
+  if (freq[0] === 2 && freq[1] === 2) return 'TWO PAIR';
+  if (freq[0] === 2) {
+    const pairRank = parseInt(Object.entries(counts).find(([, c]) => c === 2)[0]);
+    if (pairRank >= 9) return 'JACKS OR BETTER'; // J=9, Q=10, K=11, A=12
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

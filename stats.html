@@ -868,7 +868,9 @@
       'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
       'function tokenName(uint256 tokenId) external view returns (string)',
       'function ownerOf(uint256 tokenId) external view returns (address)',
-      'function totalSupply() external view returns (uint256)'
+      'function balanceOf(address owner) view returns (uint256)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
+      'function isNameTaken(string name) view returns (bool)'
     ];
 
     // ========== URL PARAMS ==========

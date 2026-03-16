@@ -443,6 +443,30 @@
       text-shadow: 0 0 10px rgba(245, 230, 200, 0.2);
     }
 
+    /* --- Team selection --- */
+    .team-section { margin-bottom: 20px; }
+    .team-header { margin-bottom: 8px; }
+    .team-select {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      padding: 10px 12px;
+      background: rgba(30, 20, 10, 0.8);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      color: #f5e6c8;
+      cursor: pointer;
+    }
+    .team-select:focus { border-color: #c9a84c; outline: none; }
+    .team-select option { background: #1e140a; color: #f5e6c8; }
+    .team-status {
+      font-size: 0.38rem;
+      margin-top: 6px;
+      min-height: 1.2em;
+    }
+    .team-status.ok { color: #4caf50; }
+    .team-status.err { color: #ff4444; }
+
     /* --- Mint button --- */
     .mint-btn {
       width: 100%;
@@ -721,7 +745,7 @@
       <div class="supply-section">
         <div class="supply-label">
           <span>MINTED</span>
-          <span id="supplyText">0 / 70</span>
+          <span id="supplyText">— / 10,000</span>
         </div>
         <div class="supply-bar">
           <div class="supply-fill" id="supplyFill"></div>
@@ -733,7 +757,7 @@
       <!-- Price -->
       <div class="price-row">
         <span class="price-label">PRICE</span>
-        <span class="price-value">0.02<span class="price-eth"> AVAX</span></span>
+        <span class="price-value" id="priceDisplay">0.02<span class="price-eth"> AVAX</span></span>
       </div>
 
       <!-- Quantity -->
@@ -758,7 +782,18 @@
       <!-- Total -->
       <div class="total-row">
         <span class="total-label">TOTAL</span>
-        <span class="total-value" id="totalValue">3 AVAX</span>
+        <span class="total-value" id="totalValue">0.02 AVAX</span>
+      </div>
+
+      <!-- Team Selection -->
+      <div class="team-section" id="teamSection">
+        <div class="team-header">
+          <span class="quantity-label">TEAM</span>
+        </div>
+        <select id="teamSelect" class="team-select">
+          <option value="0">No Team (Free Agent)</option>
+        </select>
+        <div class="team-status" id="teamStatus"></div>
       </div>
 
       <!-- Mint button -->
@@ -789,14 +824,21 @@
 
     // ========== CONFIG ==========
     const PRICE = 0.02;
-    const MAX_SUPPLY = 70;
+    const TEAM_PRICE = 0.015;
+    const MAX_SUPPLY = 10000;
     const MAX_MINT_PER_WALLET = 5;
+    let activePrice = PRICE; // switches to TEAM_PRICE when team selected + eligible
 
     // Contract ABI — only the functions called in this file
     const CONTRACT_ABI = [
       'function mint(uint256 quantity) external payable',
-      'function totalSupply() external view returns (uint256)'
+      'function mintWithTeam(uint256 quantity, uint256 teamId) external payable',
+      'function totalMinted() external view returns (uint256)',
+      'function getTeamCount() external view returns (uint256)',
+      'function getTeam(uint256 teamId) external view returns (string name, address nftContract, bool active, uint256 memberCount)',
     ];
+
+    const ERC721_BALANCE_ABI = ['function balanceOf(address owner) view returns (uint256)'];
 
     // ========== DOM ==========
     const slider = document.getElementById('qtySlider');
@@ -812,10 +854,15 @@
     const supplyText = document.getElementById('supplyText');
     const supplyFill = document.getElementById('supplyFill');
 
+    const teamSection = document.getElementById('teamSection');
+    const teamSelect  = document.getElementById('teamSelect');
+    const teamStatus  = document.getElementById('teamStatus');
+
     // ========== STATE ==========
     let quantity = 1;
     let minted = 0;
     let maxQty = MAX_SUPPLY;
+    let teamData = []; // [{ id, name, nftContract, active, memberCount }]
 
     // ========== SUPPLY TRACKING ==========
     async function updateSupply() {
@@ -823,12 +870,12 @@
       try {
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        const supply = await contract.totalSupply();
+        const supply = await contract.totalMinted();
         minted = supply.toNumber();
         const remaining = MAX_SUPPLY - minted;
 
         // Update supply display
-        supplyText.textContent = minted + ' / ' + MAX_SUPPLY;
+        supplyText.textContent = minted.toLocaleString() + ' / ' + MAX_SUPPLY.toLocaleString();
         supplyFill.style.width = (minted / MAX_SUPPLY * 100) + '%';
 
         // Update max quantity slider
@@ -861,6 +908,76 @@
       }
     }
 
+    // ========== TEAM LOADING ==========
+    async function loadTeams() {
+      if (!CONTRACT_ADDRESS) return;
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+        const count = await contract.getTeamCount();
+        teamData = [];
+        for (let i = 1; i <= count.toNumber(); i++) {
+          const [name, nftContract, active, memberCount] = await contract.getTeam(i);
+          if (active) teamData.push({ id: i, name, nftContract, memberCount: memberCount.toNumber() });
+        }
+        teamSelect.innerHTML = '<option value="0">No Team (Free Agent)</option>';
+        for (const t of teamData) {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.name + ' (' + t.memberCount + ' members)';
+          teamSelect.appendChild(opt);
+        }
+      } catch (err) {
+        console.error('Failed to load teams:', err);
+      }
+    }
+
+    async function checkTeamEligibility() {
+      const teamId = parseInt(teamSelect.value);
+      if (teamId === 0) {
+        teamStatus.textContent = '';
+        teamStatus.className = 'team-status';
+        activePrice = PRICE;
+        updateUI();
+        return;
+      }
+      const addr = getUserAddress();
+      const team = teamData.find(t => t.id === teamId);
+      if (!team) return;
+
+      // No wallet connected — show team selected but no discount info
+      if (!addr) {
+        teamStatus.textContent = '';
+        teamStatus.className = 'team-status';
+        activePrice = PRICE;
+        updateUI();
+        return;
+      }
+
+      // Wallet connected — check NFT balance for discount
+      try {
+        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+        const nft = new ethers.Contract(team.nftContract, ERC721_BALANCE_ABI, readProvider);
+        const bal = await nft.balanceOf(addr);
+        if (bal.toNumber() > 0) {
+          teamStatus.textContent = 'Eligible — you hold ' + team.name + ' NFT (25% discount!)';
+          teamStatus.className = 'team-status ok';
+          activePrice = TEAM_PRICE;
+        } else {
+          teamStatus.textContent = 'You must hold a ' + team.name + ' NFT to join this team';
+          teamStatus.className = 'team-status err';
+          activePrice = PRICE;
+        }
+      } catch (err) {
+        teamStatus.textContent = 'Could not verify NFT balance';
+        teamStatus.className = 'team-status err';
+        activePrice = PRICE;
+      }
+      updateUI();
+    }
+
+    teamSelect.addEventListener('change', checkTeamEligibility);
+
     // ========== QUANTITY UI ==========
     function rebuildPips() {
       pipsContainer.innerHTML = '';
@@ -884,7 +1001,13 @@
     function updateUI() {
       const max = parseInt(slider.max);
       qtyDisplay.textContent = quantity;
-      totalValue.textContent = (quantity * PRICE) + ' AVAX';
+      totalValue.textContent = (quantity * activePrice) + ' AVAX';
+      // Update price display to reflect current rate
+      const priceEl = document.getElementById('priceDisplay');
+      if (priceEl) {
+        priceEl.innerHTML = activePrice + '<span class="price-eth"> AVAX</span>' +
+          (activePrice === TEAM_PRICE ? ' <span style="color:#4caf50;font-size:0.35rem">(TEAM)</span>' : '');
+      }
       sliderFill.style.width = max > 1 ? ((quantity - 1) / (max - 1) * 100) + '%' : '0%';
       slider.value = quantity;
       qtyMinus.disabled = quantity <= 1;
@@ -907,6 +1030,7 @@
       }
       closeWalletModal();
       updateSupply();
+      loadTeams().then(checkTeamEligibility);
     }
 
     function onDisconnected() {
@@ -917,6 +1041,11 @@
       mintBtn.classList.remove('ready');
       // REMOVED: redundant try/catch getElementById — disconnectDropdown const is in scope
       disconnectDropdown.classList.remove('show');
+      // Reset team discount info — keep selection but hide eligibility status
+      activePrice = PRICE;
+      teamStatus.textContent = '';
+      teamStatus.className = 'team-status';
+      updateUI();
     }
 
     // ========== MODAL EVENTS ==========
@@ -1006,12 +1135,15 @@
         mintBtn.classList.remove('ready');
 
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, getSigner());
-        const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
+        const totalCost = ethers.utils.parseEther((quantity * activePrice).toString());
 
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        const tx = await contract.mint(quantity, { value: totalCost });
+        const selectedTeam = parseInt(teamSelect.value);
+        const tx = selectedTeam > 0
+          ? await contract.mintWithTeam(quantity, selectedTeam, { value: totalCost })
+          : await contract.mint(quantity, { value: totalCost });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
 
@@ -1060,8 +1192,8 @@
 
     // ========== AUTO-RECONNECT ==========
     (async () => {
-      // Fetch supply on page load (works without wallet)
       await updateSupply();
+      await loadTeams();
       await autoReconnect({ onConnected, onDisconnected });
     })();
 

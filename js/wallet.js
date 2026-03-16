@@ -45,11 +45,29 @@ function getDappHost() { return window.location.host + window.location.pathname;
 export function getMobileDeepLink(walletName) {
   const url     = getDappHost();
   const fullUrl = getDappUrl();
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isIOS     = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   switch (walletName) {
-    case 'metamask': return 'https://metamask.app.link/dapp/' + url;
-    case 'core':     return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
-    case 'rabby':    return 'https://rabby.io';
-    default:         return null;
+    case 'metamask':
+      return 'https://metamask.app.link/dapp/' + url;
+    case 'core':
+      // Core Wallet: browser URL on both platforms
+      if (isAndroid) return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
+      if (isIOS)     return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
+      return 'https://core.app/browser?url=' + encodeURIComponent(fullUrl);
+    case 'rabby':
+      // Rabby mobile app deep link (opens in-app browser)
+      if (isAndroid || isIOS) return 'rabby://browser?url=' + encodeURIComponent(fullUrl);
+      return 'https://rabby.io';
+    case 'trust':
+      // Trust Wallet deep link
+      return 'https://link.trustwallet.com/open_url?coin_id=43114&url=' + encodeURIComponent(fullUrl);
+    case 'coinbase':
+      // Coinbase Wallet deep link
+      return 'https://go.cb-w.com/dapp?cb_url=' + encodeURIComponent(fullUrl);
+    default:
+      return null;
   }
 }
 

@@ -29,7 +29,13 @@ var LASTCHAD_ABI = [
   'function getStats(uint256 tokenId) external view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
   'function getOpenCells(uint256 tokenId) external view returns (uint256)',
   'function getClosedCells(uint256 tokenId) external view returns (uint256)',
-  'function getLevel(uint256 tokenId) external view returns (uint256)'
+  'function getCells(uint256 tokenId) external view returns (uint256)',
+  'function getTotalCells(uint256 tokenId) external view returns (uint256)',
+  'function lockCells(uint256 tokenId, uint256 amount)',
+  'function getLevel(uint256 tokenId) external view returns (uint256)',
+  'function isActive(uint256 tokenId) external view returns (bool)',
+  'function eliminated(uint256 tokenId) external view returns (bool)',
+  'function tokenName(uint256 tokenId) external view returns (string)'
 ];
 
 var LASTCHAD_ITEMS_ABI = [
@@ -39,10 +45,29 @@ var LASTCHAD_ITEMS_ABI = [
 ];
 
 var QUEST_REWARDS_ABI = [
+  // Player actions
   'function startQuest(uint256 tokenId, uint8 questId) external',
   'function completeQuest(uint256 tokenId, uint8 questId, uint256 cellReward, bytes oracleSig) external',
+  'function purchaseItem(uint256 tokenId, uint256 itemId) external',
+  // View — quest sessions
   'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
-  'function questStarted(uint256 tokenId, uint8 questId) external view returns (bool)',
+  'function isSessionExpired(uint256 tokenId) external view returns (bool)',
   'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
-  'function lockedBy(uint256 tokenId) external view returns (address)'
+  'function lastQuestTime(uint256 tokenId, uint8 questId) external view returns (uint256)',
+  'function questCooldown() external view returns (uint256)',
+  'function getQuestConfig(uint8 questId) external view returns (uint16 cellReward, uint16 itemReward)',
+  // View — arcade sessions
+  'function getArcadeSession(uint256 tokenId) external view returns (bytes32 seed, uint8 gameType, uint256 startTime, bool active)',
+  'function deathsPaused() external view returns (bool)',
+  // Arcade actions (called by game owner / worker)
+  'function startArcade(uint256 tokenId, uint8 gameType, bytes32 seed) external',
+  'function confirmSurvival(uint256 tokenId) external',
+  'function confirmDeath(uint256 tokenId) external',
+  // Events
+  'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
+  'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 cellsAwarded, uint256 itemAwarded)',
+  'event QuestFailed(uint256 indexed tokenId, uint8 questId)',
+  'event ArcadeStarted(uint256 indexed tokenId, uint8 gameType, bytes32 seed)',
+  'event ArcadeSurvived(uint256 indexed tokenId, uint8 gameType)',
+  'event ArcadeDeath(uint256 indexed tokenId, uint8 gameType)'
 ];

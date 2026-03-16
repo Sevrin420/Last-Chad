@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 interface ILastChad {
     function ownerOf(uint256 tokenId) external view returns (address);
     function eliminated(uint256 tokenId) external view returns (bool);
+    function isActive(uint256 tokenId) external view returns (bool);
     function spendCells(uint256 tokenId, uint256 amount) external;
     function awardCells(uint256 tokenId, uint256 amount) external;
 }
@@ -33,6 +34,11 @@ contract Gamble {
     // Prevent oracle signature replay
     mapping(uint256 => bool) public usedNonces;
 
+    // Two-tx settlement (poker, craps, etc.)
+    mapping(uint256 => uint256) public wagerAmounts;  // nonce → wager
+    mapping(uint256 => address) public wagerPlayers;   // nonce → player
+    uint256 public nextNonce;
+
     // ── Events ──────────────────────────────────────────────────────────────
     event CoinFlip(
         uint256 indexed tokenId,
@@ -50,10 +56,26 @@ contract Gamble {
         uint256 payout  // 0 = player lost
     );
 
+    event WagerCommitted(
+        uint256 indexed tokenId,
+        address indexed player,
+        uint256 wager,
+        uint256 nonce
+    );
+
+    event WinningsClaimed(
+        uint256 indexed tokenId,
+        address indexed player,
+        uint256 payout,
+        uint256 nonce
+    );
+
     // ── Constructor ──────────────────────────────────────────────────────────
-    constructor(address lastChadAddress) {
+    constructor(address lastChadAddress, address _oracle) {
+        require(_oracle != address(0), "Oracle required");
         lastChad  = ILastChad(lastChadAddress);
         gameOwner = msg.sender;
+        oracle    = _oracle;
     }
 
     modifier onlyGameOwner() {
@@ -78,6 +100,7 @@ contract Gamble {
     function flip(uint256 tokenId, uint256 wager) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!lastChad.eliminated(tokenId), "Chad eliminated");
+        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
         require(wager >= minWager && wager <= maxWager, "Wager out of range");
 
         lastChad.spendCells(tokenId, wager);
@@ -112,17 +135,16 @@ contract Gamble {
     ) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!lastChad.eliminated(tokenId), "Chad eliminated");
+        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
         require(wager > 0, "Invalid wager");
         require(!usedNonces[nonce], "Nonce already used");
 
-        if (oracle != address(0)) {
-            bytes32 message = keccak256(abi.encodePacked(
-                tokenId, wager, payout, gameId, nonce, msg.sender
-            ));
-            bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
-            address signer  = ECDSA.recover(ethHash, oracleSig);
-            require(signer == oracle, "Invalid oracle signature");
-        }
+        bytes32 message = keccak256(abi.encodePacked(
+            tokenId, wager, payout, gameId, nonce, msg.sender
+        ));
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+        address signer  = ECDSA.recover(ethHash, oracleSig);
+        require(signer == oracle, "Invalid oracle signature");
 
         usedNonces[nonce] = true;
         lastChad.spendCells(tokenId, wager);
@@ -131,5 +153,55 @@ contract Gamble {
         }
 
         emit GameResolved(tokenId, msg.sender, gameId, wager, payout);
+    }
+
+    // ── Path 3: two-tx settlement (poker, craps) ───────────────────────────
+    /// @notice TX 1 — Player commits cells before the game starts.
+    ///         Cells are spent immediately. Returns a nonce for the session.
+    function commitWager(uint256 tokenId, uint256 wager) external returns (uint256) {
+        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!lastChad.eliminated(tokenId), "Chad eliminated");
+        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
+        require(wager >= minWager && wager <= maxWager, "Wager out of range");
+
+        uint256 nonce = nextNonce++;
+        wagerAmounts[nonce] = wager;
+        wagerPlayers[nonce] = msg.sender;
+        lastChad.spendCells(tokenId, wager);
+
+        emit WagerCommitted(tokenId, msg.sender, wager, nonce);
+        return nonce;
+    }
+
+    /// @notice TX 2 — Player claims winnings after the Worker signs the result.
+    ///         Only called on a win (payout > 0). Losses need no TX 2.
+    function claimWinnings(
+        uint256 tokenId,
+        uint256 payout,
+        uint256 nonce,
+        bytes calldata oracleSig
+    ) external {
+        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!lastChad.eliminated(tokenId), "Chad eliminated");
+        require(wagerAmounts[nonce] > 0, "No active wager");
+        require(wagerPlayers[nonce] == msg.sender, "Not wager owner");
+        require(!usedNonces[nonce], "Already claimed");
+
+        bytes32 message = keccak256(abi.encodePacked(
+            tokenId, payout, nonce, msg.sender
+        ));
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+        address signer  = ECDSA.recover(ethHash, oracleSig);
+        require(signer == oracle, "Invalid oracle signature");
+
+        usedNonces[nonce] = true;
+        delete wagerAmounts[nonce];
+        delete wagerPlayers[nonce];
+
+        if (payout > 0) {
+            lastChad.awardCells(tokenId, payout);
+        }
+
+        emit WinningsClaimed(tokenId, msg.sender, payout, nonce);
     }
 }
