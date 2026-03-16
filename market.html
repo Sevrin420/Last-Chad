@@ -264,6 +264,24 @@
     .sb-dex { background: rgba(50,180,80,0.2);  color: #a5d6a7; border: 1px solid rgba(46,125,50,0.5); }
     .sb-cha { background: rgba(150,50,200,0.2); color: #ce93d8; border: 1px solid rgba(123,31,162,0.5); }
     .sb-lvl { background: rgba(212,160,23,0.15); color: #d4a017; border: 1px solid rgba(139,105,20,0.5); }
+    .sb-cells { background: rgba(0,200,150,0.15); color: #4dd0a0; border: 1px solid rgba(0,150,100,0.5); }
+
+    .collection-stats-box {
+      background: rgba(30,20,10,0.85);
+      border: 2px solid #5c4409;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #f5e6c8;
+    }
+    .collection-stats-box .stat-label { color: #9e8a6a; margin-right: 6px; }
+    .collection-stats-box .stat-value { color: #4dd0a0; }
 
     .nft-card-price {
       font-size: 0.65rem;
@@ -842,12 +860,16 @@
     <div class="tab-panel active" id="tab-browse">
 
 
+      <div id="collectionStats" class="collection-stats-box" style="display:none;"></div>
+
       <div class="filter-bar">
         <select id="filterSort">
           <option value="price-asc">Price: Low → High</option>
           <option value="price-desc">Price: High → Low</option>
           <option value="cells-asc">Locked Cells: Low → High</option>
           <option value="cells-desc">Locked Cells: High → Low</option>
+          <option value="total-asc">Total Cells: Low → High</option>
+          <option value="total-desc">Total Cells: High → Low</option>
         </select>
         <input type="text" id="filterSearch" placeholder="Search by name or ID..." style="flex:1;min-width:160px;">
       </div>
@@ -966,6 +988,7 @@
       'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
       'function eliminated(uint256 tokenId) view returns (bool)',
+      'function getOpenCells(uint256 tokenId) view returns (uint256)',
     ];
 
     // ====================================================================
@@ -991,9 +1014,10 @@
     const disconnectDropdown = document.getElementById('disconnectDropdown');
     const disconnectBtn      = document.getElementById('disconnectBtn');
 
-    const listingsGrid  = document.getElementById('listingsGrid');
-    const filterSort    = document.getElementById('filterSort');
-    const filterSearch  = document.getElementById('filterSearch');
+    const listingsGrid     = document.getElementById('listingsGrid');
+    const filterSort       = document.getElementById('filterSort');
+    const filterSearch     = document.getElementById('filterSearch');
+    const collectionStats  = document.getElementById('collectionStats');
 
     const sellConnectPrompt   = document.getElementById('sellConnectPrompt');
     const loadMsg             = document.getElementById('loadMsg');
@@ -1183,6 +1207,7 @@
     }
 
     function renderListings1155(listings) {
+      collectionStats.style.display = 'none';
       const searchVal = filterSearch.value.trim().toLowerCase();
       const sortVal   = filterSort.value;
 
@@ -1278,14 +1303,17 @@
         const tid = l.tokenId.toString();
         if (statsCache.has(tid)) return;
         try {
-          const [stats, xp, level, cells, name, dead] = await Promise.all([
+          const [stats, xp, level, closedCells, openCells, name, dead] = await Promise.all([
             nft.getStats(l.tokenId),
             nft.getExperience(l.tokenId),
             nft.getLevel(l.tokenId),
             nft.getClosedCells(l.tokenId),
+            nft.getOpenCells(l.tokenId),
             nft.tokenName(l.tokenId),
             nft.eliminated(l.tokenId),
           ]);
+          const closed = closedCells.toNumber();
+          const open   = openCells.toNumber();
           statsCache.set(tid, {
             str:   stats.strength.toNumber(),
             int:   stats.intelligence.toNumber(),
@@ -1293,12 +1321,14 @@
             cha:   stats.charisma.toNumber(),
             xp:    xp.toNumber(),
             level: level.toNumber(),
-            cells: cells.toNumber(),
+            cells: closed,
+            openCells: open,
+            totalCells: closed + open,
             name:  name || '',
             eliminated: dead,
           });
         } catch (_) {
-          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, name: '', eliminated: false });
+          statsCache.set(tid, { str: 0, int: 0, dex: 0, cha: 0, xp: 0, level: 1, cells: 0, openCells: 0, totalCells: 0, name: '', eliminated: false });
         }
       }));
     }
@@ -1323,7 +1353,26 @@
     // ====================================================================
     // Render listings with filters + sort
     // ====================================================================
+    function updateCollectionStats(listings) {
+      if (!listings.length || activeCollection !== 'chads') {
+        collectionStats.style.display = 'none';
+        return;
+      }
+      let sum = 0, count = 0;
+      for (const l of listings) {
+        const s = statsCache.get(l.tokenId.toString());
+        if (s) { sum += s.totalCells; count++; }
+      }
+      const avg = count > 0 ? (sum / count).toFixed(1) : '0';
+      collectionStats.style.display = 'flex';
+      collectionStats.innerHTML =
+        `<span><span class="stat-label">LISTED:</span> <span class="stat-value">${count} CHADS</span></span>` +
+        `<span><span class="stat-label">AVG TOTAL CELLS:</span> <span class="stat-value">${avg}</span></span>` +
+        `<span><span class="stat-label">TOTAL CELLS (ALL LISTED):</span> <span class="stat-value">${sum}</span></span>`;
+    }
+
     function renderListings(listings) {
+      updateCollectionStats(listings);
       const sortBy = filterSort.value;
       const search = filterSearch.value.toLowerCase().trim();
 
@@ -1342,6 +1391,8 @@
       if (sortBy === 'price-desc')  filtered.sort((a, b) => b.price.lt(a.price) ? -1 : 1);
       if (sortBy === 'cells-asc')   filtered.sort((a, b) => stat('cells')(a) - stat('cells')(b));
       if (sortBy === 'cells-desc')  filtered.sort((a, b) => stat('cells')(b) - stat('cells')(a));
+      if (sortBy === 'total-asc')   filtered.sort((a, b) => stat('totalCells')(a) - stat('totalCells')(b));
+      if (sortBy === 'total-desc')  filtered.sort((a, b) => stat('totalCells')(b) - stat('totalCells')(a));
 
       if (filtered.length === 0) {
         listingsGrid.innerHTML = '<div class="empty-state">No listings found.</div>';
@@ -1377,6 +1428,7 @@
               <span class="stat-badge sb-dex">DEX ${s.dex}</span>
               <span class="stat-badge sb-cha">CHA ${s.cha}</span>
               <span class="stat-badge sb-lvl">LV${s.level}</span>
+              <span class="stat-badge sb-cells">${s.totalCells} CELLS</span>
             </div>
             <div class="nft-card-price">${priceAvax} AVAX</div>
             <div class="nft-last-sale">${lastSale ? 'Last: ' + lastSale + ' AVAX' : 'No prior sales'}</div>
@@ -1771,21 +1823,21 @@
         await Promise.all(checks);
 
         sellToken.innerHTML = '<option value="">Select token...</option>';
-        let listable = 0;
+        let hasAny = false;
         for (const tid of owned) {
           const [name, dead] = await Promise.all([
             nft.tokenName(tid).catch(() => ''),
             nft.eliminated(tid).catch(() => false),
           ]);
-          if (dead) continue;
           const opt  = document.createElement('option');
           opt.value       = tid;
-          opt.textContent = name || 'CHAD #' + tid;
+          opt.textContent = (name || 'CHAD #' + tid) + (dead ? ' [ELIMINATED]' : '');
+          opt.disabled    = dead;
           sellToken.appendChild(opt);
-          listable++;
+          hasAny = true;
         }
-        if (listable === 0) {
-          sellToken.innerHTML = '<option value="">No eligible Chads in wallet</option>';
+        if (!hasAny) {
+          sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
         }
       } catch (err) {
         console.error('populateSellTokens error:', err);

@@ -36,8 +36,29 @@
 - Add `batchReinstate(uint256[] calldata tokenIds) external onlyOwner` — bulk undo eliminations (owner only, not game contracts)
 - Add `batchAwardCells(uint256[] calldata tokenIds, uint256[] calldata amounts) external onlyGameOrOwner` — award cells to multiple NFTs in one tx (manual rewards, event prizes, etc.)
 
-### Step 1.6 — Culling Helper
+### Step 1.6 — Culling Helper & Configuration
 - Add `getClosedCellsBatch(uint256[] calldata tokenIds) external view returns (uint256[] memory)` — lets the culling script efficiently rank all players
+- Add configurable cull mode (owner can switch between fixed count and percentage):
+```solidity
+enum CullMode { FixedCount, Percentage }
+CullMode public cullMode;
+uint256 public cullValue; // if FixedCount: exact number to eliminate; if Percentage: basis points (e.g. 1000 = 10%)
+
+function setCullMode(CullMode mode, uint256 value) external onlyOwner {
+    if (mode == CullMode.Percentage) require(value <= 10000, "Max 100%");
+    cullMode = mode;
+    cullValue = value;
+}
+
+function getCullCount() public view returns (uint256) {
+    if (cullMode == CullMode.FixedCount) return cullValue;
+    // Percentage: count alive tokens, apply percentage
+    uint256 alive = totalSupply() - eliminatedCount;
+    return (alive * cullValue) / 10000;
+}
+```
+- Add `uint256 public eliminatedCount` — incremented on eliminate, decremented on reinstate
+- `getCullCount()` is a view function the Worker cron reads to know how many to cull
 
 ### Step 1.7 — Update ILastChad Interface (used by QuestRewards/Gamble)
 - Add `isActive(uint256) → bool`
@@ -422,6 +443,27 @@ CREATE TABLE death_events (
 - `leaderboard` → sorted list of tokenId:closedCells — rebuilt every 15 min
 - Updated by Worker on quest completion, cell locking events, death events
 
+### Step 9.7 — Automated Cull (Worker Cron)
+Triggered manually by owner via admin dashboard (no automatic schedule — owner announces culls).
+
+**`POST /cull/execute`** (owner-authenticated)
+1. Read `getCullCount()` from LastChad contract — returns how many to eliminate (based on owner's chosen mode: fixed count or percentage)
+2. Enumerate all alive token IDs (from KV cache `leaderboard` or on-chain `totalSupply` loop)
+3. Call `getClosedCellsBatch(aliveTokenIds)` to get locked cells for all alive Chads
+4. Sort ascending by locked cells — bottom N are the cull targets (N = `getCullCount()`)
+5. Call `batchEliminate(targetTokenIds)` on-chain via gameOwner wallet
+6. Log cull event to D1: `{ timestamp, mode, cullValue, eliminated: [...tokenIds], threshold }`
+7. Update KV: set `alive:{tokenId}` → `false` for each eliminated Chad
+8. Return `{ ok: true, eliminated: count, threshold: minCellsToSurvive }`
+
+**`GET /cull/preview`** (owner-authenticated)
+- Same logic as execute but read-only — shows who would be culled without executing
+- Returns `{ cullCount, threshold, targets: [{ tokenId, lockedCells }] }`
+
+**Admin dashboard (Step 8.6) calls:**
+1. `POST /cull/preview` → owner reviews the list
+2. Owner confirms → `POST /cull/execute`
+
 **Depends on:** Phase 1-3 (contract ABIs), but can develop in parallel with tests/frontend
 
 ---
@@ -480,5 +522,5 @@ Phase 10 (Deploy) ← after everything
 3. **Can players gamble while in a quest/arcade session?** (isActive check on Gamble)
 4. **game.html dice game** — becomes an arcade minigame? Stays separate? Gets removed?
 5. **Arcade game art/assets** — who builds the actual minigame gameplay? (sprites, physics, levels)
-6. **Culling trigger** — manual (owner calls batchEliminate) or automated (Worker cron)?
+6. ~~Culling trigger~~ — **Resolved**: Manual via admin dashboard, Worker cron executes. Owner configures fixed count or percentage on-chain via `setCullMode()`.
 7. **Endgame threshold** — fixed at 1,000 survivors or configurable?
