@@ -104,7 +104,7 @@ class GitHubAPI {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/git/blobs/${sha}`);
   }
 
-  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null, questRewardsAddress = '', workerUrl = '') {
+  async publishQuest(questName, sections, onProgress = null, introDialogue = '', introPhoto = null, questRewardsAddress = '', workerUrl = '', builderConfig = null) {
     // Count images up-front so we can report accurate progress
     let imageCount = 0;
     if (introPhoto) imageCount++;
@@ -190,7 +190,7 @@ class GitHubAPI {
 
       // Generate quest HTML with the assigned questId
       progress('Generating quest HTML...');
-      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress, questId, workerUrl);
+      const questHTML = generateQuestHTML(questName, sections, introDialogue, !!introPhoto, questRewardsAddress, questId, workerUrl, builderConfig);
       const htmlBlob = await this.createBlob(questHTML, 'utf-8');
       console.log(`✓ Quest HTML blob created`);
       treeItems.push({
@@ -328,7 +328,9 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '', questId = 0, workerUrl = '') {
+function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhoto = false, questRewardsAddress = '', questId = 0, workerUrl = '', builderConfig = null) {
+  // Use builder config for item data if available, otherwise fall back to inline defaults
+  const _cfg = builderConfig || (typeof BUILDER_CONFIG !== 'undefined' ? BUILDER_CONFIG : null);
   const sanitized = questName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -373,8 +375,13 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   });
   const sectionMusicJson = JSON.stringify(sectionMusic);
 
-  // Build item awards map and name lookup
-  const knownItems = { '1': "Cindy's Code" };
+  // Build item awards map and name lookup (from builder-config.js if available)
+  const knownItems = {};
+  if (_cfg && _cfg.knownItems) {
+    Object.keys(_cfg.knownItems).forEach(id => { knownItems[id] = _cfg.knownItems[id].name; });
+  } else {
+    knownItems['1'] = "Cindy's Code";
+  }
   const itemAwards = {};
   sections.forEach(s => {
     if (s.itemAward) itemAwards[s.id] = s.itemAward;
@@ -465,6 +472,11 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
               <div class="hud-stat-box"><div class="hud-stat-label">DEX</div><div class="hud-stat-value" id="hudDex_${sid}">—</div></div>
               <div class="hud-stat-box"><div class="hud-stat-label">CHA</div><div class="hud-stat-value" id="hudCha_${sid}">—</div></div>
             </div>
+          </div>
+          <div class="hud-cells-row" id="hudCellsRow_${sid}" style="display:flex;gap:8px;justify-content:center;margin-top:8px;width:100%;">
+            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">LVL</div><div class="hud-stat-value" id="hudLvl_${sid}">—</div></div>
+            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">OPEN</div><div class="hud-stat-value" id="hudOpen_${sid}">—</div></div>
+            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">LOCKED</div><div class="hud-stat-value" id="hudClosed_${sid}">—</div></div>
           </div>
           <div class="hud-items-row" id="hudItemsRow_${sid}">
             <div class="hud-item-label">EQUIPPED</div>
@@ -592,7 +604,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
   });
   const minigameSectionMapJson = JSON.stringify(minigameSectionMap);
 
-  // Map sectionId → XP awarded when player enters that section (tracked server-side)
+  // Map sectionId → cells awarded when player enters that section (tracked server-side)
   const sectionXpMap = {};
   sections.forEach(s => {
     if (s.sectionXp && Number(s.sectionXp) > 0) sectionXpMap[s.id] = Number(s.sectionXp);
@@ -1433,7 +1445,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       ${introLines.length > 0 ? '<div id="introText" class="intro-text" style="opacity:0;"></div>' : ''}
 <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
       <div id="escrowBox" style="margin:18px 0 10px;font-size:0.48rem;color:#c9a84c;text-align:center;line-height:1.8;">
-        <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking escrow status…</div>
+        <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking quest status…</div>
         <a href="../../adventure.html" id="goAdventureBtn" style="display:none;font-family:'Press Start 2P',monospace;font-size:0.48rem;color:#c9a84c;text-decoration:underline;cursor:pointer;">← Start quest from the Adventure page</a>
       </div>
       <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()" disabled${introLines.length > 0 ? ' style="opacity:0;pointer-events:none;"' : ''}>START</button>
@@ -1520,7 +1532,7 @@ ${completePanelHtml}
     var gameSectionMap = ${gameSectionMapJson};
     // Maps sectionId → { minigameFile, winNextSectionId } for minigame sections (win/loss branching)
     var minigameSectionMap = ${minigameSectionMapJson};
-    // Maps sectionId → XP amount awarded to players who visit that section
+    // Maps sectionId → cells awarded to players who visit that section
     var sectionXpMap = ${sectionXpMapJson};
     // Tracks which branch the player chose (0 or 1) for the first two double-choice sections,
     // in encounter order. Passed as choice1/choice2 to QuestRewards.completeQuest.
@@ -1706,7 +1718,7 @@ function showPanel(id) {
       }
     }
 
-    // ── Escrow enforcement ──────────────────────────────────────────────────
+    // ── Session & active status check ──────────────────────────────────────
     function _setStartEnabled(enabled) {
       var btn = document.getElementById('introStartBtn');
       if (!btn) return;
@@ -1714,7 +1726,7 @@ function showPanel(id) {
       btn.style.opacity = enabled ? '1' : '0.4';
       btn.style.pointerEvents = enabled ? 'auto' : 'none';
     }
-    async function checkEscrowStatus() {
+    async function checkSessionStatus() {
       var statusEl  = document.getElementById('escrowStatus');
       var advBtn    = document.getElementById('goAdventureBtn');
       if (!statusEl) return;
@@ -1727,32 +1739,50 @@ function showPanel(id) {
         return;
       }
 
-      statusEl.textContent = '⏳ Checking escrow status…';
+      statusEl.textContent = '⏳ Checking quest status…';
       try {
         var rp = _getReadProvider();
+        var lc = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, rp);
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
-        var locker = await qr.lockedBy(chadId);
-        var lockerIsSet = locker !== ethers.constants.AddressZero;
-        var lockerMatchesUser = userAddress && locker.toLowerCase() === userAddress.toLowerCase();
-        if (lockerIsSet && (!userAddress || lockerMatchesUser)) {
-          // Locked by this user (or wallet not yet connected — trust on-chain state)
-          statusEl.textContent = '✅ CHAD #' + chadId + ' is locked in escrow';
+
+        // Check if Chad is eliminated
+        var isEliminated = await lc.eliminated(chadId);
+        if (isEliminated) {
+          statusEl.textContent = '💀 CHAD #' + chadId + ' has been eliminated';
+          if (advBtn) advBtn.style.display = 'none';
+          _setStartEnabled(false);
+          return;
+        }
+
+        // Check if Chad has an active session (isActive flag on LastChad)
+        var active = await lc.isActive(chadId);
+        if (active) {
+          statusEl.textContent = '✅ CHAD #' + chadId + ' has an active quest session';
           if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(true);
-        } else if (lockerIsSet && !lockerMatchesUser) {
-          // Locked by a different wallet
-          statusEl.textContent = '⚠️ This Chad is locked by a different wallet';
+          return;
+        }
+
+        // Check quest cooldown
+        var lastTime = await qr.lastQuestTime(chadId, QUEST_ID);
+        var cooldown = await qr.questCooldown();
+        var now = Math.floor(Date.now() / 1000);
+        if (lastTime.toNumber() > 0 && now < lastTime.toNumber() + cooldown.toNumber()) {
+          var remaining = (lastTime.toNumber() + cooldown.toNumber()) - now;
+          var days = Math.ceil(remaining / 86400);
+          statusEl.textContent = '⏳ Quest on cooldown — ' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
           if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(false);
-        } else {
-          // Not locked — user must go through adventure.html first
-          statusEl.textContent = '🔒 Start this quest from the Adventure page';
-          if (advBtn) advBtn.style.display = '';
-          _setStartEnabled(false);
+          return;
         }
+
+        // Not active — user must start quest from adventure/chadbase
+        statusEl.textContent = '🔒 Start this quest from the Adventure page';
+        if (advBtn) advBtn.style.display = '';
+        _setStartEnabled(false);
       } catch(e) {
         // RPC error — don't block the player
-        statusEl.textContent = '⚠️ Could not verify escrow (network error)';
+        statusEl.textContent = '⚠️ Could not verify quest status (network error)';
         if (advBtn) advBtn.style.display = 'none';
         _setStartEnabled(true);
       }
@@ -1802,7 +1832,7 @@ function showPanel(id) {
       currentSectionId = firstId;
       _saveProgress();
       showPanel(firstId);
-      _startOnChainQuest(); // fetch seed that was created by startQuest() on adventure.html
+      _startOnChainQuest(); // fetch seed created by startQuest() on the adventure/chadbase page
     }
 
     async function animateIntro() {
@@ -1842,23 +1872,29 @@ function showPanel(id) {
       }
     }
 
-    // Known items: id -> display name
-    var knownItems = { '1': "Cindy's Code" };
+    // Known items: id -> display name (generated from builder-config.js)
+    var knownItems = ${JSON.stringify(knownItems)};
 
-    // Item images for HUD badges
-    var HUD_ITEM_DETAILS = {
-      '1': { image: 'https://lastchad.xyz/assets/docs_lobby/lobbybrochure.jpg' }
-    };
+    // Item images for HUD badges (generated from builder-config.js)
+    var HUD_ITEM_DETAILS = ${JSON.stringify(
+      _cfg && _cfg.knownItems
+        ? Object.fromEntries(Object.entries(_cfg.knownItems).filter(([,v]) => v.image).map(([id, v]) => [id, { image: v.image }]))
+        : { '1': { image: 'https://lastchad.xyz/assets/docs_lobby/lobbybrochure.jpg' } }
+    )};
 
-    // Item stat modifiers: itemId -> { str, int, dex, cha }
-    var ITEM_MODIFIERS = {
-      '1': { str: 0, int: 1, dex: 0, cha: 0 } // Cindy's Code: +1 INT
-    };
+    // Item stat modifiers: itemId -> { str, int, dex, cha } (generated from builder-config.js)
+    var ITEM_MODIFIERS = ${JSON.stringify(
+      _cfg && _cfg.knownItems
+        ? Object.fromEntries(Object.entries(_cfg.knownItems).filter(([,v]) => v.modifiers).map(([id, v]) => [id, v.modifiers]))
+        : { '1': { str: 0, int: 1, dex: 0, cha: 0 } }
+    )};
 
-    // Item descriptions for popup
-    var ITEM_DESCRIPTIONS = {
-      '1': "A flash drive containing Cindy's proprietary code. Whoever carries it feels their mind sharpen."
-    };
+    // Item descriptions for popup (generated from builder-config.js)
+    var ITEM_DESCRIPTIONS = ${JSON.stringify(
+      _cfg && _cfg.knownItems
+        ? Object.fromEntries(Object.entries(_cfg.knownItems).filter(([,v]) => v.description).map(([id, v]) => [id, v.description]))
+        : { '1': "A flash drive containing Cindy's proprietary code. Whoever carries it feels their mind sharpen." }
+    )};
 
     async function loadQuestHUD(sid) {
       if (!chadId) return;
@@ -1940,6 +1976,17 @@ function showPanel(id) {
           var stat = bonusEl.getAttribute('data-stat');
           bonusEl.textContent = '+' + (window._chadBaseStats[stat] || 0);
         }
+
+        // Cells & level
+        var level = await lcContract.getLevel(chadId);
+        var openCells = await lcContract.getOpenCells(chadId);
+        var closedCells = await lcContract.getClosedCells(chadId);
+        var lvlEl = document.getElementById('hudLvl_' + sid);
+        var openEl = document.getElementById('hudOpen_' + sid);
+        var closedEl = document.getElementById('hudClosed_' + sid);
+        if (lvlEl) lvlEl.textContent = level.toNumber();
+        if (openEl) openEl.textContent = openCells.toNumber();
+        if (closedEl) closedEl.textContent = closedCells.toNumber();
       } catch (e) {
         // HUD is cosmetic — silently fail if RPC unavailable
       }
@@ -2493,7 +2540,7 @@ ${diceInitJs}
       document.getElementById('walletBtn').classList.add('connected');
       closeWalletModal();
       checkQuestCompletion();
-      checkEscrowStatus();
+      checkSessionStatus();
       if (currentSectionId && !_questSeed) _startOnChainQuest();
     }
 
@@ -2612,7 +2659,7 @@ ${diceInitJs}
     // Run check on page load (using chadId from URL if present)
     checkQuestCompletion();
     animateIntro();
-    checkEscrowStatus();
+    checkSessionStatus();
 
     // Parent-side tap relay for WebView browsers (Rabby, MetaMask, etc.)
     // Sits above the iframe in the parent document — always receives first tap
@@ -2734,41 +2781,46 @@ ${diceInitJs}
       _setText(btn, 'CLAIMING...');
       statusEl.textContent = '';
 
-      // Verify the caller is the quest participant (NFT is in escrow, so check lockedBy not ownerOf)
+      // Verify the caller owns the Chad and has an active session
       if (QUEST_REWARDS_ADDRESS) {
         try {
           var readProvider = _getReadProvider();
+          var lcRead = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
           var qrRead = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, readProvider);
-          var lockedByAddr = await qrRead.lockedBy(chadId);
-          if (lockedByAddr === ethers.constants.AddressZero) {
-            // lockedBy cleared — check completed first, then whether quest was ever started
-            var alreadyClaimed = await qrRead.questCompleted(chadId, QUEST_ID);
-            if (alreadyClaimed) {
-              markQuestDone(chadId);
-              _clearProgress();
-              _setText(statusEl, 'Cells already claimed for CHAD #' + chadId);
-              btn.disabled = true;
-              _setText(btn, 'ALREADY CLAIMED');
-              var rw = document.getElementById('returnWrap');
-              if (rw) rw.style.display = '';
-            } else {
-              // Not completed and not locked — figure out why
-              var wasStarted = false;
-              try { wasStarted = await qrRead.questStarted(chadId, QUEST_ID); } catch(e) {}
-              if (wasStarted) {
-                // Quest was started but session expired and NFT was released — unrecoverable
-                _setText(statusEl, 'Quest session expired. Your NFT was returned — cells for this attempt cannot be claimed.');
-              } else {
-                // Quest was never started on-chain — player skipped adventure.html
-                _setText(statusEl, 'Quest not started on-chain. Begin from the Adventure page to lock your Chad and earn cells.');
-              }
-              btn.disabled = true;
-              _setText(btn, 'SESSION INACTIVE');
-            }
+
+          // Check if already completed
+          var alreadyClaimed = await qrRead.questCompleted(chadId, QUEST_ID);
+          if (alreadyClaimed) {
+            markQuestDone(chadId);
+            _clearProgress();
+            _setText(statusEl, 'Cells already claimed for CHAD #' + chadId);
+            btn.disabled = true;
+            _setText(btn, 'ALREADY CLAIMED');
+            var rw = document.getElementById('returnWrap');
+            if (rw) rw.style.display = '';
             return;
           }
-          if (lockedByAddr.toLowerCase() !== userAddress.toLowerCase()) {
-            _setText(statusEl, 'This wallet did not start the quest for CHAD #' + chadId);
+
+          // Check if Chad has an active quest session
+          var isActive = await lcRead.isActive(chadId);
+          if (!isActive) {
+            // Check if session expired
+            var expired = false;
+            try { expired = await qrRead.isSessionExpired(chadId); } catch(e) {}
+            if (expired) {
+              _setText(statusEl, 'Quest session expired. Cells for this attempt cannot be claimed.');
+            } else {
+              _setText(statusEl, 'No active quest session. Begin from the Adventure page to start a quest.');
+            }
+            btn.disabled = true;
+            _setText(btn, 'SESSION INACTIVE');
+            return;
+          }
+
+          // Verify ownership
+          var owner = await lcRead.ownerOf(chadId);
+          if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+            _setText(statusEl, 'This wallet does not own CHAD #' + chadId);
             btn.disabled = false;
             _setText(btn, 'CLAIM REWARDS');
             return;

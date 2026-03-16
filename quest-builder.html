@@ -971,6 +971,7 @@
       }
     }
   </style>
+  <script src="js/builder-config.js"></script>
   <script src="github-api.js"></script>
 </head>
 <body>
@@ -1084,7 +1085,16 @@
         .replace(/</g, '&lt;');
     }
 
-    const MAX_XP_PER_QUEST = 50; // matches worker hard cap
+    const MAX_CELLS_PER_SECTION = (typeof BUILDER_CONFIG !== 'undefined' && BUILDER_CONFIG.maxCellsPerSection) || 50;
+
+    // Build item <option> elements from BUILDER_CONFIG.knownItems
+    function _buildItemOptions(selectedId) {
+      var items = (typeof BUILDER_CONFIG !== 'undefined' && BUILDER_CONFIG.knownItems) || { '1': { name: "Cindy's Code" } };
+      return Object.keys(items).map(function(id) {
+        var sel = selectedId === id ? ' selected' : '';
+        return '<option value="' + id + '"' + sel + '>' + id + ': ' + escContent(items[id].name) + '</option>';
+      }).join('');
+    }
 
     // State management
     const state = {
@@ -1325,7 +1335,7 @@
           <!-- Section Cells -->
           <div class="form-group">
             <label>🪙 Section Cells (awarded when player visits)</label>
-            <input type="number" class="section-xp-input" min="0" max="${MAX_XP_PER_QUEST}" value="${section.sectionXp !== undefined ? section.sectionXp : 0}" data-section-id="${section.id}" placeholder="0">
+            <input type="number" class="section-xp-input" min="0" max="${MAX_CELLS_PER_SECTION}" value="${section.sectionXp !== undefined ? section.sectionXp : 0}" data-section-id="${section.id}" placeholder="0">
           </div>
 
           <!-- Music for this section -->
@@ -1342,7 +1352,7 @@
             <label>🎁 Item Award</label>
             <select class="section-item-award-select" data-section-id="${section.id}">
               <option value="">-- No Item --</option>
-              <option value="1" ${section.itemAward === '1' ? 'selected' : ''}>1: Cindy's Code</option>
+              ${_buildItemOptions(section.itemAward)}
             </select>
           </div>
 
@@ -1887,14 +1897,13 @@
       }
 
       try {
-        // Initialize GitHub API (publish to landing page branch so GitHub Pages can serve the quests)
-        const github = new GitHubAPI(token, 'Sevrin420', 'Last-Chad', 'claude/read-claude-md-E1ubC');
+        // Initialize GitHub API using builder-config.js settings
+        const _bc = typeof BUILDER_CONFIG !== 'undefined' ? BUILDER_CONFIG : {};
+        const github = new GitHubAPI(token, _bc.githubOwner || 'Sevrin420', _bc.githubRepo || 'Last-Chad', _bc.githubBranch || 'main');
 
-        // Publish quest
-        // Contract addresses are now loaded at runtime from js/quest-globals.js,
-        // so we pass empty string — the template no longer hardcodes them.
-        const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
-        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, '', WORKER_URL)
+        // Publish quest — contract addresses load at runtime from js/quest-globals.js
+        const WORKER_URL = _bc.workerUrl || '';
+        github.publishQuest(questName, state.sections, onPublishProgress, state.introDialogue || '', state.introPhoto || null, '', WORKER_URL, _bc)
           .then(data => {
             showPublishProgress(false);
             showQuestPublishedModal(questName, data.questUrl);
@@ -1908,15 +1917,15 @@
 
             // Build detailed error message
             let detailedMsg = `${errorMsg}\n\n🔍 DEBUG INFO:\n`;
-            detailedMsg += `Repository: Sevrin420/Last-Chad\n`;
-            detailedMsg += `Branch: claude/create-landing-page-1qjhB\n`;
+            detailedMsg += `Repository: ${_bc.githubOwner || 'Sevrin420'}/${_bc.githubRepo || 'Last-Chad'}\n`;
+            detailedMsg += `Branch: ${_bc.githubBranch || 'main'}\n`;
             detailedMsg += `Token: ${token ? '✓ Provided' : '✗ Missing'}\n`;
 
             // Add specific troubleshooting based on error
             if (errorMsg.includes('Not Found')) {
               detailedMsg += `\n⚠️ LIKELY CAUSES:\n`;
               detailedMsg += `• Repository may not exist\n`;
-              detailedMsg += `• Branch 'claude/create-landing-page-1qjhB' doesn't exist\n`;
+              detailedMsg += `• Branch '${_bc.githubBranch || 'main'}' doesn't exist\n`;
               detailedMsg += `• Token lacks 'repo' scope\n`;
               detailedMsg += `\n📖 See browser console (F12) for detailed logs`;
             } else if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
@@ -1945,9 +1954,10 @@
         console.error('Publish error:', error);
         showPublishProgress(false);
         const errorMsg = error?.message || String(error) || 'Unknown error';
+        const _bc2 = typeof BUILDER_CONFIG !== 'undefined' ? BUILDER_CONFIG : {};
         let detailedMsg = `${errorMsg}\n\n🔍 DEBUG INFO:\n`;
-        detailedMsg += `Repository: Sevrin420/Last-Chad\n`;
-        detailedMsg += `Branch: claude/create-landing-page-1qjhB\n`;
+        detailedMsg += `Repository: ${_bc2.githubOwner || 'Sevrin420'}/${_bc2.githubRepo || 'Last-Chad'}\n`;
+        detailedMsg += `Branch: ${_bc2.githubBranch || 'main'}\n`;
         detailedMsg += `Token: ${token ? '✓ Provided' : '✗ Missing'}\n`;
         detailedMsg += `\n📖 See browser console (F12) for detailed logs`;
         alert(detailedMsg);
