@@ -69,7 +69,6 @@ const LAST_CHAD_ABI = [
 ];
 
 const ITEMS_ABI = [
-  'function name() view returns (string)',
   'function getItem(uint256 itemId) view returns (string name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)',
   'function authorizedGame(address) view returns (bool)',
   'function owner() view returns (address)',
@@ -89,9 +88,9 @@ const MARKET_ABI = [
 const GAMBLE_ABI = [
   'function lastChad() view returns (address)',
   'function oracle() view returns (address)',
+  'function gameOwner() view returns (address)',
   'function minWager() view returns (uint256)',
   'function maxWager() view returns (uint256)',
-  'function owner() view returns (address)',
 ];
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -129,7 +128,6 @@ async function main() {
   console.log("\n[2/5] LastChadItems");
   const items = new hre.ethers.Contract(cfg.items, ITEMS_ABI, p);
   await check("bytecode deployed",       () => p.getCode(cfg.items).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
-  await check("name()",                  () => items.name());
   await check("owner()",                 () => items.owner());
   await check("QuestRewards authorized", () => items.authorizedGame(cfg.questRewards).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
   await check("Item #1 exists (name)",   () => items.getItem(1).then(r => r.name));
@@ -162,7 +160,7 @@ async function main() {
     console.log("\n[5/5] Gamble");
     const gmbl = new hre.ethers.Contract(cfg.gamble, GAMBLE_ABI, p);
     await check("bytecode deployed",       () => p.getCode(cfg.gamble).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
-    await check("owner()",                 () => gmbl.owner());
+    await check("gameOwner()",             () => gmbl.gameOwner());
     await check("lastChad() points to LC", () => gmbl.lastChad().then(addr => {
       if (addr.toLowerCase() !== cfg.lastChad.toLowerCase()) throw new Error(`points to ${addr}`);
       return "correct";
