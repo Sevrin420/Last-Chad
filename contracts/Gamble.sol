@@ -182,6 +182,7 @@ contract Gamble {
         bytes calldata oracleSig
     ) external {
         require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!lastChad.eliminated(tokenId), "Chad eliminated");
         require(wagerAmounts[nonce] > 0, "No active wager");
         require(wagerPlayers[nonce] == msg.sender, "Not wager owner");
         require(!usedNonces[nonce], "Already claimed");

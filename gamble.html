@@ -900,7 +900,8 @@
         "How's about we play a game o' chance?"
       ]);
       showChoices([
-        { label: "Let's flip old man", action: startCoinFlip }
+        { label: "Let's flip old man", action: startCoinFlip },
+        { label: "Get out the cards you old bastard", action: showPokerRules }
       ]);
     }
 
@@ -1218,7 +1219,8 @@
         "Play again?"
       ]);
       showChoices([
-        { label: "Let's flip old man", action: startCoinFlip }
+        { label: "Let's flip old man", action: startCoinFlip },
+        { label: "Get out the cards you old bastard", action: showPokerRules }
       ]);
     }
 
@@ -1242,12 +1244,135 @@
 
     const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
 
+    // Fetch with timeout (15s default) to prevent hanging UI
+    function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+    }
+
     let pokerHand = [];
     let pokerHeld = [false,false,false,false,false];
     let pokerPhase = 'idle'; // idle, dealt, done
     let pokerWager = 0;
     let pokerNonce = null;   // nonce from commitWager
     let pokerStack = 0;      // current bankroll tracked by worker
+    let pokerSessionToken = null; // HMAC token from Worker for anti-cheat
+
+    // Recovery: persist poker session state to localStorage
+    function savePokerSession() {
+      if (pokerNonce === null) {
+        localStorage.removeItem('lc_poker_session');
+        return;
+      }
+      localStorage.setItem('lc_poker_session', JSON.stringify({
+        nonce: pokerNonce,
+        tokenId: selectedTokenId,
+        player: userAddress,
+        wager: pokerWager,
+        stack: pokerStack,
+        sessionToken: pokerSessionToken,
+      }));
+    }
+    function clearPokerSession() {
+      pokerNonce = null;
+      pokerSessionToken = null;
+      localStorage.removeItem('lc_poker_session');
+      localStorage.removeItem('lc_poker_cashout');
+    }
+
+    // On page load: check for dangling poker session or cashout
+    (function checkPokerRecovery() {
+      const saved = localStorage.getItem('lc_poker_cashout');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          // We have a signed cashout that failed on-chain — retry
+          const origShowIntro = showIntro;
+          showIntro = async function() {
+            await showNpcText([
+              "Hold up... looks like you have unclaimed winnings.",
+              "Let me try to collect those for ya..."
+            ]);
+            showChoices([{
+              label: 'CLAIM WINNINGS', action: async () => {
+                choicesDiv.innerHTML = '';
+                try {
+                  const signer = await getSigner();
+                  if (!signer) throw new Error('Wallet not connected');
+                  const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+                  const tx = await gamble.claimWinnings(data.tokenId, data.payout, data.nonce, data.signature);
+                  await tx.wait();
+                  localStorage.removeItem('lc_poker_cashout');
+                  await showNpcText(["There ya go! Your cells are back."]);
+                  showIntro = origShowIntro;
+                  await showPlayAgain(true);
+                } catch (err) {
+                  console.error('Recovery claim failed:', err);
+                  await showNpcText(["Hmm, that didn't work. Try again or it might already be claimed."]);
+                  showChoices([
+                    { label: 'TRY AGAIN', action: async () => { await showIntro(); } },
+                    { label: 'SKIP', action: async () => { localStorage.removeItem('lc_poker_cashout'); showIntro = origShowIntro; await origShowIntro(); } },
+                  ]);
+                }
+              }
+            }, {
+              label: 'SKIP', action: async () => { localStorage.removeItem('lc_poker_cashout'); showIntro = origShowIntro; await origShowIntro(); }
+            }]);
+          };
+          return;
+        } catch (_) { localStorage.removeItem('lc_poker_cashout'); }
+      }
+
+      const session = localStorage.getItem('lc_poker_session');
+      if (session) {
+        try {
+          const data = JSON.parse(session);
+          const origShowIntro = showIntro;
+          showIntro = async function() {
+            await showNpcText([
+              "Hold on... you left mid-game last time.",
+              "Want me to try to reconnect your poker session?"
+            ]);
+            showChoices([{
+              label: 'RECONNECT', action: async () => {
+                choicesDiv.innerHTML = '';
+                pokerNonce = data.nonce;
+                selectedTokenId = data.tokenId;
+                pokerWager = data.wager;
+                pokerSessionToken = data.sessionToken;
+                try {
+                  const res = await fetchWithTimeout(WORKER_URL + '/poker/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokenId: data.tokenId, nonce: data.nonce, player: data.player }),
+                  });
+                  const result = await res.json();
+                  if (!result.ok) throw new Error(result.error || 'Session expired');
+                  pokerStack = result.stack;
+                  pokerSessionToken = result.sessionToken || data.sessionToken;
+                  savePokerSession();
+                  currentGame = 'poker';
+                  dialogueBox.classList.remove('visible');
+                  jiptImage.classList.remove('visible');
+                  document.getElementById('poker-overlay').classList.add('active');
+                  updatePokerWagerDisplay();
+                  await dealNewHand();
+                } catch (err) {
+                  console.error('Reconnect failed:', err);
+                  await showNpcText(["Session's gone cold. Your wager might be lost... sorry partner."]);
+                  clearPokerSession();
+                  showIntro = origShowIntro;
+                  showChoices([{ label: 'CONTINUE', action: origShowIntro }]);
+                }
+              }
+            }, {
+              label: 'SKIP', action: async () => { clearPokerSession(); showIntro = origShowIntro; await origShowIntro(); }
+            }]);
+          };
+        } catch (_) { localStorage.removeItem('lc_poker_session'); }
+      }
+    })();
 
     // Deck creation, shuffling, and hand evaluation are handled server-side
     // by the Worker to prevent manipulation. See /poker/deal and /poker/draw.
@@ -1276,6 +1401,7 @@
 
       try {
         const signer = await getSigner();
+        if (!signer) throw new Error('Wallet not connected');
         const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
         const tx = await gamble.commitWager(selectedTokenId, pokerWager);
         const receipt = await tx.wait();
@@ -1285,7 +1411,10 @@
         const wagerLog = receipt.logs
           .map(log => { try { return iface.parseLog(log); } catch { return null; } })
           .find(e => e && e.name === 'WagerCommitted');
-        pokerNonce = Number(wagerLog.args.nonce);
+        if (!wagerLog) throw new Error('WagerCommitted event not found in receipt');
+        pokerNonce = wagerLog.args.nonce.toNumber ? wagerLog.args.nonce.toNumber() : Number(wagerLog.args.nonce);
+        // Save nonce immediately so it survives page refresh
+        savePokerSession();
       } catch (err) {
         console.error('commitWager failed:', err);
         clearDialogue();
@@ -1300,8 +1429,12 @@
       }
 
       // Start session with Worker
+      await startPokerWorkerSession();
+    }
+
+    async function startPokerWorkerSession() {
       try {
-        const res = await fetch(WORKER_URL + '/poker/start', {
+        const res = await fetchWithTimeout(WORKER_URL + '/poker/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tokenId: selectedTokenId, nonce: pokerNonce, player: userAddress }),
@@ -1309,12 +1442,20 @@
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Worker session start failed');
         pokerStack = data.stack;
+        pokerSessionToken = data.sessionToken || null;
+        savePokerSession();
       } catch (err) {
         console.error('Poker session start failed:', err);
         clearDialogue();
         const errMsg = document.createElement('p');
         dialogueText.appendChild(errMsg);
-        await typewrite(errMsg, "Session error. Your cells are committed — try refreshing.", 40);
+        await typewrite(errMsg, "Session error. Your cells are committed — retrying...", 40);
+        showChoices([
+          { label: 'RETRY', action: startPokerWorkerSession },
+          { label: 'BACK (nonce saved)', action: () => {
+            showPlayAgain(false);
+          }},
+        ]);
         return;
       }
 
@@ -1359,10 +1500,10 @@
       }
 
       try {
-        const res = await fetch(WORKER_URL + '/poker/deal', {
+        const res = await fetchWithTimeout(WORKER_URL + '/poker/deal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nonce: pokerNonce, handWager }),
+          body: JSON.stringify({ nonce: pokerNonce, handWager, sessionToken: pokerSessionToken }),
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Deal failed');
@@ -1370,6 +1511,7 @@
         pokerHand = data.cards;
         pokerStack = data.stack;
         pokerPhase = 'dealt';
+        savePokerSession();
         updatePokerWagerDisplay();
         renderPokerHand();
 
@@ -1432,10 +1574,10 @@
       dealBtn.disabled = true;
 
       try {
-        const res = await fetch(WORKER_URL + '/poker/draw', {
+        const res = await fetchWithTimeout(WORKER_URL + '/poker/draw', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nonce: pokerNonce, held: pokerHeld }),
+          body: JSON.stringify({ nonce: pokerNonce, held: pokerHeld, sessionToken: pokerSessionToken }),
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Draw failed');
@@ -1443,6 +1585,7 @@
         pokerHand = data.cards;
         pokerStack = data.stack;
         pokerPhase = 'done';
+        savePokerSession();
         renderPokerHand();
         updatePokerWagerDisplay();
 
@@ -1514,10 +1657,14 @@
 
       try {
         // Ask worker to sign final payout
-        const res = await fetch(WORKER_URL + '/poker/cashout', {
+        const res = await fetchWithTimeout(WORKER_URL + '/poker/cashout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tokenId: selectedTokenId, nonce: pokerNonce }),
+          body: JSON.stringify({
+            tokenId: selectedTokenId,
+            nonce: pokerNonce,
+            sessionToken: pokerSessionToken,
+          }),
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Cashout failed');
@@ -1526,21 +1673,32 @@
 
         // TX 2: Claim winnings on-chain (only if payout > 0)
         if (won) {
+          // Save signature to localStorage BEFORE calling claimWinnings
+          // so we can retry if the tx fails
+          localStorage.setItem('lc_poker_cashout', JSON.stringify({
+            tokenId: selectedTokenId,
+            payout: data.payout,
+            nonce: data.nonce,
+            signature: data.signature,
+          }));
+
           const signer = await getSigner();
+          if (!signer) throw new Error('Wallet not connected');
           const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
           const tx = await gamble.claimWinnings(selectedTokenId, data.payout, data.nonce, data.signature);
           await tx.wait();
+          localStorage.removeItem('lc_poker_cashout');
         }
 
-        pokerNonce = null;
+        clearPokerSession();
         pokerPhase = 'idle';
         document.getElementById('poker-overlay').classList.remove('active');
         jiptImage.classList.add('visible');
         dialogueBox.classList.add('visible');
 
         if (won) {
-          showResult(true);
-          setTimeout(() => showPlayAgain(true), 3200);
+          // showResult calls showPlayAgain internally — don't call it again
+          await showResult(true);
         } else {
           showPlayAgain(false);
         }
@@ -1554,13 +1712,25 @@
     }
 
     // ── Poker: Back button ──
+    let pokerErrorCount = 0;
     document.getElementById('poker-back').addEventListener('click', async () => {
       if (pokerPhase === 'dealt') {
-        // Can't leave mid-hand — must draw first
-        document.getElementById('poker-result').textContent = 'FINISH HAND FIRST';
+        pokerErrorCount++;
+        if (pokerErrorCount >= 3) {
+          // Force exit after 3 attempts — Worker is likely down
+          const resultEl = document.getElementById('poker-result');
+          resultEl.textContent = 'FORCE EXIT — CASHING OUT...';
+          resultEl.className = 'poker-result lose';
+          pokerPhase = 'idle'; // unlock cashout
+          await pokerCashout();
+          pokerErrorCount = 0;
+          return;
+        }
+        document.getElementById('poker-result').textContent = `FINISH HAND FIRST (${3 - pokerErrorCount} more to force exit)`;
         document.getElementById('poker-result').className = 'poker-result lose';
         return;
       }
+      pokerErrorCount = 0;
       await pokerCashout();
     });
 

@@ -50,7 +50,7 @@ const MAX_XP_PER_QUEST  = 50;      // hard cap — Worker will never sign more
 const QUEST_CACHE_TTL   = 86_400;  // 24h — quest configs change rarely
 const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'charisma']);
 
-const POKER_SESSION_TTL = 600;    // 10 minutes per session
+const POKER_SESSION_TTL = 600;    // 10 minutes per session (reset on every interaction)
 const POKER_PAYOUTS = {
   'ROYAL FLUSH':      250,
   'STRAIGHT FLUSH':    50,
@@ -351,11 +351,15 @@ async function handlePokerStart(request, env) {
     return json({ error: 'Player mismatch' }, 403);
   }
 
-  // Check if session already exists
+  const sessionToken = await generateSessionToken(nonce, player.toLowerCase(), env);
+
+  // Check if session already exists — return it with refreshed TTL
   const key = `poker:${nonce}`;
   const existing = await env.RUNNER_KV.get(key, { type: 'json' });
   if (existing) {
-    return json({ ok: true, stack: existing.stack });
+    // Refresh TTL on reconnect
+    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: POKER_SESSION_TTL });
+    return json({ ok: true, stack: existing.stack, sessionToken });
   }
 
   await env.RUNNER_KV.put(key, JSON.stringify({
@@ -366,9 +370,11 @@ async function handlePokerStart(request, env) {
     deck:    null,
     hand:    null,
     handWager: 0,
+    lastDrawResult: null, // cached draw result for retry
+    _expectedToken: sessionToken,
   }), { expirationTtl: POKER_SESSION_TTL });
 
-  return json({ ok: true, stack: wager });
+  return json({ ok: true, stack: wager, sessionToken });
 }
 
 // ---------------------------------------------------------------------------
@@ -376,7 +382,7 @@ async function handlePokerStart(request, env) {
 // Deal 5 cards from a fresh shuffled deck. handWager is deducted from stack.
 // ---------------------------------------------------------------------------
 async function handlePokerDeal(request, env) {
-  const { nonce, handWager } = await parseBody(request);
+  const { nonce, handWager, sessionToken } = await parseBody(request);
   if (nonce == null || handWager == null) {
     return json({ error: 'Missing nonce or handWager' }, 400);
   }
@@ -384,6 +390,9 @@ async function handlePokerDeal(request, env) {
   const key     = `poker:${nonce}`;
   const session = await env.RUNNER_KV.get(key, { type: 'json' });
   if (!session) return json({ error: 'No poker session' }, 403);
+  if (!verifySessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
   if (session.phase !== 'ready') {
     return json({ error: 'Must complete current hand first' }, 400);
   }
@@ -402,7 +411,9 @@ async function handlePokerDeal(request, env) {
   session.handWager = bet;
   session.stack    -= bet;
   session.phase     = 'dealt';
+  session.lastDrawResult = null; // clear previous draw cache
 
+  // TTL resets on every interaction
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: POKER_SESSION_TTL });
 
   return json({
@@ -418,7 +429,7 @@ async function handlePokerDeal(request, env) {
 // Replace unheld cards, evaluate hand, adjust stack.
 // ---------------------------------------------------------------------------
 async function handlePokerDraw(request, env) {
-  const { nonce, held } = await parseBody(request);
+  const { nonce, held, sessionToken } = await parseBody(request);
   if (nonce == null || !Array.isArray(held) || held.length !== 5) {
     return json({ error: 'Missing nonce or invalid held array' }, 400);
   }
@@ -426,6 +437,15 @@ async function handlePokerDraw(request, env) {
   const key     = `poker:${nonce}`;
   const session = await env.RUNNER_KV.get(key, { type: 'json' });
   if (!session) return json({ error: 'No poker session' }, 403);
+  if (!verifySessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+
+  // If already drawn, return cached result (handles network retry gracefully)
+  if (session.phase === 'ready' && session.lastDrawResult) {
+    return json(session.lastDrawResult);
+  }
+
   if (session.phase !== 'dealt') {
     return json({ error: 'No hand dealt or already drawn' }, 400);
   }
@@ -448,16 +468,21 @@ async function handlePokerDraw(request, env) {
   session.deck   = null;
   session.hand   = null;
 
-  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: POKER_SESSION_TTL });
-
-  return json({
+  // Cache draw result so retries return the same outcome
+  const drawResponse = {
     ok: true,
     cards,
     hand: result,
     multiplier: mult,
     winnings,
     stack: session.stack,
-  });
+  };
+  session.lastDrawResult = drawResponse;
+
+  // TTL resets on every interaction
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: POKER_SESSION_TTL });
+
+  return json(drawResponse);
 }
 
 // ---------------------------------------------------------------------------
@@ -465,7 +490,7 @@ async function handlePokerDraw(request, env) {
 // Sign final payout so player can claim on-chain.
 // ---------------------------------------------------------------------------
 async function handlePokerCashout(request, env) {
-  const { tokenId, nonce } = await parseBody(request);
+  const { tokenId, nonce, sessionToken } = await parseBody(request);
   if (tokenId == null || nonce == null) {
     return json({ error: 'Missing tokenId or nonce' }, 400);
   }
@@ -473,6 +498,9 @@ async function handlePokerCashout(request, env) {
   const key     = `poker:${nonce}`;
   const session = await env.RUNNER_KV.get(key, { type: 'json' });
   if (!session) return json({ error: 'No poker session' }, 403);
+  if (!verifySessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
   if (session.phase === 'dealt') {
     return json({ error: 'Finish current hand before cashing out' }, 400);
   }
@@ -481,6 +509,12 @@ async function handlePokerCashout(request, env) {
   }
 
   const payout = session.stack;
+
+  // Skip signing if payout is 0 — no on-chain tx needed for losses
+  if (payout === 0) {
+    await env.RUNNER_KV.delete(key);
+    return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
+  }
 
   // Sign keccak256(tokenId, payout, nonce, player)
   const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
@@ -499,6 +533,27 @@ async function handlePokerCashout(request, env) {
 // ---------------------------------------------------------------------------
 // Poker helpers
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Anti-cheat: HMAC session token — ties session to nonce+player, no extra txs
+// ---------------------------------------------------------------------------
+async function generateSessionToken(nonce, player, env) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(env.ORACLE_PRIVATE_KEY),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const data = new TextEncoder().encode(`poker:${nonce}:${player}`);
+  const sig = await crypto.subtle.sign('HMAC', key, data);
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function verifySessionToken(session, sessionToken) {
+  if (!session._expectedToken) return true; // legacy sessions without token
+  return session._expectedToken === sessionToken;
+}
 
 /** Fisher-Yates shuffle using crypto.getRandomValues for manipulation resistance */
 function shuffleDeckCrypto() {
