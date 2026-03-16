@@ -71,9 +71,11 @@ contract Gamble {
     );
 
     // ── Constructor ──────────────────────────────────────────────────────────
-    constructor(address lastChadAddress) {
+    constructor(address lastChadAddress, address _oracle) {
+        require(_oracle != address(0), "Oracle required");
         lastChad  = ILastChad(lastChadAddress);
         gameOwner = msg.sender;
+        oracle    = _oracle;
     }
 
     modifier onlyGameOwner() {
@@ -137,14 +139,12 @@ contract Gamble {
         require(wager > 0, "Invalid wager");
         require(!usedNonces[nonce], "Nonce already used");
 
-        if (oracle != address(0)) {
-            bytes32 message = keccak256(abi.encodePacked(
-                tokenId, wager, payout, gameId, nonce, msg.sender
-            ));
-            bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
-            address signer  = ECDSA.recover(ethHash, oracleSig);
-            require(signer == oracle, "Invalid oracle signature");
-        }
+        bytes32 message = keccak256(abi.encodePacked(
+            tokenId, wager, payout, gameId, nonce, msg.sender
+        ));
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+        address signer  = ECDSA.recover(ethHash, oracleSig);
+        require(signer == oracle, "Invalid oracle signature");
 
         usedNonces[nonce] = true;
         lastChad.spendCells(tokenId, wager);
@@ -187,14 +187,12 @@ contract Gamble {
         require(wagerPlayers[nonce] == msg.sender, "Not wager owner");
         require(!usedNonces[nonce], "Already claimed");
 
-        if (oracle != address(0)) {
-            bytes32 message = keccak256(abi.encodePacked(
-                tokenId, payout, nonce, msg.sender
-            ));
-            bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
-            address signer  = ECDSA.recover(ethHash, oracleSig);
-            require(signer == oracle, "Invalid oracle signature");
-        }
+        bytes32 message = keccak256(abi.encodePacked(
+            tokenId, payout, nonce, msg.sender
+        ));
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+        address signer  = ECDSA.recover(ethHash, oracleSig);
+        require(signer == oracle, "Invalid oracle signature");
 
         usedNonces[nonce] = true;
         delete wagerAmounts[nonce];

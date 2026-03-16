@@ -5,16 +5,20 @@ const PRICE = ethers.parseEther("0.02");
 const BASE_URI = "https://lastchad.xyz/metadata/";
 
 describe("Gamble", function () {
-  let lastChad, gamble, owner, player, other;
+  let lastChad, gamble, owner, player, other, oracleWallet;
 
   beforeEach(async function () {
     [owner, player, other] = await ethers.getSigners();
+    oracleWallet = ethers.Wallet.createRandom();
 
     const ChadFactory = await ethers.getContractFactory("LastChad");
     lastChad = await ChadFactory.deploy(BASE_URI);
 
     const GambleFactory = await ethers.getContractFactory("Gamble");
-    gamble = await GambleFactory.deploy(await lastChad.getAddress());
+    gamble = await GambleFactory.deploy(
+      await lastChad.getAddress(),
+      oracleWallet.address
+    );
 
     // Authorize gamble contract
     await lastChad.setGameContract(await gamble.getAddress(), true);
@@ -23,6 +27,31 @@ describe("Gamble", function () {
     await lastChad.connect(player).mint(1, { value: PRICE });
     await lastChad.connect(player).setStats(1, "TestChad", 1, 0, 1, 0);
     await lastChad.awardCells(1, 100);
+  });
+
+  /** Helper: sign a claimWinnings message with the oracle wallet */
+  async function signClaim(tokenId, payout, nonce, playerAddr) {
+    const messageHash = ethers.solidityPackedKeccak256(
+      ["uint256", "uint256", "uint256", "address"],
+      [tokenId, payout, nonce, playerAddr]
+    );
+    return oracleWallet.signMessage(ethers.getBytes(messageHash));
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Constructor
+  // ──────────────────────────────────────────────────────────
+  describe("constructor", function () {
+    it("sets oracle at deploy", async function () {
+      expect(await gamble.oracle()).to.equal(oracleWallet.address);
+    });
+
+    it("reverts if oracle is zero address", async function () {
+      const GambleFactory = await ethers.getContractFactory("Gamble");
+      await expect(
+        GambleFactory.deploy(await lastChad.getAddress(), ethers.ZeroAddress)
+      ).to.be.revertedWith("Oracle required");
+    });
   });
 
   // ──────────────────────────────────────────────────────────
@@ -90,60 +119,45 @@ describe("Gamble", function () {
       await gamble.connect(player).commitWager(1, 10);
     });
 
-    it("awards cells on valid claim (no oracle)", async function () {
-      // No oracle set — signature check is skipped
+    it("awards cells on valid oracle-signed claim", async function () {
+      const sig = await signClaim(1, 20, 0, player.address);
       const cellsBefore = await lastChad.getCells(1);
-      await gamble.connect(player).claimWinnings(1, 20, 0, "0x");
+      await gamble.connect(player).claimWinnings(1, 20, 0, sig);
       const cellsAfter = await lastChad.getCells(1);
       expect(cellsAfter - cellsBefore).to.equal(20);
     });
 
     it("cleans up storage after claim", async function () {
-      await gamble.connect(player).claimWinnings(1, 20, 0, "0x");
+      const sig = await signClaim(1, 20, 0, player.address);
+      await gamble.connect(player).claimWinnings(1, 20, 0, sig);
       expect(await gamble.wagerAmounts(0)).to.equal(0);
       expect(await gamble.usedNonces(0)).to.be.true;
     });
 
     it("reverts on double claim", async function () {
-      await gamble.connect(player).claimWinnings(1, 20, 0, "0x");
+      const sig = await signClaim(1, 20, 0, player.address);
+      await gamble.connect(player).claimWinnings(1, 20, 0, sig);
       await expect(
-        gamble.connect(player).claimWinnings(1, 20, 0, "0x")
+        gamble.connect(player).claimWinnings(1, 20, 0, sig)
       ).to.be.revertedWith("Already claimed");
     });
 
     it("reverts if wrong player", async function () {
+      const sig = await signClaim(1, 20, 0, player.address);
       await expect(
-        gamble.connect(other).claimWinnings(1, 20, 0, "0x")
+        gamble.connect(other).claimWinnings(1, 20, 0, sig)
       ).to.be.revertedWith("Not token owner");
     });
 
     it("reverts if no active wager", async function () {
+      const sig = await signClaim(1, 20, 99, player.address);
       await expect(
-        gamble.connect(player).claimWinnings(1, 20, 99, "0x")
+        gamble.connect(player).claimWinnings(1, 20, 99, sig)
       ).to.be.revertedWith("No active wager");
     });
 
-    it("verifies oracle signature when oracle is set", async function () {
-      const oracleWallet = ethers.Wallet.createRandom();
-      await gamble.setOracle(oracleWallet.address);
-
-      // Sign the correct message
-      const messageHash = ethers.solidityPackedKeccak256(
-        ["uint256", "uint256", "uint256", "address"],
-        [1, 20, 0, player.address]
-      );
-      const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
-
-      await gamble.connect(player).claimWinnings(1, 20, 0, signature);
-      expect(await gamble.usedNonces(0)).to.be.true;
-    });
-
     it("reverts with invalid oracle signature", async function () {
-      const oracleWallet = ethers.Wallet.createRandom();
       const fakeWallet = ethers.Wallet.createRandom();
-      await gamble.setOracle(oracleWallet.address);
-
-      // Sign with wrong key
       const messageHash = ethers.solidityPackedKeccak256(
         ["uint256", "uint256", "uint256", "address"],
         [1, 20, 0, player.address]
@@ -155,9 +169,16 @@ describe("Gamble", function () {
       ).to.be.revertedWith("Invalid oracle signature");
     });
 
+    it("reverts with empty signature (no bypass)", async function () {
+      await expect(
+        gamble.connect(player).claimWinnings(1, 20, 0, "0x")
+      ).to.be.reverted;
+    });
+
     it("allows zero payout claim (just marks nonce used)", async function () {
+      const sig = await signClaim(1, 0, 0, player.address);
       const cellsBefore = await lastChad.getCells(1);
-      await gamble.connect(player).claimWinnings(1, 0, 0, "0x");
+      await gamble.connect(player).claimWinnings(1, 0, 0, sig);
       const cellsAfter = await lastChad.getCells(1);
       expect(cellsAfter).to.equal(cellsBefore);
       expect(await gamble.usedNonces(0)).to.be.true;
