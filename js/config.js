@@ -1,11 +1,11 @@
 // Contract addresses and RPC config for Last Chad
 // Update these when deploying to mainnet
 
-export const CONTRACT_ADDRESS         = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe884f';
-export const ITEMS_CONTRACT_ADDRESS   = '0x00906C5b4a5943E212FD59d227e995F3390cf86d';
-export const QUEST_REWARDS_ADDRESS    = '0x0CcA830784D13F4E9B606F914eB0c1deecA925eB';
-export const MARKET_ADDRESS           = '0x2648fce03fe383c4a1d1a4c21fa59a0b9f35243d';
-export const GAMBLE_ADDRESS           = '0x12527ec23064D11Fa128d6B36Db69252b86Ec0AC';
+export const CONTRACT_ADDRESS         = '0x04DFED6F15866125b1f6d140bcb1AB90F7614252';
+export const ITEMS_CONTRACT_ADDRESS   = '0x239066699C706152f6E2Fa5a82a05fC13C9677cD';
+export const QUEST_REWARDS_ADDRESS    = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
+export const MARKET_ADDRESS           = '0x204203b3495C940293b87cF1ff4ce7EEf81F1A1A';
+export const GAMBLE_ADDRESS           = '0x42Ae979c86cF4868F8648A1eec16567CbBF19698';
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
 
 export const LASTCHAD_ABI = [

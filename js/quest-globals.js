@@ -3,9 +3,9 @@
 // load it at runtime via <script src="../../js/quest-globals.js">,
 // so a single edit here fixes every quest simultaneously.
 
-var CONTRACT_ADDRESS = '0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe884f';
-var ITEMS_CONTRACT_ADDRESS = '0x00906C5b4a5943E212FD59d227e995F3390cf86d';
-var QUEST_REWARDS_ADDRESS = '0x0CcA830784D13F4E9B606F914eB0c1deecA925eB';
+var CONTRACT_ADDRESS = '0x04DFED6F15866125b1f6d140bcb1AB90F7614252';
+var ITEMS_CONTRACT_ADDRESS = '0x239066699C706152f6E2Fa5a82a05fC13C9677cD';
+var QUEST_REWARDS_ADDRESS = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
 
 var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
 var READ_RPC_FALLBACK = 'https://rpc.ankr.com/avalanche_fuji';
