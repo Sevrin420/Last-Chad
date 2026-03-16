@@ -745,7 +745,7 @@
       <div class="supply-section">
         <div class="supply-label">
           <span>MINTED</span>
-          <span id="supplyText">0 / 70</span>
+          <span id="supplyText">— / 10,000</span>
         </div>
         <div class="supply-bar">
           <div class="supply-fill" id="supplyFill"></div>
@@ -782,11 +782,11 @@
       <!-- Total -->
       <div class="total-row">
         <span class="total-label">TOTAL</span>
-        <span class="total-value" id="totalValue">3 AVAX</span>
+        <span class="total-value" id="totalValue">0.02 AVAX</span>
       </div>
 
       <!-- Team Selection -->
-      <div class="team-section" id="teamSection" style="display:none;">
+      <div class="team-section" id="teamSection">
         <div class="team-header">
           <span class="quantity-label">TEAM</span>
         </div>
@@ -875,7 +875,7 @@
         const remaining = MAX_SUPPLY - minted;
 
         // Update supply display
-        supplyText.textContent = minted + ' / ' + MAX_SUPPLY;
+        supplyText.textContent = minted.toLocaleString() + ' / ' + MAX_SUPPLY.toLocaleString();
         supplyFill.style.width = (minted / MAX_SUPPLY * 100) + '%';
 
         // Update max quantity slider
@@ -920,15 +920,12 @@
           const [name, nftContract, active, memberCount] = await contract.getTeam(i);
           if (active) teamData.push({ id: i, name, nftContract, memberCount: memberCount.toNumber() });
         }
-        if (teamData.length > 0) {
-          teamSection.style.display = 'block';
-          teamSelect.innerHTML = '<option value="0">No Team (Free Agent)</option>';
-          for (const t of teamData) {
-            const opt = document.createElement('option');
-            opt.value = t.id;
-            opt.textContent = t.name + ' (' + t.memberCount + ' members)';
-            teamSelect.appendChild(opt);
-          }
+        teamSelect.innerHTML = '<option value="0">No Team (Free Agent)</option>';
+        for (const t of teamData) {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.name + ' (' + t.memberCount + ' members)';
+          teamSelect.appendChild(opt);
         }
       } catch (err) {
         console.error('Failed to load teams:', err);
@@ -945,9 +942,19 @@
         return;
       }
       const addr = getUserAddress();
-      if (!addr) { teamStatus.textContent = 'Connect wallet first'; teamStatus.className = 'team-status err'; activePrice = PRICE; updateUI(); return; }
       const team = teamData.find(t => t.id === teamId);
       if (!team) return;
+
+      // No wallet connected — show team selected but no discount info
+      if (!addr) {
+        teamStatus.textContent = '';
+        teamStatus.className = 'team-status';
+        activePrice = PRICE;
+        updateUI();
+        return;
+      }
+
+      // Wallet connected — check NFT balance for discount
       try {
         const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const nft = new ethers.Contract(team.nftContract, ERC721_BALANCE_ABI, readProvider);
@@ -1034,6 +1041,11 @@
       mintBtn.classList.remove('ready');
       // REMOVED: redundant try/catch getElementById — disconnectDropdown const is in scope
       disconnectDropdown.classList.remove('show');
+      // Reset team discount info — keep selection but hide eligibility status
+      activePrice = PRICE;
+      teamStatus.textContent = '';
+      teamStatus.className = 'team-status';
+      updateUI();
     }
 
     // ========== MODAL EVENTS ==========
