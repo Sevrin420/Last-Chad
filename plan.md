@@ -4,7 +4,7 @@
 
 ### Step 1.1 — Constants & Inheritance
 - `MAX_SUPPLY` 70 → 10,000
-- `MINT_PRICE` 0.02 ether → 2 ether
+- `MINT_PRICE` stays at 0.02 ether (test scenario — revisit for production)
 - `MAX_MINT_PER_WALLET` 5 → TBD (ask user — whales minting 50 is fine per update.md)
 - Add `ERC721Enumerable` to inheritance chain
 - Add `supportsInterface` override for ERC721Enumerable
@@ -30,15 +30,32 @@
 - Add `batchSetTokenURI(uint256[] calldata tokenIds, string[] calldata uris) external onlyOwner`
 - Used for: dynamic metadata during game, survivor art at endgame, "Thanks for Playing" post-game
 
-### Step 1.5 — Culling Helper
+### Step 1.5 — Elimination Access & Batch Helpers
+- Change `eliminate()` from `onlyOwner` to `onlyGameOrOwner` — allows authorized game contracts (QuestRewards) to eliminate Chads on minigame death
+- Change `batchEliminate()` from `onlyOwner` to `onlyGameOrOwner` — same reason
+- Add `batchReinstate(uint256[] calldata tokenIds) external onlyOwner` — bulk undo eliminations (owner only, not game contracts)
+- Add `batchAwardCells(uint256[] calldata tokenIds, uint256[] calldata amounts) external onlyGameOrOwner` — award cells to multiple NFTs in one tx (manual rewards, event prizes, etc.)
+
+### Step 1.6 — Culling Helper
 - Add `getClosedCellsBatch(uint256[] calldata tokenIds) external view returns (uint256[] memory)` — lets the culling script efficiently rank all players
 
-### Step 1.6 — Update ILastChad Interface (used by QuestRewards/Gamble)
+### Step 1.7 — Update ILastChad Interface (used by QuestRewards/Gamble)
 - Add `isActive(uint256) → bool`
 - Add `setActive(uint256, bool)`
 - `eliminated(uint256) → bool` already exists
 
 **Depends on:** Nothing. This is the foundation.
+
+---
+
+## Phase 1B: LastChadItems.sol Batch Helpers (Can be done alongside Phase 1)
+
+### Step 1B.1 — Add `batchAirdrop`
+- Add `batchAirdrop(address[] calldata recipients, uint256 itemId, uint256[] calldata quantities) external onlyOwner` — airdrop items to multiple wallets in one tx
+- Reuses existing `_mintItem` logic per recipient (respects non-stackable rule, supply cap)
+- Used for: event prizes, manual item rewards, community giveaways
+
+**Depends on:** Nothing (independent of Phase 1 LastChad changes)
 
 ---
 
@@ -180,6 +197,10 @@ function unpauseDeaths() external onlyGameOwner { deathsPaused = false; }
 - Add tests for `isActive` flag (set/unset, only game contract can call)
 - Add tests for `setTokenURI` / `batchSetTokenURI` (per-token override, fallback to base)
 - Add tests for `getClosedCellsBatch`
+- Add tests for `batchReinstate` (bulk undo eliminations)
+- Add tests for `batchAwardCells` (multiple tokens in one tx, mismatched array lengths revert)
+- Add tests for `eliminate`/`batchEliminate` callable by authorized game contracts (not just owner)
+- Add tests for `batchAirdrop` on LastChadItems (multiple recipients, non-stackable enforcement, supply cap)
 - Remove any XP/experience tests (if they exist)
 - Keep all cells/leveling/stat tests (unchanged logic)
 
@@ -238,7 +259,7 @@ function unpauseDeaths() external onlyGameOwner { deathsPaused = false; }
 - Mirror all ABI changes from config.js (this file exists for generated quest pages that can't use ES modules)
 
 ### Step 6.3 — mint.html
-- `PRICE` 0.02 → 2
+- `PRICE` stays 0.02 (test scenario)
 - `MAX_SUPPLY` 70 → 10,000
 - `MAX_MINT_PER_WALLET` → match new contract value
 - Update UI copy for battle royale theme
