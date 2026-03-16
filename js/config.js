@@ -24,6 +24,7 @@ export const LASTCHAD_ABI = [
   // LastChad-specific
   'function MAX_SUPPLY() view returns (uint256)',
   'function MINT_PRICE() view returns (uint256)',
+  'function TEAM_MINT_PRICE() view returns (uint256)',
   'function MAX_MINT_PER_WALLET() view returns (uint256)',
   'function totalMinted() view returns (uint256)',
   'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',

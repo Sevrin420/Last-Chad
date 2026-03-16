@@ -10,9 +10,10 @@ interface IERC721Minimal {
 
 contract LastChad is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 10000;
-    uint256 public constant MINT_PRICE = 2 ether; // 2 AVAX
+    uint256 public constant MINT_PRICE = 0.02 ether;      // 0.02 AVAX — standard mint
+    uint256 public constant TEAM_MINT_PRICE = 0.015 ether; // 0.015 AVAX — holds team NFT
     uint256 public constant TOTAL_STAT_POINTS = 2;
-    uint256 public constant MAX_MINT_PER_WALLET = 50;
+    uint256 public constant MAX_MINT_PER_WALLET = 5;
     uint256 public constant CELLS_PER_LEVEL = 100;
 
     struct Stats {
@@ -138,17 +139,21 @@ contract LastChad is ERC721Enumerable, Ownable {
     }
 
     // ─────────────────────────────────────────────────────────
-    // Minting (with optional team selection)
+    // Minting (with optional team selection + discount)
     // ─────────────────────────────────────────────────────────
     function mint(uint256 quantity) external payable {
+        require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
         _mintInternal(quantity, 0);
     }
 
+    /// @notice Mint with team selection. Must hold an NFT from the team's collection.
+    ///         Discounted price: 0.015 AVAX per mint (vs 0.02 standard).
     function mintWithTeam(uint256 quantity, uint256 teamId) external payable {
         require(teamId > 0 && teamId < nextTeamId, "Invalid team");
         Team memory t = teams[teamId];
         require(t.active, "Team not active");
         require(IERC721Minimal(t.nftContract).balanceOf(msg.sender) > 0, "Must hold team NFT");
+        require(msg.value >= TEAM_MINT_PRICE * quantity, "Insufficient payment");
         _mintInternal(quantity, teamId);
     }
 
@@ -156,7 +161,6 @@ contract LastChad is ERC721Enumerable, Ownable {
         require(quantity > 0, "Quantity must be > 0");
         require(totalMinted + quantity <= MAX_SUPPLY, "Exceeds max supply");
         require(mintedPerWallet[msg.sender] + quantity <= MAX_MINT_PER_WALLET, "Exceeds max per wallet");
-        require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
 
         mintedPerWallet[msg.sender] += quantity;
         for (uint256 i = 0; i < quantity; i++) {

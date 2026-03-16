@@ -757,7 +757,7 @@
       <!-- Price -->
       <div class="price-row">
         <span class="price-label">PRICE</span>
-        <span class="price-value">2<span class="price-eth"> AVAX</span></span>
+        <span class="price-value" id="priceDisplay">0.02<span class="price-eth"> AVAX</span></span>
       </div>
 
       <!-- Quantity -->
@@ -772,7 +772,7 @@
             <div class="slider-track">
               <div class="slider-fill-bar" id="sliderFill" style="width: 0%"></div>
             </div>
-            <input type="range" min="1" max="50" value="1" id="qtySlider">
+            <input type="range" min="1" max="5" value="1" id="qtySlider">
           </div>
           <button class="qty-btn" id="qtyPlus">+</button>
         </div>
@@ -823,9 +823,11 @@
     import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
 
     // ========== CONFIG ==========
-    const PRICE = 2;
+    const PRICE = 0.02;
+    const TEAM_PRICE = 0.015;
     const MAX_SUPPLY = 10000;
-    const MAX_MINT_PER_WALLET = 50;
+    const MAX_MINT_PER_WALLET = 5;
+    let activePrice = PRICE; // switches to TEAM_PRICE when team selected + eligible
 
     // Contract ABI — only the functions called in this file
     const CONTRACT_ABI = [
@@ -935,9 +937,15 @@
 
     async function checkTeamEligibility() {
       const teamId = parseInt(teamSelect.value);
-      if (teamId === 0) { teamStatus.textContent = ''; teamStatus.className = 'team-status'; return; }
+      if (teamId === 0) {
+        teamStatus.textContent = '';
+        teamStatus.className = 'team-status';
+        activePrice = PRICE;
+        updateUI();
+        return;
+      }
       const addr = getUserAddress();
-      if (!addr) { teamStatus.textContent = 'Connect wallet first'; teamStatus.className = 'team-status err'; return; }
+      if (!addr) { teamStatus.textContent = 'Connect wallet first'; teamStatus.className = 'team-status err'; activePrice = PRICE; updateUI(); return; }
       const team = teamData.find(t => t.id === teamId);
       if (!team) return;
       try {
@@ -945,16 +953,20 @@
         const nft = new ethers.Contract(team.nftContract, ERC721_BALANCE_ABI, readProvider);
         const bal = await nft.balanceOf(addr);
         if (bal.toNumber() > 0) {
-          teamStatus.textContent = 'Eligible — you hold ' + team.name + ' NFT';
+          teamStatus.textContent = 'Eligible — you hold ' + team.name + ' NFT (25% discount!)';
           teamStatus.className = 'team-status ok';
+          activePrice = TEAM_PRICE;
         } else {
           teamStatus.textContent = 'You must hold a ' + team.name + ' NFT to join this team';
           teamStatus.className = 'team-status err';
+          activePrice = PRICE;
         }
       } catch (err) {
         teamStatus.textContent = 'Could not verify NFT balance';
         teamStatus.className = 'team-status err';
+        activePrice = PRICE;
       }
+      updateUI();
     }
 
     teamSelect.addEventListener('change', checkTeamEligibility);
@@ -982,7 +994,13 @@
     function updateUI() {
       const max = parseInt(slider.max);
       qtyDisplay.textContent = quantity;
-      totalValue.textContent = (quantity * PRICE) + ' AVAX';
+      totalValue.textContent = (quantity * activePrice) + ' AVAX';
+      // Update price display to reflect current rate
+      const priceEl = document.getElementById('priceDisplay');
+      if (priceEl) {
+        priceEl.innerHTML = activePrice + '<span class="price-eth"> AVAX</span>' +
+          (activePrice === TEAM_PRICE ? ' <span style="color:#4caf50;font-size:0.35rem">(TEAM)</span>' : '');
+      }
       sliderFill.style.width = max > 1 ? ((quantity - 1) / (max - 1) * 100) + '%' : '0%';
       slider.value = quantity;
       qtyMinus.disabled = quantity <= 1;
@@ -1105,7 +1123,7 @@
         mintBtn.classList.remove('ready');
 
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, getSigner());
-        const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
+        const totalCost = ethers.utils.parseEther((quantity * activePrice).toString());
 
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;

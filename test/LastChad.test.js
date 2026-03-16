@@ -1,7 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const PRICE = ethers.parseEther("2");
+const PRICE = ethers.parseEther("0.02");
+const TEAM_PRICE = ethers.parseEther("0.015");
 const BASE_URI = "https://lastchad.xyz/metadata/";
 
 describe("LastChad", function () {
@@ -34,7 +35,8 @@ describe("LastChad", function () {
     it("has correct constants", async function () {
       expect(await contract.MAX_SUPPLY()).to.equal(10000);
       expect(await contract.MINT_PRICE()).to.equal(PRICE);
-      expect(await contract.MAX_MINT_PER_WALLET()).to.equal(50);
+      expect(await contract.TEAM_MINT_PRICE()).to.equal(TEAM_PRICE);
+      expect(await contract.MAX_MINT_PER_WALLET()).to.equal(5);
       expect(await contract.TOTAL_STAT_POINTS()).to.equal(2);
       expect(await contract.CELLS_PER_LEVEL()).to.equal(100);
     });
