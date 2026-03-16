@@ -2651,7 +2651,7 @@ ${diceInitJs}
         if (startBtn) startBtn.textContent = 'COMPLETED';
       } else {
         if (banner) banner.style.display = 'none';
-        // Don't enable here — checkEscrowStatus() owns the enabled/disabled state
+        // Don't enable here — checkSessionStatus() owns the enabled/disabled state
       }
     }
 
