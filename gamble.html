@@ -315,33 +315,276 @@
       color: #ffe96a;
     }
 
-    /* ── Video overlay ── */
-    #video-overlay {
+    /* ── Craps overlay ── */
+    #craps-overlay {
       display: none; position: fixed; inset: 0; z-index: 500;
-      background: rgba(0,0,0,0.95);
-      align-items: center; justify-content: center;
+      flex-direction: column; background: #0a0a0f;
     }
-    #video-overlay.active { display: flex; }
-    #video-overlay video {
-      max-width: 80vw; max-height: 70vh;
-      border: 2px solid #c9a84c;
+    #craps-overlay.active { display: flex; }
+
+    .craps-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(10,10,15,0.95);
+      border-bottom: 2px solid #2a5a1a;
+      position: relative; z-index: 2;
+    }
+    .craps-back-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; color: #4caf50;
+      background: none; border: 1px solid #4caf50;
+      padding: 6px 10px; cursor: pointer;
+    }
+    .craps-back-btn:hover { background: rgba(76,175,80,0.15); }
+    .craps-title {
+      font-size: clamp(0.55rem, 1.8vw, 0.8rem);
+      color: #4caf50;
+      text-shadow: 0 0 10px rgba(76,175,80,0.5);
+      letter-spacing: 0.12em;
+    }
+    .craps-stack-display {
+      font-size: clamp(0.4rem, 1.1vw, 0.5rem);
+      color: #4caf50;
+      text-shadow: 0 0 8px rgba(76,175,80,0.5);
     }
 
-    /* ── Result text ── */
-    #result-overlay {
+    .craps-table-area {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 8px; overflow-y: auto;
+    }
+    .craps-table {
+      width: 100%; max-width: 720px;
+      background: #1a5c1a;
+      border: 4px solid #8b6914;
+      border-radius: 12px;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 30px rgba(139,105,20,0.3);
+      padding: 8px;
+      display: flex; flex-direction: column; gap: 4px;
+      position: relative;
+    }
+    .craps-puck {
+      position: absolute; top: 4px; right: 8px;
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.25rem; font-weight: bold; z-index: 5;
+      transition: all 0.3s;
+    }
+    .craps-puck.off { background: #222; color: #888; border: 2px solid #555; }
+    .craps-puck.on { background: #fff; color: #000; border: 2px solid #c9a84c; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+
+    .craps-row { display: flex; gap: 4px; }
+    .craps-zone {
+      flex: 1; min-height: 36px;
+      background: rgba(0,80,0,0.4);
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 4px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s;
+      padding: 3px 2px; position: relative;
+    }
+    .craps-zone:hover { background: rgba(0,120,0,0.5); border-color: rgba(255,255,255,0.5); }
+    .craps-zone.active-bet { border-color: #ffe96a; box-shadow: 0 0 8px rgba(255,233,106,0.4); }
+    .craps-zone.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+    .craps-zone.win-flash { animation: craps-win-flash 0.5s ease 3; }
+    .craps-zone.lose-flash { animation: craps-lose-flash 0.4s ease 2; }
+    @keyframes craps-win-flash {
+      0%, 100% { background: rgba(0,80,0,0.4); }
+      50% { background: rgba(76,175,80,0.6); }
+    }
+    @keyframes craps-lose-flash {
+      0%, 100% { background: rgba(0,80,0,0.4); }
+      50% { background: rgba(229,57,53,0.4); }
+    }
+    .craps-zone .zone-label {
+      font-size: 0.28rem; color: #fff;
+      text-shadow: 1px 1px 0 #000;
+      text-align: center; line-height: 1.4;
+      pointer-events: none;
+    }
+    .craps-zone .zone-payout {
+      font-size: 0.22rem; color: #c9a84c;
+      pointer-events: none;
+    }
+    .craps-zone .bet-amount {
+      position: absolute; bottom: 2px; right: 4px;
+      font-size: 0.22rem; color: #ffe96a;
+      text-shadow: 0 0 4px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+    .craps-pass-line { min-height: 40px; background: rgba(0,80,0,0.5); }
+    .craps-come-area { min-height: 36px; }
+    .craps-field-zone {
+      background: rgba(120,80,0,0.35);
+      border-color: rgba(255,200,0,0.3);
+    }
+    .craps-field-zone:hover { background: rgba(120,80,0,0.5); }
+    .craps-hard-zone {
+      background: rgba(120,0,0,0.3);
+      border-color: rgba(255,100,100,0.3);
+    }
+    .craps-hard-zone:hover { background: rgba(120,0,0,0.45); }
+    .craps-place-zone .zone-label { font-size: 0.35rem; }
+
+    .craps-dice-area {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; padding: 8px 0;
+    }
+    .craps-die {
+      width: clamp(44px, 10vw, 60px);
+      height: clamp(44px, 10vw, 60px);
+      background: linear-gradient(145deg, #f8f8f8 0%, #d2d2d2 50%, #929292 100%);
+      border: 2px solid #9a9a9a; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow:
+        inset 2px 2px 6px rgba(255,255,255,0.8),
+        inset -2px -2px 4px rgba(0,0,0,0.25),
+        2px 2px 0 #878787, 3px 3px 0 #767676,
+        4px 4px 8px rgba(0,0,0,0.6);
+      transition: transform 0.15s;
+    }
+    .craps-die.rolling {
+      animation: craps-dice-tumble 0.28s linear infinite;
+      border-color: #4caf50;
+      box-shadow:
+        inset 2px 2px 6px rgba(255,255,255,0.8),
+        inset -2px -2px 4px rgba(0,0,0,0.25),
+        0 0 14px rgba(76,175,80,0.5);
+    }
+    @keyframes craps-dice-tumble {
+      0%   { transform: rotateX(0deg) rotateZ(0deg); }
+      100% { transform: rotateX(360deg) rotateZ(270deg); }
+    }
+    .craps-dice-face {
+      width: 100%; height: 100%;
+      display: grid; grid-template: 1fr 1fr 1fr / 1fr 1fr 1fr;
+      padding: 14%; gap: 2px;
+    }
+    .craps-dice-face .dot {
+      width: 100%; aspect-ratio: 1; background: #111; border-radius: 50%;
+      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.95), 0 1px 1px rgba(255,255,255,0.18);
+      visibility: hidden;
+    }
+    .craps-message-bar {
+      text-align: center; padding: 4px 8px;
+      font-size: 0.35rem; color: #4caf50;
+      text-shadow: 0 0 8px rgba(76,175,80,0.4);
+      min-height: 1.8em;
+      background: rgba(0,0,0,0.5);
+    }
+    .craps-controls {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 6px 8px;
+      background: rgba(10,10,15,0.9);
+      border-top: 2px solid #2a5a1a;
+      position: relative; z-index: 2;
+    }
+    .craps-roll-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.5rem, 2vw, 0.65rem);
+      color: #fff; padding: 10px 28px;
+      background: linear-gradient(180deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%);
+      border: 2px solid #66bb6a; border-radius: 4px;
+      cursor: pointer;
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.2),
+        inset 0 -2px 0 rgba(0,0,0,0.3),
+        0 3px 0 #1b5e20, 0 4px 10px rgba(0,0,0,0.5);
+      text-shadow: 1px 1px 0 #000;
+      transition: all 0.15s;
+    }
+    .craps-roll-btn:hover {
+      background: linear-gradient(180deg, #66bb6a 0%, #43a047 50%, #2e7d32 100%);
+    }
+    .craps-roll-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); }
+    .craps-roll-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .craps-bet-input {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .craps-bet-input label { font-size: 0.35rem; color: #c9a84c; }
+    .craps-bet-input input {
+      width: 60px; font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; background: #111; color: #ffe96a;
+      border: 2px solid #5c4409; border-radius: 4px;
+      padding: 6px 8px; text-align: center;
+    }
+    .craps-cashout-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; color: #ffe96a;
+      background: rgba(92,68,9,0.4); border: 2px solid #8b6914;
+      border-radius: 4px; padding: 8px 14px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .craps-cashout-btn:hover { background: rgba(139,105,20,0.4); }
+
+    /* Craps result overlay */
+    .craps-result-overlay {
       display: none; position: fixed; inset: 0; z-index: 600;
       align-items: center; justify-content: center;
-      flex-direction: column;
-      background: rgba(0,0,0,0.9);
+      flex-direction: column; background: rgba(0,0,0,0.85);
     }
-    #result-overlay.active { display: flex; }
-    #result-text {
-      font-size: clamp(2rem, 8vw, 5rem);
-      text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+    .craps-result-overlay.active { display: flex; }
+    .craps-result-text {
+      font-size: clamp(1rem, 5vw, 2.5rem);
+      text-shadow: 0 0 30px currentColor;
       animation: result-pulse 0.6s ease-in-out infinite alternate;
+      margin-bottom: 20px;
     }
-    #result-text.win { color: #6dffaa; }
-    #result-text.lose { color: #e53935; }
+    .craps-result-text.win { color: #4caf50; }
+    .craps-result-text.lose { color: #e53935; }
+    .craps-result-detail { font-size: 0.5rem; color: #c9a84c; margin-bottom: 20px; }
+    .craps-result-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem; color: #0a0a0f; padding: 12px 32px;
+      background: #c9a84c; border: none; border-bottom: 4px solid #8b6914;
+      cursor: pointer;
+    }
+    .craps-result-btn:hover { background: #e8c060; }
+
+    /* Craps cashout modal */
+    .craps-modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 550;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85);
+    }
+    .craps-modal-overlay.active { display: flex; }
+    .craps-modal-box {
+      background: #0a0a0f; border: 3px solid #4caf50;
+      border-radius: 8px; padding: 28px 24px;
+      max-width: 380px; width: 90%; text-align: center;
+    }
+    .craps-modal-title { font-size: 0.7rem; color: #4caf50; margin-bottom: 16px; }
+    .craps-modal-text { font-size: 0.4rem; color: #c9a84c; line-height: 2.4; margin-bottom: 20px; }
+    .craps-modal-btns { display: flex; gap: 12px; justify-content: center; }
+    .craps-modal-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; padding: 10px 16px;
+      border-radius: 4px; cursor: pointer; border: 2px solid;
+    }
+    .craps-modal-btn.cancel { color: #8a7a5a; background: transparent; border-color: #5c4409; }
+    .craps-modal-btn.confirm {
+      color: #fff; background: linear-gradient(180deg, #4caf50, #2e7d32);
+      border-color: #66bb6a;
+    }
+    .craps-modal-status {
+      font-size: 0.32rem; color: #4caf50; margin-top: 12px; min-height: 1.4em;
+    }
+
+    @media (max-width: 520px) {
+      .craps-table { padding: 4px; gap: 2px; }
+      .craps-zone { min-height: 28px; }
+      .craps-zone .zone-label { font-size: 0.22rem; }
+      .craps-zone .zone-payout { font-size: 0.18rem; }
+      .craps-controls { flex-wrap: wrap; gap: 6px; }
+    }
+    @media (min-width: 900px) {
+      .craps-table { max-width: 860px; }
+      .craps-zone { min-height: 44px; }
+      .craps-zone .zone-label { font-size: 0.32rem; }
+      .craps-die { width: 70px; height: 70px; }
+    }
+
     @keyframes result-pulse {
       from { transform: scale(1); }
       to   { transform: scale(1.08); }
@@ -717,16 +960,122 @@
     <div id="choices"></div>
   </div>
 
-  <!-- Video overlay -->
-  <div id="video-overlay">
-    <video id="flip-video" playsinline muted>
-      <source src="assets/Oldjipt/oldjiptvid.mp4" type="video/mp4" />
-    </video>
+  <!-- Craps Game Overlay -->
+  <div id="craps-overlay">
+    <div class="craps-header">
+      <button class="craps-back-btn" id="craps-back">EXIT</button>
+      <div class="craps-title">CRAPS</div>
+      <div class="craps-stack-display" id="craps-stack-display">STACK: 0</div>
+    </div>
+    <div class="craps-table-area">
+      <div class="craps-table" id="crapsTable">
+        <div class="craps-puck off" id="craps-puck">OFF</div>
+        <div class="craps-row">
+          <div class="craps-zone craps-pass-line" data-bet="pass">
+            <span class="zone-label">PASS LINE</span>
+            <span class="zone-payout">1:1</span>
+            <span class="bet-amount" id="cbet-pass"></span>
+          </div>
+        </div>
+        <div class="craps-row">
+          <div class="craps-zone craps-place-zone disabled" data-bet="place4">
+            <span class="zone-label">4</span><span class="zone-payout">9:5</span>
+            <span class="bet-amount" id="cbet-place4"></span>
+          </div>
+          <div class="craps-zone craps-place-zone disabled" data-bet="place5">
+            <span class="zone-label">5</span><span class="zone-payout">7:5</span>
+            <span class="bet-amount" id="cbet-place5"></span>
+          </div>
+          <div class="craps-zone craps-place-zone disabled" data-bet="place6">
+            <span class="zone-label">6</span><span class="zone-payout">7:6</span>
+            <span class="bet-amount" id="cbet-place6"></span>
+          </div>
+          <div class="craps-zone craps-place-zone disabled" data-bet="place8">
+            <span class="zone-label">8</span><span class="zone-payout">7:6</span>
+            <span class="bet-amount" id="cbet-place8"></span>
+          </div>
+          <div class="craps-zone craps-place-zone disabled" data-bet="place9">
+            <span class="zone-label">9</span><span class="zone-payout">7:5</span>
+            <span class="bet-amount" id="cbet-place9"></span>
+          </div>
+          <div class="craps-zone craps-place-zone disabled" data-bet="place10">
+            <span class="zone-label">10</span><span class="zone-payout">9:5</span>
+            <span class="bet-amount" id="cbet-place10"></span>
+          </div>
+        </div>
+        <div class="craps-row">
+          <div class="craps-zone craps-come-area disabled" data-bet="come">
+            <span class="zone-label">COME</span><span class="zone-payout">1:1</span>
+            <span class="bet-amount" id="cbet-come"></span>
+          </div>
+          <div class="craps-zone disabled" data-bet="passOdds" id="craps-pass-odds-zone">
+            <span class="zone-label">ODDS</span><span class="zone-payout">True Odds</span>
+            <span class="bet-amount" id="cbet-passOdds"></span>
+          </div>
+        </div>
+        <div class="craps-row">
+          <div class="craps-zone craps-field-zone" data-bet="field">
+            <span class="zone-label">FIELD — 2 3 4 9 10 11 12</span>
+            <span class="zone-payout">1:1 (2→2:1, 12→3:1)</span>
+            <span class="bet-amount" id="cbet-field"></span>
+          </div>
+        </div>
+        <div class="craps-row">
+          <div class="craps-zone craps-hard-zone" data-bet="hard4">
+            <span class="zone-label">HARD 4</span><span class="zone-payout">7:1</span>
+            <span class="bet-amount" id="cbet-hard4"></span>
+          </div>
+          <div class="craps-zone craps-hard-zone" data-bet="hard6">
+            <span class="zone-label">HARD 6</span><span class="zone-payout">9:1</span>
+            <span class="bet-amount" id="cbet-hard6"></span>
+          </div>
+          <div class="craps-zone craps-hard-zone" data-bet="hard8">
+            <span class="zone-label">HARD 8</span><span class="zone-payout">9:1</span>
+            <span class="bet-amount" id="cbet-hard8"></span>
+          </div>
+          <div class="craps-zone craps-hard-zone" data-bet="hard10">
+            <span class="zone-label">HARD 10</span><span class="zone-payout">7:1</span>
+            <span class="bet-amount" id="cbet-hard10"></span>
+          </div>
+        </div>
+        <div class="craps-dice-area">
+          <div class="craps-die" id="craps-die0"><div class="craps-dice-face" id="craps-face0"></div></div>
+          <div class="craps-die" id="craps-die1"><div class="craps-dice-face" id="craps-face1"></div></div>
+        </div>
+      </div>
+      <div class="craps-message-bar" id="craps-messageBar">Place your bets!</div>
+    </div>
+    <div class="craps-controls">
+      <div class="craps-bet-input">
+        <label>BET:</label>
+        <input type="number" id="craps-betAmountInput" value="1" min="1" />
+      </div>
+      <button class="craps-roll-btn" id="craps-rollBtn" disabled>ROLL</button>
+      <button class="craps-cashout-btn" id="craps-cashoutBtn">CASH OUT</button>
+    </div>
   </div>
 
-  <!-- Result overlay -->
-  <div id="result-overlay">
-    <div id="result-text"></div>
+  <!-- Craps Cashout Modal -->
+  <div class="craps-modal-overlay" id="craps-cashoutModal">
+    <div class="craps-modal-box">
+      <div class="craps-modal-title">CASH OUT</div>
+      <div class="craps-modal-text" id="craps-cashout-text">
+        Your stack: <span id="craps-cashout-amount">0</span> cells<br>
+        Return these cells to your Chad?
+      </div>
+      <div class="craps-modal-btns">
+        <button class="craps-modal-btn cancel" id="craps-cashout-cancel">KEEP PLAYING</button>
+        <button class="craps-modal-btn confirm" id="craps-cashout-confirm">CASH OUT</button>
+      </div>
+      <div class="craps-modal-status" id="craps-cashout-status"></div>
+    </div>
+  </div>
+
+  <!-- Craps Result Overlay -->
+  <div class="craps-result-overlay" id="craps-result-overlay">
+    <div class="craps-result-text" id="craps-result-text"></div>
+    <div class="craps-result-detail" id="craps-result-detail"></div>
+    <button class="craps-result-btn" id="craps-result-btn">CONTINUE</button>
   </div>
 
   <!-- Sound effects -->
@@ -848,7 +1197,7 @@
     let selectedTokenId = null;
     let selectedCells   = 0;
     let wagerAmount     = 0;
-    let currentGame     = 'flip'; // 'flip' or 'poker'
+    let currentGame     = 'craps'; // 'craps' or 'poker'
 
     const CONTRACT_ABI = LASTCHAD_ABI;
 
@@ -942,7 +1291,7 @@
         "How's about we play a game o' chance?"
       ]);
       showChoices([
-        { label: "Let's flip old man", action: startCoinFlip },
+        { label: "Roll the bones", action: startCrapsGame },
         { label: "Get out the cards you old bastard", action: showPokerRules }
       ]);
     }
@@ -951,8 +1300,8 @@
     let _minWager = 1;
     let _maxWager = 50;
 
-    async function startCoinFlip() {
-      currentGame = 'flip';
+    async function startCrapsGame() {
+      currentGame = 'craps';
       await startChadSelect();
     }
 
@@ -1121,96 +1470,69 @@
         ]);
       } else {
         showChoices([
-          { label: "LET'S FLIP!", action: recordWagerAndFlip }
+          { label: "SIT DOWN!", action: beginCrapsRound }
         ]);
       }
     }
 
-    // ── Flow: Record wager on-chain → flip ──
-    async function recordWagerAndFlip() {
+    // ══════════════════════════════════════
+    //  CRAPS GAME
+    // ══════════════════════════════════════
+    let crapsStack = 0;
+    let crapsNonce = null;
+    let crapsGameLog = [];
+    let crapsPhase = 'comeout';
+    let crapsPoint = 0;
+    let crapsIsRolling = false;
+    let crapsBets = {};
+    let crapsComeBets = {};
+    let crapsComeOdds = {};
+
+    async function beginCrapsRound() {
       choicesDiv.innerHTML = '';
       const signer = getSigner();
       if (!signer) { alert('Wallet not connected!'); return; }
 
       const statusEl = document.createElement('p');
       statusEl.className = 'loading';
-      statusEl.textContent = 'Recording wager on-chain...';
+      statusEl.textContent = 'Committing wager on-chain...';
       dialogueText.appendChild(statusEl);
 
       try {
-        // Single on-chain call: spends cells, flips, awards cells if won
         const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
-        const tx = await gamble.flip(selectedTokenId, wagerAmount);
-        statusEl.textContent = 'Waiting for confirmation...';
+        const tx = await gamble.commitWager(selectedTokenId, wagerAmount);
+        statusEl.textContent = 'Confirming transaction...';
         const receipt = await tx.wait();
-        statusEl.remove();
 
-        // Read outcome from the CoinFlip event emitted by Gamble.sol
         const iface = new ethers.utils.Interface(GAMBLE_ABI);
-        const flipLog = receipt.logs
+        const wagerLog = receipt.logs
           .map(log => { try { return iface.parseLog(log); } catch { return null; } })
-          .find(e => e && e.name === 'CoinFlip');
-        const win = flipLog ? flipLog.args.won : false;
+          .find(e => e && e.name === 'WagerCommitted');
 
-        // Show "here goes nothing" then a TAP button
-        // video.play() MUST be called directly from a user tap on mobile
-        clearDialogue();
-        const hereGoes = document.createElement('p');
-        dialogueText.appendChild(hereGoes);
-        await typewrite(hereGoes, "Here goes nothing...", 50);
-        await delay(600);
+        crapsNonce = wagerLog ? wagerLog.args.nonce.toNumber() : Date.now();
+        crapsStack = wagerAmount;
+        crapsGameLog = [{ action: 'buyin', amount: wagerAmount, nonce: crapsNonce }];
 
-        const videoOverlay = document.getElementById('video-overlay');
-        const video = document.getElementById('flip-video');
+        // Reset craps state
+        crapsPhase = 'comeout';
+        crapsPoint = 0;
+        crapsIsRolling = false;
+        crapsBets = {};
+        crapsComeBets = {};
+        crapsComeOdds = {};
 
-        await new Promise(resolve => {
-          showChoices([{ label: 'FLIP THE COIN', action: () => {
-            choicesDiv.innerHTML = '';
-            // Unlock Web Audio on iOS — silent buffer is the most reliable technique
-            try {
-              const ACtx = window.AudioContext || window.webkitAudioContext;
-              if (ACtx) {
-                const ctx = new ACtx();
-                const buf = ctx.createBuffer(1, 1, 22050);
-                const src = ctx.createBufferSource();
-                src.buffer = buf;
-                src.connect(ctx.destination);
-                src.start(0);
-                ctx.resume().catch(() => {});
-              }
-            } catch (_) {}
-            // Secondary: force-load + unlock each sfx element
-            const sfxWin  = document.getElementById('sfx-win');
-            const sfxLose = document.getElementById('sfx-lose');
-            sfxWin.volume = 0.5; sfxLose.volume = 0.5;
-            sfxWin.load();  sfxWin.play().then(() => sfxWin.pause()).catch(() => {});
-            sfxLose.load(); sfxLose.play().then(() => sfxLose.pause()).catch(() => {});
-            videoOverlay.classList.add('active');
-            video.currentTime = 0;
-            duckMusic(0.08);
-            const p = video.play();
-            if (p !== undefined) {
-              p.catch(() => {
-                // play still blocked — skip straight to result
-                videoOverlay.classList.remove('active');
-                restoreMusic(0.45, 200);
-                resolve();
-              });
-            }
-            video.addEventListener('ended', () => {
-              videoOverlay.classList.remove('active');
-              restoreMusic(0.45, 200);
-              resolve();
-            }, { once: true });
-            video.addEventListener('error', () => {
-              videoOverlay.classList.remove('active');
-              restoreMusic(0.45, 200);
-              resolve();
-            }, { once: true });
-          }}]);
-        });
+        // Hide dialogue, show craps overlay
+        dialogueBox.style.display = 'none';
+        jiptImage.classList.remove('visible');
+        document.getElementById('craps-overlay').classList.add('active');
 
-        await showResult(win);
+        // Init
+        crapsUpdateStack();
+        crapsUpdatePuck();
+        crapsUpdateBetZones();
+        crapsRenderFace('craps-face0', 0);
+        crapsRenderFace('craps-face1', 0);
+        crapsSetMessage("New shooter coming out! Place your pass line bet.");
 
       } catch (err) {
         statusEl.remove();
@@ -1220,53 +1542,482 @@
         errP.style.color = '#e53935';
         dialogueText.appendChild(errP);
         showChoices([
-          { label: "Try again", action: recordWagerAndFlip },
-          { label: "Pick another Chad", action: startCoinFlip },
+          { label: "Try again", action: beginCrapsRound },
+          { label: "Pick another Chad", action: startCrapsGame },
         ]);
       }
     }
 
-    // ── Flow: Show result ──
-    async function showResult(win) {
-      const resultOverlay = document.getElementById('result-overlay');
-      const resultText = document.getElementById('result-text');
-
-      // Show win/lose immediately — no blockchain wait
-      if (win) {
-        resultText.textContent = 'YOU WIN!';
-        resultText.className = 'win';
-        duckMusic(0.06);
-        const sfxWin = document.getElementById('sfx-win');
-        sfxWin.currentTime = 0;
-        sfxWin.play().catch(() => {});
-        sfxWin.onended = () => restoreMusic();
-      } else {
-        resultText.textContent = 'YOU LOSE';
-        resultText.className = 'lose';
-        duckMusic(0.06);
-        const sfxLose = document.getElementById('sfx-lose');
-        sfxLose.currentTime = 0;
-        sfxLose.play().catch(() => {});
-        sfxLose.onended = () => restoreMusic();
-      }
-
-      resultOverlay.classList.add('active');
-      await delay(3000);
-      resultOverlay.classList.remove('active');
-
-      // Cells were already awarded on-chain by Gamble.flip() — nothing to do here.
-
-      await showPlayAgain(win);
+    function crapsUpdateStack() {
+      document.getElementById('craps-stack-display').textContent = 'STACK: ' + crapsStack;
     }
 
+    function crapsSetMessage(msg) {
+      document.getElementById('craps-messageBar').textContent = msg;
+    }
+
+    // Dice rendering
+    const crapsDotLayouts = {
+      1: [0,0,0, 0,1,0, 0,0,0],
+      2: [0,0,1, 0,0,0, 1,0,0],
+      3: [0,0,1, 0,1,0, 1,0,0],
+      4: [1,0,1, 0,0,0, 1,0,1],
+      5: [1,0,1, 0,1,0, 1,0,1],
+      6: [1,0,1, 1,0,1, 1,0,1]
+    };
+
+    function crapsRenderFace(faceId, value) {
+      const face = document.getElementById(faceId);
+      face.innerHTML = '';
+      if (!value) return;
+      const layout = crapsDotLayouts[value];
+      for (let i = 0; i < 9; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        if (layout[i]) dot.style.visibility = 'visible';
+        face.appendChild(dot);
+      }
+    }
+
+    function crapsGetBetAmount() {
+      const val = parseInt(document.getElementById('craps-betAmountInput').value) || 1;
+      return Math.max(1, val);
+    }
+
+    function crapsUpdateBetZones() {
+      const placeZones = document.querySelectorAll('#craps-overlay .craps-place-zone');
+      const comeZone = document.querySelector('#craps-overlay [data-bet="come"]');
+      const passOddsZone = document.getElementById('craps-pass-odds-zone');
+
+      if (crapsPhase === 'comeout') {
+        placeZones.forEach(z => z.classList.add('disabled'));
+        comeZone.classList.add('disabled');
+        passOddsZone.classList.add('disabled');
+      } else {
+        placeZones.forEach(z => z.classList.remove('disabled'));
+        comeZone.classList.remove('disabled');
+        passOddsZone.classList.remove('disabled');
+      }
+
+      const hasAnyBet = Object.values(crapsBets).some(v => v > 0)
+                      || Object.values(crapsComeBets).some(v => v > 0);
+      document.getElementById('craps-rollBtn').disabled = !hasAnyBet || crapsIsRolling;
+    }
+
+    function crapsUpdateBetDisplays() {
+      for (const [key, val] of Object.entries(crapsBets)) {
+        const el = document.getElementById('cbet-' + key);
+        if (el) el.textContent = val > 0 ? val : '';
+      }
+      document.querySelectorAll('#craps-overlay .craps-zone').forEach(z => {
+        const bet = z.dataset.bet;
+        const hasAmount = (crapsBets[bet] && crapsBets[bet] > 0);
+        z.classList.toggle('active-bet', hasAmount);
+      });
+    }
+
+    function crapsUpdatePuck() {
+      const puck = document.getElementById('craps-puck');
+      if (crapsPhase === 'comeout') {
+        puck.className = 'craps-puck off';
+        puck.textContent = 'OFF';
+      } else {
+        puck.className = 'craps-puck on';
+        puck.textContent = crapsPoint;
+      }
+    }
+
+    // Bet zone click
+    document.querySelectorAll('#craps-overlay .craps-zone').forEach(zone => {
+      zone.addEventListener('click', () => {
+        if (zone.classList.contains('disabled')) return;
+        if (crapsIsRolling) return;
+        const betType = zone.dataset.bet;
+        const amount = crapsGetBetAmount();
+        if (amount > crapsStack) { crapsSetMessage("Not enough cells! You have " + crapsStack); return; }
+        if (betType === 'pass' && crapsPhase !== 'comeout') { crapsSetMessage("Pass line bets only on come-out roll!"); return; }
+        if (betType === 'passOdds' && crapsPhase !== 'point') { crapsSetMessage("Odds bets only after point is set!"); return; }
+        if (betType === 'passOdds' && !crapsBets.pass) { crapsSetMessage("Place a pass line bet first!"); return; }
+        if (!crapsBets[betType]) crapsBets[betType] = 0;
+        crapsBets[betType] += amount;
+        crapsStack -= amount;
+        crapsUpdateStack();
+        crapsUpdateBetDisplays();
+        crapsUpdateBetZones();
+        crapsSetMessage(betType.toUpperCase().replace(/([0-9])/g, ' $1') + ' — ' + amount + ' cells');
+      });
+    });
+
+    // Roll dice
+    document.getElementById('craps-rollBtn').addEventListener('click', crapsRollDice);
+
+    async function crapsRollDice() {
+      if (crapsIsRolling) return;
+      crapsIsRolling = true;
+      document.getElementById('craps-rollBtn').disabled = true;
+
+      document.getElementById('craps-die0').classList.add('rolling');
+      document.getElementById('craps-die1').classList.add('rolling');
+
+      const cycleInterval = setInterval(() => {
+        crapsRenderFace('craps-face0', Math.floor(Math.random() * 6) + 1);
+        crapsRenderFace('craps-face1', Math.floor(Math.random() * 6) + 1);
+      }, 60);
+
+      const arr = new Uint32Array(2);
+      crypto.getRandomValues(arr);
+      const d1 = (arr[0] % 6) + 1;
+      const d2 = (arr[1] % 6) + 1;
+      const total = d1 + d2;
+      const isHard = (d1 === d2);
+
+      await delay(1800);
+      clearInterval(cycleInterval);
+
+      crapsRenderFace('craps-face0', d1);
+      crapsRenderFace('craps-face1', d2);
+      document.getElementById('craps-die0').classList.remove('rolling');
+      document.getElementById('craps-die1').classList.remove('rolling');
+
+      crapsGameLog.push({
+        action: 'roll', dice: [d1, d2], total,
+        phase: crapsPhase, point: crapsPoint,
+        bets: { ...crapsBets }, comeBets: { ...crapsComeBets },
+        comeOdds: { ...crapsComeOdds }, stackBefore: crapsStack
+      });
+
+      await crapsResolveRoll(d1, d2, total, isHard);
+
+      crapsIsRolling = false;
+      crapsUpdateStack();
+      crapsUpdateBetDisplays();
+      crapsUpdateBetZones();
+
+      if (crapsStack <= 0 && !Object.values(crapsBets).some(v => v > 0)
+                          && !Object.values(crapsComeBets).some(v => v > 0)) {
+        await delay(800);
+        crapsShowBusted();
+      }
+    }
+
+    async function crapsResolveRoll(d1, d2, total, isHard) {
+      let netWin = 0;
+      const flashWin = [];
+      const flashLose = [];
+
+      // FIELD
+      if (crapsBets.field) {
+        const fieldNums = [2,3,4,9,10,11,12];
+        if (fieldNums.includes(total)) {
+          let payout = crapsBets.field;
+          if (total === 2) payout = crapsBets.field * 2;
+          else if (total === 12) payout = crapsBets.field * 3;
+          netWin += payout;
+          crapsStack += crapsBets.field + payout;
+          flashWin.push('field');
+          crapsSetMessage('FIELD ' + total + '! +' + payout);
+        } else { flashLose.push('field'); }
+        crapsBets.field = 0;
+      }
+
+      // HARDWAYS
+      const hardMap = { hard4: 4, hard6: 6, hard8: 8, hard10: 10 };
+      const hardPay = { hard4: 7, hard6: 9, hard8: 9, hard10: 7 };
+      for (const [key, num] of Object.entries(hardMap)) {
+        if (!crapsBets[key]) continue;
+        if (total === num && isHard) {
+          const payout = crapsBets[key] * hardPay[key];
+          netWin += payout;
+          crapsStack += crapsBets[key] + payout;
+          flashWin.push(key);
+          crapsSetMessage('HARD ' + num + '! +' + payout);
+        } else if (total === 7 || (total === num && !isHard)) {
+          flashLose.push(key);
+          crapsBets[key] = 0;
+        }
+        if (total === num && isHard) crapsBets[key] = 0;
+      }
+
+      // COME BETS (on a number)
+      for (const [numStr, amt] of Object.entries(crapsComeBets)) {
+        const num = parseInt(numStr);
+        if (total === num) {
+          const payout = amt;
+          netWin += payout;
+          crapsStack += amt + payout;
+          crapsSetMessage('COME ' + num + ' wins! +' + payout);
+          if (crapsComeOdds[numStr]) {
+            const oddsPay = crapsCalcOddsPayout(num, crapsComeOdds[numStr]);
+            netWin += oddsPay;
+            crapsStack += crapsComeOdds[numStr] + oddsPay;
+            delete crapsComeOdds[numStr];
+          }
+          delete crapsComeBets[numStr];
+        } else if (total === 7) {
+          delete crapsComeBets[numStr];
+          if (crapsComeOdds[numStr]) delete crapsComeOdds[numStr];
+        }
+      }
+
+      // NEW COME BET
+      if (crapsBets.come) {
+        if (total === 7 || total === 11) {
+          const payout = crapsBets.come;
+          netWin += payout;
+          crapsStack += crapsBets.come + payout;
+          flashWin.push('come');
+          crapsSetMessage('COME wins! +' + payout);
+          crapsBets.come = 0;
+        } else if (total === 2 || total === 3 || total === 12) {
+          flashLose.push('come');
+          crapsBets.come = 0;
+        } else {
+          const numKey = String(total);
+          if (!crapsComeBets[numKey]) crapsComeBets[numKey] = 0;
+          crapsComeBets[numKey] += crapsBets.come;
+          crapsSetMessage('Come bet moves to ' + total);
+          crapsBets.come = 0;
+        }
+      }
+
+      // PLACE BETS
+      const placeNums = [4,5,6,8,9,10];
+      const placePay = { 4: [9,5], 5: [7,5], 6: [7,6], 8: [7,6], 9: [7,5], 10: [9,5] };
+      for (const num of placeNums) {
+        const key = 'place' + num;
+        if (!crapsBets[key]) continue;
+        if (total === num) {
+          const [payNum, payDen] = placePay[num];
+          const payout = Math.floor(crapsBets[key] * payNum / payDen);
+          netWin += payout;
+          crapsStack += crapsBets[key] + payout;
+          flashWin.push(key);
+          crapsSetMessage('PLACE ' + num + ' hits! +' + payout);
+          crapsBets[key] = 0;
+        } else if (total === 7) {
+          flashLose.push(key);
+          crapsBets[key] = 0;
+        }
+      }
+
+      // PASS LINE + ODDS
+      if (crapsPhase === 'comeout') {
+        if (crapsBets.pass) {
+          if (total === 7 || total === 11) {
+            const payout = crapsBets.pass;
+            netWin += payout;
+            crapsStack += crapsBets.pass + payout;
+            flashWin.push('pass');
+            crapsSetMessage(total === 7 ? 'SEVEN! Winner!' : 'YO ELEVEN! Winner!');
+            crapsBets.pass = 0;
+          } else if (total === 2 || total === 3 || total === 12) {
+            flashLose.push('pass');
+            crapsSetMessage(total === 12 ? 'TWELVE! Craps!' : total === 2 ? 'SNAKE EYES! Craps!' : 'THREE CRAPS!');
+            crapsBets.pass = 0;
+          } else {
+            crapsPoint = total;
+            crapsPhase = 'point';
+            crapsUpdatePuck();
+            crapsSetMessage('Point is ' + crapsPoint + '!');
+          }
+        }
+      } else {
+        if (total === crapsPoint) {
+          if (crapsBets.pass) {
+            const payout = crapsBets.pass;
+            netWin += payout;
+            crapsStack += crapsBets.pass + payout;
+            flashWin.push('pass');
+            crapsSetMessage('WINNER! Point ' + crapsPoint + '!');
+            if (crapsBets.passOdds) {
+              const oddsPay = crapsCalcOddsPayout(crapsPoint, crapsBets.passOdds);
+              netWin += oddsPay;
+              crapsStack += crapsBets.passOdds + oddsPay;
+              crapsBets.passOdds = 0;
+            }
+            crapsBets.pass = 0;
+          }
+          crapsPhase = 'comeout';
+          crapsPoint = 0;
+          crapsUpdatePuck();
+        } else if (total === 7) {
+          if (crapsBets.pass) { flashLose.push('pass'); crapsBets.pass = 0; }
+          if (crapsBets.passOdds) { crapsBets.passOdds = 0; }
+          crapsSetMessage('SEVEN OUT!');
+          crapsPhase = 'comeout';
+          crapsPoint = 0;
+          crapsUpdatePuck();
+        }
+      }
+
+      // Flash animations
+      await delay(200);
+      for (const key of flashWin) {
+        const zone = document.querySelector(`#craps-overlay [data-bet="${key}"]`);
+        if (zone) zone.classList.add('win-flash');
+      }
+      for (const key of flashLose) {
+        const zone = document.querySelector(`#craps-overlay [data-bet="${key}"]`);
+        if (zone) zone.classList.add('lose-flash');
+      }
+      await delay(1500);
+      document.querySelectorAll('#craps-overlay .win-flash, #craps-overlay .lose-flash').forEach(z => {
+        z.classList.remove('win-flash', 'lose-flash');
+      });
+
+      crapsGameLog.push({ action: 'result', netWin, stackAfter: crapsStack, phase: crapsPhase, point: crapsPoint });
+    }
+
+    function crapsCalcOddsPayout(pointNum, bet) {
+      switch (pointNum) {
+        case 4: case 10: return bet * 2;
+        case 5: case 9:  return Math.floor(bet * 3 / 2);
+        case 6: case 8:  return Math.floor(bet * 6 / 5);
+        default: return 0;
+      }
+    }
+
+    function crapsShowBusted() {
+      const overlay = document.getElementById('craps-result-overlay');
+      const text = document.getElementById('craps-result-text');
+      const detail = document.getElementById('craps-result-detail');
+      text.textContent = 'BUSTED';
+      text.className = 'craps-result-text lose';
+      detail.textContent = 'You lost all your cells.';
+      overlay.classList.add('active');
+
+      duckMusic(0.06);
+      const sfx = document.getElementById('sfx-lose');
+      sfx.volume = 0.5;
+      sfx.currentTime = 0;
+      sfx.play().catch(() => {});
+      sfx.onended = () => restoreMusic();
+
+      document.getElementById('craps-result-btn').onclick = () => {
+        overlay.classList.remove('active');
+        crapsCloseOverlay();
+      };
+    }
+
+    function crapsCloseOverlay() {
+      document.getElementById('craps-overlay').classList.remove('active');
+      document.getElementById('craps-cashoutModal').classList.remove('active');
+      document.getElementById('craps-result-overlay').classList.remove('active');
+      dialogueBox.style.display = '';
+      jiptImage.classList.add('visible');
+      showPlayAgain();
+    }
+
+    // Cashout button
+    document.getElementById('craps-cashoutBtn').addEventListener('click', () => {
+      if (crapsIsRolling) return;
+      let betsOnTable = 0;
+      for (const val of Object.values(crapsBets)) betsOnTable += val;
+      for (const val of Object.values(crapsComeBets)) betsOnTable += val;
+      for (const val of Object.values(crapsComeOdds)) betsOnTable += val;
+      document.getElementById('craps-cashout-amount').textContent = crapsStack + betsOnTable;
+      document.getElementById('craps-cashoutModal').classList.add('active');
+    });
+
+    document.getElementById('craps-cashout-cancel').addEventListener('click', () => {
+      document.getElementById('craps-cashoutModal').classList.remove('active');
+    });
+
+    document.getElementById('craps-cashout-confirm').addEventListener('click', async () => {
+      const statusEl = document.getElementById('craps-cashout-status');
+      const confirmBtn = document.getElementById('craps-cashout-confirm');
+      confirmBtn.disabled = true;
+
+      // Return all bets to stack
+      for (const [key, val] of Object.entries(crapsBets)) { crapsStack += val; crapsBets[key] = 0; }
+      for (const [key, val] of Object.entries(crapsComeBets)) { crapsStack += val; delete crapsComeBets[key]; }
+      for (const [key, val] of Object.entries(crapsComeOdds)) { crapsStack += val; delete crapsComeOdds[key]; }
+
+      const finalPayout = crapsStack;
+      crapsGameLog.push({ action: 'cashout', finalStack: finalPayout });
+
+      if (finalPayout <= 0) {
+        document.getElementById('craps-cashoutModal').classList.remove('active');
+        crapsShowBusted();
+        return;
+      }
+
+      statusEl.textContent = 'Claiming cells on-chain...';
+
+      try {
+        const signer = getSigner();
+        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+        const tx = await gamble.claimWinnings(selectedTokenId, finalPayout, crapsNonce, '0x');
+        statusEl.textContent = 'Confirming...';
+        await tx.wait();
+
+        document.getElementById('craps-cashoutModal').classList.remove('active');
+
+        const overlay = document.getElementById('craps-result-overlay');
+        const text = document.getElementById('craps-result-text');
+        const detail = document.getElementById('craps-result-detail');
+        const buyIn = crapsGameLog[0].amount;
+        const profit = finalPayout - buyIn;
+
+        if (profit > 0) {
+          text.textContent = 'WINNER!';
+          text.className = 'craps-result-text win';
+          detail.textContent = '+' + profit + ' cells profit!';
+          duckMusic(0.06);
+          const sfx = document.getElementById('sfx-win');
+          sfx.volume = 0.5; sfx.currentTime = 0; sfx.play().catch(() => {});
+          sfx.onended = () => restoreMusic();
+        } else if (profit < 0) {
+          text.textContent = 'TOUGH LUCK';
+          text.className = 'craps-result-text lose';
+          detail.textContent = profit + ' cells';
+          duckMusic(0.06);
+          const sfx = document.getElementById('sfx-lose');
+          sfx.volume = 0.5; sfx.currentTime = 0; sfx.play().catch(() => {});
+          sfx.onended = () => restoreMusic();
+        } else {
+          text.textContent = 'BREAK EVEN';
+          text.className = 'craps-result-text win';
+          detail.textContent = 'Got your cells back!';
+        }
+
+        overlay.classList.add('active');
+        document.getElementById('craps-result-btn').onclick = () => {
+          overlay.classList.remove('active');
+          crapsCloseOverlay();
+        };
+
+      } catch (err) {
+        const reason = err.reason || err.data?.message || err.message || String(err);
+        statusEl.textContent = reason.slice(0, 80);
+        confirmBtn.disabled = false;
+      }
+    });
+
+    // Craps back button
+    document.getElementById('craps-back').addEventListener('click', async () => {
+      if (crapsIsRolling) return;
+      // If there's stack left, treat as cashout
+      let betsOnTable = 0;
+      for (const val of Object.values(crapsBets)) betsOnTable += val;
+      for (const val of Object.values(crapsComeBets)) betsOnTable += val;
+      for (const val of Object.values(crapsComeOdds)) betsOnTable += val;
+      if (crapsStack + betsOnTable > 0) {
+        document.getElementById('craps-cashout-amount').textContent = crapsStack + betsOnTable;
+        document.getElementById('craps-cashoutModal').classList.add('active');
+      } else {
+        crapsCloseOverlay();
+      }
+    });
+
     // ── Flow: Play again ──
-    async function showPlayAgain(lastWin) {
+    async function showPlayAgain() {
       await showNpcText([
         "Well that was fun...",
         "Play again?"
       ]);
       showChoices([
-        { label: "Let's flip old man", action: startCoinFlip },
+        { label: "Roll the bones", action: startCrapsGame },
         { label: "Get out the cards you old bastard", action: showPokerRules }
       ]);
     }
@@ -1353,7 +2104,7 @@
                   localStorage.removeItem('lc_poker_cashout');
                   await showNpcText(["There ya go! Your cells are back."]);
                   showIntro = origShowIntro;
-                  await showPlayAgain(true);
+                  await showPlayAgain();
                 } catch (err) {
                   console.error('Recovery claim failed:', err);
                   await showNpcText(["Hmm, that didn't work. Try again or it might already be claimed."]);
@@ -1470,7 +2221,7 @@
         await typewrite(errMsg, "Transaction failed. Try again?", 40);
         showChoices([
           { label: 'TRY AGAIN', action: beginPokerRound },
-          { label: 'BACK', action: () => showPlayAgain(false) },
+          { label: 'BACK', action: () => showPlayAgain() },
         ]);
         return;
       }
@@ -1500,7 +2251,7 @@
         showChoices([
           { label: 'RETRY', action: startPokerWorkerSession },
           { label: 'BACK (nonce saved)', action: () => {
-            showPlayAgain(false);
+            showPlayAgain();
           }},
         ]);
         return;
@@ -1845,7 +2596,7 @@
         pokerPhase = 'idle';
         jiptImage.classList.add('visible');
         dialogueBox.classList.add('visible');
-        showPlayAgain(false);
+        showPlayAgain();
         return;
       }
 
@@ -1894,12 +2645,7 @@
         jiptImage.classList.add('visible');
         dialogueBox.classList.add('visible');
 
-        if (won) {
-          // showResult calls showPlayAgain internally — don't call it again
-          await showResult(true);
-        } else {
-          showPlayAgain(false);
-        }
+        await showPlayAgain();
       } catch (err) {
         console.error('Cashout failed:', err);
         dealBtn.textContent = 'CASH OUT';
