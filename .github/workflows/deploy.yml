@@ -24,6 +24,7 @@ on:
           - gamble-open      # Open the gambling den (authorize Gamble in LastChad)
           - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
           - award-owner-cells # Award 100 open cells to every Chad in the owner wallet
+          - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
           - approve-market   # Whitelist LastChad + Items on the Market contract
       network:
         description: 'Network (ignored if target=worker)'
@@ -402,3 +403,84 @@ jobs:
 
       - name: Validate all contracts on-chain
         run: npx hardhat run scripts/validateContracts.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 11: Fix Worker — sync addresses from js/config.js and redeploy
+  # Safe to run anytime — reads current contract addresses from config.js,
+  # patches them into wrangler.toml, deploys the worker, and pushes the oracle
+  # secret. Does NOT touch any contracts on-chain.
+  # ───────────────────────────────────────────────────────────────────────────
+  fix-worker:
+    name: Fix & Redeploy Worker
+    runs-on: ubuntu-latest
+    if: inputs.target == 'fix-worker'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sync contract addresses from js/config.js → wrangler.toml
+        working-directory: worker
+        run: |
+          # Extract current addresses from js/config.js (source of truth)
+          LASTCHAD=$(grep "CONTRACT_ADDRESS\b" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          QUESTREWARDS=$(grep "QUEST_REWARDS_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          GAMBLE=$(grep "GAMBLE_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          RPC=$(grep "READ_RPC" ../js/config.js | head -1 | sed "s/.*'\(https[^']*\)'.*/\1/")
+
+          echo "LastChad:      $LASTCHAD"
+          echo "QuestRewards:  $QUESTREWARDS"
+          echo "Gamble:        $GAMBLE"
+          echo "RPC:           $RPC"
+
+          # Patch wrangler.toml with current addresses
+          sed -i "s|LASTCHAD_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|LASTCHAD_ADDRESS      = \"${LASTCHAD}\"|" wrangler.toml
+          sed -i "s|QUEST_REWARDS_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|QUEST_REWARDS_ADDRESS = \"${QUESTREWARDS}\"|" wrangler.toml
+          sed -i "s|GAMBLE_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|GAMBLE_ADDRESS        = \"${GAMBLE}\"|" wrangler.toml
+          sed -i "s|READ_RPC.*=.*\"https[^\"]*\"|READ_RPC              = \"${RPC}\"|" wrangler.toml
+
+          echo "--- Updated wrangler.toml ---"
+          cat wrangler.toml
+
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm ci
+
+      - name: Patch KV namespace IDs into wrangler.toml
+        working-directory: worker
+        env:
+          KV_ID:      ${{ secrets.KV_NAMESPACE_ID }}
+          KV_PREVIEW: ${{ secrets.KV_PREVIEW_ID }}
+        run: |
+          sed -i "s|REPLACE_WITH_KV_NAMESPACE_ID|${KV_ID}|g" wrangler.toml
+          sed -i "s|REPLACE_WITH_KV_PREVIEW_ID|${KV_PREVIEW}|g" wrangler.toml
+
+      - name: Deploy Worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Push ORACLE_PRIVATE_KEY secret to Worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          ORACLE_PRIVATE_KEY:    ${{ secrets.ORACLE_PRIVATE_KEY }}
+        run: echo "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
+
+      - name: Commit synced wrangler.toml
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add worker/wrangler.toml
+          if git diff --cached --quiet; then
+            echo "wrangler.toml already up to date — skipping commit"
+          else
+            git commit -m "chore: sync worker contract addresses from config.js [skip ci]"
+            git push origin ${{ github.ref_name }}
+          fi
