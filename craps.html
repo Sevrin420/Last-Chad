@@ -643,7 +643,16 @@
     let selectedCells = 0;
     let stack = 0;            // current chip stack (off-chain during play)
     let nonce = null;         // from commitWager
+    let sessionToken = null;  // from /craps/start
     let gameLog = [];         // append-only log for Worker validation
+
+    const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+
+    function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+    }
 
     // Craps state
     let phase = 'comeout';    // 'comeout' or 'point'
@@ -797,6 +806,19 @@
 
         stack = buyIn;
         gameLog = [{ action: 'buyin', amount: buyIn, nonce }];
+
+        // Register session with worker
+        status.textContent = 'Setting up craps table...';
+        const startRes = await fetchWithTimeout(WORKER_URL + '/craps/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId: selectedTokenId, nonce, player: userAddress }),
+        });
+        const startData = await startRes.json();
+        if (!startData.ok) throw new Error(startData.error || 'Failed to start craps session');
+        sessionToken = startData.sessionToken || null;
+        stack = startData.stack;
+
         enterTable();
 
       } catch (err) {
@@ -973,44 +995,93 @@
       document.getElementById('die0').classList.add('rolling');
       document.getElementById('die1').classList.add('rolling');
 
-      // Rapid cycling
+      // Rapid cycling animation
       const cycleInterval = setInterval(() => {
         renderFace('face0', Math.floor(Math.random() * 6) + 1);
         renderFace('face1', Math.floor(Math.random() * 6) + 1);
       }, 60);
 
-      // Use crypto for better entropy
-      const arr = new Uint32Array(2);
-      crypto.getRandomValues(arr);
-      const d1 = (arr[0] % 6) + 1;
-      const d2 = (arr[1] % 6) + 1;
-      const total = d1 + d2;
-      const isHard = (d1 === d2);
+      try {
+        // Send bets to worker — worker generates dice and resolves
+        const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nonce,
+            bets: { ...bets },
+            comeBets: { ...comeBets },
+            comeOdds: { ...comeOdds },
+            sessionToken,
+          }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Roll failed');
 
-      await new Promise(r => setTimeout(r, 1800));
-      clearInterval(cycleInterval);
+        // Let animation run at least 1.2s
+        await new Promise(r => setTimeout(r, 1200));
+        clearInterval(cycleInterval);
 
-      // Show final values
-      renderFace('face0', d1);
-      renderFace('face1', d2);
-      document.getElementById('die0').classList.remove('rolling');
-      document.getElementById('die1').classList.remove('rolling');
+        const [d1, d2] = data.dice;
 
-      // Log for worker validation
-      gameLog.push({
-        action: 'roll',
-        dice: [d1, d2],
-        total,
-        phase,
-        point,
-        bets: { ...bets },
-        comeBets: { ...comeBets },
-        comeOdds: { ...comeOdds },
-        stackBefore: stack
-      });
+        // Show final dice
+        renderFace('face0', d1);
+        renderFace('face1', d2);
+        document.getElementById('die0').classList.remove('rolling');
+        document.getElementById('die1').classList.remove('rolling');
 
-      // Resolve all bets
-      await resolveRoll(d1, d2, total, isHard);
+        // Sync state from worker
+        stack = data.stack;
+        phase = data.phase;
+        point = data.point;
+
+        // Process resolution
+        const r2 = data.resolution;
+        if (r2.message) setMessage(r2.message);
+
+        // Zero out resolved bets locally to match worker state
+        for (const key of Object.keys(bets)) {
+          if (key === 'field' || key === 'come') bets[key] = 0;
+          if (r2.wins.includes(key) || r2.losses.includes(key)) bets[key] = 0;
+        }
+        if (r2.wins.includes('pass')) bets.passOdds = 0;
+        if (r2.message === 'SEVEN OUT!') {
+          bets.pass = 0;
+          bets.passOdds = 0;
+        }
+
+        // Sync come bets from worker
+        if (data.comeBets) comeBets = data.comeBets;
+        if (data.comeOdds) comeOdds = data.comeOdds;
+
+        updatePuck();
+
+        // Flash animations
+        await new Promise(r => setTimeout(r, 200));
+        for (const key of (r2.wins || [])) {
+          const zone = document.querySelector(`[data-bet="${key}"]`);
+          if (zone) zone.classList.add('win-flash');
+        }
+        for (const key of (r2.losses || [])) {
+          const zone = document.querySelector(`[data-bet="${key}"]`);
+          if (zone) zone.classList.add('lose-flash');
+        }
+        await new Promise(r => setTimeout(r, 1500));
+        document.querySelectorAll('.win-flash, .lose-flash').forEach(z => {
+          z.classList.remove('win-flash', 'lose-flash');
+        });
+
+        gameLog.push({
+          action: 'roll', dice: data.dice, total: data.total,
+          phase: data.phase, point: data.point,
+          netWin: r2.netWin, stackAfter: data.stack,
+        });
+
+      } catch (err) {
+        clearInterval(cycleInterval);
+        document.getElementById('die0').classList.remove('rolling');
+        document.getElementById('die1').classList.remove('rolling');
+        setMessage('Roll error: ' + (err.message || 'try again'));
+      }
 
       isRolling = false;
       updateStackDisplay();
@@ -1022,212 +1093,6 @@
                      && !Object.values(comeBets).some(v => v > 0)) {
         await new Promise(r => setTimeout(r, 800));
         showBusted();
-      }
-    }
-
-    // ════════════════════════════════════════
-    //  RESOLVE ROLL
-    // ════════════════════════════════════════
-    async function resolveRoll(d1, d2, total, isHard) {
-      let netWin = 0;
-      const flashWin = [];
-      const flashLose = [];
-
-      // ── FIELD (one-roll) ──
-      if (bets.field) {
-        const fieldNums = [2,3,4,9,10,11,12];
-        if (fieldNums.includes(total)) {
-          let payout = bets.field;
-          if (total === 2) payout = bets.field * 2;
-          else if (total === 12) payout = bets.field * 3;
-          netWin += payout;
-          stack += bets.field + payout;
-          flashWin.push('field');
-          setMessage('FIELD ' + total + '! +' + payout);
-        } else {
-          flashLose.push('field');
-        }
-        bets.field = 0;
-      }
-
-      // ── HARDWAYS ──
-      const hardMap = { hard4: 4, hard6: 6, hard8: 8, hard10: 10 };
-      const hardPay = { hard4: 7, hard6: 9, hard8: 9, hard10: 7 };
-      for (const [key, num] of Object.entries(hardMap)) {
-        if (!bets[key]) continue;
-        if (total === num && isHard) {
-          const payout = bets[key] * hardPay[key];
-          netWin += payout;
-          stack += bets[key] + payout;
-          flashWin.push(key);
-          setMessage('HARD ' + num + '! +' + payout);
-        } else if (total === 7 || (total === num && !isHard)) {
-          flashLose.push(key);
-          bets[key] = 0;
-        }
-        if (total === num && isHard) bets[key] = 0;
-      }
-
-      // ── COME BETS (already on a number) ──
-      for (const [numStr, amt] of Object.entries(comeBets)) {
-        const num = parseInt(numStr);
-        if (total === num) {
-          // Come bet wins
-          const payout = amt;
-          netWin += payout;
-          stack += amt + payout;
-          setMessage('COME ' + num + ' wins! +' + payout);
-          // Come odds
-          if (comeOdds[numStr]) {
-            const oddsPay = calcOddsPayout(num, comeOdds[numStr]);
-            netWin += oddsPay;
-            stack += comeOdds[numStr] + oddsPay;
-            delete comeOdds[numStr];
-          }
-          delete comeBets[numStr];
-        } else if (total === 7) {
-          // Come bet loses
-          delete comeBets[numStr];
-          if (comeOdds[numStr]) delete comeOdds[numStr];
-        }
-      }
-
-      // ── COME (new come bet) ──
-      if (bets.come) {
-        if (total === 7 || total === 11) {
-          const payout = bets.come;
-          netWin += payout;
-          stack += bets.come + payout;
-          flashWin.push('come');
-          setMessage('COME wins! +' + payout);
-          bets.come = 0;
-        } else if (total === 2 || total === 3 || total === 12) {
-          flashLose.push('come');
-          bets.come = 0;
-        } else {
-          // Travels to the number
-          const numKey = String(total);
-          if (!comeBets[numKey]) comeBets[numKey] = 0;
-          comeBets[numKey] += bets.come;
-          setMessage('Come bet moves to ' + total);
-          bets.come = 0;
-        }
-      }
-
-      // ── PLACE BETS ──
-      const placeNums = [4,5,6,8,9,10];
-      const placePay = { 4: [9,5], 5: [7,5], 6: [7,6], 8: [7,6], 9: [7,5], 10: [9,5] };
-      for (const num of placeNums) {
-        const key = 'place' + num;
-        if (!bets[key]) continue;
-        if (total === num) {
-          const [payNum, payDen] = placePay[num];
-          const payout = Math.floor(bets[key] * payNum / payDen);
-          netWin += payout;
-          stack += bets[key] + payout;
-          flashWin.push(key);
-          setMessage('PLACE ' + num + ' hits! +' + payout);
-          bets[key] = 0;
-        } else if (total === 7) {
-          flashLose.push(key);
-          bets[key] = 0;
-        }
-      }
-
-      // ── PASS LINE + ODDS ──
-      if (phase === 'comeout') {
-        if (bets.pass) {
-          if (total === 7 || total === 11) {
-            const payout = bets.pass;
-            netWin += payout;
-            stack += bets.pass + payout;
-            flashWin.push('pass');
-            setMessage(total === 7 ? 'SEVEN! Winner!' : 'YO ELEVEN! Winner!');
-            bets.pass = 0;
-          } else if (total === 2 || total === 3 || total === 12) {
-            flashLose.push('pass');
-            setMessage(total === 12 ? 'TWELVE! Craps!' : total === 2 ? 'SNAKE EYES! Craps!' : 'THREE CRAPS!');
-            bets.pass = 0;
-          } else {
-            // Point is set
-            point = total;
-            phase = 'point';
-            updatePuck();
-            setMessage('Point is ' + point + '!');
-          }
-        }
-      } else {
-        // Point phase
-        if (total === point) {
-          // Pass line wins
-          if (bets.pass) {
-            const payout = bets.pass;
-            netWin += payout;
-            stack += bets.pass + payout;
-            flashWin.push('pass');
-            setMessage('WINNER! Point ' + point + '!');
-            // Odds
-            if (bets.passOdds) {
-              const oddsPay = calcOddsPayout(point, bets.passOdds);
-              netWin += oddsPay;
-              stack += bets.passOdds + oddsPay;
-              bets.passOdds = 0;
-            }
-            bets.pass = 0;
-          }
-          // Reset to come-out
-          phase = 'comeout';
-          point = 0;
-          updatePuck();
-        } else if (total === 7) {
-          // Seven out — pass loses
-          if (bets.pass) {
-            flashLose.push('pass');
-            bets.pass = 0;
-          }
-          if (bets.passOdds) {
-            bets.passOdds = 0;
-          }
-          setMessage('SEVEN OUT!');
-          // Reset
-          phase = 'comeout';
-          point = 0;
-          updatePuck();
-        }
-      }
-
-      // Flash animations
-      await new Promise(r => setTimeout(r, 200));
-      for (const key of flashWin) {
-        const zone = document.querySelector(`[data-bet="${key}"]`);
-        if (zone) zone.classList.add('win-flash');
-      }
-      for (const key of flashLose) {
-        const zone = document.querySelector(`[data-bet="${key}"]`);
-        if (zone) zone.classList.add('lose-flash');
-      }
-      await new Promise(r => setTimeout(r, 1500));
-      document.querySelectorAll('.win-flash, .lose-flash').forEach(z => {
-        z.classList.remove('win-flash', 'lose-flash');
-      });
-
-      // Log result
-      gameLog.push({
-        action: 'result',
-        netWin,
-        stackAfter: stack,
-        phase,
-        point
-      });
-    }
-
-    function calcOddsPayout(pointNum, bet) {
-      // True odds: 4/10 = 2:1, 5/9 = 3:2, 6/8 = 6:5
-      switch (pointNum) {
-        case 4: case 10: return bet * 2;
-        case 5: case 9:  return Math.floor(bet * 3 / 2);
-        case 6: case 8:  return Math.floor(bet * 6 / 5);
-        default: return 0;
       }
     }
 
@@ -1327,21 +1192,35 @@
         return;
       }
 
-      statusEl.textContent = 'Claiming cells on-chain...';
+      statusEl.textContent = 'Getting oracle signature...';
 
       try {
+        // Ask worker to sign the cashout
+        const cashoutRes = await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tokenId: selectedTokenId,
+            nonce,
+            sessionToken,
+          }),
+        });
+        const cashoutData = await cashoutRes.json();
+        if (!cashoutData.ok) throw new Error(cashoutData.error || 'Cashout failed');
+
+        const serverPayout = cashoutData.payout;
+
+        if (serverPayout === 0) {
+          document.getElementById('cashoutModal').classList.remove('active');
+          showBusted();
+          return;
+        }
+
+        // Call claimWinnings with real oracle signature
+        statusEl.textContent = 'Claiming cells on-chain...';
         const signer = getSigner();
         const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
-
-        // Call claimWinnings with oracle signature
-        // For now (pre-oracle), we simulate the cashout
-        // In production: POST /craps/cashout → get signature → call claimWinnings
-        const tx = await gamble.claimWinnings(
-          selectedTokenId,
-          finalPayout,
-          nonce,
-          '0x' // placeholder sig — Worker will provide real one
-        );
+        const tx = await gamble.claimWinnings(selectedTokenId, serverPayout, cashoutData.nonce, cashoutData.signature);
         statusEl.textContent = 'Confirming...';
         await tx.wait();
 
@@ -1353,7 +1232,7 @@
         const detail = document.getElementById('result-detail');
 
         const buyIn = gameLog[0].amount;
-        const profit = finalPayout - buyIn;
+        const profit = serverPayout - buyIn;
 
         if (profit > 0) {
           text.textContent = 'WINNER!';
