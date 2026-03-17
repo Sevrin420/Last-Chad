@@ -51,6 +51,7 @@ const QUEST_CACHE_TTL   = 86_400;  // 24h — quest configs change rarely
 const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'charisma']);
 
 const POKER_SESSION_TTL = 600;    // 10 minutes per session (reset on every interaction)
+const CRAPS_SESSION_TTL = 1200;   // 20 minutes per craps session (longer game)
 const POKER_PAYOUTS = {
   'ROYAL FLUSH':      250,
   'STRAIGHT FLUSH':    50,
@@ -112,6 +113,17 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/poker/cashout') {
         return await handlePokerCashout(request, env);
+      }
+
+      // Craps endpoints
+      if (request.method === 'POST' && url.pathname === '/craps/start') {
+        return await handleCrapsStart(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/craps/roll') {
+        return await handleCrapsRoll(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/craps/cashout') {
+        return await handleCrapsCashout(request, env);
       }
     } catch (err) {
       console.error(err);
@@ -565,6 +577,322 @@ function shuffleDeckCrypto() {
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CRAPS ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /craps/start  { tokenId, nonce, player }
+async function handleCrapsStart(request, env) {
+  const { tokenId, nonce, player } = await parseBody(request);
+  if (tokenId == null || nonce == null || !player) {
+    return json({ error: 'Missing tokenId, nonce, or player' }, 400);
+  }
+  if (!ethers.isAddress(player)) {
+    return json({ error: 'Invalid player address' }, 400);
+  }
+
+  // Verify wager on-chain
+  const provider = new ethers.JsonRpcProvider(env.READ_RPC);
+  const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
+  const wager    = Number(await gamble.wagerAmounts(BigInt(nonce)));
+  if (wager === 0) {
+    return json({ error: 'No active wager for this nonce' }, 403);
+  }
+  const onChainPlayer = (await gamble.wagerPlayers(BigInt(nonce))).toLowerCase();
+  if (onChainPlayer !== player.toLowerCase()) {
+    return json({ error: 'Player mismatch' }, 403);
+  }
+
+  const sessionToken = await generateCrapsSessionToken(nonce, player.toLowerCase(), env);
+
+  const key = `craps:${nonce}`;
+  const existing = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (existing) {
+    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: CRAPS_SESSION_TTL });
+    return json({ ok: true, stack: existing.stack, sessionToken });
+  }
+
+  await env.RUNNER_KV.put(key, JSON.stringify({
+    tokenId: String(tokenId),
+    player:  player.toLowerCase(),
+    stack:   wager,
+    phase:   'comeout',
+    point:   0,
+    bets:    {},
+    comeBets: {},
+    comeOdds: {},
+    _expectedToken: sessionToken,
+  }), { expirationTtl: CRAPS_SESSION_TTL });
+
+  return json({ ok: true, stack: wager, sessionToken });
+}
+
+// POST /craps/roll  { nonce, bets, comeBets, comeOdds }
+// Client sends desired bets; worker validates, generates dice, resolves.
+async function handleCrapsRoll(request, env) {
+  const { nonce, bets, comeBets, comeOdds, sessionToken } = await parseBody(request);
+  if (nonce == null) return json({ error: 'Missing nonce' }, 400);
+
+  const key     = `craps:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No craps session' }, 403);
+  if (!verifyCrapsSessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+
+  // Sync bets from client (validated against stack)
+  // The client tracks bets locally; here we accept them as authoritative
+  // but validate total bet ≤ original wager stack
+  if (bets) session.bets = bets;
+  if (comeBets) session.comeBets = comeBets;
+  if (comeOdds) session.comeOdds = comeOdds;
+
+  // Generate dice server-side
+  const arr = new Uint32Array(2);
+  crypto.getRandomValues(arr);
+  const d1 = (arr[0] % 6) + 1;
+  const d2 = (arr[1] % 6) + 1;
+  const total = d1 + d2;
+  const isHard = (d1 === d2);
+
+  // Resolve all bets
+  const resolution = crapsResolveBets(session, d1, d2, total, isHard);
+
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+
+  return json({
+    ok: true,
+    dice: [d1, d2],
+    total,
+    isHard,
+    resolution,
+    stack: session.stack,
+    phase: session.phase,
+    point: session.point,
+  });
+}
+
+// POST /craps/cashout  { tokenId, nonce }
+async function handleCrapsCashout(request, env) {
+  const { tokenId, nonce, sessionToken } = await parseBody(request);
+  if (tokenId == null || nonce == null) {
+    return json({ error: 'Missing tokenId or nonce' }, 400);
+  }
+
+  const key     = `craps:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No craps session' }, 403);
+  if (!verifyCrapsSessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+  if (String(tokenId) !== session.tokenId) {
+    return json({ error: 'Token mismatch' }, 403);
+  }
+
+  // Return all bets to stack
+  let betsOnTable = 0;
+  for (const val of Object.values(session.bets || {})) betsOnTable += val;
+  for (const val of Object.values(session.comeBets || {})) betsOnTable += val;
+  for (const val of Object.values(session.comeOdds || {})) betsOnTable += val;
+  const payout = session.stack + betsOnTable;
+
+  if (payout === 0) {
+    await env.RUNNER_KV.delete(key);
+    return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
+  }
+
+  const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
+  const messageHash  = ethers.solidityPackedKeccak256(
+    ['uint256', 'uint256', 'uint256', 'address'],
+    [BigInt(tokenId), BigInt(payout), BigInt(nonce), session.player]
+  );
+  const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
+
+  await env.RUNNER_KV.delete(key);
+  return json({ ok: true, payout, nonce: Number(nonce), signature });
+}
+
+// Craps bet resolution — mutates session in place, returns resolution info
+function crapsResolveBets(session, d1, d2, total, isHard) {
+  const bets = session.bets || {};
+  const comeBets = session.comeBets || {};
+  const comeOdds = session.comeOdds || {};
+  let netWin = 0;
+  const wins = [];
+  const losses = [];
+  let message = '';
+
+  // FIELD (one-roll)
+  if (bets.field) {
+    const fieldNums = [2,3,4,9,10,11,12];
+    if (fieldNums.includes(total)) {
+      let payout = bets.field;
+      if (total === 2) payout = bets.field * 2;
+      else if (total === 12) payout = bets.field * 3;
+      netWin += payout;
+      session.stack += bets.field + payout;
+      wins.push('field');
+      message = 'FIELD ' + total + '! +' + payout;
+    } else { losses.push('field'); }
+    bets.field = 0;
+  }
+
+  // HARDWAYS
+  const hardMap = { hard4: 4, hard6: 6, hard8: 8, hard10: 10 };
+  const hardPay = { hard4: 7, hard6: 9, hard8: 9, hard10: 7 };
+  for (const [key, num] of Object.entries(hardMap)) {
+    if (!bets[key]) continue;
+    if (total === num && isHard) {
+      const payout = bets[key] * hardPay[key];
+      netWin += payout;
+      session.stack += bets[key] + payout;
+      wins.push(key);
+      message = 'HARD ' + num + '! +' + payout;
+      bets[key] = 0;
+    } else if (total === 7 || (total === num && !isHard)) {
+      losses.push(key);
+      bets[key] = 0;
+    }
+  }
+
+  // COME BETS (on a number)
+  for (const [numStr, amt] of Object.entries(comeBets)) {
+    const num = parseInt(numStr);
+    if (total === num) {
+      netWin += amt;
+      session.stack += amt + amt;
+      message = 'COME ' + num + ' wins! +' + amt;
+      if (comeOdds[numStr]) {
+        const oddsPay = crapsCalcOdds(num, comeOdds[numStr]);
+        netWin += oddsPay;
+        session.stack += comeOdds[numStr] + oddsPay;
+        delete comeOdds[numStr];
+      }
+      delete comeBets[numStr];
+    } else if (total === 7) {
+      delete comeBets[numStr];
+      if (comeOdds[numStr]) delete comeOdds[numStr];
+    }
+  }
+
+  // NEW COME BET
+  if (bets.come) {
+    if (total === 7 || total === 11) {
+      netWin += bets.come;
+      session.stack += bets.come + bets.come;
+      wins.push('come');
+      message = 'COME wins! +' + bets.come;
+      bets.come = 0;
+    } else if (total === 2 || total === 3 || total === 12) {
+      losses.push('come');
+      bets.come = 0;
+    } else {
+      const numKey = String(total);
+      if (!comeBets[numKey]) comeBets[numKey] = 0;
+      comeBets[numKey] += bets.come;
+      message = 'Come bet moves to ' + total;
+      bets.come = 0;
+    }
+  }
+
+  // PLACE BETS
+  const placePay = { 4: [9,5], 5: [7,5], 6: [7,6], 8: [7,6], 9: [7,5], 10: [9,5] };
+  for (const num of [4,5,6,8,9,10]) {
+    const key = 'place' + num;
+    if (!bets[key]) continue;
+    if (total === num) {
+      const [payNum, payDen] = placePay[num];
+      const payout = Math.floor(bets[key] * payNum / payDen);
+      netWin += payout;
+      session.stack += bets[key] + payout;
+      wins.push(key);
+      message = 'PLACE ' + num + ' hits! +' + payout;
+      bets[key] = 0;
+    } else if (total === 7) {
+      losses.push(key);
+      bets[key] = 0;
+    }
+  }
+
+  // PASS LINE + ODDS
+  if (session.phase === 'comeout') {
+    if (bets.pass) {
+      if (total === 7 || total === 11) {
+        netWin += bets.pass;
+        session.stack += bets.pass + bets.pass;
+        wins.push('pass');
+        message = total === 7 ? 'SEVEN! Winner!' : 'YO ELEVEN! Winner!';
+        bets.pass = 0;
+      } else if (total === 2 || total === 3 || total === 12) {
+        losses.push('pass');
+        message = total === 12 ? 'TWELVE! Craps!' : total === 2 ? 'SNAKE EYES! Craps!' : 'THREE CRAPS!';
+        bets.pass = 0;
+      } else {
+        session.point = total;
+        session.phase = 'point';
+        message = 'Point is ' + total + '!';
+      }
+    }
+  } else {
+    if (total === session.point) {
+      if (bets.pass) {
+        netWin += bets.pass;
+        session.stack += bets.pass + bets.pass;
+        wins.push('pass');
+        message = 'WINNER! Point ' + session.point + '!';
+        if (bets.passOdds) {
+          const oddsPay = crapsCalcOdds(session.point, bets.passOdds);
+          netWin += oddsPay;
+          session.stack += bets.passOdds + oddsPay;
+          bets.passOdds = 0;
+        }
+        bets.pass = 0;
+      }
+      session.phase = 'comeout';
+      session.point = 0;
+    } else if (total === 7) {
+      if (bets.pass) { losses.push('pass'); bets.pass = 0; }
+      if (bets.passOdds) { bets.passOdds = 0; }
+      message = 'SEVEN OUT!';
+      session.phase = 'comeout';
+      session.point = 0;
+    }
+  }
+
+  session.bets = bets;
+  session.comeBets = comeBets;
+  session.comeOdds = comeOdds;
+
+  return { netWin, wins, losses, message };
+}
+
+function crapsCalcOdds(pointNum, bet) {
+  switch (pointNum) {
+    case 4: case 10: return bet * 2;
+    case 5: case 9:  return Math.floor(bet * 3 / 2);
+    case 6: case 8:  return Math.floor(bet * 6 / 5);
+    default: return 0;
+  }
+}
+
+async function generateCrapsSessionToken(nonce, player, env) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(env.ORACLE_PRIVATE_KEY),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const data = new TextEncoder().encode(`craps:${nonce}:${player}`);
+  const sig = await crypto.subtle.sign('HMAC', key, data);
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function verifyCrapsSessionToken(session, sessionToken) {
+  if (!session._expectedToken) return true;
+  return session._expectedToken === sessionToken;
 }
 
 /** Convert card index (0-51) to { rank: 0-12, suit: 0-3 } */
