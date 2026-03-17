@@ -11,7 +11,6 @@ on:
         default: 'all-contracts'
         type: choice
         options:
-          - everything       # 1-CLICK: Deploy ALL 5 contracts, wire, commit configs, deploy worker, verify, validate
           - all-contracts    # Deploy LastChad + LastChadItems + QuestRewards (full redeploy)
           - lastchad-only    # Re-deploy LastChad only (e.g. stat point changes), re-auth QuestRewards
           - quest-only       # Deploy QuestRewards only (LastChad + Items already deployed)
@@ -24,6 +23,7 @@ on:
           - gamble-open      # Open the gambling den (authorize Gamble in LastChad)
           - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
           - award-owner-cells # Award 100 open cells to every Chad in the owner wallet
+          - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
           - approve-market   # Whitelist LastChad + Items on the Market contract
       network:
         description: 'Network (ignored if target=worker)'
@@ -56,7 +56,7 @@ jobs:
   deploy-contract:
     name: Deploy Contracts (${{ inputs.network }})
     runs-on: ubuntu-latest
-    if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'lastchad-only' || inputs.target == 'quest-only' || inputs.target == 'gamble'
+    if: inputs.target == 'all-contracts' || inputs.target == 'lastchad-only' || inputs.target == 'quest-only' || inputs.target == 'gamble'
     environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
 
     steps:
@@ -70,13 +70,6 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
-
-      - name: Deploy EVERYTHING (all 5 contracts + wire + patch)
-        if: inputs.target == 'everything'
-        env:
-          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: npx hardhat run scripts/deployEverything.js --network ${{ inputs.network }}
 
       - name: Deploy all contracts (LastChad + Items + QuestRewards)
         if: inputs.target == 'all-contracts'
@@ -110,7 +103,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add js/config.js js/quest-globals.js worker/wrangler.toml
+          git add js/config.js js/quest-globals.js
           if git diff --cached --quiet; then
             echo "config files unchanged — skipping commit"
           else
@@ -129,16 +122,10 @@ jobs:
     if: |
       always() &&
       (inputs.target == 'worker' ||
-       (inputs.target == 'everything' && needs.deploy-contract.result != 'failure') ||
-       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure') ||
-       (inputs.target == 'gamble' && needs.deploy-contract.result != 'failure'))
+       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure'))
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Pull latest config (contract addresses from deploy step)
-        if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'gamble'
-        run: git pull origin ${{ github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
@@ -342,63 +329,78 @@ jobs:
         run: npx hardhat run scripts/approveMarketContracts.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 9: Verify contracts (auto-runs after worker in 'everything' pipeline)
+  # Job: Fix Worker — sync addresses from js/config.js and redeploy
+  # Safe to run anytime — no on-chain transactions.
   # ───────────────────────────────────────────────────────────────────────────
-  everything-verify:
-    name: Verify Contracts (${{ inputs.network }})
+  fix-worker:
+    name: Fix & Redeploy Worker
     runs-on: ubuntu-latest
-    needs: [deploy-worker]
-    if: |
-      always() &&
-      inputs.target == 'everything' &&
-      needs.deploy-worker.result != 'failure'
+    if: inputs.target == 'fix-worker'
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - run: npm ci
+      - name: Sync contract addresses from js/config.js → wrangler.toml
+        working-directory: worker
+        run: |
+          LASTCHAD=$(grep "CONTRACT_ADDRESS\b" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          QUESTREWARDS=$(grep "QUEST_REWARDS_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          GAMBLE=$(grep "GAMBLE_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          RPC=$(grep "READ_RPC" ../js/config.js | head -1 | sed "s/.*'\(https[^']*\)'.*/\1/")
 
-      - name: Pull latest config (deployed addresses)
-        run: git pull origin ${{ github.ref_name }}
+          echo "LastChad:     $LASTCHAD"
+          echo "QuestRewards: $QUESTREWARDS"
+          echo "Gamble:       $GAMBLE"
+          echo "RPC:          $RPC"
 
-      - name: Verify all contracts on Snowtrace
+          sed -i "s|LASTCHAD_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|LASTCHAD_ADDRESS      = \"${LASTCHAD}\"|" wrangler.toml
+          sed -i "s|QUEST_REWARDS_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|QUEST_REWARDS_ADDRESS = \"${QUESTREWARDS}\"|" wrangler.toml
+          sed -i "s|GAMBLE_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|GAMBLE_ADDRESS        = \"${GAMBLE}\"|" wrangler.toml
+          sed -i "s|READ_RPC.*=.*\"https[^\"]*\"|READ_RPC              = \"${RPC}\"|" wrangler.toml
+
+          echo "--- Updated wrangler.toml ---"
+          cat wrangler.toml
+
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm ci
+
+      - name: Patch KV namespace IDs into wrangler.toml
+        working-directory: worker
         env:
-          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
-        run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
+          KV_ID:      ${{ secrets.KV_NAMESPACE_ID }}
+          KV_PREVIEW: ${{ secrets.KV_PREVIEW_ID }}
+        run: |
+          sed -i "s|REPLACE_WITH_KV_NAMESPACE_ID|${KV_ID}|g" wrangler.toml
+          sed -i "s|REPLACE_WITH_KV_PREVIEW_ID|${KV_PREVIEW}|g" wrangler.toml
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 10: Validate contracts (auto-runs after verify in 'everything' pipeline)
-  # ───────────────────────────────────────────────────────────────────────────
-  everything-validate:
-    name: Validate Contracts (${{ inputs.network }})
-    runs-on: ubuntu-latest
-    needs: [everything-verify]
-    if: |
-      always() &&
-      inputs.target == 'everything' &&
-      needs.everything-verify.result != 'failure'
+      - name: Deploy Worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler deploy
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
+      - name: Push ORACLE_PRIVATE_KEY secret to Worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          ORACLE_PRIVATE_KEY:    ${{ secrets.ORACLE_PRIVATE_KEY }}
+        run: echo "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Pull latest config (deployed addresses)
-        run: git pull origin ${{ github.ref_name }}
-
-      - name: Validate all contracts on-chain
-        run: npx hardhat run scripts/validateContracts.js --network ${{ inputs.network }}
+      - name: Commit synced wrangler.toml
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add worker/wrangler.toml
+          if git diff --cached --quiet; then
+            echo "wrangler.toml already up to date — skipping commit"
+          else
+            git commit -m "chore: sync worker contract addresses from config.js [skip ci]"
+            git push origin ${{ github.ref_name }}
+          fi
