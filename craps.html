@@ -144,7 +144,7 @@
 
     .craps-table {
       width: 100%; max-width: 720px;
-      background: #1a5c1a;
+      background: url('assets/Oldjipt/Craps/felt.png') center/cover no-repeat;
       border: 4px solid #8b6914;
       border-radius: 12px;
       box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 30px rgba(139,105,20,0.3);
@@ -156,13 +156,15 @@
     /* Puck */
     .puck {
       position: absolute; top: 4px; right: 8px;
-      width: 28px; height: 28px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.25rem; font-weight: bold; z-index: 5;
-      transition: all 0.3s;
+      width: 36px; height: 36px;
+      z-index: 5; transition: all 0.3s;
+      background-size: contain; background-repeat: no-repeat;
+      background-position: center;
+      border: none; border-radius: 0;
+      font-size: 0; color: transparent; overflow: hidden;
     }
-    .puck.off { background: #222; color: #888; border: 2px solid #555; }
-    .puck.on { background: #fff; color: #000; border: 2px solid #c9a84c; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+    .puck.off { background-image: url('assets/Oldjipt/Craps/jiptoff.png'); }
+    .puck.on { background-image: url('assets/Oldjipt/Craps/jipton.png'); box-shadow: 0 0 12px rgba(255,255,255,0.5); }
 
     /* Table rows */
     .table-row {
@@ -271,6 +273,33 @@
       visibility: hidden;
     }
 
+    /* ── Dealer NPC ── */
+    .dealer-area {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 4px 0;
+    }
+    .dealer-portrait {
+      width: 64px; height: 72px;
+      background: url('assets/Oldjipt/Craps/jiptneutral.png') center/contain no-repeat;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 6px rgba(0,0,0,0.7));
+      transition: background-image 0.3s;
+    }
+    .dealer-portrait.happy { background-image: url('assets/Oldjipt/Craps/jipthappy.png'); }
+    .dealer-portrait.sad { background-image: url('assets/Oldjipt/Craps/jiptsad.png'); }
+    .dealer-speech {
+      font-size: 0.3rem; color: #ffe96a;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #5c4409; border-radius: 6px;
+      padding: 6px 10px; max-width: 240px;
+      text-shadow: 1px 1px 0 #000;
+      position: relative;
+    }
+    .dealer-speech::before {
+      content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%);
+      border: 5px solid transparent; border-right-color: #5c4409;
+    }
+
     /* ── Controls bar ── */
     .controls-bar {
       display: flex; align-items: center; justify-content: center;
@@ -299,16 +328,27 @@
     .roll-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); }
     .roll-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .bet-input {
-      display: flex; align-items: center; gap: 6px;
+    /* ── Chip selector ── */
+    .chip-selector {
+      display: flex; align-items: center; gap: 8px;
     }
-    .bet-input label { font-size: 0.35rem; color: #c9a84c; }
-    .bet-input input {
-      width: 60px; font-family: 'Press Start 2P', monospace;
-      font-size: 0.4rem; background: #111; color: #ffe96a;
-      border: 2px solid #5c4409; border-radius: 4px;
-      padding: 6px 8px; text-align: center;
+    .chip-selector-label { font-size: 0.3rem; color: #c9a84c; }
+    .chip {
+      width: 42px; height: 42px;
+      background: url('assets/Oldjipt/Craps/jiptchips.png') no-repeat;
+      background-size: 300% 300%;
+      border: 2px solid transparent; border-radius: 50%;
+      cursor: pointer; transition: all 0.15s;
+      position: relative;
+      image-rendering: pixelated;
     }
+    .chip:hover { transform: scale(1.15); filter: brightness(1.2); }
+    .chip.selected { border-color: #ffe96a; box-shadow: 0 0 10px rgba(255,233,106,0.6); transform: scale(1.15); }
+    /* Sprite positions from jiptchips.png — 3x3 grid: row0=[1,5,10] row1=[25,50,100] row2=[500,1000,?] */
+    .chip[data-value="1"]  { background-position: 0% 0%; }
+    .chip[data-value="5"]  { background-position: 50% 0%; }
+    .chip[data-value="10"] { background-position: 100% 0%; }
+    .chip[data-value="25"] { background-position: 0% 50%; }
 
     .cashout-btn {
       font-family: 'Press Start 2P', monospace;
@@ -319,14 +359,7 @@
     }
     .cashout-btn:hover { background: rgba(139,105,20,0.4); }
 
-    /* ── Message bar (stickman calls) ── */
-    .message-bar {
-      text-align: center; padding: 4px 8px;
-      font-size: 0.35rem; color: #4caf50;
-      text-shadow: 0 0 8px rgba(76,175,80,0.4);
-      min-height: 1.8em;
-      background: rgba(0,0,0,0.5);
-    }
+    /* ── Message bar (legacy, hidden — dealer speech replaces it) ── */
 
     /* ── Result overlay ── */
     #result-overlay {
@@ -390,6 +423,10 @@
       .bet-zone .zone-payout { font-size: 0.18rem; }
       .controls-bar { flex-wrap: wrap; gap: 6px; }
       .game-header { padding: 8px 10px; }
+      .dealer-portrait { width: 48px; height: 54px; }
+      .dealer-speech { font-size: 0.25rem; max-width: 180px; }
+      .chip { width: 34px; height: 34px; }
+      .chip-selector { gap: 5px; }
     }
 
     /* ── Desktop ── */
@@ -397,6 +434,8 @@
       .craps-table { max-width: 860px; }
       .bet-zone { min-height: 44px; }
       .bet-zone .zone-label { font-size: 0.32rem; }
+      .dealer-portrait { width: 80px; height: 90px; }
+      .chip { width: 50px; height: 50px; }
       .craps-die { width: 70px; height: 70px; }
     }
   </style>
@@ -536,15 +575,21 @@
 
       </div>
 
-      <!-- Message bar -->
-      <div class="message-bar" id="messageBar">Place your bets!</div>
+      <!-- Dealer NPC -->
+      <div class="dealer-area">
+        <div class="dealer-portrait" id="dealerPortrait"></div>
+        <div class="dealer-speech" id="dealerSpeech">New shooter! Place your bets.</div>
+      </div>
     </div>
 
     <!-- Controls -->
     <div class="controls-bar">
-      <div class="bet-input">
-        <label>BET:</label>
-        <input type="number" id="betAmountInput" value="1" min="1" />
+      <div class="chip-selector">
+        <span class="chip-selector-label">BET:</span>
+        <div class="chip selected" data-value="1" title="1 cell"></div>
+        <div class="chip" data-value="5" title="5 cells"></div>
+        <div class="chip" data-value="10" title="10 cells"></div>
+        <div class="chip" data-value="25" title="25 cells"></div>
       </div>
       <button class="roll-btn" id="rollBtn" disabled>ROLL</button>
       <button class="cashout-btn" id="cashoutBtn">CASH OUT</button>
@@ -770,6 +815,7 @@
       document.getElementById('table-screen').classList.add('active');
       updateStackDisplay();
       updateBetZoneStates();
+      setDealerMood('neutral');
       setMessage("New shooter coming out! Place your pass line bet.");
     }
 
@@ -802,16 +848,38 @@
       }
     }
 
-    // Init empty faces
-    renderFace('face0', 0);
-    renderFace('face1', 0);
+    // Init dice showing hard 4 (2+2)
+    renderFace('face0', 2);
+    renderFace('face1', 2);
 
     // ════════════════════════════════════════
     //  BET PLACEMENT
     // ════════════════════════════════════════
+    // ── Chip selector ──
+    let selectedChipValue = 1;
+
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        selectedChipValue = parseInt(chip.dataset.value);
+      });
+    });
+
     function getBetAmount() {
-      const val = parseInt(document.getElementById('betAmountInput').value) || 1;
-      return Math.max(1, val);
+      return selectedChipValue;
+    }
+
+    // ── Dealer NPC ──
+    function setDealerMood(mood) {
+      const portrait = document.getElementById('dealerPortrait');
+      portrait.classList.remove('happy', 'sad');
+      if (mood === 'happy') portrait.classList.add('happy');
+      else if (mood === 'sad') portrait.classList.add('sad');
+    }
+
+    function setDealerSpeech(msg) {
+      document.getElementById('dealerSpeech').textContent = msg;
     }
 
     function updateBetZoneStates() {
@@ -1175,7 +1243,16 @@
     }
 
     function setMessage(msg) {
-      document.getElementById('messageBar').textContent = msg;
+      setDealerSpeech(msg);
+      // Determine dealer mood from message context
+      const lmsg = msg.toLowerCase();
+      if (lmsg.includes('win') || lmsg.includes('hits') || lmsg.includes('yo ') || lmsg.includes('+')) {
+        setDealerMood('happy');
+      } else if (lmsg.includes('craps') || lmsg.includes('seven out') || lmsg.includes('busted') || lmsg.includes('lose') || lmsg.includes('not enough')) {
+        setDealerMood('sad');
+      } else {
+        setDealerMood('neutral');
+      }
     }
 
     // ════════════════════════════════════════
@@ -1189,6 +1266,8 @@
       text.className = 'result-text lose';
       detail.textContent = 'You lost all your cells.';
       overlay.classList.add('active');
+      setDealerMood('sad');
+      setDealerSpeech("Better luck next time, partner.");
 
       const sfx = document.getElementById('sfx-lose');
       sfx.currentTime = 0;
