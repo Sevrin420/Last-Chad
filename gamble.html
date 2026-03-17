@@ -475,46 +475,40 @@
     }
     .poker-back-btn:hover { background: rgba(201,168,76,0.15); }
 
-    /* Game image + payout area */
-    .poker-top {
-      display: flex; gap: 0; position: relative; z-index: 2; flex-shrink: 0;
-    }
+    /* Standing image at top */
     .poker-image-wrap {
-      flex: 1; min-width: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(10,10,15,0.8);
+      background: rgba(10,10,15,0.6);
       border-bottom: 1px solid #3d2e0a;
-      padding: 8px; max-height: 28vh; overflow: hidden;
-    }
-    .poker-image-wrap span {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 1.2rem; color: #c9a84c;
-      text-shadow: 0 0 10px rgba(201,168,76,0.4);
-      letter-spacing: 0.15em;
-      padding: 30px 20px;
+      padding: 4px; max-height: 22vh; overflow: hidden;
+      position: relative; z-index: 2; flex-shrink: 0;
     }
     .poker-image-wrap img {
       max-width: 100%; max-height: 100%;
-      object-fit: contain; border: 1px solid #3d2e0a;
+      object-fit: contain;
     }
-    .poker-payout {
-      width: 155px; flex-shrink: 0;
+
+    /* Full-width payout table above cards */
+    .poker-payout-wide {
+      width: 100%; flex-shrink: 0;
       background: linear-gradient(180deg, rgba(10,10,15,0.9) 0%, rgba(15,13,6,0.95) 100%);
-      border-left: 1px solid #3d2e0a;
       border-bottom: 1px solid #3d2e0a;
-      padding: 6px 8px; overflow-y: auto; max-height: 28vh;
+      padding: 4px 10px; position: relative; z-index: 2;
     }
     .payout-title {
       font-size: 0.38rem; color: #c9a84c;
-      text-align: center; margin-bottom: 6px;
+      text-align: center; margin-bottom: 4px;
       letter-spacing: 0.1em;
       text-shadow: 0 0 8px rgba(201,168,76,0.4);
+    }
+    .payout-rows-grid {
+      display: flex; flex-wrap: wrap; gap: 0;
     }
     .payout-row {
       display: flex; justify-content: space-between;
       font-size: 0.33rem; color: #6a6050;
-      padding: 3px 4px;
-      border-bottom: 1px solid rgba(61,46,10,0.4);
+      padding: 2px 6px; width: 50%;
+      border-bottom: 1px solid rgba(61,46,10,0.3);
       transition: all 0.3s;
     }
     .payout-row.active {
@@ -526,6 +520,49 @@
     .payout-row.active .payout-mult {
       color: #ffe96a;
       text-shadow: 0 0 8px rgba(255,233,106,0.6);
+    }
+
+    /* Large stack box below cards */
+    .poker-stack-box {
+      position: relative; z-index: 2; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 20px;
+      background: rgba(10,10,15,0.9);
+      border-top: 2px solid #3d2e0a;
+    }
+    .poker-stack-label {
+      font-size: clamp(0.5rem, 1.5vw, 0.65rem);
+      color: #7a6020; letter-spacing: 0.2em;
+      margin-bottom: 4px;
+    }
+    .poker-stack-value {
+      font-size: clamp(1.8rem, 6vw, 2.8rem);
+      color: #ffe96a;
+      text-shadow: 0 0 16px rgba(255,233,106,0.5), 0 0 32px rgba(255,233,106,0.2);
+      letter-spacing: 0.08em;
+      min-width: 120px; text-align: center;
+    }
+
+    /* Win banner */
+    .poker-win-banner {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.7);
+      pointer-events: none;
+    }
+    .poker-win-banner.active { display: flex; }
+    .poker-win-text {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1.2rem, 5vw, 2rem);
+      color: #ffe96a;
+      text-shadow: 0 0 20px rgba(255,233,106,0.8), 0 0 40px rgba(255,233,106,0.4), 0 4px 0 #7a6020;
+      text-align: center; letter-spacing: 0.1em;
+      animation: win-scale 0.5s ease-out;
+    }
+    @keyframes win-scale {
+      0% { transform: scale(0.3); opacity: 0; }
+      60% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     /* Cards */
@@ -636,16 +673,11 @@
       text-shadow: 0 0 12px rgba(201,64,64,0.4);
     }
 
-    /* Mobile: stack image + payout vertically */
+    /* Mobile tweaks */
     @media (max-width: 520px) {
-      .poker-top { flex-direction: column; }
-      .poker-payout {
-        width: 100%; border-left: none; border-top: 1px solid #3d2e0a;
-        max-height: none; display: flex; flex-wrap: wrap; gap: 0; padding: 4px 8px;
-      }
-      .payout-row { width: 50%; font-size: 0.3rem; }
-      .payout-title { width: 100%; }
-      .poker-image-wrap { max-height: 18vh; }
+      .payout-row { font-size: 0.3rem; }
+      .poker-image-wrap { max-height: 16vh; }
+      .poker-stack-value { font-size: 1.6rem; }
     }
 
     /* === Desktop === */
@@ -725,14 +757,14 @@
     <div class="poker-header">
       <button class="poker-back-btn" id="poker-back">EXIT</button>
       <div class="poker-title">POKER</div>
-      <div class="poker-wager-display" id="poker-wager-display">WAGER: 0</div>
+      <div style="width:60px"></div>
     </div>
-    <div class="poker-top">
-      <div class="poker-image-wrap" id="poker-image-placeholder">
-        <span>POKER</span>
-      </div>
-      <div class="poker-payout" id="poker-payout-table">
-        <div class="payout-title">— PAYOUTS —</div>
+    <div class="poker-image-wrap" id="poker-image-placeholder">
+      <img src="assets/Oldjipt/Standing" alt="Ol' Jipt" />
+    </div>
+    <div class="poker-payout poker-payout-wide" id="poker-payout-table">
+      <div class="payout-title">— PAYOUTS —</div>
+      <div class="payout-rows-grid">
         <div class="payout-row" data-hand="royal"><span>ROYAL FLUSH</span><span class="payout-mult">250x</span></div>
         <div class="payout-row" data-hand="straight-flush"><span>STR. FLUSH</span><span class="payout-mult">50x</span></div>
         <div class="payout-row" data-hand="four-kind"><span>4 OF A KIND</span><span class="payout-mult">25x</span></div>
@@ -751,6 +783,14 @@
         <button class="poker-deal-btn" id="poker-deal-btn">DEAL</button>
       </div>
     </div>
+    <div class="poker-stack-box" id="poker-stack-box">
+      <div class="poker-stack-label">CELLS</div>
+      <div class="poker-stack-value" id="poker-stack-value">0</div>
+    </div>
+    <!-- Win banner overlay -->
+    <div class="poker-win-banner" id="poker-win-banner">
+      <div class="poker-win-text" id="poker-win-text">YOU WIN 0 CELLS</div>
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
@@ -764,7 +804,7 @@
     const bgMusic    = document.getElementById('bg-music');
     const enterOverlay = document.getElementById('enter-overlay');
     const dialogueBox = document.getElementById('dialogue-box');
-    bgMusic.volume = 0.27;
+    bgMusic.volume = 0.14;
     let hasEntered = false;
 
     const muteBtn = document.getElementById('mute-btn');
@@ -788,7 +828,7 @@
       showIntro();
     });
 
-    function duckMusic(targetVol = 0.05, ms = 400) {
+    function duckMusic(targetVol = 0.03, ms = 400) {
       const step = (bgMusic.volume - targetVol) / (ms / 30);
       const t = setInterval(() => {
         bgMusic.volume = Math.max(targetVol, +(bgMusic.volume - step).toFixed(3));
@@ -796,7 +836,7 @@
       }, 30);
     }
 
-    function restoreMusic(targetVol = 0.27, ms = 800) {
+    function restoreMusic(targetVol = 0.14, ms = 800) {
       const step = (targetVol - bgMusic.volume) / (ms / 30);
       const t = setInterval(() => {
         bgMusic.volume = Math.min(targetVol, +(bgMusic.volume + step).toFixed(3));
@@ -1142,17 +1182,18 @@
             // Secondary: force-load + unlock each sfx element
             const sfxWin  = document.getElementById('sfx-win');
             const sfxLose = document.getElementById('sfx-lose');
+            sfxWin.volume = 0.5; sfxLose.volume = 0.5;
             sfxWin.load();  sfxWin.play().then(() => sfxWin.pause()).catch(() => {});
             sfxLose.load(); sfxLose.play().then(() => sfxLose.pause()).catch(() => {});
             videoOverlay.classList.add('active');
             video.currentTime = 0;
-            duckMusic(0.08);
+            duckMusic(0.04);
             const p = video.play();
             if (p !== undefined) {
               p.catch(() => {
                 // play still blocked — skip straight to result
                 videoOverlay.classList.remove('active');
-                restoreMusic(0.45, 200);
+                restoreMusic(0.22, 200);
                 resolve();
               });
             }
@@ -1194,7 +1235,7 @@
       if (win) {
         resultText.textContent = 'YOU WIN!';
         resultText.className = 'win';
-        duckMusic(0.06);
+        duckMusic(0.03);
         const sfxWin = document.getElementById('sfx-win');
         sfxWin.currentTime = 0;
         sfxWin.play().catch(() => {});
@@ -1202,7 +1243,7 @@
       } else {
         resultText.textContent = 'YOU LOSE';
         resultText.className = 'lose';
-        duckMusic(0.06);
+        duckMusic(0.03);
         const sfxLose = document.getElementById('sfx-lose');
         sfxLose.currentTime = 0;
         sfxLose.play().catch(() => {});
@@ -1478,7 +1519,31 @@
     }
 
     function updatePokerWagerDisplay() {
-      document.getElementById('poker-wager-display').textContent = `STACK: ${pokerStack} CELLS`;
+      document.getElementById('poker-stack-value').textContent = pokerStack;
+    }
+
+    async function animateCellCounter(from, to, durationMs) {
+      const el = document.getElementById('poker-stack-value');
+      const diff = to - from;
+      if (diff <= 0) { el.textContent = to; return; }
+      const startTime = performance.now();
+      return new Promise(resolve => {
+        function tick(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / durationMs, 1);
+          // Ease-out for smooth deceleration
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = Math.round(from + diff * eased);
+          el.textContent = current;
+          if (progress < 1) {
+            requestAnimationFrame(tick);
+          } else {
+            el.textContent = to;
+            resolve();
+          }
+        }
+        requestAnimationFrame(tick);
+      });
     }
 
     async function dealNewHand() {
@@ -1700,7 +1765,7 @@
         document.querySelectorAll('.lock-btn').forEach(b => { b.style.pointerEvents = 'none'; });
 
         if (data.hand) {
-          resultEl.textContent = `${data.hand}! +${data.winnings} CELLS`;
+          resultEl.textContent = `${data.hand}!`;
           resultEl.className = 'poker-result win';
 
           const attr = HAND_DATA_ATTR[data.hand];
@@ -1708,9 +1773,37 @@
             const row = document.querySelector(`.payout-row[data-hand="${attr}"]`);
             if (row) row.classList.add('active');
           }
+
+          // Play win sfx
+          duckMusic(0.03);
+          const sfxWin = document.getElementById('sfx-win');
+          sfxWin.currentTime = 0;
+          sfxWin.play().catch(() => {});
+          sfxWin.onended = () => restoreMusic();
+
+          // Show big win banner
+          const winBanner = document.getElementById('poker-win-banner');
+          const winText = document.getElementById('poker-win-text');
+          winText.textContent = `YOU WIN ${data.winnings} CELLS`;
+          winBanner.classList.add('active');
+
+          // Animate cell counter rolling up to new total
+          const oldStack = pokerStack - data.winnings;
+          await animateCellCounter(oldStack, pokerStack, 1500);
+
+          // Hold banner for a moment then dismiss
+          await delay(1200);
+          winBanner.classList.remove('active');
         } else {
           resultEl.textContent = 'NO WIN';
           resultEl.className = 'poker-result lose';
+
+          // Play lose sfx
+          duckMusic(0.03);
+          const sfxLose = document.getElementById('sfx-lose');
+          sfxLose.currentTime = 0;
+          sfxLose.play().catch(() => {});
+          sfxLose.onended = () => restoreMusic();
         }
 
         dealBtn.textContent = pokerStack >= 1 ? 'NEW HAND' : 'CASH OUT';

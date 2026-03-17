@@ -1077,6 +1077,7 @@
     // ========== MINT SOUND EFFECTS ==========
     const sfxGoodLuck  = document.getElementById('sfx-goodluck');
     const sfxYouNeedIt = document.getElementById('sfx-youneedit');
+    sfxGoodLuck.volume = 0.5; sfxYouNeedIt.volume = 0.5;
 
     // Unlock iOS/Android audio in the synchronous user-gesture window.
     // Must run before any await — once async resumes, the gesture is gone.
