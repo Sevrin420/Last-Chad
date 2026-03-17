@@ -1521,16 +1521,51 @@
         crapsBets = {};
         crapsComeBets = {};
         crapsComeOdds = {};
+      } catch (err) {
+        statusEl.remove();
+        const errP = document.createElement('p');
+        const reason = err.reason || err.data?.message || err.error?.message || err.message || String(err);
+        errP.textContent = 'Transaction failed: ' + reason;
+        errP.style.color = '#e53935';
+        dialogueText.appendChild(errP);
+        showChoices([
+          { label: "Try again", action: beginCrapsRound },
+          { label: "Pick another Chad", action: startCrapsGame },
+        ]);
+        return;
+      }
 
-        // Register session with worker
-        statusEl.textContent = 'Setting up craps table...';
-        const startRes = await fetchWithTimeout(WORKER_URL + '/craps/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tokenId: selectedTokenId, nonce: crapsNonce, player: userAddress }),
-        });
-        const startData = await startRes.json();
-        if (!startData.ok) throw new Error(startData.error || 'Failed to start craps session');
+      // Register session with worker (retry up to 3 times — cells are already committed)
+      statusEl.textContent = 'Setting up craps table...';
+      let startData;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const startRes = await fetchWithTimeout(WORKER_URL + '/craps/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokenId: selectedTokenId, nonce: crapsNonce, player: userAddress }),
+          });
+          startData = await startRes.json();
+          if (startData.ok) break;
+          startData = null;
+        } catch { startData = null; }
+        if (attempt < 2) await delay(1000 * (attempt + 1));
+      }
+
+      if (!startData || !startData.ok) {
+        statusEl.remove();
+        const errP = document.createElement('p');
+        errP.textContent = 'Server error: could not start craps session. Your wager is safe — try again.';
+        errP.style.color = '#e53935';
+        dialogueText.appendChild(errP);
+        showChoices([
+          { label: "Try again", action: beginCrapsRound },
+          { label: "Pick another Chad", action: startCrapsGame },
+        ]);
+        return;
+      }
+
+      try {
         crapsSessionToken = startData.sessionToken || null;
         crapsStack = startData.stack;
 
@@ -1543,15 +1578,14 @@
         crapsUpdateStack();
         crapsUpdatePuck();
         crapsUpdateBetZones();
-        crapsRenderFace('craps-face0', 0);
-        crapsRenderFace('craps-face1', 0);
+        crapsRenderFace('craps-face0', 2);
+        crapsRenderFace('craps-face1', 2);
         crapsSetMessage("New shooter coming out! Place your pass line bet.");
 
       } catch (err) {
         statusEl.remove();
         const errP = document.createElement('p');
-        const reason = err.reason || err.data?.message || err.error?.message || err.message || String(err);
-        errP.textContent = 'Transaction failed: ' + reason;
+        errP.textContent = 'Error setting up table: ' + (err.message || String(err));
         errP.style.color = '#e53935';
         dialogueText.appendChild(errP);
         showChoices([
