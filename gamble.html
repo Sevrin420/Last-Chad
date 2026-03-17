@@ -804,7 +804,7 @@
     const bgMusic    = document.getElementById('bg-music');
     const enterOverlay = document.getElementById('enter-overlay');
     const dialogueBox = document.getElementById('dialogue-box');
-    bgMusic.volume = 0.14;
+    bgMusic.volume = 0.27;
     let hasEntered = false;
 
     const muteBtn = document.getElementById('mute-btn');
@@ -828,7 +828,7 @@
       showIntro();
     });
 
-    function duckMusic(targetVol = 0.03, ms = 400) {
+    function duckMusic(targetVol = 0.05, ms = 400) {
       const step = (bgMusic.volume - targetVol) / (ms / 30);
       const t = setInterval(() => {
         bgMusic.volume = Math.max(targetVol, +(bgMusic.volume - step).toFixed(3));
@@ -836,7 +836,7 @@
       }, 30);
     }
 
-    function restoreMusic(targetVol = 0.14, ms = 800) {
+    function restoreMusic(targetVol = 0.27, ms = 800) {
       const step = (targetVol - bgMusic.volume) / (ms / 30);
       const t = setInterval(() => {
         bgMusic.volume = Math.min(targetVol, +(bgMusic.volume + step).toFixed(3));
@@ -1187,13 +1187,13 @@
             sfxLose.load(); sfxLose.play().then(() => sfxLose.pause()).catch(() => {});
             videoOverlay.classList.add('active');
             video.currentTime = 0;
-            duckMusic(0.04);
+            duckMusic(0.08);
             const p = video.play();
             if (p !== undefined) {
               p.catch(() => {
                 // play still blocked — skip straight to result
                 videoOverlay.classList.remove('active');
-                restoreMusic(0.22, 200);
+                restoreMusic(0.45, 200);
                 resolve();
               });
             }
@@ -1235,7 +1235,7 @@
       if (win) {
         resultText.textContent = 'YOU WIN!';
         resultText.className = 'win';
-        duckMusic(0.03);
+        duckMusic(0.06);
         const sfxWin = document.getElementById('sfx-win');
         sfxWin.currentTime = 0;
         sfxWin.play().catch(() => {});
@@ -1243,7 +1243,7 @@
       } else {
         resultText.textContent = 'YOU LOSE';
         resultText.className = 'lose';
-        duckMusic(0.03);
+        duckMusic(0.06);
         const sfxLose = document.getElementById('sfx-lose');
         sfxLose.currentTime = 0;
         sfxLose.play().catch(() => {});
@@ -1775,7 +1775,7 @@
           }
 
           // Play win sfx
-          duckMusic(0.03);
+          duckMusic(0.06);
           const sfxWin = document.getElementById('sfx-win');
           sfxWin.currentTime = 0;
           sfxWin.play().catch(() => {});
@@ -1799,7 +1799,7 @@
           resultEl.className = 'poker-result lose';
 
           // Play lose sfx
-          duckMusic(0.03);
+          duckMusic(0.06);
           const sfxLose = document.getElementById('sfx-lose');
           sfxLose.currentTime = 0;
           sfxLose.play().catch(() => {});
