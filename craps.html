@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
+  <!-- Ethers.js for on-chain interaction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <!-- Agora Web SDK 4.x -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <style>
@@ -643,22 +645,39 @@
 </div>
 
 <script src="nav.js"></script>
-<script>
+<script type="module">
+import { connectWallet as walletConnect, autoReconnect, disconnect,
+         getSigner, getUserAddress, truncateAddress } from './js/wallet.js';
+import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
+
 /* ===================================================================
    CRAPS TABLE — Last Chad
    4-player multiplayer with Agora video/audio + chat
+   Server-side dice via Cloudflare Worker — no client-side RNG
    Players: Seat 0 = local (green, bottom)
             Seat 1 = remote (blue, top)
             Seat 2 = remote (purple, left)
             Seat 3 = remote (red, right)
    =================================================================== */
 
+const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+
+// Fetch with timeout (15s default)
+function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 // Player color names for CSS classes
 const PLAYER_COLORS = ['#4caf50','#42a5f5','#ab47bc','#ef5350'];
 
+// ── Load session from gamble.html ──
+const crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null');
+
 // ── State ──
 const STATE = {
-  stack: 1000,
+  stack: crapsSession ? crapsSession.stack : 0,
   selectedChip: 1,
   bets: {},           // { pass: 50, field: 10, ... } — local player bets
   remoteBets: {},     // { 1: {pass:30}, 2: {field:10}, 3: {} } — remote player bets by seat
@@ -667,10 +686,16 @@ const STATE = {
   dice: [5, 5],
   isRolling: false,
   playerName: 'Player',
-  nftName: '',        // NFT character name
+  nftName: crapsSession ? ('Chad #' + crapsSession.tokenId) : '',
   playerId: Math.random().toString(36).slice(2, 8),
-  chadId: null,
+  chadId: crapsSession ? crapsSession.tokenId : null,
   seat: 0,            // local player is always seat 0
+  // Worker session data
+  nonce: crapsSession ? crapsSession.nonce : null,
+  sessionToken: crapsSession ? crapsSession.sessionToken : null,
+  tokenId: crapsSession ? crapsSession.tokenId : null,
+  player: crapsSession ? crapsSession.player : null,
+  buyIn: crapsSession ? crapsSession.buyIn : 0,
 };
 
 // Remote player info: seat 1-3
@@ -719,16 +744,22 @@ function selectChip(value) {
   document.querySelector(`.chip[data-value="${value}"]`).classList.add('selected');
 }
 
-// ── Bet Placement ──
-function placeBet(zone) {
+// ── Bet Placement (server-side validated) ──
+async function placeBet(zone) {
   if (STATE.isRolling) return;
+  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
   const amount = STATE.selectedChip;
   if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
     dealerSay("Place bets open after point.", 'neutral'); return;
   }
+
+  // Track pending bet optimistically for responsive UI
   STATE.stack -= amount;
   STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
+  // Also track as pending for the next roll
+  if (!STATE._pendingBets) STATE._pendingBets = {};
+  STATE._pendingBets[zone] = (STATE._pendingBets[zone] || 0) + amount;
   renderAllBetChips();
   updateLocalPlayerUI();
   addChatMsg('system', `${STATE.nftName || STATE.playerName} bet ${amount} on ${formatBetName(zone)}`);
@@ -775,6 +806,7 @@ function clearBets() {
   if (STATE.isRolling) return;
   for (const zone of Object.keys(STATE.bets)) STATE.stack += STATE.bets[zone];
   STATE.bets = {};
+  STATE._pendingBets = {};
   renderAllBetChips();
   updateLocalPlayerUI();
 }
@@ -783,9 +815,10 @@ function updateLocalPlayerUI() {
   document.getElementById('stack-0').textContent = STATE.stack + ' chips';
 }
 
-// ── Dice Roll ──
-function rollDice() {
+// ── Dice Roll (server-side via Worker — no client RNG) ──
+async function rollDice() {
   if (STATE.isRolling) return;
+  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
   if (Object.keys(STATE.bets).length === 0) {
     dealerSay("Place a bet first!", 'neutral'); return;
   }
@@ -796,122 +829,112 @@ function rollDice() {
   die1El.classList.add('rolling');
   die2El.classList.add('rolling');
 
-  let ticks = 0;
-  const ticker = setInterval(() => {
+  // Visual animation while waiting for server
+  const cycleInterval = setInterval(() => {
     renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
     renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
-    if (++ticks >= 12) {
-      clearInterval(ticker);
-      const d1 = Math.floor(Math.random()*6)+1;
-      const d2 = Math.floor(Math.random()*6)+1;
-      STATE.dice = [d1, d2];
-      renderDie(document.getElementById('face1'), d1);
-      renderDie(document.getElementById('face2'), d2);
-      die1El.classList.remove('rolling');
-      die2El.classList.remove('rolling');
-      setTimeout(() => resolveRoll(d1, d2), 400);
+  }, 60);
+
+  try {
+    // Send new bets to Worker — Worker validates against stack, generates dice, resolves
+    const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nonce: STATE.nonce,
+        newBets: STATE._pendingBets || {},
+        sessionToken: STATE.sessionToken,
+      }),
+    });
+    STATE._pendingBets = {}; // Clear pending after sending
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Roll failed');
+
+    // Let animation run a bit
+    await new Promise(r => setTimeout(r, 1200));
+    clearInterval(cycleInterval);
+
+    const [d1, d2] = data.dice;
+    STATE.dice = [d1, d2];
+    renderDie(document.getElementById('face1'), d1);
+    renderDie(document.getElementById('face2'), d2);
+    die1El.classList.remove('rolling');
+    die2El.classList.remove('rolling');
+
+    // Sync authoritative state from Worker — server is the source of truth
+    STATE.stack = data.stack;
+    STATE.phase = data.phase;
+    STATE.point = data.point || null;
+
+    const r = data.resolution;
+    const total = data.total;
+
+    // Use server-authoritative bet state (not client-tracked)
+    if (data.bets) STATE.bets = data.bets;
+    // Remove zeroed bets for clean display
+    for (const k of Object.keys(STATE.bets)) {
+      if (STATE.bets[k] === 0) delete STATE.bets[k];
     }
-  }, 80);
-}
 
-// ── Craps Rules Resolution ──
-function resolveRoll(d1, d2) {
-  const total = d1 + d2;
-  const isHard = d1 === d2;
-  let netWin = 0;
-  addChatMsg('roll', `Dice: ${d1} + ${d2} = ${total}${isHard ? ' (HARD)' : ''}`);
+    // Update puck
+    if (STATE.phase === 'point' && STATE.point) {
+      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+      document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+    } else {
+      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+      document.getElementById('pointDisplay').textContent = '';
+    }
 
-  if (STATE.phase === 'comeout') netWin += resolveComeout(total);
-  else netWin += resolvePoint(total, isHard);
+    addChatMsg('roll', `Dice: ${d1} + ${d2} = ${total}${data.isHard ? ' (HARD)' : ''}`);
+    if (r.message) {
+      dealerSay(r.message, r.wins.length > 0 ? 'happy' : r.losses.length > 0 ? 'sad' : 'neutral');
+    }
 
-  // Field
-  if (STATE.bets.field) {
-    const fb = STATE.bets.field;
-    if ([2,12].includes(total)) {
-      const mult = total===2?2:3; const win = fb*mult;
-      STATE.stack += fb+win; netWin += win;
-      addChatMsg('win', `FIELD ${total} pays ${mult}:1! +${win}`);
-    } else if ([3,4,9,10,11].includes(total)) {
-      STATE.stack += fb*2; netWin += fb;
-      addChatMsg('win', `FIELD wins! +${fb}`);
-    } else { addChatMsg('lose', `FIELD loses. -${fb}`); }
-    delete STATE.bets.field;
+    // Flash animations
+    await new Promise(r2 => setTimeout(r2, 200));
+    for (const key of r.wins) {
+      const zone = document.querySelector(`[data-bet="${key}"]`);
+      if (zone) zone.classList.add('win-flash');
+    }
+    for (const key of r.losses) {
+      const zone = document.querySelector(`[data-bet="${key}"]`);
+      if (zone) zone.classList.add('lose-flash');
+    }
+
+    renderAllBetChips();
+    updateLocalPlayerUI();
+
+    const netWin = r.netWin || 0;
+    if (netWin > 0) showToast(`+${netWin}`, 'win', `Total: ${total}`);
+    else if (netWin < 0) showToast(`${netWin}`, 'lose', `Total: ${total}`);
+
+    // Clear flash classes after animation
+    setTimeout(() => {
+      document.querySelectorAll('.win-flash,.lose-flash').forEach(el => {
+        el.classList.remove('win-flash','lose-flash');
+      });
+    }, 1500);
+
+    // Check if busted
+    if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
+      dealerSay("You're busted! Better luck next time.", 'sad');
+      addChatMsg('system', `${STATE.nftName || STATE.playerName} busted out!`);
+    }
+
+  } catch (err) {
+    clearInterval(cycleInterval);
+    die1El.classList.remove('rolling');
+    die2El.classList.remove('rolling');
+    dealerSay('Roll failed: ' + (err.message || 'Network error'), 'sad');
   }
-
-  // Hardways
-  if (STATE.bets.hardways && isHard && [4,6,8,10].includes(total)) {
-    const hb = STATE.bets.hardways;
-    const pays = {4:7,6:9,8:9,10:7};
-    const win = hb*pays[total];
-    STATE.stack += hb+win; netWin += win;
-    addChatMsg('win', `HARD ${total}! +${win}`);
-    delete STATE.bets.hardways;
-  } else if (STATE.bets.hardways && (total===7 || (!isHard && [4,6,8,10].includes(total)))) {
-    addChatMsg('lose', `Hard ways loses. -${STATE.bets.hardways}`);
-    delete STATE.bets.hardways;
-  }
-
-  resolvePlaceBets(total);
-  renderAllBetChips();
-  updateLocalPlayerUI();
-
-  if (netWin > 0) { showToast(`+${netWin}`, 'win', `Total: ${total}`); dealerSay(getWinQuip(), 'happy'); }
-  else if (netWin < 0) { showToast(`${netWin}`, 'lose', `Total: ${total}`); dealerSay(getLoseQuip(), 'sad'); }
-  else { dealerSay(`${total}. ${STATE.phase==='point'?`Point is ${STATE.point}.`:'Place your bets.'}`, 'neutral'); }
 
   STATE.isRolling = false;
   document.getElementById('rollBtn').disabled = false;
 }
 
-function resolveComeout(total) {
-  let net = 0; const pb = STATE.bets.pass || 0;
-  if ([7,11].includes(total)) {
-    if (pb) { STATE.stack += pb*2; net += pb; addChatMsg('win', `PASS LINE wins! +${pb}`); delete STATE.bets.pass; }
-  } else if ([2,3,12].includes(total)) {
-    if (pb) { addChatMsg('lose', `Craps ${total}! -${pb}`); net -= pb; delete STATE.bets.pass; }
-  } else {
-    STATE.phase = 'point'; STATE.point = total;
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-    document.getElementById('pointDisplay').textContent = 'POINT: ' + total;
-    addChatMsg('system', `Point is ${total}.`);
-    dealerSay(`Point is ${total}!`, 'neutral');
-  }
-  return net;
-}
-
-function resolvePoint(total, isHard) {
-  let net = 0; const pb = STATE.bets.pass || 0;
-  if (total === STATE.point) {
-    if (pb) { STATE.stack += pb*2; net += pb; addChatMsg('win', `POINT HIT! +${pb}`); delete STATE.bets.pass; }
-    resetToComeout();
-  } else if (total === 7) {
-    if (pb) { addChatMsg('lose', `SEVEN OUT! -${pb}`); net -= pb; delete STATE.bets.pass; }
-    for (const k of Object.keys(STATE.bets)) {
-      if (k.startsWith('place')) { addChatMsg('lose', `${formatBetName(k)} loses. -${STATE.bets[k]}`); net -= STATE.bets[k]; delete STATE.bets[k]; }
-    }
-    resetToComeout();
-    addChatMsg('system', 'New shooter!');
-  }
-  return net;
-}
-
-function resolvePlaceBets(total) {
-  const pk = 'place' + total;
-  if (STATE.bets[pk] && STATE.phase === 'point') {
-    const pb = STATE.bets[pk];
-    const pays = {place4:9/5,place5:7/5,place6:7/6,place8:7/6,place9:7/5,place10:9/5};
-    const win = Math.floor(pb * (pays[pk]||1));
-    STATE.stack += pb + win;
-    addChatMsg('win', `${formatBetName(pk)} hits! +${win}`);
-    delete STATE.bets[pk];
-  }
-}
-
-function resetToComeout() {
-  STATE.phase = 'comeout'; STATE.point = null;
-  document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-  document.getElementById('pointDisplay').textContent = '';
-}
+// Client-side resolution removed — all resolution happens server-side in the Worker.
+// This prevents cheating: dice are generated server-side with crypto.getRandomValues(),
+// bets are resolved server-side, and the authoritative stack comes from the Worker.
 
 // ── Dealer ──
 function dealerSay(text, mood) {
@@ -963,28 +986,96 @@ function sendChat() {
 
 function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
-// ── Cash Out ──
-function cashOut() {
+// ── Cash Out (Worker-signed + on-chain claim) ──
+async function cashOut() {
   if (STATE.isRolling) return;
-  clearBets();
-  addChatMsg('system', `${STATE.nftName||STATE.playerName} cashed out with ${STATE.stack} chips.`);
-  dealerSay("See ya around, partner.", 'neutral');
+  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
+
+  // Return bets to stack for display
+  let betsOnTable = 0;
+  for (const val of Object.values(STATE.bets)) betsOnTable += val;
+  const totalPayout = STATE.stack + betsOnTable;
+
+  if (!confirm(`Cash out ${totalPayout} cells?`)) return;
+
+  document.getElementById('rollBtn').disabled = true;
+  dealerSay("Cashing out...", 'neutral');
+
+  try {
+    // Ask Worker to sign the cashout
+    const res = await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tokenId: STATE.tokenId,
+        nonce: STATE.nonce,
+        sessionToken: STATE.sessionToken,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Cashout failed');
+
+    if (data.payout === 0) {
+      addChatMsg('system', `${STATE.nftName || STATE.playerName} busted out. 0 cells returned.`);
+      dealerSay("Better luck next time.", 'sad');
+      sessionStorage.removeItem('craps_session');
+      STATE.nonce = null;
+      return;
+    }
+
+    // Call claimWinnings on-chain with oracle signature
+    dealerSay("Claiming cells on-chain...", 'neutral');
+    const signer = getSigner();
+    if (!signer) throw new Error('Wallet not connected');
+    const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+    const tx = await gamble.claimWinnings(STATE.tokenId, data.payout, data.nonce, data.signature);
+    dealerSay("Confirming transaction...", 'neutral');
+    await tx.wait();
+
+    const profit = data.payout - STATE.buyIn;
+    addChatMsg('system', `${STATE.nftName || STATE.playerName} cashed out ${data.payout} cells${profit > 0 ? ' (+' + profit + ' profit!)' : ''}.`);
+    if (profit > 0) {
+      dealerSay("Winner! See ya around, partner.", 'happy');
+      showToast(`+${profit}`, 'win', 'Profit!');
+    } else {
+      dealerSay("See ya around, partner.", 'neutral');
+    }
+
+    sessionStorage.removeItem('craps_session');
+    STATE.nonce = null;
+    STATE.bets = {};
+    renderAllBetChips();
+
+  } catch (err) {
+    dealerSay('Cashout failed: ' + (err.reason || err.message || 'Unknown error'), 'sad');
+  }
+  document.getElementById('rollBtn').disabled = false;
 }
 
 // ── Wallet ──
+// On load: if we have a session from gamble.html, display the player info automatically
 function connectWallet() {
+  if (STATE.player) {
+    // Already have session from gamble.html — just show wallet info
+    initPlayerFromSession();
+  } else {
+    dealerSay("Start a game from the Gamble Den first!", 'neutral');
+  }
+}
+
+function initPlayerFromSession() {
   const btn = document.getElementById('walletBtn');
-  btn.textContent = '0x' + STATE.playerId.slice(0,4) + '...' + STATE.playerId.slice(-4);
-  btn.classList.add('connected');
-  STATE.playerName = 'Chad_' + STATE.playerId.slice(0,4);
-  // Random Chad + NFT name — in production, pull from on-chain data
-  STATE.chadId = Math.floor(Math.random()*20)+1;
-  STATE.nftName = 'Chad #' + STATE.chadId;
-  // Set local player panel
-  setChadPortrait(0, STATE.chadId);
-  setPlayerName(0, STATE.nftName);
+  if (STATE.player) {
+    const addr = STATE.player;
+    btn.textContent = addr.slice(0,6) + '...' + addr.slice(-4);
+    btn.classList.add('connected');
+  }
+  if (STATE.chadId) {
+    setChadPortrait(0, STATE.chadId);
+    setPlayerName(0, STATE.nftName || 'Chad #' + STATE.chadId);
+  }
   updateLocalPlayerUI();
-  addChatMsg('system', `${STATE.nftName} joined the table.`);
+  addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} cells.`);
   dealerSay("Welcome! Place your bets.", 'happy');
 }
 
@@ -1236,6 +1327,43 @@ function enterTable() {
 renderDie(document.getElementById('face1'), 5);
 renderDie(document.getElementById('face2'), 5);
 if (AGORA_APP_ID) initAgora();
+
+// Auto-reconnect wallet if session exists
+if (crapsSession) {
+  autoReconnect({
+    onConnected: (address) => {
+      STATE.player = address.toLowerCase();
+      initPlayerFromSession();
+    },
+    onDisconnected: () => {},
+    onChainChanged: () => {},
+    onAccountsChanged: () => {},
+  }).then(() => {
+    // If autoReconnect didn't fire onConnected, still show session info
+    if (STATE.chadId) initPlayerFromSession();
+  });
+} else {
+  // No session — show warning
+  dealerSay("No active session. Return to the Gamble Den to buy in.", 'sad');
+  document.getElementById('rollBtn').disabled = true;
+}
+
+// Expose functions to global scope for onclick handlers
+window.rollDice = rollDice;
+window.cashOut = cashOut;
+window.connectWallet = connectWallet;
+window.placeBet = placeBet;
+window.selectChip = selectChip;
+window.clearBets = clearBets;
+window.sendChat = sendChat;
+window.toggleCamera = toggleCamera;
+window.joinRoom = joinRoom;
+window.joinPublicTable = joinPublicTable;
+window.createPrivateTable = createPrivateTable;
+window.showJoinPrivate = showJoinPrivate;
+window.joinPrivateTable = joinPrivateTable;
+window.copyInviteLink = copyInviteLink;
+window.enterTable = enterTable;
 </script>
 </body>
 </html>

@@ -1568,18 +1568,16 @@
         crapsSessionToken = startData.sessionToken || null;
         crapsStack = startData.stack;
 
-        // Hide dialogue, show craps overlay
-        dialogueBox.style.display = 'none';
-        jiptImage.classList.remove('visible');
-        document.getElementById('craps-overlay').classList.add('active');
-
-        // Init
-        crapsUpdateStack();
-        crapsUpdatePuck();
-        crapsUpdateBetZones();
-        crapsRenderFace('craps-face0', 2);
-        crapsRenderFace('craps-face1', 2);
-        crapsSetMessage("New shooter coming out! Place your pass line bet.");
+        // Save session data and redirect to the multiplayer craps table
+        sessionStorage.setItem('craps_session', JSON.stringify({
+          nonce: crapsNonce,
+          tokenId: selectedTokenId,
+          stack: crapsStack,
+          sessionToken: crapsSessionToken,
+          player: userAddress,
+          buyIn: wagerAmount,
+        }));
+        window.location.href = 'craps.html';
 
       } catch (err) {
         statusEl.remove();
