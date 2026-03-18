@@ -92,8 +92,9 @@
     .player-panel .player-stack-lbl{
       font-size:0.3rem;text-align:center;
     }
-    .player-panel.empty .portrait-frame{border-color:#333}
-    .player-panel.empty .nft-name{color:#555}
+    .player-panel.empty .portrait-frame{border-color:#333;opacity:0}
+    .player-panel.empty .nft-name{color:#555;opacity:0}
+    .player-panel.empty .player-stack-lbl{opacity:0}
 
     /* Per-player color coding */
     .player-panel[data-seat="0"] .portrait-frame{border-color:var(--p1-color);box-shadow:0 0 10px var(--p1-glow)}
@@ -1062,7 +1063,11 @@ function initPlayerFromSession() {
 // ── Player Panel Helpers ──
 function setChadPortrait(seat, chadId) {
   const img = document.getElementById('chad-' + seat);
-  if (img) { img.src = 'chads/' + chadId + '.png'; img.alt = 'Chad #' + chadId; }
+  if (img) {
+    img.onerror = function() { this.onerror=null; this.style.display='none'; };
+    img.src = 'chads/' + chadId + '.png';
+    img.alt = 'Chad #' + chadId;
+  }
   const panel = document.getElementById('panel-' + seat);
   if (panel) panel.classList.remove('empty');
 }
@@ -1197,7 +1202,10 @@ async function toggleCamera() {
       localVideoTrack.play('frame-0');
       cameraOn = true;
       btn.textContent = 'CAM ON'; btn.classList.add('active');
-    } catch (err) { addChatMsg('system','Camera error: '+err.message); }
+    } catch (err) {
+      if (err.name === 'NotAllowedError') addChatMsg('system','Camera permission denied. Enable in browser settings.');
+      else addChatMsg('system','Camera error: '+err.message);
+    }
   } else {
     if (localVideoTrack) { await agoraClient.unpublish([localVideoTrack]); localVideoTrack.close(); localVideoTrack=null; }
     panel.classList.remove('has-video');
@@ -1209,13 +1217,19 @@ async function toggleCamera() {
 // Push-to-Talk
 (function initPTT() {
   const pttBtn = document.getElementById('pttBtn');
+  let micDenied = false;
   async function startTalking() {
-    if (!agoraClient || pttActive) return;
+    if (!agoraClient || pttActive || micDenied) return;
     try {
       localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
       await agoraClient.publish([localAudioTrack]);
       pttActive = true; pttBtn.classList.add('talking'); pttBtn.textContent = 'TALKING...';
-    } catch (err) { addChatMsg('system','Mic error: '+err.message); }
+    } catch (err) {
+      if (err.name === 'NotAllowedError') {
+        micDenied = true;
+        addChatMsg('system','Mic permission denied. Enable in browser settings.');
+      } else { addChatMsg('system','Mic error: '+err.message); }
+    }
   }
   async function stopTalking() {
     if (!pttActive) return;
