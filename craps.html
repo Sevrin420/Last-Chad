@@ -12,10 +12,22 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{
-      width:100vw;height:100vh;overflow-x:hidden;
+      width:100vw;height:100vh;overflow:hidden;
       background:#0a0a0f;
       font-family:'Press Start 2P',monospace;
       color:#ffe96a;
+    }
+
+    /* ── Player Colors ── */
+    :root{
+      --p1-color:#4caf50;  /* green — local player (you) */
+      --p2-color:#42a5f5;  /* blue — remote top */
+      --p3-color:#ab47bc;  /* purple — remote left */
+      --p4-color:#ef5350;  /* red — remote right */
+      --p1-glow:rgba(76,175,80,0.5);
+      --p2-glow:rgba(66,165,245,0.5);
+      --p3-glow:rgba(171,71,188,0.5);
+      --p4-glow:rgba(239,83,80,0.5);
     }
 
     /* ── Header ── */
@@ -38,105 +50,146 @@
     .wallet-btn:hover{background:linear-gradient(180deg,#dabb5e 0%,#a07d1e 100%)}
     .nav-wrapper{position:static}
 
-    /* ── Main Layout ── */
-    .main-layout{
+    /* ── Table Wrapper (everything below header) ── */
+    .table-wrapper{
+      width:100%;height:calc(100vh - 44px);
+      margin-top:44px;
       display:grid;
-      grid-template-columns:160px 1fr 260px;
+      grid-template-columns:180px 1fr 180px;
       grid-template-rows:auto 1fr auto;
       gap:0;
-      height:100vh;
-      padding-top:52px;
     }
 
-    /* ── Video Strip (top, spans all columns) ── */
-    .video-strip{
-      grid-column:1/-1;
-      display:flex;gap:4px;
-      background:#111;
-      padding:6px;
-      border-bottom:2px solid #2a5a1a;
-      height:160px;
-      overflow-x:auto;
-    }
-    .video-slot{
-      flex:0 0 200px;height:100%;
-      background:#000;border:2px solid #333;border-radius:6px;
-      position:relative;overflow:hidden;
-    }
-    .video-slot video{width:100%;height:100%;object-fit:cover}
-    .video-slot .chad-portrait{
-      width:100%;height:100%;object-fit:cover;
-      image-rendering:pixelated;
-      display:block;
-    }
-    .video-slot.has-video .chad-portrait{display:none}
-    .video-slot .video-label{
-      position:absolute;bottom:0;left:0;right:0;
-      background:rgba(0,0,0,0.7);
-      font-size:0.35rem;padding:3px 6px;
-      color:#4caf50;text-align:center;
-    }
-    .video-slot.shooter-slot{border-color:#4caf50;flex:0 0 280px}
-    .video-slot.empty .chad-portrait{display:none}
-    .video-slot.empty{
-      display:flex;align-items:center;justify-content:center;
-      font-size:0.4rem;color:#555;
-    }
-    .video-controls{
-      display:flex;flex-direction:column;gap:4px;
-      justify-content:center;padding:0 8px;
-    }
-    .vid-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.35rem;
-      padding:6px 10px;border:2px solid #555;border-radius:4px;
-      background:#1a1a2e;color:#ccc;cursor:pointer;white-space:nowrap;
-    }
-    .vid-btn:hover{border-color:#4caf50;color:#4caf50}
-    .vid-btn.active{border-color:#4caf50;background:#1a3a1a;color:#4caf50}
-    .vid-btn.ptt{border-color:#e67e22;color:#e67e22}
-    .vid-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
-    @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
-
-    /* ── Left Sidebar ── */
-    .left-sidebar{
+    /* ── Player Panel (shared) ── */
+    .player-panel{
+      display:flex;flex-direction:column;align-items:center;
+      padding:6px;gap:4px;
       background:rgba(10,10,15,0.9);
-      border-right:2px solid #2a3a1a;
+      position:relative;
+    }
+    .player-panel .portrait-frame{
+      width:80px;height:96px;
+      border:3px solid #555;border-radius:6px;
+      overflow:hidden;position:relative;
+      background:#000;
+    }
+    .player-panel .portrait-frame img{
+      width:100%;height:100%;object-fit:cover;
+      image-rendering:pixelated;display:block;
+    }
+    .player-panel .portrait-frame video{
+      width:100%;height:100%;object-fit:cover;
+      position:absolute;top:0;left:0;
+    }
+    .player-panel.has-video .chad-portrait{display:none}
+    .player-panel .chad-portrait{display:block}
+    .player-panel .nft-name{
+      font-size:0.3rem;color:#ccc;text-align:center;
+      max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .player-panel .player-stack-lbl{
+      font-size:0.3rem;text-align:center;
+    }
+    .player-panel.empty .portrait-frame{border-color:#333}
+    .player-panel.empty .nft-name{color:#555}
+
+    /* Per-player color coding */
+    .player-panel[data-seat="0"] .portrait-frame{border-color:var(--p1-color);box-shadow:0 0 10px var(--p1-glow)}
+    .player-panel[data-seat="0"] .nft-name{color:var(--p1-color)}
+    .player-panel[data-seat="0"] .player-stack-lbl{color:var(--p1-color)}
+
+    .player-panel[data-seat="1"] .portrait-frame{border-color:var(--p2-color);box-shadow:0 0 10px var(--p2-glow)}
+    .player-panel[data-seat="1"] .nft-name{color:var(--p2-color)}
+    .player-panel[data-seat="1"] .player-stack-lbl{color:var(--p2-color)}
+
+    .player-panel[data-seat="2"] .portrait-frame{border-color:var(--p3-color);box-shadow:0 0 10px var(--p3-glow)}
+    .player-panel[data-seat="2"] .nft-name{color:var(--p3-color)}
+    .player-panel[data-seat="2"] .player-stack-lbl{color:var(--p3-color)}
+
+    .player-panel[data-seat="3"] .portrait-frame{border-color:var(--p4-color);box-shadow:0 0 10px var(--p4-glow)}
+    .player-panel[data-seat="3"] .nft-name{color:var(--p4-color)}
+    .player-panel[data-seat="3"] .player-stack-lbl{color:var(--p4-color)}
+
+    /* ── Top Row: Remote P2 (center top) + ad spots ── */
+    .top-row{
+      grid-column:1/-1;
+      display:flex;align-items:stretch;
+      border-bottom:2px solid #2a5a1a;
+      background:rgba(10,10,15,0.9);
+    }
+    .top-row .ad-spot{
+      flex:0 0 160px;
+      display:flex;align-items:center;justify-content:center;
+      border:2px dashed #333;margin:6px;border-radius:6px;
+      background:rgba(0,0,0,0.3);overflow:hidden;
+    }
+    .top-row .ad-spot img{width:100%;height:100%;object-fit:cover}
+    .top-row .ad-placeholder{font-size:0.25rem;color:#444;text-align:center}
+    .top-row .player-panel{flex:1;flex-direction:row;justify-content:center;gap:12px}
+    .top-row .player-panel .portrait-frame{width:80px;height:96px;flex-shrink:0}
+    .top-row .player-info{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+    .top-row .video-controls{
+      display:flex;flex-direction:column;gap:4px;justify-content:center;padding-left:12px;
+    }
+
+    /* ── Left Sidebar: Remote P3 + ad ── */
+    .left-sidebar{
+      grid-row:2;grid-column:1;
       display:flex;flex-direction:column;
-      overflow-y:auto;
+      border-right:2px solid #2a3a1a;
+      background:rgba(10,10,15,0.9);
     }
-    .sidebar-section{padding:8px;border-bottom:1px solid #1a2a0a}
-    .sidebar-title{font-size:0.4rem;color:#4caf50;margin-bottom:6px}
-
-    /* Player list */
-    .player-slot{
-      display:flex;align-items:center;gap:6px;
-      padding:6px;margin-bottom:4px;
-      border:1px solid #333;border-radius:4px;
-      background:rgba(0,0,0,0.3);
-    }
-    .player-slot.active{border-color:#4caf50;background:rgba(76,175,80,0.1)}
-    .player-slot.shooter{border-color:#ffe96a;background:rgba(255,233,106,0.08)}
-    .player-dot{width:8px;height:8px;border-radius:50%;background:#555}
-    .player-slot.active .player-dot{background:#4caf50}
-    .player-slot.shooter .player-dot{background:#ffe96a}
-    .player-name{font-size:0.35rem;color:#ccc}
-    .player-stack{font-size:0.3rem;color:#4caf50;margin-left:auto}
-
-    /* Ad / image spots */
-    .ad-spot{
-      width:100%;aspect-ratio:1;
+    .left-sidebar .player-panel{border-bottom:1px solid #1a2a0a}
+    .left-sidebar .ad-spot{
+      flex:1;margin:6px;
       border:2px dashed #333;border-radius:6px;
       display:flex;align-items:center;justify-content:center;
-      overflow:hidden;margin-top:8px;
-      background:rgba(0,0,0,0.3);
+      background:rgba(0,0,0,0.3);overflow:hidden;
     }
-    .ad-spot img{width:100%;height:100%;object-fit:cover}
-    .ad-spot .ad-placeholder{font-size:0.3rem;color:#444;text-align:center}
+    .left-sidebar .ad-spot img{width:100%;height:100%;object-fit:cover}
+    .left-sidebar .ad-placeholder{font-size:0.25rem;color:#444;text-align:center}
+
+    /* ── Right Sidebar: Remote P4 + chat ── */
+    .right-sidebar{
+      grid-row:2;grid-column:3;
+      display:flex;flex-direction:column;
+      border-left:2px solid #2a3a1a;
+      background:rgba(10,10,15,0.9);
+    }
+    .right-sidebar .player-panel{border-bottom:1px solid #1a2a0a}
+
+    /* Chat */
+    .chat-box{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .chat-header{padding:6px 8px;border-bottom:1px solid #1a2a0a;font-size:0.35rem;color:#4caf50}
+    .chat-messages{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:3px}
+    .chat-msg{font-size:0.25rem;line-height:1.5;padding:3px 5px;border-radius:3px;background:rgba(0,0,0,0.3)}
+    .chat-msg .msg-name{font-weight:bold}
+    .chat-msg .msg-text{color:#ccc}
+    .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
+    .chat-msg.roll-msg .msg-text{color:#ffe96a}
+    .chat-msg.win-msg .msg-text{color:#4caf50}
+    .chat-msg.lose-msg .msg-text{color:#e53935}
+    /* Color chat names by player */
+    .chat-msg .msg-name.p0{color:var(--p1-color)}
+    .chat-msg .msg-name.p1{color:var(--p2-color)}
+    .chat-msg .msg-name.p2{color:var(--p3-color)}
+    .chat-msg .msg-name.p3{color:var(--p4-color)}
+
+    .chat-input-area{display:flex;gap:3px;padding:6px;border-top:1px solid #1a2a0a}
+    .chat-input{
+      flex:1;font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      padding:6px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
+    }
+    .chat-input:focus{border-color:#4caf50}
+    .chat-send{
+      font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      padding:6px 8px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
+    }
 
     /* ── Center: Table Area ── */
     .table-area{
-      position:relative;
-      overflow:hidden;
+      grid-row:2;grid-column:2;
+      position:relative;overflow:hidden;
       display:flex;flex-direction:column;
     }
 
@@ -148,28 +201,20 @@
     }
 
     /* Puck */
-    .puck{
-      position:absolute;width:40px;height:40px;
-      top:10%;right:15%;
-      z-index:10;
-    }
+    .puck{position:absolute;width:36px;height:36px;top:8%;right:12%;z-index:10}
     .puck img{width:100%;height:100%;object-fit:contain}
 
     /* Dice on table */
     .table-dice{
-      position:absolute;
-      bottom:18%;left:50%;transform:translateX(-50%);
-      display:flex;gap:16px;
-      z-index:10;
+      position:absolute;bottom:18%;left:50%;transform:translateX(-50%);
+      display:flex;gap:14px;z-index:10;
     }
     .die{
-      width:56px;height:56px;
-      background:#fff;border-radius:8px;
+      width:52px;height:52px;background:#fff;border-radius:7px;
       border:3px solid #c00;
       display:flex;align-items:center;justify-content:center;
       box-shadow:2px 3px 8px rgba(0,0,0,0.5);
-      transition:transform 0.3s;
-      position:relative;
+      transition:transform 0.3s;position:relative;
     }
     .die.rolling{animation:dice-roll 0.4s ease-in-out}
     @keyframes dice-roll{
@@ -179,61 +224,42 @@
       75%{transform:rotate(270deg) scale(1.1)}
       100%{transform:rotate(360deg) scale(1)}
     }
-    /* Pip layout */
     .die-face{
-      width:100%;height:100%;
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      grid-template-rows:repeat(3,1fr);
-      padding:6px;
+      width:100%;height:100%;display:grid;
+      grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:5px;
     }
     .pip{
-      width:10px;height:10px;
-      background:#c00;border-radius:50%;
-      align-self:center;justify-self:center;
-      display:none;
+      width:9px;height:9px;background:#c00;border-radius:50%;
+      align-self:center;justify-self:center;display:none;
     }
 
     /* Dealer */
     .dealer-area{
-      position:absolute;top:6px;left:50%;transform:translateX(-50%);
-      display:flex;align-items:flex-start;gap:8px;
-      z-index:15;
+      position:absolute;top:4px;left:50%;transform:translateX(-50%);
+      display:flex;align-items:flex-start;gap:6px;z-index:15;
     }
     .dealer-portrait{
-      width:80px;height:96px;
-      image-rendering:pixelated;
+      width:64px;height:76px;image-rendering:pixelated;
       border:2px solid #5c4409;border-radius:4px;
-      box-shadow:0 2px 10px rgba(0,0,0,0.6);
+      box-shadow:0 2px 8px rgba(0,0,0,0.6);
     }
     .dealer-speech{
-      max-width:200px;
-      background:rgba(0,0,0,0.85);
-      border:2px solid #5c4409;border-radius:8px;
-      padding:8px 10px;
-      font-size:0.35rem;color:#f5e6c8;
-      line-height:1.6;
-      position:relative;
+      max-width:180px;background:rgba(0,0,0,0.85);
+      border:2px solid #5c4409;border-radius:6px;
+      padding:6px 8px;font-size:0.3rem;color:#f5e6c8;line-height:1.6;position:relative;
     }
     .dealer-speech::before{
-      content:'';position:absolute;
-      left:-8px;top:20px;
-      border:6px solid transparent;
-      border-right-color:#5c4409;
+      content:'';position:absolute;left:-7px;top:16px;
+      border:5px solid transparent;border-right-color:#5c4409;
     }
 
-    /* Bet indicators on felt */
+    /* ── Bet Zones ── */
     .bet-zone{
-      position:absolute;
-      border:2px solid transparent;border-radius:4px;
-      cursor:pointer;
-      transition:all 0.2s;
-      z-index:5;
+      position:absolute;border:2px solid transparent;border-radius:4px;
+      cursor:pointer;transition:all 0.2s;z-index:5;
     }
     .bet-zone:hover{border-color:rgba(255,233,106,0.5);background:rgba(255,233,106,0.08)}
-    .bet-zone.has-bet{border-color:rgba(76,175,80,0.6);background:rgba(76,175,80,0.1)}
 
-    /* Bet zones positioned over the felt image */
     .bet-pass{bottom:2%;left:5%;width:90%;height:12%}
     .bet-field{bottom:16%;left:5%;width:60%;height:10%}
     .bet-place4{top:10%;left:5%;width:12%;height:18%}
@@ -244,188 +270,111 @@
     .bet-place10{top:10%;left:70%;width:12%;height:18%}
     .bet-hardways{top:32%;left:20%;width:45%;height:14%}
 
-    .bet-chip-stack{
-      position:absolute;bottom:2px;right:2px;
-      display:flex;flex-direction:column-reverse;gap:-4px;
+    /* Bet chips on felt — colored per player */
+    .bet-chips-row{
+      position:absolute;bottom:2px;left:4px;right:4px;
+      display:flex;gap:3px;flex-wrap:wrap;
+      pointer-events:none;
     }
-    .bet-chip-mini{
-      width:20px;height:20px;
-      border-radius:50%;
-      border:2px solid #d4a017;
-      font-size:0.2rem;
-      display:flex;align-items:center;justify-content:center;
+    .bet-chip-token{
+      width:22px;height:22px;border-radius:50%;
+      font-size:0.18rem;display:flex;align-items:center;justify-content:center;
       color:#fff;font-family:'Press Start 2P',monospace;
+      box-shadow:1px 1px 4px rgba(0,0,0,0.5);
+      border:2px solid;
     }
-    .chip-1{background:#c62828}.chip-5{background:#1565c0}
-    .chip-10{background:#2e7d32}.chip-25{background:#6a1b9a}
+    .bet-chip-token.p0{background:var(--p1-color);border-color:#fff}
+    .bet-chip-token.p1{background:var(--p2-color);border-color:#fff}
+    .bet-chip-token.p2{background:var(--p3-color);border-color:#fff}
+    .bet-chip-token.p3{background:var(--p4-color);border-color:#fff}
 
-    .bet-amount-label{
-      position:absolute;top:2px;left:4px;
-      font-size:0.3rem;color:#ffe96a;
-      text-shadow:1px 1px 2px #000;
-    }
-
-    /* ── Bottom Bar: Chips + Controls ── */
-    .bottom-bar{
+    /* ── Bottom Row: Local Player (P1) ── */
+    .bottom-row{
+      grid-column:1/-1;
       display:flex;align-items:center;
-      gap:12px;padding:8px 12px;
       background:rgba(10,10,15,0.95);
       border-top:2px solid #2a5a1a;
+      padding:6px 10px;gap:10px;
     }
+    .bottom-row .player-panel{
+      flex-direction:row;gap:8px;padding:4px 8px;
+      background:none;border-right:1px solid #1a2a0a;
+    }
+    .bottom-row .player-panel .portrait-frame{width:56px;height:68px;flex-shrink:0}
+    .bottom-row .player-info{display:flex;flex-direction:column;gap:2px;justify-content:center}
 
-    .chip-tray{
-      display:flex;gap:8px;align-items:center;
-    }
+    .chip-tray{display:flex;gap:6px;align-items:center;padding:0 8px}
     .chip{
-      width:52px;height:52px;
-      border-radius:50%;
-      cursor:pointer;
-      border:3px solid transparent;
-      transition:all 0.15s;
-      position:relative;
-      overflow:hidden;
-      /* Sprite positions from jiptchips.png (3x3 grid) */
+      width:44px;height:44px;border-radius:50%;cursor:pointer;
+      border:3px solid transparent;transition:all 0.15s;
+      position:relative;overflow:hidden;
       background-image:url('assets/Oldjipt/Craps/jiptchips.png');
       background-size:300% 300%;
     }
     .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
-    .chip.selected{border-color:#ffe96a;box-shadow:0 0 16px rgba(255,233,106,0.6);transform:scale(1.15)}
-    /* Sprite positions: row col -> background-position */
+    .chip.selected{border-color:var(--p1-color);box-shadow:0 0 14px var(--p1-glow);transform:scale(1.15)}
     .chip-1-sprite{background-position:0% 0%}
     .chip-5-sprite{background-position:50% 0%}
     .chip-10-sprite{background-position:100% 0%}
     .chip-25-sprite{background-position:0% 50%}
 
-    .chip-label{
-      font-size:0.35rem;text-align:center;color:#aaa;margin-top:2px;
-    }
-
-    .controls{
-      display:flex;gap:8px;margin-left:auto;align-items:center;
-    }
+    .controls{display:flex;gap:6px;margin-left:auto;align-items:center}
     .ctrl-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.5rem;
-      padding:12px 20px;border-radius:6px;cursor:pointer;
+      font-family:'Press Start 2P',monospace;font-size:0.45rem;
+      padding:10px 16px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
     .btn-roll{
       background:linear-gradient(180deg,#4caf50,#2e7d32);
       border-color:#66bb6a;color:#fff;
-      box-shadow:0 3px 12px rgba(76,175,80,0.4);
+      box-shadow:0 3px 10px rgba(76,175,80,0.4);
     }
     .btn-roll:hover{background:linear-gradient(180deg,#66bb6a,#388e3c)}
     .btn-roll:disabled{opacity:0.4;cursor:not-allowed}
-    .btn-clear{
-      background:linear-gradient(180deg,#e53935,#b71c1c);
-      border-color:#ef5350;color:#fff;
-    }
+    .btn-clear{background:linear-gradient(180deg,#e53935,#b71c1c);border-color:#ef5350;color:#fff}
     .btn-clear:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
-    .btn-cashout{
-      background:linear-gradient(180deg,#c9a84c,#8b6914);
-      border-color:#d4a017;color:#1a1005;
-    }
+    .btn-cashout{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
     .btn-cashout:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
 
-    .stack-display{
-      font-size:0.5rem;color:#4caf50;
-      text-shadow:0 0 8px rgba(76,175,80,0.5);
-      padding:0 12px;
-    }
+    .point-display{font-size:0.35rem;color:#ffe96a;padding:0 6px}
 
-    .point-display{
-      font-size:0.4rem;color:#ffe96a;
-      padding:0 8px;
-    }
-
-    /* ── Right Sidebar: Chat ── */
-    .right-sidebar{
-      background:rgba(10,10,15,0.9);
-      border-left:2px solid #2a3a1a;
-      display:flex;flex-direction:column;
-    }
-    .chat-header{
-      padding:8px 10px;
-      border-bottom:1px solid #1a2a0a;
-      font-size:0.4rem;color:#4caf50;
-    }
-    .chat-messages{
-      flex:1;overflow-y:auto;padding:8px;
-      display:flex;flex-direction:column;gap:4px;
-    }
-    .chat-msg{
-      font-size:0.3rem;line-height:1.5;
-      padding:4px 6px;border-radius:4px;
-      background:rgba(0,0,0,0.3);
-    }
-    .chat-msg .msg-name{color:#4caf50}
-    .chat-msg .msg-text{color:#ccc}
-    .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
-    .chat-msg.roll-msg .msg-text{color:#ffe96a}
-    .chat-msg.win-msg .msg-text{color:#4caf50}
-    .chat-msg.lose-msg .msg-text{color:#e53935}
-
-    .chat-input-area{
-      display:flex;gap:4px;padding:8px;
-      border-top:1px solid #1a2a0a;
-    }
-    .chat-input{
-      flex:1;font-family:'Press Start 2P',monospace;font-size:0.3rem;
-      padding:8px;background:#111;border:1px solid #333;
-      border-radius:4px;color:#ccc;outline:none;
-    }
-    .chat-input:focus{border-color:#4caf50}
-    .chat-send{
+    .vid-btn{
       font-family:'Press Start 2P',monospace;font-size:0.3rem;
-      padding:8px 10px;background:#2e7d32;border:1px solid #4caf50;
-      border-radius:4px;color:#fff;cursor:pointer;
+      padding:5px 8px;border:2px solid #555;border-radius:4px;
+      background:#1a1a2e;color:#ccc;cursor:pointer;white-space:nowrap;
     }
-    .chat-send:hover{background:#388e3c}
-
-    /* Bottom ad spot */
-    .bottom-ad{
-      grid-column:1/-1;
-      height:80px;
-      background:rgba(0,0,0,0.5);
-      border-top:2px solid #2a3a1a;
-      display:flex;align-items:center;justify-content:center;
-      gap:12px;padding:6px 12px;
-    }
-    .bottom-ad .ad-spot{
-      width:auto;height:60px;aspect-ratio:4/1;
-      flex:1;max-width:600px;
-    }
+    .vid-btn:hover{border-color:#4caf50;color:#4caf50}
+    .vid-btn.active{border-color:#4caf50;background:#1a3a1a;color:#4caf50}
+    .vid-btn.ptt{border-color:#e67e22;color:#e67e22}
+    .vid-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
+    @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
 
     /* ── Result Toast ── */
     .result-toast{
       position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
-      z-index:500;
-      padding:24px 40px;border-radius:12px;
-      font-size:1rem;text-align:center;
-      transition:transform 0.3s;
+      z-index:500;padding:20px 36px;border-radius:10px;
+      font-size:0.9rem;text-align:center;transition:transform 0.3s;
     }
     .result-toast.show{transform:translate(-50%,-50%) scale(1)}
     .result-toast.win{background:rgba(46,125,50,0.95);border:3px solid #4caf50;color:#fff}
     .result-toast.lose{background:rgba(183,28,28,0.95);border:3px solid #e53935;color:#fff}
-    .result-toast .toast-sub{font-size:0.4rem;margin-top:8px;opacity:0.8}
+    .result-toast .toast-sub{font-size:0.35rem;margin-top:6px;opacity:0.8}
 
     /* ── Responsive ── */
     @media(max-width:900px){
-      .main-layout{
+      .table-wrapper{
         grid-template-columns:1fr;
-        grid-template-rows:auto auto 1fr auto auto;
+        grid-template-rows:auto auto 1fr auto;
       }
-      .left-sidebar{
-        flex-direction:row;overflow-x:auto;
-        border-right:none;border-bottom:2px solid #2a3a1a;
-        max-height:none;
+      .top-row{flex-wrap:wrap}
+      .top-row .ad-spot{flex:0 0 80px;height:60px}
+      .left-sidebar,.right-sidebar{
+        grid-column:1;flex-direction:row;
+        border:none;border-bottom:1px solid #2a3a1a;
+        max-height:140px;overflow-x:auto;
       }
-      .sidebar-section{min-width:140px}
-      .right-sidebar{max-height:200px}
-      .video-strip{height:120px}
-      .video-slot{flex:0 0 150px}
-      .video-slot.shooter-slot{flex:0 0 200px}
-      .bottom-ad{height:60px}
-      .bottom-ad .ad-spot{height:48px}
+      .left-sidebar .player-panel,.right-sidebar .player-panel{flex-direction:row;min-width:160px}
+      .bottom-row{flex-wrap:wrap;justify-content:center}
     }
   </style>
 </head>
@@ -440,55 +389,42 @@
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
 </div>
 
-<!-- ── Main Grid ── -->
-<div class="main-layout">
+<!-- ── Table Wrapper ── -->
+<div class="table-wrapper">
 
-  <!-- Video Strip (row 1, all columns) -->
-  <div class="video-strip">
-    <div class="video-slot shooter-slot" id="shooterVideo">
-      <img class="chad-portrait" id="chad-shooterVideo" src="" alt="" />
-      <div class="video-label">SHOOTER CAM</div>
+  <!-- TOP ROW: Ad Spot 1 | Remote Player 2 (blue) | Ad Spot 2 + Video Controls -->
+  <div class="top-row">
+    <div class="ad-spot" id="adSpot1"><span class="ad-placeholder">AD SPOT 1</span></div>
+    <div class="player-panel empty" id="panel-1" data-seat="1">
+      <div class="portrait-frame" id="frame-1">
+        <img class="chad-portrait" id="chad-1" src="" alt="" />
+      </div>
+      <div class="player-info">
+        <div class="nft-name" id="name-1">Waiting...</div>
+        <div class="player-stack-lbl" id="stack-1"></div>
+      </div>
     </div>
-    <div class="video-slot" id="player2Video">
-      <img class="chad-portrait" id="chad-player2Video" src="" alt="" />
-      <div class="video-label">PLAYER 2</div>
-    </div>
-    <div class="video-slot" id="player3Video">
-      <img class="chad-portrait" id="chad-player3Video" src="" alt="" />
-      <div class="video-label">PLAYER 3</div>
-    </div>
-    <div class="video-slot" id="player4Video">
-      <img class="chad-portrait" id="chad-player4Video" src="" alt="" />
-      <div class="video-label">PLAYER 4</div>
-    </div>
-    <div class="video-controls">
+    <div class="ad-spot" id="adSpot2"><span class="ad-placeholder">AD SPOT 2</span></div>
+    <div class="top-row" style="flex:0;display:flex;flex-direction:column;gap:4px;justify-content:center;padding:0 8px;border:none;background:none">
       <button class="vid-btn" id="camBtn" onclick="toggleCamera()">CAM OFF</button>
       <button class="vid-btn ptt" id="pttBtn">HOLD TO TALK</button>
       <button class="vid-btn" id="joinBtn" onclick="joinRoom()">JOIN TABLE</button>
     </div>
   </div>
 
-  <!-- Left Sidebar -->
+  <!-- LEFT SIDEBAR: Remote Player 3 (purple) + Ad Spot -->
   <div class="left-sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-title">PLAYERS</div>
-      <div id="playerList">
-        <div class="player-slot" id="slot-0"><div class="player-dot"></div><span class="player-name">Empty</span><span class="player-stack"></span></div>
-        <div class="player-slot" id="slot-1"><div class="player-dot"></div><span class="player-name">Empty</span><span class="player-stack"></span></div>
-        <div class="player-slot" id="slot-2"><div class="player-dot"></div><span class="player-name">Empty</span><span class="player-stack"></span></div>
-        <div class="player-slot" id="slot-3"><div class="player-dot"></div><span class="player-name">Empty</span><span class="player-stack"></span></div>
+    <div class="player-panel empty" id="panel-2" data-seat="2">
+      <div class="portrait-frame" id="frame-2">
+        <img class="chad-portrait" id="chad-2" src="" alt="" />
       </div>
+      <div class="nft-name" id="name-2">Waiting...</div>
+      <div class="player-stack-lbl" id="stack-2"></div>
     </div>
-    <div class="sidebar-section">
-      <div class="sidebar-title">SPONSOR</div>
-      <div class="ad-spot" id="adSpot1"><span class="ad-placeholder">AD SPOT 1</span></div>
-    </div>
-    <div class="sidebar-section">
-      <div class="ad-spot" id="adSpot2"><span class="ad-placeholder">AD SPOT 2</span></div>
-    </div>
+    <div class="ad-spot" id="adSpot3"><span class="ad-placeholder">AD SPOT 3</span></div>
   </div>
 
-  <!-- Center: Felt Table -->
+  <!-- CENTER: Felt Table -->
   <div class="table-area">
     <div class="felt-container" id="feltTable">
 
@@ -505,31 +441,31 @@
 
       <!-- Bet Zones -->
       <div class="bet-zone bet-pass" data-bet="pass" onclick="placeBet('pass')">
-        <span class="bet-amount-label" id="label-pass"></span>
+        <div class="bet-chips-row" id="chips-pass"></div>
       </div>
       <div class="bet-zone bet-field" data-bet="field" onclick="placeBet('field')">
-        <span class="bet-amount-label" id="label-field"></span>
+        <div class="bet-chips-row" id="chips-field"></div>
       </div>
       <div class="bet-zone bet-place4" data-bet="place4" onclick="placeBet('place4')">
-        <span class="bet-amount-label" id="label-place4"></span>
+        <div class="bet-chips-row" id="chips-place4"></div>
       </div>
       <div class="bet-zone bet-place5" data-bet="place5" onclick="placeBet('place5')">
-        <span class="bet-amount-label" id="label-place5"></span>
+        <div class="bet-chips-row" id="chips-place5"></div>
       </div>
       <div class="bet-zone bet-place6" data-bet="place6" onclick="placeBet('place6')">
-        <span class="bet-amount-label" id="label-place6"></span>
+        <div class="bet-chips-row" id="chips-place6"></div>
       </div>
       <div class="bet-zone bet-place8" data-bet="place8" onclick="placeBet('place8')">
-        <span class="bet-amount-label" id="label-place8"></span>
+        <div class="bet-chips-row" id="chips-place8"></div>
       </div>
       <div class="bet-zone bet-place9" data-bet="place9" onclick="placeBet('place9')">
-        <span class="bet-amount-label" id="label-place9"></span>
+        <div class="bet-chips-row" id="chips-place9"></div>
       </div>
       <div class="bet-zone bet-place10" data-bet="place10" onclick="placeBet('place10')">
-        <span class="bet-amount-label" id="label-place10"></span>
+        <div class="bet-chips-row" id="chips-place10"></div>
       </div>
       <div class="bet-zone bet-hardways" data-bet="hardways" onclick="placeBet('hardways')">
-        <span class="bet-amount-label" id="label-hardways"></span>
+        <div class="bet-chips-row" id="chips-hardways"></div>
       </div>
 
       <!-- Dice -->
@@ -539,43 +475,55 @@
       </div>
 
     </div><!-- /felt-container -->
-
-    <!-- Bottom bar inside table area -->
-    <div class="bottom-bar">
-      <div class="chip-tray">
-        <div class="chip chip-1-sprite selected" data-value="1" onclick="selectChip(1)"></div>
-        <div class="chip chip-5-sprite" data-value="5" onclick="selectChip(5)"></div>
-        <div class="chip chip-10-sprite" data-value="10" onclick="selectChip(10)"></div>
-        <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
-      </div>
-      <div class="stack-display">STACK: <span id="stackVal">1000</span></div>
-      <div class="point-display" id="pointDisplay"></div>
-      <div class="controls">
-        <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
-        <button class="ctrl-btn btn-roll" id="rollBtn" onclick="rollDice()">ROLL</button>
-        <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
-      </div>
-    </div>
   </div><!-- /table-area -->
 
-  <!-- Right Sidebar: Chat -->
+  <!-- RIGHT SIDEBAR: Remote Player 4 (red) + Chat -->
   <div class="right-sidebar">
-    <div class="chat-header">TABLE CHAT</div>
-    <div class="chat-messages" id="chatMessages">
-      <div class="chat-msg system-msg">Welcome to the craps table! Up to 4 players can join.</div>
+    <div class="player-panel empty" id="panel-3" data-seat="3">
+      <div class="portrait-frame" id="frame-3">
+        <img class="chad-portrait" id="chad-3" src="" alt="" />
+      </div>
+      <div class="nft-name" id="name-3">Waiting...</div>
+      <div class="player-stack-lbl" id="stack-3"></div>
     </div>
-    <div class="chat-input-area">
-      <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
-      <button class="chat-send" onclick="sendChat()">SEND</button>
+    <div class="chat-box">
+      <div class="chat-header">TABLE CHAT</div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg system-msg">Welcome! Up to 4 players.</div>
+      </div>
+      <div class="chat-input-area">
+        <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
+        <button class="chat-send" onclick="sendChat()">></button>
+      </div>
     </div>
   </div>
 
-  <!-- Bottom Ad Spot -->
-  <div class="bottom-ad">
-    <div class="ad-spot" id="adSpot3"><span class="ad-placeholder">AD SPOT 3</span></div>
+  <!-- BOTTOM ROW: Local Player (P1, green) + Chips + Controls -->
+  <div class="bottom-row">
+    <div class="player-panel" id="panel-0" data-seat="0">
+      <div class="portrait-frame" id="frame-0">
+        <img class="chad-portrait" id="chad-0" src="" alt="" />
+      </div>
+      <div class="player-info">
+        <div class="nft-name" id="name-0">Connect Wallet</div>
+        <div class="player-stack-lbl" id="stack-0"></div>
+      </div>
+    </div>
+    <div class="chip-tray">
+      <div class="chip chip-1-sprite selected" data-value="1" onclick="selectChip(1)"></div>
+      <div class="chip chip-5-sprite" data-value="5" onclick="selectChip(5)"></div>
+      <div class="chip chip-10-sprite" data-value="10" onclick="selectChip(10)"></div>
+      <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
+    </div>
+    <div class="point-display" id="pointDisplay"></div>
+    <div class="controls">
+      <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
+      <button class="ctrl-btn btn-roll" id="rollBtn" onclick="rollDice()">ROLL</button>
+      <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
+    </div>
   </div>
 
-</div><!-- /main-layout -->
+</div><!-- /table-wrapper -->
 
 <!-- Result toast -->
 <div class="result-toast" id="resultToast">
@@ -588,26 +536,40 @@
 /* ===================================================================
    CRAPS TABLE — Last Chad
    4-player multiplayer with Agora video/audio + chat
+   Players: Seat 0 = local (green, bottom)
+            Seat 1 = remote (blue, top)
+            Seat 2 = remote (purple, left)
+            Seat 3 = remote (red, right)
    =================================================================== */
+
+// Player color names for CSS classes
+const PLAYER_COLORS = ['#4caf50','#42a5f5','#ab47bc','#ef5350'];
 
 // ── State ──
 const STATE = {
   stack: 1000,
   selectedChip: 1,
-  bets: {},           // { pass: 50, field: 10, place6: 25, ... }
-  phase: 'comeout',   // 'comeout' | 'point'
+  bets: {},           // { pass: 50, field: 10, ... } — local player bets
+  remoteBets: {},     // { 1: {pass:30}, 2: {field:10}, 3: {} } — remote player bets by seat
+  phase: 'comeout',
   point: null,
-  dice: [5, 5],       // start on 5,5
+  dice: [5, 5],
   isRolling: false,
   playerName: 'Player',
+  nftName: '',        // NFT character name
   playerId: Math.random().toString(36).slice(2, 8),
-  players: [],        // [{id, name, stack, isShooter}]
-  shooterIndex: 0,
-  chadId: null,        // NFT token ID for portrait (1-20)
+  chadId: null,
+  seat: 0,            // local player is always seat 0
+};
+
+// Remote player info: seat 1-3
+const remotePlayers = {
+  1: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
+  2: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
+  3: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
 };
 
 // ── Agora Config ──
-// Set your Agora App ID here (free tier works)
 const AGORA_APP_ID = '7917341a0c9c46a08328cc9a33989d75';
 let agoraClient = null;
 let localAudioTrack = null;
@@ -616,8 +578,6 @@ let cameraOn = false;
 let pttActive = false;
 
 // ── Pip Patterns ──
-// 3x3 grid positions for standard die faces
-// Grid: TL TC TR | ML MC MR | BL BC BR → indices 0-8
 const PIP_MAP = {
   1: [4],
   2: [2, 6],
@@ -632,14 +592,12 @@ function renderDie(faceEl, value) {
   for (let i = 0; i < 9; i++) {
     const pip = document.createElement('div');
     pip.className = 'pip';
-    if (PIP_MAP[value] && PIP_MAP[value].includes(i)) {
-      pip.style.display = 'block';
-    }
+    if (PIP_MAP[value] && PIP_MAP[value].includes(i)) pip.style.display = 'block';
     faceEl.appendChild(pip);
   }
 }
 
-// Initialize dice to 5,5
+// Init dice to 5,5
 renderDie(document.getElementById('face1'), 5);
 renderDie(document.getElementById('face2'), 5);
 
@@ -654,20 +612,15 @@ function selectChip(value) {
 function placeBet(zone) {
   if (STATE.isRolling) return;
   const amount = STATE.selectedChip;
-  if (STATE.stack < amount) {
-    dealerSay("You don't have enough chips!", 'sad');
-    return;
-  }
-  // Restrict place bets to point phase
+  if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
-    dealerSay("Place bets open after the point is set.", 'neutral');
-    return;
+    dealerSay("Place bets open after point.", 'neutral'); return;
   }
   STATE.stack -= amount;
   STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
-  updateBetLabels();
-  updateStack();
-  addChatMsg('system', `${STATE.playerName} bet ${amount} on ${formatBetName(zone)}`);
+  renderAllBetChips();
+  updateLocalPlayerUI();
+  addChatMsg('system', `${STATE.nftName || STATE.playerName} bet ${amount} on ${formatBetName(zone)}`);
 }
 
 function formatBetName(zone) {
@@ -680,61 +633,66 @@ function formatBetName(zone) {
   return names[zone] || zone.toUpperCase();
 }
 
-function updateBetLabels() {
-  for (const zone of Object.keys(STATE.bets)) {
-    const label = document.getElementById('label-' + zone);
-    const el = document.querySelector(`.bet-zone[data-bet="${zone}"]`);
-    if (label) label.textContent = STATE.bets[zone] > 0 ? STATE.bets[zone] : '';
-    if (el) el.classList.toggle('has-bet', STATE.bets[zone] > 0);
+// Render colored chip tokens on each bet zone for all players
+function renderAllBetChips() {
+  const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hardways'];
+  for (const zone of zones) {
+    const container = document.getElementById('chips-' + zone);
+    if (!container) continue;
+    container.innerHTML = '';
+    // Local player (seat 0)
+    if (STATE.bets[zone] && STATE.bets[zone] > 0) {
+      const chip = document.createElement('div');
+      chip.className = 'bet-chip-token p0';
+      chip.textContent = STATE.bets[zone];
+      container.appendChild(chip);
+    }
+    // Remote players (seats 1-3)
+    for (let s = 1; s <= 3; s++) {
+      const rb = STATE.remoteBets[s];
+      if (rb && rb[zone] && rb[zone] > 0) {
+        const chip = document.createElement('div');
+        chip.className = 'bet-chip-token p' + s;
+        chip.textContent = rb[zone];
+        container.appendChild(chip);
+      }
+    }
   }
 }
 
 function clearBets() {
   if (STATE.isRolling) return;
-  // Return all bets to stack
-  for (const zone of Object.keys(STATE.bets)) {
-    STATE.stack += STATE.bets[zone];
-  }
+  for (const zone of Object.keys(STATE.bets)) STATE.stack += STATE.bets[zone];
   STATE.bets = {};
-  document.querySelectorAll('.bet-amount-label').forEach(l => l.textContent = '');
-  document.querySelectorAll('.bet-zone').forEach(el => el.classList.remove('has-bet'));
-  updateStack();
+  renderAllBetChips();
+  updateLocalPlayerUI();
 }
 
-function updateStack() {
-  document.getElementById('stackVal').textContent = STATE.stack;
+function updateLocalPlayerUI() {
+  document.getElementById('stack-0').textContent = STATE.stack + ' chips';
 }
 
 // ── Dice Roll ──
 function rollDice() {
   if (STATE.isRolling) return;
   if (Object.keys(STATE.bets).length === 0) {
-    dealerSay("Place a bet first, shooter!", 'neutral');
-    return;
+    dealerSay("Place a bet first!", 'neutral'); return;
   }
-
   STATE.isRolling = true;
   document.getElementById('rollBtn').disabled = true;
-
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
   die1El.classList.add('rolling');
   die2El.classList.add('rolling');
 
-  // Animate random faces quickly
   let ticks = 0;
-  const maxTicks = 12;
   const ticker = setInterval(() => {
-    const r1 = Math.floor(Math.random() * 6) + 1;
-    const r2 = Math.floor(Math.random() * 6) + 1;
-    renderDie(document.getElementById('face1'), r1);
-    renderDie(document.getElementById('face2'), r2);
-    ticks++;
-    if (ticks >= maxTicks) {
+    renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
+    renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
+    if (++ticks >= 12) {
       clearInterval(ticker);
-      // Final result
-      const d1 = Math.floor(Math.random() * 6) + 1;
-      const d2 = Math.floor(Math.random() * 6) + 1;
+      const d1 = Math.floor(Math.random()*6)+1;
+      const d2 = Math.floor(Math.random()*6)+1;
       STATE.dice = [d1, d2];
       renderDie(document.getElementById('face1'), d1);
       renderDie(document.getElementById('face2'), d2);
@@ -750,151 +708,96 @@ function resolveRoll(d1, d2) {
   const total = d1 + d2;
   const isHard = d1 === d2;
   let netWin = 0;
-
   addChatMsg('roll', `Dice: ${d1} + ${d2} = ${total}${isHard ? ' (HARD)' : ''}`);
 
-  if (STATE.phase === 'comeout') {
-    netWin += resolveComeout(total);
-  } else {
-    netWin += resolvePoint(total, isHard);
-  }
+  if (STATE.phase === 'comeout') netWin += resolveComeout(total);
+  else netWin += resolvePoint(total, isHard);
 
-  // Field bet (always resolves each roll)
+  // Field
   if (STATE.bets.field) {
     const fb = STATE.bets.field;
-    if ([2, 12].includes(total)) {
-      // 2 pays 2:1, 12 pays 3:1
-      const mult = total === 2 ? 2 : 3;
-      const win = fb * mult;
-      STATE.stack += fb + win;
-      netWin += win;
+    if ([2,12].includes(total)) {
+      const mult = total===2?2:3; const win = fb*mult;
+      STATE.stack += fb+win; netWin += win;
       addChatMsg('win', `FIELD ${total} pays ${mult}:1! +${win}`);
-    } else if ([3, 4, 9, 10, 11].includes(total)) {
-      STATE.stack += fb * 2;
-      netWin += fb;
+    } else if ([3,4,9,10,11].includes(total)) {
+      STATE.stack += fb*2; netWin += fb;
       addChatMsg('win', `FIELD wins! +${fb}`);
-    } else {
-      addChatMsg('lose', `FIELD loses. -${fb}`);
-    }
+    } else { addChatMsg('lose', `FIELD loses. -${fb}`); }
     delete STATE.bets.field;
   }
 
   // Hardways
-  if (STATE.bets.hardways && isHard && [4, 6, 8, 10].includes(total)) {
+  if (STATE.bets.hardways && isHard && [4,6,8,10].includes(total)) {
     const hb = STATE.bets.hardways;
-    const payouts = { 4: 7, 6: 9, 8: 9, 10: 7 };
-    const win = hb * payouts[total];
-    STATE.stack += hb + win;
-    netWin += win;
+    const pays = {4:7,6:9,8:9,10:7};
+    const win = hb*pays[total];
+    STATE.stack += hb+win; netWin += win;
     addChatMsg('win', `HARD ${total}! +${win}`);
     delete STATE.bets.hardways;
-  } else if (STATE.bets.hardways && (total === 7 || (!isHard && [4, 6, 8, 10].includes(total)))) {
+  } else if (STATE.bets.hardways && (total===7 || (!isHard && [4,6,8,10].includes(total)))) {
     addChatMsg('lose', `Hard ways loses. -${STATE.bets.hardways}`);
     delete STATE.bets.hardways;
   }
 
-  // Place bets
   resolvePlaceBets(total);
+  renderAllBetChips();
+  updateLocalPlayerUI();
 
-  updateBetLabels();
-  updateStack();
-
-  // Show toast
-  if (netWin > 0) {
-    showToast(`+${netWin}`, 'win', `Total: ${total}`);
-    dealerSay(getWinQuip(total), 'happy');
-  } else if (netWin < 0) {
-    showToast(`${netWin}`, 'lose', `Total: ${total}`);
-    dealerSay(getLoseQuip(total), 'sad');
-  } else {
-    dealerSay(`${total}. ${STATE.phase === 'point' ? `Point is ${STATE.point}.` : 'Place your bets.'}`, 'neutral');
-  }
+  if (netWin > 0) { showToast(`+${netWin}`, 'win', `Total: ${total}`); dealerSay(getWinQuip(), 'happy'); }
+  else if (netWin < 0) { showToast(`${netWin}`, 'lose', `Total: ${total}`); dealerSay(getLoseQuip(), 'sad'); }
+  else { dealerSay(`${total}. ${STATE.phase==='point'?`Point is ${STATE.point}.`:'Place your bets.'}`, 'neutral'); }
 
   STATE.isRolling = false;
   document.getElementById('rollBtn').disabled = false;
 }
 
 function resolveComeout(total) {
-  let net = 0;
-  const passBet = STATE.bets.pass || 0;
-
-  if ([7, 11].includes(total)) {
-    // Natural — pass wins
-    if (passBet) {
-      STATE.stack += passBet * 2;
-      net += passBet;
-      addChatMsg('win', `PASS LINE wins on ${total}! +${passBet}`);
-      delete STATE.bets.pass;
-    }
-  } else if ([2, 3, 12].includes(total)) {
-    // Craps — pass loses
-    if (passBet) {
-      addChatMsg('lose', `Craps ${total}! Pass line loses. -${passBet}`);
-      net -= passBet;
-      delete STATE.bets.pass;
-    }
+  let net = 0; const pb = STATE.bets.pass || 0;
+  if ([7,11].includes(total)) {
+    if (pb) { STATE.stack += pb*2; net += pb; addChatMsg('win', `PASS LINE wins! +${pb}`); delete STATE.bets.pass; }
+  } else if ([2,3,12].includes(total)) {
+    if (pb) { addChatMsg('lose', `Craps ${total}! -${pb}`); net -= pb; delete STATE.bets.pass; }
   } else {
-    // Point is set
-    STATE.phase = 'point';
-    STATE.point = total;
+    STATE.phase = 'point'; STATE.point = total;
     document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
     document.getElementById('pointDisplay').textContent = 'POINT: ' + total;
-    addChatMsg('system', `Point is ${total}. Place bets are now open.`);
-    dealerSay(`Point is ${total}! Let's see it again.`, 'neutral');
+    addChatMsg('system', `Point is ${total}.`);
+    dealerSay(`Point is ${total}!`, 'neutral');
   }
   return net;
 }
 
 function resolvePoint(total, isHard) {
-  let net = 0;
-  const passBet = STATE.bets.pass || 0;
-
+  let net = 0; const pb = STATE.bets.pass || 0;
   if (total === STATE.point) {
-    // Point hit — pass wins
-    if (passBet) {
-      STATE.stack += passBet * 2;
-      net += passBet;
-      addChatMsg('win', `POINT ${total} HIT! Pass line wins! +${passBet}`);
-      delete STATE.bets.pass;
-    }
-    resetToComout();
+    if (pb) { STATE.stack += pb*2; net += pb; addChatMsg('win', `POINT HIT! +${pb}`); delete STATE.bets.pass; }
+    resetToComeout();
   } else if (total === 7) {
-    // Seven out — pass loses, all place bets lose
-    if (passBet) {
-      addChatMsg('lose', `SEVEN OUT! Pass line loses. -${passBet}`);
-      net -= passBet;
-      delete STATE.bets.pass;
+    if (pb) { addChatMsg('lose', `SEVEN OUT! -${pb}`); net -= pb; delete STATE.bets.pass; }
+    for (const k of Object.keys(STATE.bets)) {
+      if (k.startsWith('place')) { addChatMsg('lose', `${formatBetName(k)} loses. -${STATE.bets[k]}`); net -= STATE.bets[k]; delete STATE.bets[k]; }
     }
-    // Kill place bets
-    for (const key of Object.keys(STATE.bets)) {
-      if (key.startsWith('place')) {
-        addChatMsg('lose', `${formatBetName(key)} loses. -${STATE.bets[key]}`);
-        net -= STATE.bets[key];
-        delete STATE.bets[key];
-      }
-    }
-    resetToComout();
-    addChatMsg('system', 'New shooter! Come-out roll.');
+    resetToComeout();
+    addChatMsg('system', 'New shooter!');
   }
   return net;
 }
 
 function resolvePlaceBets(total) {
-  const placeKey = 'place' + total;
-  if (STATE.bets[placeKey] && STATE.phase === 'point') {
-    const pb = STATE.bets[placeKey];
-    // Place bet payouts: 4/10 = 9:5, 5/9 = 7:5, 6/8 = 7:6
-    const payouts = { place4: 9/5, place5: 7/5, place6: 7/6, place8: 7/6, place9: 7/5, place10: 9/5 };
-    const win = Math.floor(pb * (payouts[placeKey] || 1));
+  const pk = 'place' + total;
+  if (STATE.bets[pk] && STATE.phase === 'point') {
+    const pb = STATE.bets[pk];
+    const pays = {place4:9/5,place5:7/5,place6:7/6,place8:7/6,place9:7/5,place10:9/5};
+    const win = Math.floor(pb * (pays[pk]||1));
     STATE.stack += pb + win;
-    addChatMsg('win', `${formatBetName(placeKey)} hits! +${win}`);
-    delete STATE.bets[placeKey];
+    addChatMsg('win', `${formatBetName(pk)} hits! +${win}`);
+    delete STATE.bets[pk];
   }
 }
 
-function resetToComout() {
-  STATE.phase = 'comeout';
-  STATE.point = null;
+function resetToComeout() {
+  STATE.phase = 'comeout'; STATE.point = null;
   document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
   document.getElementById('pointDisplay').textContent = '';
 }
@@ -902,24 +805,14 @@ function resetToComout() {
 // ── Dealer ──
 function dealerSay(text, mood) {
   document.getElementById('dealerSpeech').textContent = text;
-  const moods = { neutral: 'jiptneutral.png', happy: 'jipthappy.png', sad: 'jiptsad.png' };
-  document.getElementById('dealerImg').src = 'assets/Oldjipt/Craps/' + (moods[mood] || moods.neutral);
+  const m = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+  document.getElementById('dealerImg').src = 'assets/Oldjipt/Craps/' + (m[mood]||m.neutral);
 }
-
-function getWinQuip(total) {
-  const quips = [
-    "Winner winner!", "Hot dice!", "Pay the man!",
-    "That's how you shoot!", "Keep 'em coming!", "Lucky roll!"
-  ];
-  return quips[Math.floor(Math.random() * quips.length)];
+function getWinQuip() {
+  return ["Winner winner!","Hot dice!","Pay the man!","Keep 'em coming!","Lucky roll!"][Math.floor(Math.random()*5)];
 }
-
-function getLoseQuip(total) {
-  const quips = [
-    "House wins this one.", "Better luck next roll.",
-    "That's craps, partner.", "Tough break.", "The dice are cold."
-  ];
-  return quips[Math.floor(Math.random() * quips.length)];
+function getLoseQuip() {
+  return ["House wins.","Tough break.","That's craps.","Dice are cold.","Better luck next roll."][Math.floor(Math.random()*5)];
 }
 
 // ── Toast ──
@@ -933,15 +826,14 @@ function showToast(text, type, sub) {
 }
 
 // ── Chat ──
-function addChatMsg(type, text, name) {
+function addChatMsg(type, text, name, seatIndex) {
   const container = document.getElementById('chatMessages');
   const div = document.createElement('div');
-  div.className = 'chat-msg' + (type === 'system' ? ' system-msg' : '') +
-    (type === 'roll' ? ' roll-msg' : '') +
-    (type === 'win' ? ' win-msg' : '') +
-    (type === 'lose' ? ' lose-msg' : '');
+  div.className = 'chat-msg' + (type==='system'?' system-msg':'') +
+    (type==='roll'?' roll-msg':'') + (type==='win'?' win-msg':'') + (type==='lose'?' lose-msg':'');
   if (name) {
-    div.innerHTML = `<span class="msg-name">${name}:</span> <span class="msg-text">${escapeHtml(text)}</span>`;
+    const colorClass = typeof seatIndex === 'number' ? ' p'+seatIndex : ' p0';
+    div.innerHTML = `<span class="msg-name${colorClass}">${escapeHtml(name)}:</span> <span class="msg-text">${escapeHtml(text)}</span>`;
   } else {
     div.innerHTML = `<span class="msg-text">${escapeHtml(text)}</span>`;
   }
@@ -953,59 +845,64 @@ function sendChat() {
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if (!text) return;
-  addChatMsg('chat', text, STATE.playerName);
-  // Broadcast via Agora RTM or other channel here
-  broadcastMessage({ type: 'chat', name: STATE.playerName, text });
+  addChatMsg('chat', text, STATE.nftName || STATE.playerName, 0);
+  broadcastMessage({ type:'chat', name:STATE.nftName||STATE.playerName, text, seat:0 });
   input.value = '';
 }
 
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
+function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
 // ── Cash Out ──
 function cashOut() {
   if (STATE.isRolling) return;
   clearBets();
-  addChatMsg('system', `${STATE.playerName} cashed out with ${STATE.stack} chips.`);
+  addChatMsg('system', `${STATE.nftName||STATE.playerName} cashed out with ${STATE.stack} chips.`);
   dealerSay("See ya around, partner.", 'neutral');
 }
 
-// ── Wallet (stub) ──
+// ── Wallet ──
 function connectWallet() {
   const btn = document.getElementById('walletBtn');
-  btn.textContent = '0x' + STATE.playerId.slice(0, 4) + '...' + STATE.playerId.slice(-4);
+  btn.textContent = '0x' + STATE.playerId.slice(0,4) + '...' + STATE.playerId.slice(-4);
   btn.classList.add('connected');
-  STATE.playerName = 'Chad_' + STATE.playerId.slice(0, 4);
-  // Assign a random Chad portrait (1-20) — in production, use their actual NFT tokenId
-  STATE.chadId = Math.floor(Math.random() * 20) + 1;
-  setChadPortrait('shooterVideo', STATE.chadId);
-  updatePlayerSlot(0, STATE.playerName, STATE.stack, true);
-  addChatMsg('system', `${STATE.playerName} joined the table.`);
-  dealerSay("Welcome to the table! Place your bets.", 'happy');
+  STATE.playerName = 'Chad_' + STATE.playerId.slice(0,4);
+  // Random Chad + NFT name — in production, pull from on-chain data
+  STATE.chadId = Math.floor(Math.random()*20)+1;
+  STATE.nftName = 'Chad #' + STATE.chadId;
+  // Set local player panel
+  setChadPortrait(0, STATE.chadId);
+  setPlayerName(0, STATE.nftName);
+  updateLocalPlayerUI();
+  addChatMsg('system', `${STATE.nftName} joined the table.`);
+  dealerSay("Welcome! Place your bets.", 'happy');
 }
 
-// ── Chad Portraits in Video Slots ──
-function setChadPortrait(slotId, chadId) {
-  const img = document.getElementById('chad-' + slotId);
-  if (img) {
-    img.src = 'chads/' + chadId + '.png';
-    img.alt = 'Chad #' + chadId;
-  }
-  // Remove empty class so portrait shows
-  const slot = document.getElementById(slotId);
-  if (slot) slot.classList.remove('empty');
+// ── Player Panel Helpers ──
+function setChadPortrait(seat, chadId) {
+  const img = document.getElementById('chad-' + seat);
+  if (img) { img.src = 'chads/' + chadId + '.png'; img.alt = 'Chad #' + chadId; }
+  const panel = document.getElementById('panel-' + seat);
+  if (panel) panel.classList.remove('empty');
 }
 
-// ── Player Slots ──
-function updatePlayerSlot(index, name, stack, active, isShooter) {
-  const slot = document.getElementById('slot-' + index);
-  if (!slot) return;
-  slot.className = 'player-slot' + (active ? ' active' : '') + (isShooter ? ' shooter' : '');
-  slot.querySelector('.player-name').textContent = name || 'Empty';
-  slot.querySelector('.player-stack').textContent = stack ? stack : '';
+function setPlayerName(seat, nftName) {
+  const el = document.getElementById('name-' + seat);
+  if (el) el.textContent = nftName || 'Unknown';
+}
+
+function setPlayerStack(seat, stack) {
+  const el = document.getElementById('stack-' + seat);
+  if (el) el.textContent = stack + ' chips';
+}
+
+function clearPlayerPanel(seat) {
+  const panel = document.getElementById('panel-' + seat);
+  if (panel) panel.classList.add('empty');
+  const img = document.getElementById('chad-' + seat);
+  if (img) { img.src = ''; img.alt = ''; }
+  setPlayerName(seat, 'Waiting...');
+  const stack = document.getElementById('stack-' + seat);
+  if (stack) stack.textContent = '';
 }
 
 // ===================================================================
@@ -1013,176 +910,135 @@ function updatePlayerSlot(index, name, stack, active, isShooter) {
 // ===================================================================
 
 async function initAgora() {
-  if (!AGORA_APP_ID) {
-    console.log('Agora: No App ID set. Video/audio disabled. Set AGORA_APP_ID to enable.');
-    return;
-  }
-  agoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+  if (!AGORA_APP_ID) return;
+  agoraClient = AgoraRTC.createClient({ mode:'rtc', codec:'vp8' });
 
   agoraClient.on('user-published', async (user, mediaType) => {
     await agoraClient.subscribe(user, mediaType);
-    if (mediaType === 'video') {
-      const slotId = getAvailableVideoSlot(user.uid);
-      if (slotId) {
-        const slotEl = document.getElementById(slotId);
-        slotEl.classList.add('has-video');  // hide Chad portrait
-        user.videoTrack.play(slotId);
-      }
+    const seat = getRemoteSeat(user.uid);
+    if (mediaType === 'video' && seat !== null) {
+      const panel = document.getElementById('panel-' + seat);
+      if (panel) panel.classList.add('has-video');
+      user.videoTrack.play('frame-' + seat);
     }
-    if (mediaType === 'audio') {
-      user.audioTrack.play();
-    }
+    if (mediaType === 'audio') user.audioTrack.play();
   });
 
   agoraClient.on('user-unpublished', (user, mediaType) => {
     if (mediaType === 'video') {
-      // Restore Chad portrait when remote user turns off cam
-      const slotId = findSlotByUid(user.uid);
-      if (slotId) {
-        const slotEl = document.getElementById(slotId);
-        slotEl.classList.remove('has-video');
+      const seat = findSeatByUid(user.uid);
+      if (seat !== null) {
+        const panel = document.getElementById('panel-' + seat);
+        if (panel) panel.classList.remove('has-video');
       }
     }
   });
 
   agoraClient.on('user-left', (user) => {
-    // Clear their video slot and restore to empty
-    const slotId = findSlotByUid(user.uid);
-    if (slotId) {
-      const slotEl = document.getElementById(slotId);
-      slotEl.classList.remove('has-video');
-      slotEl.dataset.uid = '';
-      // Reset portrait to empty
-      const img = document.getElementById('chad-' + slotId);
-      if (img) { img.src = ''; img.alt = ''; }
+    const seat = findSeatByUid(user.uid);
+    if (seat !== null) {
+      clearPlayerPanel(seat);
+      remotePlayers[seat].uid = null;
+      remotePlayers[seat].name = '';
+      remotePlayers[seat].nftName = '';
+      remotePlayers[seat].chadId = null;
+      delete STATE.remoteBets[seat];
+      renderAllBetChips();
     }
-    addChatMsg('system', `Player left the table.`);
+    addChatMsg('system', 'A player left the table.');
   });
 }
 
-async function joinRoom() {
-  if (!AGORA_APP_ID) {
-    addChatMsg('system', 'Video disabled — no Agora App ID configured.');
-    return;
+function getRemoteSeat(uid) {
+  // Check if already assigned
+  for (let s = 1; s <= 3; s++) {
+    if (remotePlayers[s].uid === String(uid)) return s;
   }
+  // Assign to first empty seat
+  for (let s = 1; s <= 3; s++) {
+    if (!remotePlayers[s].uid) {
+      remotePlayers[s].uid = String(uid);
+      // Assign random Chad portrait for remote
+      const cid = (parseInt(String(uid).slice(-2),36) % 20) + 1;
+      remotePlayers[s].chadId = cid;
+      remotePlayers[s].nftName = 'Chad #' + cid;
+      remotePlayers[s].stack = 1000;
+      setChadPortrait(s, cid);
+      setPlayerName(s, remotePlayers[s].nftName);
+      setPlayerStack(s, remotePlayers[s].stack);
+      addChatMsg('system', `${remotePlayers[s].nftName} joined (Seat ${s+1}).`);
+      return s;
+    }
+  }
+  return null; // table full
+}
+
+function findSeatByUid(uid) {
+  for (let s = 1; s <= 3; s++) {
+    if (remotePlayers[s].uid === String(uid)) return s;
+  }
+  return null;
+}
+
+async function joinRoom() {
+  if (!AGORA_APP_ID) { addChatMsg('system','No Agora App ID.'); return; }
   try {
     if (!agoraClient) await initAgora();
     const channel = 'lastchad-craps-' + (window.location.hash.slice(1) || 'main');
     await agoraClient.join(AGORA_APP_ID, channel, null, STATE.playerId);
-    addChatMsg('system', `Joined video room: ${channel}`);
+    addChatMsg('system', `Joined room: ${channel}`);
     document.getElementById('joinBtn').textContent = 'JOINED';
     document.getElementById('joinBtn').classList.add('active');
-  } catch (err) {
-    addChatMsg('system', 'Failed to join video: ' + err.message);
-  }
+  } catch (err) { addChatMsg('system', 'Join failed: ' + err.message); }
 }
 
 async function toggleCamera() {
-  if (!agoraClient) {
-    addChatMsg('system', 'Join the table first.');
-    return;
-  }
+  if (!agoraClient) { addChatMsg('system','Join table first.'); return; }
   const btn = document.getElementById('camBtn');
-  const shooterSlot = document.getElementById('shooterVideo');
+  const panel = document.getElementById('panel-0');
   if (!cameraOn) {
     try {
       localVideoTrack = await AgoraRTC.createCameraVideoTrack();
       await agoraClient.publish([localVideoTrack]);
-      shooterSlot.classList.add('has-video');  // hides Chad portrait
-      localVideoTrack.play('shooterVideo');
+      panel.classList.add('has-video');
+      localVideoTrack.play('frame-0');
       cameraOn = true;
-      btn.textContent = 'CAM ON';
-      btn.classList.add('active');
-    } catch (err) {
-      addChatMsg('system', 'Camera error: ' + err.message);
-    }
+      btn.textContent = 'CAM ON'; btn.classList.add('active');
+    } catch (err) { addChatMsg('system','Camera error: '+err.message); }
   } else {
-    if (localVideoTrack) {
-      await agoraClient.unpublish([localVideoTrack]);
-      localVideoTrack.close();
-      localVideoTrack = null;
-    }
-    shooterSlot.classList.remove('has-video');  // shows Chad portrait again
+    if (localVideoTrack) { await agoraClient.unpublish([localVideoTrack]); localVideoTrack.close(); localVideoTrack=null; }
+    panel.classList.remove('has-video');
     cameraOn = false;
-    btn.textContent = 'CAM OFF';
-    btn.classList.remove('active');
+    btn.textContent = 'CAM OFF'; btn.classList.remove('active');
   }
 }
 
 // Push-to-Talk
 (function initPTT() {
   const pttBtn = document.getElementById('pttBtn');
-
   async function startTalking() {
     if (!agoraClient || pttActive) return;
     try {
       localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
       await agoraClient.publish([localAudioTrack]);
-      pttActive = true;
-      pttBtn.classList.add('talking');
-      pttBtn.textContent = 'TALKING...';
-    } catch (err) {
-      addChatMsg('system', 'Mic error: ' + err.message);
-    }
+      pttActive = true; pttBtn.classList.add('talking'); pttBtn.textContent = 'TALKING...';
+    } catch (err) { addChatMsg('system','Mic error: '+err.message); }
   }
-
   async function stopTalking() {
     if (!pttActive) return;
-    if (localAudioTrack) {
-      await agoraClient.unpublish([localAudioTrack]);
-      localAudioTrack.close();
-      localAudioTrack = null;
-    }
-    pttActive = false;
-    pttBtn.classList.remove('talking');
-    pttBtn.textContent = 'HOLD TO TALK';
+    if (localAudioTrack) { await agoraClient.unpublish([localAudioTrack]); localAudioTrack.close(); localAudioTrack=null; }
+    pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'HOLD TO TALK';
   }
-
-  // Mouse
   pttBtn.addEventListener('mousedown', startTalking);
   pttBtn.addEventListener('mouseup', stopTalking);
   pttBtn.addEventListener('mouseleave', stopTalking);
-  // Touch
-  pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); });
-  pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
+  pttBtn.addEventListener('touchstart', (e)=>{e.preventDefault();startTalking()});
+  pttBtn.addEventListener('touchend', (e)=>{e.preventDefault();stopTalking()});
   pttBtn.addEventListener('touchcancel', stopTalking);
 })();
 
-function getAvailableVideoSlot(uid) {
-  // Assign remote users to player 2-4 video slots
-  const slots = ['player2Video', 'player3Video', 'player4Video'];
-  // Check if already assigned
-  for (const id of slots) {
-    if (document.getElementById(id).dataset.uid === String(uid)) return id;
-  }
-  // Find first empty slot
-  for (const id of slots) {
-    const el = document.getElementById(id);
-    if (!el.dataset.uid) {
-      el.dataset.uid = uid;
-      // Assign a random Chad portrait for this remote player
-      const remoteChadId = (parseInt(String(uid).slice(-2), 36) % 20) + 1;
-      setChadPortrait(id, remoteChadId);
-      return id;
-    }
-  }
-  return null;
-}
-
-function findSlotByUid(uid) {
-  const slots = ['player2Video', 'player3Video', 'player4Video'];
-  for (const id of slots) {
-    if (document.getElementById(id).dataset.uid === String(uid)) return id;
-  }
-  return null;
-}
-
-// ── Multiplayer Message Bus (stub — replace with WebSocket/Agora RTM) ──
-function broadcastMessage(msg) {
-  // In production, send via WebSocket or Agora RTM channel
-  // For now, local-only
-  console.log('broadcast:', msg);
-}
+// ── Multiplayer Message Bus (stub) ──
+function broadcastMessage(msg) { console.log('broadcast:', msg); }
 
 // ── Ad Spot Management ──
 function setAdImage(spotId, imgUrl) {
@@ -1194,7 +1050,6 @@ function setAdImage(spotId, imgUrl) {
 // ── Init ──
 renderDie(document.getElementById('face1'), 5);
 renderDie(document.getElementById('face2'), 5);
-updatePlayerSlot(0, 'Waiting...', '', false);
 if (AGORA_APP_ID) initAgora();
 </script>
 </body>
