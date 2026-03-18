@@ -61,31 +61,22 @@
     }
     .felt-container{
       flex:1;position:relative;
-      background:var(--felt);
+      background:url('assets/Oldjipt/Craps/crapstable.jpg') center/contain no-repeat;
+      background-color:#0d3d0d;
       border:4px solid var(--felt-border);
       border-radius:12px;
       margin:4px;
       overflow:hidden;
       box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
     }
-    /* Subtle felt texture */
-    .felt-container::before{
-      content:'';position:absolute;inset:0;
-      background:repeating-linear-gradient(
-        45deg,
-        transparent,transparent 2px,
-        rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px
-      );
-      pointer-events:none;z-index:0;
-    }
 
-    /* ── Dealer + Remote Players Row (on the felt) ── */
+    /* ── Dealer + Remote Players Row (above the felt image) ── */
     .dealer-row{
       position:relative;z-index:15;
       display:flex;align-items:flex-start;
       padding:6px 8px;gap:6px;
-      border-bottom:2px solid rgba(201,168,76,0.3);
-      background:rgba(0,0,0,0.15);
+      background:rgba(10,10,15,0.9);
+      border-bottom:2px solid #2a5a1a;
       flex-shrink:0;
     }
     /* Dealer */
@@ -146,62 +137,79 @@
     .puck{position:absolute;width:32px;height:32px;top:6px;right:10px;z-index:20}
     .puck img{width:100%;height:100%;object-fit:contain}
 
-    /* ── CSS Craps Felt Layout ── */
+    /* ── Bet Zone Overlay (positioned on crapstable image) ── */
     .bet-grid{
       position:absolute;
-      top:0;left:0;right:0;bottom:0;
-      display:grid;
-      /* Columns: place bets across top, then pass/field/hardways stacked below */
-      grid-template-columns:repeat(6,1fr);
-      grid-template-rows:auto 1fr 1fr 1fr;
-      gap:3px;
-      padding:4px;
+      inset:0;
       z-index:5;
     }
-    /* Reserve top row for dealer row (handled by .dealer-row above it in DOM) */
 
     .bet-zone{
-      border:2px solid var(--felt-border);
-      border-radius:4px;cursor:pointer;
+      position:absolute;
+      border:2px solid transparent;
+      border-radius:3px;cursor:pointer;
       transition:all 0.15s;
-      position:relative;
       display:flex;flex-direction:column;
       align-items:center;justify-content:center;
       text-align:center;
-      background:var(--felt-dark);
-      min-height:0;
+      background:transparent;
     }
     .bet-zone:hover{
-      border-color:#ffe96a;
-      background:rgba(255,233,106,0.1);
+      border-color:rgba(255,233,106,0.6);
+      background:rgba(255,233,106,0.08);
       box-shadow:inset 0 0 12px rgba(255,233,106,0.15);
     }
     .bet-zone .zone-label{
-      font-size:0.35rem;color:#ffe96a;
-      text-shadow:1px 1px 2px rgba(0,0,0,0.8);
+      font-size:0.3rem;color:transparent;
       line-height:1.3;
+      pointer-events:none;
+    }
+    .bet-zone:hover .zone-label{
+      color:rgba(255,233,106,0.9);
+      text-shadow:1px 1px 2px rgba(0,0,0,0.9);
     }
     .bet-zone .zone-payout{
-      font-size:0.2rem;color:rgba(255,233,106,0.6);
-      margin-top:2px;
+      font-size:0.16rem;color:transparent;
+      pointer-events:none;
+    }
+    .bet-zone:hover .zone-payout{
+      color:rgba(255,233,106,0.6);
     }
 
-    /* Place bets: top row, each takes 1 column */
-    .bet-place4{grid-column:1;grid-row:1}
-    .bet-place5{grid-column:2;grid-row:1}
-    .bet-place6{grid-column:3;grid-row:1}
-    .bet-place8{grid-column:4;grid-row:1}
-    .bet-place9{grid-column:5;grid-row:1}
-    .bet-place10{grid-column:6;grid-row:1}
+    /* ── Place Bets (6 boxes across the top) ── */
+    /* Image layout: place bets span ~4%-78% x, ~10%-32% y */
+    .bet-place4  {left:4%;  top:10%; width:12.3%; height:22%}
+    .bet-place5  {left:16.3%;top:10%; width:12.3%; height:22%}
+    .bet-place6  {left:28.6%;top:10%; width:12.3%; height:22%}
+    .bet-place8  {left:40.9%;top:10%; width:12.3%; height:22%}
+    .bet-place9  {left:53.2%;top:10%; width:12.3%; height:22%}
+    .bet-place10 {left:65.5%;top:10%; width:12.3%; height:22%}
 
-    /* Pass Line: full width, second row */
-    .bet-pass{grid-column:1/-1;grid-row:2}
+    /* ── Pass Line (right side + bottom, L-shaped) ── */
+    /* Right strip */
+    .bet-pass{left:80%; top:3%; width:17%; height:94%}
 
-    /* Field: full width, third row */
-    .bet-field{grid-column:1/-1;grid-row:3}
+    /* ── Pass Line Bottom ── */
+    .bet-pass-bottom{left:3%; top:87%; width:77%; height:10%}
 
-    /* Hardways: full width, fourth row */
-    .bet-hardways{grid-column:1/-1;grid-row:4}
+    /* ── Hard Ways (center, 4 boxes) ── */
+    .bet-hard4  {left:14%; top:42%; width:13%; height:13%}
+    .bet-hard6  {left:27%; top:42%; width:13%; height:13%}
+    .bet-hard8  {left:40%; top:42%; width:13%; height:13%}
+    .bet-hard10 {left:53%; top:42%; width:13%; height:13%}
+
+    /* ── FIELD (defined section with visible border) ── */
+    .bet-field{
+      left:3%; top:60%; width:75%; height:24%;
+      border:2px solid rgba(255,233,106,0.35);
+      background:rgba(0,0,0,0.08);
+      border-radius:4px;
+    }
+    .bet-field .zone-label{
+      color:rgba(255,233,106,0.85);
+      font-size:0.35rem;
+      text-shadow:1px 1px 3px rgba(0,0,0,0.9);
+    }
 
     /* Win/lose flash */
     .bet-zone.win-flash{animation:zone-win 0.5s ease 3;border-color:#4caf50;background:rgba(76,175,80,0.2)}
@@ -484,8 +492,8 @@
       .dealer-speech{max-width:140px;font-size:0.18rem}
       .remote-slot .slot-portrait{width:24px;height:28px}
       .remote-slot .slot-name{font-size:0.14rem;max-width:40px}
-      .bet-zone .zone-label{font-size:0.25rem}
-      .bet-zone .zone-payout{font-size:0.15rem}
+      .bet-zone:hover .zone-label{font-size:0.2rem}
+      .bet-zone:hover .zone-payout{font-size:0.12rem}
       .bottom-row{flex-wrap:wrap;justify-content:center;gap:4px;padding:4px 6px}
       .local-player .portrait-frame{width:30px;height:36px}
       .chip{width:28px;height:28px}
@@ -535,87 +543,109 @@
 
   <!-- FELT TABLE -->
   <div class="table-area">
-    <div class="felt-container" id="feltTable">
 
-      <!-- Dealer + Remote Players Row (on the felt, top) -->
-      <div class="dealer-row">
-        <div class="dealer-slot">
-          <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
-          <div class="dealer-speech" id="dealerSpeech">Place your bets!</div>
-        </div>
-        <div class="dealer-row-spacer"></div>
-        <div class="remote-slot empty" id="slot-1" data-seat="1">
-          <div class="slot-portrait"><img id="chad-1" src="" alt="" /></div>
-          <div class="slot-name" id="name-1">---</div>
-        </div>
-        <div class="remote-slot empty" id="slot-2" data-seat="2">
-          <div class="slot-portrait"><img id="chad-2" src="" alt="" /></div>
-          <div class="slot-name" id="name-2">---</div>
-        </div>
-        <div class="remote-slot empty" id="slot-3" data-seat="3">
-          <div class="slot-portrait"><img id="chad-3" src="" alt="" /></div>
-          <div class="slot-name" id="name-3">---</div>
-        </div>
+    <!-- Dealer + Remote Players Row (above the felt image) -->
+    <div class="dealer-row">
+      <div class="dealer-slot">
+        <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
+        <div class="dealer-speech" id="dealerSpeech">Place your bets!</div>
       </div>
+      <div class="dealer-row-spacer"></div>
+      <div class="remote-slot empty" id="slot-1" data-seat="1">
+        <div class="slot-portrait"><img id="chad-1" src="" alt="" /></div>
+        <div class="slot-name" id="name-1">---</div>
+      </div>
+      <div class="remote-slot empty" id="slot-2" data-seat="2">
+        <div class="slot-portrait"><img id="chad-2" src="" alt="" /></div>
+        <div class="slot-name" id="name-2">---</div>
+      </div>
+      <div class="remote-slot empty" id="slot-3" data-seat="3">
+        <div class="slot-portrait"><img id="chad-3" src="" alt="" /></div>
+        <div class="slot-name" id="name-3">---</div>
+      </div>
+    </div>
+
+    <div class="felt-container" id="feltTable">
 
       <!-- Puck -->
       <div class="puck" id="puck">
         <img src="assets/Oldjipt/Craps/jiptoff.png" alt="OFF" id="puckImg" />
       </div>
 
-      <!-- CSS Craps Bet Grid -->
+      <!-- Bet Zone Overlays (positioned on crapstable image) -->
       <div class="bet-grid">
-        <!-- Row 1: Place Bets -->
+        <!-- Place Bets (top row) -->
         <div class="bet-zone bet-place4" data-bet="place4" onclick="placeBet('place4')">
-          <div class="zone-label">PLACE<br>4</div>
+          <div class="zone-label">4</div>
           <div class="zone-payout">9:5</div>
           <div class="bet-chips-container" id="chips-place4"></div>
         </div>
         <div class="bet-zone bet-place5" data-bet="place5" onclick="placeBet('place5')">
-          <div class="zone-label">PLACE<br>5</div>
+          <div class="zone-label">5</div>
           <div class="zone-payout">7:5</div>
           <div class="bet-chips-container" id="chips-place5"></div>
         </div>
         <div class="bet-zone bet-place6" data-bet="place6" onclick="placeBet('place6')">
-          <div class="zone-label">PLACE<br>6</div>
+          <div class="zone-label">6</div>
           <div class="zone-payout">7:6</div>
           <div class="bet-chips-container" id="chips-place6"></div>
         </div>
         <div class="bet-zone bet-place8" data-bet="place8" onclick="placeBet('place8')">
-          <div class="zone-label">PLACE<br>8</div>
+          <div class="zone-label">8</div>
           <div class="zone-payout">7:6</div>
           <div class="bet-chips-container" id="chips-place8"></div>
         </div>
         <div class="bet-zone bet-place9" data-bet="place9" onclick="placeBet('place9')">
-          <div class="zone-label">PLACE<br>9</div>
+          <div class="zone-label">9</div>
           <div class="zone-payout">7:5</div>
           <div class="bet-chips-container" id="chips-place9"></div>
         </div>
         <div class="bet-zone bet-place10" data-bet="place10" onclick="placeBet('place10')">
-          <div class="zone-label">PLACE<br>10</div>
+          <div class="zone-label">10</div>
           <div class="zone-payout">9:5</div>
           <div class="bet-chips-container" id="chips-place10"></div>
         </div>
 
-        <!-- Row 2: Pass Line -->
+        <!-- Pass Line (right side) -->
         <div class="bet-zone bet-pass" data-bet="pass" onclick="placeBet('pass')">
-          <div class="zone-label">PASS LINE</div>
-          <div class="zone-payout">Pays 1:1</div>
+          <div class="zone-label">PASS</div>
+          <div class="zone-payout">1:1</div>
           <div class="bet-chips-container" id="chips-pass"></div>
         </div>
 
-        <!-- Row 3: Field -->
-        <div class="bet-zone bet-field" data-bet="field" onclick="placeBet('field')">
-          <div class="zone-label">FIELD</div>
-          <div class="zone-payout">2 pays 2:1 &bull; 3,4,9,10,11 pay 1:1 &bull; 12 pays 3:1</div>
-          <div class="bet-chips-container" id="chips-field"></div>
+        <!-- Pass Line (bottom strip) -->
+        <div class="bet-zone bet-pass-bottom" data-bet="pass" onclick="placeBet('pass')">
+          <div class="zone-label">PASS</div>
+          <div class="bet-chips-container" id="chips-pass-bottom"></div>
         </div>
 
-        <!-- Row 4: Hardways -->
-        <div class="bet-zone bet-hardways" data-bet="hardways" onclick="placeBet('hardways')">
-          <div class="zone-label">HARD WAYS</div>
-          <div class="zone-payout">Hard 4/10: 7:1 &bull; Hard 6/8: 9:1</div>
-          <div class="bet-chips-container" id="chips-hardways"></div>
+        <!-- Hard Ways (4 individual boxes) -->
+        <div class="bet-zone bet-hard4" data-bet="hard4" onclick="placeBet('hard4')">
+          <div class="zone-label">H4</div>
+          <div class="zone-payout">7:1</div>
+          <div class="bet-chips-container" id="chips-hard4"></div>
+        </div>
+        <div class="bet-zone bet-hard6" data-bet="hard6" onclick="placeBet('hard6')">
+          <div class="zone-label">H6</div>
+          <div class="zone-payout">9:1</div>
+          <div class="bet-chips-container" id="chips-hard6"></div>
+        </div>
+        <div class="bet-zone bet-hard8" data-bet="hard8" onclick="placeBet('hard8')">
+          <div class="zone-label">H8</div>
+          <div class="zone-payout">9:1</div>
+          <div class="bet-chips-container" id="chips-hard8"></div>
+        </div>
+        <div class="bet-zone bet-hard10" data-bet="hard10" onclick="placeBet('hard10')">
+          <div class="zone-label">H10</div>
+          <div class="zone-payout">7:1</div>
+          <div class="bet-chips-container" id="chips-hard10"></div>
+        </div>
+
+        <!-- Field (defined section) -->
+        <div class="bet-zone bet-field" data-bet="field" onclick="placeBet('field')">
+          <div class="zone-label">FIELD</div>
+          <div class="zone-payout">2→2:1 · 12→3:1</div>
+          <div class="bet-chips-container" id="chips-field"></div>
         </div>
       </div><!-- /bet-grid -->
 
@@ -793,13 +823,13 @@ function formatBetName(zone) {
     pass:'PASS LINE', field:'FIELD',
     place4:'PLACE 4', place5:'PLACE 5', place6:'PLACE 6',
     place8:'PLACE 8', place9:'PLACE 9', place10:'PLACE 10',
-    hardways:'HARD WAYS'
+    hard4:'HARD 4', hard6:'HARD 6', hard8:'HARD 8', hard10:'HARD 10'
   };
   return names[zone] || zone.toUpperCase();
 }
 
 function renderAllBetChips() {
-  const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hardways'];
+  const zones = ['pass','pass-bottom','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
   for (const zone of zones) {
     const container = document.getElementById('chips-' + zone);
     if (!container) continue;
