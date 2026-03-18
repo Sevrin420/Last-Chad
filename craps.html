@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="nav.css" />
   <!-- Ethers.js for on-chain interaction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <!-- Agora Web SDK 4.x -->
+  <!-- Agora Web SDK 4.x (audio only + optional shooter video) -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -23,9 +23,9 @@
     /* ── Player Colors ── */
     :root{
       --p1-color:#4caf50;  /* green — local player (you) */
-      --p2-color:#42a5f5;  /* blue — remote top */
-      --p3-color:#ab47bc;  /* purple — remote left */
-      --p4-color:#ef5350;  /* red — remote right */
+      --p2-color:#42a5f5;  /* blue — remote 1 */
+      --p3-color:#ab47bc;  /* purple — remote 2 */
+      --p4-color:#ef5350;  /* red — remote 3 */
       --p1-glow:rgba(76,175,80,0.5);
       --p2-glow:rgba(66,165,245,0.5);
       --p3-glow:rgba(171,71,188,0.5);
@@ -36,151 +36,77 @@
     .game-header{
       position:fixed;top:0;left:0;right:0;z-index:300;
       display:flex;align-items:center;justify-content:space-between;
-      padding:8px 14px;
+      padding:6px 14px;
       background:rgba(10,10,15,0.95);
       border-bottom:2px solid #2a5a1a;
       backdrop-filter:blur(8px);
+      height:40px;
     }
     .header-left{display:flex;align-items:center;gap:10px}
-    .header-title{font-size:0.55rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4)}
+    .header-title{font-size:0.5rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4)}
     .wallet-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.45rem;padding:6px 12px;
+      font-family:'Press Start 2P',monospace;font-size:0.35rem;
+      padding:6px 12px;border-radius:5px;cursor:pointer;
+      border:2px solid #5c4409;color:#1a1005;
       background:linear-gradient(180deg,#c9a84c 0%,#8b6914 100%);
-      border:2px solid #d4a017;border-radius:4px;color:#1a1005;cursor:pointer;
       box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
     }
     .wallet-btn:hover{background:linear-gradient(180deg,#dabb5e 0%,#a07d1e 100%)}
     .nav-wrapper{position:static}
 
-    /* ── Table Wrapper (everything below header) ── */
+    /* ── Main Layout: Vertical Stack ── */
     .table-wrapper{
-      width:100%;height:calc(100vh - 44px);
-      margin-top:44px;
-      display:grid;
-      grid-template-columns:180px 1fr 180px;
-      grid-template-rows:auto 1fr auto;
-      gap:0;
+      width:100%;height:calc(100vh - 40px);
+      margin-top:40px;
+      display:flex;flex-direction:column;
     }
 
-    /* ── Player Panel (shared) ── */
-    .player-panel{
-      display:flex;flex-direction:column;align-items:center;
-      padding:6px;gap:4px;
-      background:rgba(10,10,15,0.9);
-      position:relative;
+    /* ── Remote Players Row (top bar) ── */
+    .remote-players-row{
+      display:flex;justify-content:center;align-items:center;
+      gap:20px;padding:6px 10px;
+      background:rgba(10,10,15,0.95);
+      border-bottom:2px solid #2a3a1a;
+      flex-shrink:0;
     }
-    .player-panel .portrait-frame{
-      width:80px;height:96px;
-      border:3px solid #555;border-radius:6px;
-      overflow:hidden;position:relative;
-      background:#000;
+    .remote-slot{
+      display:flex;align-items:center;gap:6px;
+      padding:4px 8px;border-radius:6px;
+      background:rgba(0,0,0,0.3);
+      border:2px solid #333;
+      min-width:100px;
     }
-    .player-panel .portrait-frame img{
+    .remote-slot.occupied{border-color:var(--slot-color,#555)}
+    .remote-slot .slot-portrait{
+      width:36px;height:44px;
+      border:2px solid var(--slot-color,#555);border-radius:4px;
+      overflow:hidden;background:#111;flex-shrink:0;
+      box-shadow:0 0 6px var(--slot-glow,transparent);
+    }
+    .remote-slot .slot-portrait img{
       width:100%;height:100%;object-fit:cover;
       image-rendering:pixelated;display:block;
     }
-    .player-panel .portrait-frame video{
-      width:100%;height:100%;object-fit:cover;
-      position:absolute;top:0;left:0;
+    .remote-slot.empty .slot-portrait{opacity:0.3;border-color:#333}
+    .remote-slot .slot-info{display:flex;flex-direction:column;gap:2px}
+    .remote-slot .slot-name{
+      font-size:0.22rem;color:var(--slot-color,#555);
+      max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     }
-    .player-panel.has-video .chad-portrait{display:none}
-    .player-panel .chad-portrait{display:block}
-    .player-panel .nft-name{
-      font-size:0.3rem;color:#ccc;text-align:center;
-      max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    }
-    .player-panel .player-stack-lbl{
-      font-size:0.3rem;text-align:center;
-    }
-    .player-panel.empty .portrait-frame{border-color:#333;opacity:0}
-    .player-panel.empty .nft-name{color:#555;opacity:0}
-    .player-panel.empty .player-stack-lbl{opacity:0}
+    .remote-slot .slot-stack{font-size:0.2rem;color:#8a8a6a}
+    .remote-slot.empty .slot-name{color:#555}
 
-    /* Per-player color coding */
-    .player-panel[data-seat="0"] .portrait-frame{border-color:var(--p1-color);box-shadow:0 0 10px var(--p1-glow)}
-    .player-panel[data-seat="0"] .nft-name{color:var(--p1-color)}
-    .player-panel[data-seat="0"] .player-stack-lbl{color:var(--p1-color)}
+    /* Seat-specific colors */
+    .remote-slot[data-seat="1"]{--slot-color:var(--p2-color);--slot-glow:var(--p2-glow)}
+    .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
+    .remote-slot[data-seat="3"]{--slot-color:var(--p4-color);--slot-glow:var(--p4-glow)}
 
-    .player-panel[data-seat="1"] .portrait-frame{border-color:var(--p2-color);box-shadow:0 0 10px var(--p2-glow)}
-    .player-panel[data-seat="1"] .nft-name{color:var(--p2-color)}
-    .player-panel[data-seat="1"] .player-stack-lbl{color:var(--p2-color)}
-
-    .player-panel[data-seat="2"] .portrait-frame{border-color:var(--p3-color);box-shadow:0 0 10px var(--p3-glow)}
-    .player-panel[data-seat="2"] .nft-name{color:var(--p3-color)}
-    .player-panel[data-seat="2"] .player-stack-lbl{color:var(--p3-color)}
-
-    .player-panel[data-seat="3"] .portrait-frame{border-color:var(--p4-color);box-shadow:0 0 10px var(--p4-glow)}
-    .player-panel[data-seat="3"] .nft-name{color:var(--p4-color)}
-    .player-panel[data-seat="3"] .player-stack-lbl{color:var(--p4-color)}
-
-    /* ── Top Row: Remote P2 (center top) + ad spots ── */
-    .top-row{
-      grid-column:1/-1;
-      display:flex;align-items:stretch;
-      border-bottom:2px solid #2a5a1a;
-      background:rgba(10,10,15,0.9);
-    }
-    .top-row .player-panel{flex:1;flex-direction:row;justify-content:center;gap:12px}
-    .top-row .player-panel .portrait-frame{width:80px;height:96px;flex-shrink:0}
-    .top-row .player-info{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
-    .top-row .video-controls{
-      display:flex;flex-direction:column;gap:4px;justify-content:center;padding-left:12px;
-    }
-
-    /* ── Left Sidebar: Remote P3 + ad ── */
-    .left-sidebar{
-      grid-row:2;grid-column:1;
-      display:flex;flex-direction:column;
-      border-right:2px solid #2a3a1a;
-      background:rgba(10,10,15,0.9);
-    }
-    .left-sidebar .player-panel{border-bottom:1px solid #1a2a0a}
-
-    /* ── Right Sidebar: Remote P4 + chat ── */
-    .right-sidebar{
-      grid-row:2;grid-column:3;
-      display:flex;flex-direction:column;
-      border-left:2px solid #2a3a1a;
-      background:rgba(10,10,15,0.9);
-    }
-    .right-sidebar .player-panel{border-bottom:1px solid #1a2a0a}
-
-    /* Chat */
-    .chat-box{flex:1;display:flex;flex-direction:column;overflow:hidden}
-    .chat-header{padding:6px 8px;border-bottom:1px solid #1a2a0a;font-size:0.35rem;color:#4caf50}
-    .chat-messages{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:3px}
-    .chat-msg{font-size:0.25rem;line-height:1.5;padding:3px 5px;border-radius:3px;background:rgba(0,0,0,0.3)}
-    .chat-msg .msg-name{font-weight:bold}
-    .chat-msg .msg-text{color:#ccc}
-    .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
-    .chat-msg.roll-msg .msg-text{color:#ffe96a}
-    .chat-msg.win-msg .msg-text{color:#4caf50}
-    .chat-msg.lose-msg .msg-text{color:#e53935}
-    /* Color chat names by player */
-    .chat-msg .msg-name.p0{color:var(--p1-color)}
-    .chat-msg .msg-name.p1{color:var(--p2-color)}
-    .chat-msg .msg-name.p2{color:var(--p3-color)}
-    .chat-msg .msg-name.p3{color:var(--p4-color)}
-
-    .chat-input-area{display:flex;gap:3px;padding:6px;border-top:1px solid #1a2a0a}
-    .chat-input{
-      flex:1;font-family:'Press Start 2P',monospace;font-size:0.25rem;
-      padding:6px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
-    }
-    .chat-input:focus{border-color:#4caf50}
-    .chat-send{
-      font-family:'Press Start 2P',monospace;font-size:0.25rem;
-      padding:6px 8px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
-    }
-
-    /* ── Center: Table Area ── */
+    /* ── Felt Table Area (fills ~75% of remaining space) ── */
     .table-area{
-      grid-row:2;grid-column:2;
-      position:relative;overflow:hidden;
+      flex:3;position:relative;overflow:hidden;
       display:flex;flex-direction:column;
+      min-height:0;
     }
-
-    /* Felt */
     .felt-container{
       flex:1;position:relative;
       background:url('assets/Oldjipt/Craps/felt.png') center/contain no-repeat;
@@ -246,7 +172,6 @@
       cursor:pointer;transition:all 0.2s;z-index:5;
     }
     .bet-zone:hover{border-color:rgba(255,233,106,0.5);background:rgba(255,233,106,0.08)}
-
     .bet-pass{bottom:2%;left:5%;width:90%;height:12%}
     .bet-field{bottom:16%;left:5%;width:60%;height:10%}
     .bet-place4{top:10%;left:5%;width:12%;height:18%}
@@ -275,24 +200,71 @@
     .bet-chip-token.p2{background:var(--p3-color);border-color:#fff}
     .bet-chip-token.p3{background:var(--p4-color);border-color:#fff}
 
-    /* ── Bottom Row: Local Player (P1) ── */
+    /* ── Chat Box (below table) ── */
+    .chat-box{
+      flex-shrink:0;
+      height:100px;
+      display:flex;flex-direction:column;
+      background:rgba(10,10,15,0.95);
+      border-top:2px solid #2a3a1a;
+      border-bottom:2px solid #2a3a1a;
+    }
+    .chat-header{padding:4px 8px;font-size:0.3rem;color:#4caf50;border-bottom:1px solid #1a2a0a;flex-shrink:0}
+    .chat-messages{flex:1;overflow-y:auto;padding:4px 6px;display:flex;flex-direction:column;gap:2px}
+    .chat-msg{font-size:0.22rem;line-height:1.4;padding:2px 4px;border-radius:3px;background:rgba(0,0,0,0.3)}
+    .chat-msg .msg-name{font-weight:bold}
+    .chat-msg .msg-text{color:#ccc}
+    .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
+    .chat-msg.roll-msg .msg-text{color:#ffe96a}
+    .chat-msg.win-msg .msg-text{color:#4caf50}
+    .chat-msg.lose-msg .msg-text{color:#e53935}
+    .chat-msg .msg-name.p0{color:var(--p1-color)}
+    .chat-msg .msg-name.p1{color:var(--p2-color)}
+    .chat-msg .msg-name.p2{color:var(--p3-color)}
+    .chat-msg .msg-name.p3{color:var(--p4-color)}
+    .chat-input-area{display:flex;gap:3px;padding:4px 6px;border-top:1px solid #1a2a0a;flex-shrink:0}
+    .chat-input{
+      flex:1;font-family:'Press Start 2P',monospace;font-size:0.22rem;
+      padding:4px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
+    }
+    .chat-input:focus{border-color:#4caf50}
+    .chat-send{
+      font-family:'Press Start 2P',monospace;font-size:0.22rem;
+      padding:4px 8px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
+    }
+
+    /* ── Bottom Controls Row ── */
     .bottom-row{
-      grid-column:1/-1;
       display:flex;align-items:center;
       background:rgba(10,10,15,0.95);
-      border-top:2px solid #2a5a1a;
-      padding:6px 10px;gap:10px;
+      padding:6px 10px;gap:8px;
+      flex-shrink:0;
     }
-    .bottom-row .player-panel{
-      flex-direction:row;gap:8px;padding:4px 8px;
-      background:none;border-right:1px solid #1a2a0a;
+    /* Local player portrait (small) */
+    .local-player{
+      display:flex;align-items:center;gap:6px;
+      padding:4px 8px;
+      border-right:1px solid #2a3a1a;
+      flex-shrink:0;
     }
-    .bottom-row .player-panel .portrait-frame{width:56px;height:68px;flex-shrink:0}
-    .bottom-row .player-info{display:flex;flex-direction:column;gap:2px;justify-content:center}
+    .local-player .portrait-frame{
+      width:40px;height:48px;
+      border:2px solid var(--p1-color);border-radius:4px;
+      overflow:hidden;background:#000;flex-shrink:0;
+      box-shadow:0 0 6px var(--p1-glow);
+    }
+    .local-player .portrait-frame img{
+      width:100%;height:100%;object-fit:cover;
+      image-rendering:pixelated;display:block;
+    }
+    .local-player .player-info{display:flex;flex-direction:column;gap:2px}
+    .local-player .nft-name{font-size:0.25rem;color:var(--p1-color);white-space:nowrap}
+    .local-player .player-stack-lbl{font-size:0.22rem;color:var(--p1-color)}
 
-    .chip-tray{display:flex;gap:6px;align-items:center;padding:0 8px}
+    /* Chip tray */
+    .chip-tray{display:flex;gap:4px;align-items:center;padding:0 6px}
     .chip{
-      width:44px;height:44px;border-radius:50%;cursor:pointer;
+      width:36px;height:36px;border-radius:50%;cursor:pointer;
       border:3px solid transparent;transition:all 0.15s;
       position:relative;overflow:hidden;
       background-image:url('assets/Oldjipt/Craps/jiptchips.png');
@@ -305,10 +277,13 @@
     .chip-10-sprite{background-position:100% 0%}
     .chip-25-sprite{background-position:0% 50%}
 
-    .controls{display:flex;gap:6px;margin-left:auto;align-items:center}
+    .point-display{font-size:0.3rem;color:#ffe96a;padding:0 4px}
+
+    /* Control buttons */
+    .controls{display:flex;gap:4px;margin-left:auto;align-items:center}
     .ctrl-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.45rem;
-      padding:10px 16px;border-radius:5px;cursor:pointer;
+      font-family:'Press Start 2P',monospace;font-size:0.35rem;
+      padding:8px 12px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
     .btn-roll{
@@ -323,18 +298,36 @@
     .btn-cashout{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
     .btn-cashout:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
 
-    .point-display{font-size:0.35rem;color:#ffe96a;padding:0 6px}
-
-    .vid-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.3rem;
-      padding:5px 8px;border:2px solid #555;border-radius:4px;
+    /* Audio / PTT / Shooter cam buttons */
+    .audio-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      padding:6px 8px;border:2px solid #555;border-radius:4px;
       background:#1a1a2e;color:#ccc;cursor:pointer;white-space:nowrap;
     }
-    .vid-btn:hover{border-color:#4caf50;color:#4caf50}
-    .vid-btn.active{border-color:#4caf50;background:#1a3a1a;color:#4caf50}
-    .vid-btn.ptt{border-color:#e67e22;color:#e67e22}
-    .vid-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
+    .audio-btn:hover{border-color:#4caf50;color:#4caf50}
+    .audio-btn.active{border-color:#4caf50;background:#1a3a1a;color:#4caf50}
+    .audio-btn.ptt{border-color:#e67e22;color:#e67e22}
+    .audio-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
     @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
+    .audio-btn.cam-btn{border-color:#42a5f5;color:#42a5f5;font-size:0.2rem}
+    .audio-btn.cam-btn.active{background:#1a2a3a;border-color:#64b5f6;color:#64b5f6}
+    .btn-exit{
+      font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      padding:6px 10px;border:2px solid #e53935;border-radius:4px;
+      background:rgba(229,57,53,0.15);color:#e53935;cursor:pointer;
+    }
+    .btn-exit:hover{background:rgba(229,57,53,0.3)}
+
+    /* Shooter video overlay (small PiP on the felt) */
+    .shooter-video-pip{
+      position:absolute;bottom:4px;right:4px;
+      width:100px;height:75px;
+      border:2px solid #42a5f5;border-radius:4px;
+      background:#000;z-index:20;overflow:hidden;
+      display:none;
+    }
+    .shooter-video-pip.active{display:block}
+    .shooter-video-pip video{width:100%;height:100%;object-fit:cover}
 
     /* ── Result Toast ── */
     .result-toast{
@@ -386,9 +379,7 @@
       border-color:#64b5f6;color:#fff;
     }
     .lobby-btn.join:hover{background:linear-gradient(180deg,#64b5f6,#1e88e5)}
-    .lobby-divider{
-      font-size:0.3rem;color:#555;margin:8px 0;
-    }
+    .lobby-divider{font-size:0.3rem;color:#555;margin:8px 0}
     .lobby-invite-area{
       display:none;margin-top:12px;
       background:rgba(0,0,0,0.4);border:1px solid #333;border-radius:6px;padding:10px;
@@ -417,9 +408,7 @@
       border-radius:4px;color:#fff;cursor:pointer;
     }
     .lobby-join-go:hover{background:#1e88e5}
-    .lobby-public-list{
-      margin-top:12px;max-height:150px;overflow-y:auto;
-    }
+    .lobby-public-list{margin-top:12px;max-height:150px;overflow-y:auto}
     .lobby-table-row{
       display:flex;align-items:center;justify-content:space-between;
       padding:8px 10px;border:1px solid #333;border-radius:4px;
@@ -431,22 +420,17 @@
     .lobby-table-players{font-size:0.25rem;color:#4caf50}
 
     /* ── Responsive ── */
-    @media(max-width:900px){
-      .table-wrapper{
-        grid-template-columns:1fr;
-        grid-template-rows:auto auto minmax(300px,1fr) auto;
-      }
-      .top-row{flex-wrap:wrap}
-      .left-sidebar,.right-sidebar{
-        grid-column:1;flex-direction:row;
-        border:none;border-bottom:1px solid #2a3a1a;
-        max-height:80px;overflow-x:auto;
-      }
-      .left-sidebar .player-panel,.right-sidebar .player-panel{flex-direction:row;min-width:160px}
-      .right-sidebar .chat-box{max-height:60px;overflow:hidden}
-      .right-sidebar .chat-input-area{display:none}
-      .bottom-row{flex-wrap:wrap;justify-content:center}
-      .table-area{min-height:300px}
+    @media(max-width:600px){
+      .remote-players-row{gap:8px;padding:4px 6px}
+      .remote-slot{min-width:70px;padding:3px 5px;gap:4px}
+      .remote-slot .slot-portrait{width:28px;height:34px}
+      .remote-slot .slot-name{font-size:0.18rem;max-width:50px}
+      .remote-slot .slot-stack{font-size:0.16rem}
+      .bottom-row{flex-wrap:wrap;justify-content:center;gap:6px;padding:4px 6px}
+      .local-player .portrait-frame{width:32px;height:38px}
+      .chip{width:30px;height:30px}
+      .ctrl-btn{font-size:0.3rem;padding:6px 8px}
+      .chat-box{height:80px}
     }
   </style>
 </head>
@@ -472,19 +456,16 @@
       <button class="lobby-btn private" onclick="createPrivateTable()">CREATE PRIVATE TABLE</button>
       <button class="lobby-btn join" onclick="showJoinPrivate()">JOIN PRIVATE TABLE</button>
     </div>
-    <!-- Private table invite link (shown after creating) -->
     <div class="lobby-invite-area" id="inviteArea">
       <div class="lobby-invite-label">INVITE LINK (click to copy)</div>
       <div class="lobby-invite-link" id="inviteLink" onclick="copyInviteLink()"></div>
       <div class="lobby-copied" id="copiedMsg">Copied!</div>
       <button class="lobby-btn public" style="margin-top:10px" onclick="enterTable()">ENTER TABLE</button>
     </div>
-    <!-- Join private table input -->
     <div class="lobby-invite-area" id="joinPrivateArea">
       <input class="lobby-join-input" id="privateCodeInput" placeholder="Paste invite link or code..." />
       <button class="lobby-join-go" onclick="joinPrivateTable()">JOIN</button>
     </div>
-    <!-- Public tables list -->
     <div class="lobby-public-list" id="publicTableList"></div>
   </div>
 </div>
@@ -492,39 +473,34 @@
 <!-- ── Table Wrapper ── -->
 <div class="table-wrapper" style="display:none" id="tableWrapper">
 
-  <!-- TOP ROW: Remote Player 2 (blue) + Video Controls -->
-  <div class="top-row">
-    <div class="player-panel empty" id="panel-1" data-seat="1">
-      <div class="portrait-frame" id="frame-1">
-        <img class="chad-portrait" id="chad-1" src="" alt="" />
-      </div>
-      <div class="player-info">
-        <div class="nft-name" id="name-1">Waiting...</div>
-        <div class="player-stack-lbl" id="stack-1"></div>
+  <!-- REMOTE PLAYERS ROW: 3 small chad portraits in a row -->
+  <div class="remote-players-row">
+    <div class="remote-slot empty" id="slot-1" data-seat="1">
+      <div class="slot-portrait"><img id="chad-1" src="" alt="" /></div>
+      <div class="slot-info">
+        <div class="slot-name" id="name-1">Waiting...</div>
+        <div class="slot-stack" id="stack-1"></div>
       </div>
     </div>
-    <div class="top-row" style="flex:0;display:flex;flex-direction:column;gap:4px;justify-content:center;padding:0 8px;border:none;background:none">
-      <button class="vid-btn" id="camBtn" onclick="toggleCamera()">CAM OFF</button>
-      <button class="vid-btn ptt" id="pttBtn">HOLD TO TALK</button>
-      <button class="vid-btn" id="joinBtn" onclick="joinRoom()">JOIN TABLE</button>
-    </div>
-  </div>
-
-  <!-- LEFT SIDEBAR: Remote Player 3 (purple) + Ad Spot -->
-  <div class="left-sidebar">
-    <div class="player-panel empty" id="panel-2" data-seat="2">
-      <div class="portrait-frame" id="frame-2">
-        <img class="chad-portrait" id="chad-2" src="" alt="" />
+    <div class="remote-slot empty" id="slot-2" data-seat="2">
+      <div class="slot-portrait"><img id="chad-2" src="" alt="" /></div>
+      <div class="slot-info">
+        <div class="slot-name" id="name-2">Waiting...</div>
+        <div class="slot-stack" id="stack-2"></div>
       </div>
-      <div class="nft-name" id="name-2">Waiting...</div>
-      <div class="player-stack-lbl" id="stack-2"></div>
+    </div>
+    <div class="remote-slot empty" id="slot-3" data-seat="3">
+      <div class="slot-portrait"><img id="chad-3" src="" alt="" /></div>
+      <div class="slot-info">
+        <div class="slot-name" id="name-3">Waiting...</div>
+        <div class="slot-stack" id="stack-3"></div>
+      </div>
     </div>
   </div>
 
-  <!-- CENTER: Felt Table -->
+  <!-- FELT TABLE (takes ~75% of remaining space) -->
   <div class="table-area">
     <div class="felt-container" id="feltTable">
-
       <!-- Dealer -->
       <div class="dealer-area">
         <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
@@ -571,33 +547,27 @@
         <div class="die" id="die2"><div class="die-face" id="face2"></div></div>
       </div>
 
+      <!-- Shooter video PiP (optional, shown when shooter has cam on) -->
+      <div class="shooter-video-pip" id="shooterPip"></div>
+
     </div><!-- /felt-container -->
   </div><!-- /table-area -->
 
-  <!-- RIGHT SIDEBAR: Remote Player 4 (red) + Chat -->
-  <div class="right-sidebar">
-    <div class="player-panel empty" id="panel-3" data-seat="3">
-      <div class="portrait-frame" id="frame-3">
-        <img class="chad-portrait" id="chad-3" src="" alt="" />
-      </div>
-      <div class="nft-name" id="name-3">Waiting...</div>
-      <div class="player-stack-lbl" id="stack-3"></div>
+  <!-- CHAT BOX -->
+  <div class="chat-box">
+    <div class="chat-header">TABLE CHAT</div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg system-msg">Welcome! Up to 4 players.</div>
     </div>
-    <div class="chat-box">
-      <div class="chat-header">TABLE CHAT</div>
-      <div class="chat-messages" id="chatMessages">
-        <div class="chat-msg system-msg">Welcome! Up to 4 players.</div>
-      </div>
-      <div class="chat-input-area">
-        <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
-        <button class="chat-send" onclick="sendChat()">></button>
-      </div>
+    <div class="chat-input-area">
+      <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
+      <button class="chat-send" onclick="sendChat()">></button>
     </div>
   </div>
 
-  <!-- BOTTOM ROW: Local Player (P1, green) + Chips + Controls -->
+  <!-- BOTTOM ROW: Local Player + Chips + PTT + Controls + Exit -->
   <div class="bottom-row">
-    <div class="player-panel" id="panel-0" data-seat="0">
+    <div class="local-player" id="panel-0">
       <div class="portrait-frame" id="frame-0">
         <img class="chad-portrait" id="chad-0" src="" alt="" />
       </div>
@@ -613,10 +583,13 @@
       <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
     </div>
     <div class="point-display" id="pointDisplay"></div>
+    <button class="audio-btn ptt" id="pttBtn">HOLD TO TALK</button>
+    <button class="audio-btn cam-btn" id="camBtn" onclick="toggleCamera()">SHOOTER CAM</button>
     <div class="controls">
       <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
       <button class="ctrl-btn btn-roll" id="rollBtn" onclick="rollDice()">ROLL</button>
       <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
+      <button class="btn-exit" onclick="exitTable()">EXIT</button>
     </div>
   </div>
 
@@ -636,12 +609,12 @@ import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
 
 /* ===================================================================
    CRAPS TABLE — Last Chad
-   4-player multiplayer with Agora video/audio + chat
+   4-player multiplayer with Agora audio (PTT) + optional shooter video
    Server-side dice via Cloudflare Worker — no client-side RNG
    Players: Seat 0 = local (green, bottom)
-            Seat 1 = remote (blue, top)
-            Seat 2 = remote (purple, left)
-            Seat 3 = remote (red, right)
+            Seat 1 = remote (blue)
+            Seat 2 = remote (purple)
+            Seat 3 = remote (red)
    =================================================================== */
 
 const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
@@ -1036,11 +1009,17 @@ async function cashOut() {
   document.getElementById('rollBtn').disabled = false;
 }
 
+// ── Exit Table ──
+function exitTable() {
+  if (STATE.nonce && Object.keys(STATE.bets).length > 0) {
+    if (!confirm('You have active bets. Cash out first or lose them. Exit anyway?')) return;
+  }
+  window.location.href = 'gamble.html';
+}
+
 // ── Wallet ──
-// On load: if we have a session from gamble.html, display the player info automatically
 function connectWallet() {
   if (STATE.player) {
-    // Already have session from gamble.html — just show wallet info
     initPlayerFromSession();
   } else {
     dealerSay("Start a game from the Gamble Den first!", 'neutral');
@@ -1071,8 +1050,11 @@ function setChadPortrait(seat, chadId) {
     img.src = 'assets/chads/' + chadId + '.png';
     img.alt = 'Chad #' + chadId;
   }
-  const panel = document.getElementById('panel-' + seat);
-  if (panel) panel.classList.remove('empty');
+  // Mark remote slot as occupied
+  if (seat > 0) {
+    const slot = document.getElementById('slot-' + seat);
+    if (slot) { slot.classList.remove('empty'); slot.classList.add('occupied'); }
+  }
 }
 
 function setPlayerName(seat, nftName) {
@@ -1086,8 +1068,10 @@ function setPlayerStack(seat, stack) {
 }
 
 function clearPlayerPanel(seat) {
-  const panel = document.getElementById('panel-' + seat);
-  if (panel) panel.classList.add('empty');
+  if (seat > 0) {
+    const slot = document.getElementById('slot-' + seat);
+    if (slot) { slot.classList.add('empty'); slot.classList.remove('occupied'); }
+  }
   const img = document.getElementById('chad-' + seat);
   if (img) { img.src = ''; img.alt = ''; }
   setPlayerName(seat, 'Waiting...');
@@ -1096,7 +1080,7 @@ function clearPlayerPanel(seat) {
 }
 
 // ===================================================================
-//  AGORA — Video + Push-to-Talk Audio
+//  AGORA — Audio (PTT) + Optional Shooter Video
 // ===================================================================
 
 async function initAgora() {
@@ -1105,22 +1089,18 @@ async function initAgora() {
 
   agoraClient.on('user-published', async (user, mediaType) => {
     await agoraClient.subscribe(user, mediaType);
-    const seat = getRemoteSeat(user.uid);
-    if (mediaType === 'video' && seat !== null) {
-      const panel = document.getElementById('panel-' + seat);
-      if (panel) panel.classList.add('has-video');
-      user.videoTrack.play('frame-' + seat);
+    if (mediaType === 'video') {
+      // Show remote video in the shooter PiP on the felt
+      const pip = document.getElementById('shooterPip');
+      pip.classList.add('active');
+      user.videoTrack.play('shooterPip');
     }
     if (mediaType === 'audio') user.audioTrack.play();
   });
 
   agoraClient.on('user-unpublished', (user, mediaType) => {
     if (mediaType === 'video') {
-      const seat = findSeatByUid(user.uid);
-      if (seat !== null) {
-        const panel = document.getElementById('panel-' + seat);
-        if (panel) panel.classList.remove('has-video');
-      }
+      document.getElementById('shooterPip').classList.remove('active');
     }
   });
 
@@ -1188,21 +1168,24 @@ async function joinRoom() {
     } catch (e) { console.warn('Token fetch failed, trying without:', e); }
     await agoraClient.join(AGORA_APP_ID, channel, token, STATE.playerId);
     addChatMsg('system', `Joined room: ${channel}`);
-    document.getElementById('joinBtn').textContent = 'JOINED';
-    document.getElementById('joinBtn').classList.add('active');
   } catch (err) { addChatMsg('system', 'Join failed: ' + err.message); }
 }
 
 async function toggleCamera() {
-  if (!agoraClient) { addChatMsg('system','Join table first.'); return; }
+  if (!agoraClient) {
+    // Auto-join room first if not joined
+    await joinRoom();
+    if (!agoraClient) { addChatMsg('system','Could not join room.'); return; }
+  }
   const btn = document.getElementById('camBtn');
-  const panel = document.getElementById('panel-0');
   if (!cameraOn) {
     try {
       localVideoTrack = await AgoraRTC.createCameraVideoTrack();
       await agoraClient.publish([localVideoTrack]);
-      panel.classList.add('has-video');
-      localVideoTrack.play('frame-0');
+      // Show local video in the PiP
+      const pip = document.getElementById('shooterPip');
+      pip.classList.add('active');
+      localVideoTrack.play('shooterPip');
       cameraOn = true;
       btn.textContent = 'CAM ON'; btn.classList.add('active');
     } catch (err) {
@@ -1211,9 +1194,9 @@ async function toggleCamera() {
     }
   } else {
     if (localVideoTrack) { await agoraClient.unpublish([localVideoTrack]); localVideoTrack.close(); localVideoTrack=null; }
-    panel.classList.remove('has-video');
+    document.getElementById('shooterPip').classList.remove('active');
     cameraOn = false;
-    btn.textContent = 'CAM OFF'; btn.classList.remove('active');
+    btn.textContent = 'SHOOTER CAM'; btn.classList.remove('active');
   }
 }
 
@@ -1222,7 +1205,12 @@ async function toggleCamera() {
   const pttBtn = document.getElementById('pttBtn');
   let micDenied = false;
   async function startTalking() {
-    if (!agoraClient || pttActive || micDenied) return;
+    if (pttActive || micDenied) return;
+    // Auto-join room if not joined
+    if (!agoraClient) {
+      await joinRoom();
+      if (!agoraClient) return;
+    }
     try {
       localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
       await agoraClient.publish([localAudioTrack]);
@@ -1294,7 +1282,6 @@ function showJoinPrivate() {
 function joinPrivateTable() {
   const input = document.getElementById('privateCodeInput').value.trim();
   if (!input) return;
-  // Extract code from full URL or raw code
   if (input.includes('#')) {
     currentTableCode = input.split('#').pop();
   } else {
@@ -1314,13 +1301,13 @@ function copyInviteLink() {
 }
 
 function enterTable() {
-  // Set the hash for Agora channel
   window.location.hash = currentTableCode || 'public-main';
-  // Hide lobby, show table
   document.getElementById('tableLobby').classList.add('hidden');
   document.getElementById('tableWrapper').style.display = '';
   addChatMsg('system', `Table: ${currentTableCode}${tableIsPrivate ? ' (private)' : ' (public)'}`);
   startPresenceHeartbeat();
+  // Auto-join Agora room
+  joinRoom();
 }
 
 // Auto-join if URL has a hash (invite link)
@@ -1330,7 +1317,6 @@ function enterTable() {
     currentTableCode = hash;
     tableIsPrivate = hash.startsWith('priv-');
     enterTable();
-    // Register presence for auto-join
     fetchWithTimeout(WORKER_URL + '/tables/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1352,7 +1338,6 @@ async function refreshLobbyTables() {
       row.className = 'lobby-table-row';
       row.innerHTML = `<span class="lobby-table-name">${t.label}</span><span class="lobby-table-players">${t.players} player${t.players !== 1 ? 's' : ''}</span>`;
       list.appendChild(row);
-      // Update the join button count for public-main
       if (t.name === 'public-main') {
         const countEl = document.getElementById('lobbyPlayerCount');
         if (countEl) countEl.textContent = t.players > 0 ? `(${t.players})` : '';
@@ -1360,7 +1345,6 @@ async function refreshLobbyTables() {
     }
   } catch (_) {}
 }
-// Refresh lobby every 10s while visible
 refreshLobbyTables();
 setInterval(refreshLobbyTables, 10_000);
 
@@ -1401,11 +1385,9 @@ if (crapsSession) {
     onChainChanged: () => {},
     onAccountsChanged: () => {},
   }).then(() => {
-    // If autoReconnect didn't fire onConnected, still show session info
     if (STATE.chadId) initPlayerFromSession();
   });
 } else {
-  // No session — show warning
   dealerSay("No active session. Return to the Gamble Den to buy in.", 'sad');
   document.getElementById('rollBtn').disabled = true;
 }
@@ -1426,6 +1408,7 @@ window.showJoinPrivate = showJoinPrivate;
 window.joinPrivateTable = joinPrivateTable;
 window.copyInviteLink = copyInviteLink;
 window.enterTable = enterTable;
+window.exitTable = exitTable;
 </script>
 </body>
 </html>
