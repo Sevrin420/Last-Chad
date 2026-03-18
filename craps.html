@@ -7,9 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
-  <!-- Ethers.js for on-chain interaction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <!-- Agora Web SDK 4.x (audio only + optional shooter video) -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -20,16 +18,11 @@
       color:#ffe96a;
     }
 
-    /* ── Player Colors ── */
     :root{
-      --p1-color:#4caf50;  /* green — local player (you) */
-      --p2-color:#42a5f5;  /* blue — remote 1 */
-      --p3-color:#ab47bc;  /* purple — remote 2 */
-      --p4-color:#ef5350;  /* red — remote 3 */
-      --p1-glow:rgba(76,175,80,0.5);
-      --p2-glow:rgba(66,165,245,0.5);
-      --p3-glow:rgba(171,71,188,0.5);
-      --p4-glow:rgba(239,83,80,0.5);
+      --p1-color:#4caf50;--p2-color:#42a5f5;--p3-color:#ab47bc;--p4-color:#ef5350;
+      --p1-glow:rgba(76,175,80,0.5);--p2-glow:rgba(66,165,245,0.5);
+      --p3-glow:rgba(171,71,188,0.5);--p4-glow:rgba(239,83,80,0.5);
+      --felt:#1a6b1a;--felt-dark:#145214;--felt-border:#c9a84c;
     }
 
     /* ── Header ── */
@@ -39,8 +32,7 @@
       padding:6px 14px;
       background:rgba(10,10,15,0.95);
       border-bottom:2px solid #2a5a1a;
-      backdrop-filter:blur(8px);
-      height:40px;
+      backdrop-filter:blur(8px);height:40px;
     }
     .header-left{display:flex;align-items:center;gap:10px}
     .header-title{font-size:0.5rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4)}
@@ -54,32 +46,84 @@
     .wallet-btn:hover{background:linear-gradient(180deg,#dabb5e 0%,#a07d1e 100%)}
     .nav-wrapper{position:static}
 
-    /* ── Main Layout: Vertical Stack ── */
+    /* ── Main Layout ── */
     .table-wrapper{
       width:100%;height:calc(100vh - 40px);
       margin-top:40px;
       display:flex;flex-direction:column;
     }
 
-    /* ── Remote Players Row (top bar) ── */
-    .remote-players-row{
-      display:flex;justify-content:center;align-items:center;
-      gap:20px;padding:6px 10px;
-      background:rgba(10,10,15,0.95);
-      border-bottom:2px solid #2a3a1a;
+    /* ── Felt Table Area ── */
+    .table-area{
+      flex:1;position:relative;overflow:hidden;
+      display:flex;flex-direction:column;
+      min-height:0;
+    }
+    .felt-container{
+      flex:1;position:relative;
+      background:var(--felt);
+      border:4px solid var(--felt-border);
+      border-radius:12px;
+      margin:4px;
+      overflow:hidden;
+      box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
+    }
+    /* Subtle felt texture */
+    .felt-container::before{
+      content:'';position:absolute;inset:0;
+      background:repeating-linear-gradient(
+        45deg,
+        transparent,transparent 2px,
+        rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px
+      );
+      pointer-events:none;z-index:0;
+    }
+
+    /* ── Dealer + Remote Players Row (on the felt) ── */
+    .dealer-row{
+      position:relative;z-index:15;
+      display:flex;align-items:flex-start;
+      padding:6px 8px;gap:6px;
+      border-bottom:2px solid rgba(201,168,76,0.3);
+      background:rgba(0,0,0,0.15);
       flex-shrink:0;
     }
+    /* Dealer */
+    .dealer-slot{
+      display:flex;align-items:flex-start;gap:6px;
+      flex-shrink:0;min-width:0;
+    }
+    .dealer-portrait{
+      width:48px;height:58px;image-rendering:pixelated;
+      border:2px solid #5c4409;border-radius:4px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.6);
+      flex-shrink:0;
+    }
+    .dealer-speech{
+      max-width:200px;min-width:100px;
+      background:rgba(0,0,0,0.8);
+      border:2px solid #5c4409;border-radius:6px;
+      padding:5px 7px;font-size:0.22rem;color:#f5e6c8;line-height:1.5;
+      position:relative;flex-shrink:1;
+    }
+    .dealer-speech::before{
+      content:'';position:absolute;left:-7px;top:14px;
+      border:5px solid transparent;border-right-color:#5c4409;
+    }
+    /* Spacer pushes remote players to the right */
+    .dealer-row-spacer{flex:1}
+    /* Remote player slots */
     .remote-slot{
-      display:flex;align-items:center;gap:6px;
-      padding:4px 8px;border-radius:6px;
-      background:rgba(0,0,0,0.3);
+      display:flex;align-items:center;gap:4px;
+      padding:3px 6px;border-radius:4px;
+      background:rgba(0,0,0,0.25);
       border:2px solid #333;
-      min-width:100px;
+      flex-shrink:0;
     }
     .remote-slot.occupied{border-color:var(--slot-color,#555)}
     .remote-slot .slot-portrait{
-      width:36px;height:44px;
-      border:2px solid var(--slot-color,#555);border-radius:4px;
+      width:30px;height:36px;
+      border:2px solid var(--slot-color,#555);border-radius:3px;
       overflow:hidden;background:#111;flex-shrink:0;
       box-shadow:0 0 6px var(--slot-glow,transparent);
     }
@@ -88,49 +132,118 @@
       image-rendering:pixelated;display:block;
     }
     .remote-slot.empty .slot-portrait{opacity:0.3;border-color:#333}
-    .remote-slot .slot-info{display:flex;flex-direction:column;gap:2px}
     .remote-slot .slot-name{
-      font-size:0.22rem;color:var(--slot-color,#555);
-      max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      font-size:0.18rem;color:var(--slot-color,#555);
+      max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     }
-    .remote-slot .slot-stack{font-size:0.2rem;color:#8a8a6a}
+    .remote-slot .slot-stack{font-size:0.15rem;color:#8a8a6a}
     .remote-slot.empty .slot-name{color:#555}
-
-    /* Seat-specific colors */
     .remote-slot[data-seat="1"]{--slot-color:var(--p2-color);--slot-glow:var(--p2-glow)}
     .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
     .remote-slot[data-seat="3"]{--slot-color:var(--p4-color);--slot-glow:var(--p4-glow)}
 
-    /* ── Felt Table Area (fills ~75% of remaining space) ── */
-    .table-area{
-      flex:3;position:relative;overflow:hidden;
-      display:flex;flex-direction:column;
-      min-height:0;
-    }
-    .felt-container{
-      flex:1;position:relative;
-      background:url('assets/Oldjipt/Craps/felt.png') center/contain no-repeat;
-      background-color:#1a5a1a;
-    }
-
-    /* Puck */
-    .puck{position:absolute;width:36px;height:36px;top:8%;right:12%;z-index:10}
+    /* ── Puck ── */
+    .puck{position:absolute;width:32px;height:32px;top:6px;right:10px;z-index:20}
     .puck img{width:100%;height:100%;object-fit:contain}
 
-    /* Dice on table — clickable */
+    /* ── CSS Craps Felt Layout ── */
+    .bet-grid{
+      position:absolute;
+      top:0;left:0;right:0;bottom:0;
+      display:grid;
+      /* Columns: place bets across top, then pass/field/hardways stacked below */
+      grid-template-columns:repeat(6,1fr);
+      grid-template-rows:auto 1fr 1fr 1fr;
+      gap:3px;
+      padding:4px;
+      z-index:5;
+    }
+    /* Reserve top row for dealer row (handled by .dealer-row above it in DOM) */
+
+    .bet-zone{
+      border:2px solid var(--felt-border);
+      border-radius:4px;cursor:pointer;
+      transition:all 0.15s;
+      position:relative;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      text-align:center;
+      background:var(--felt-dark);
+      min-height:0;
+    }
+    .bet-zone:hover{
+      border-color:#ffe96a;
+      background:rgba(255,233,106,0.1);
+      box-shadow:inset 0 0 12px rgba(255,233,106,0.15);
+    }
+    .bet-zone .zone-label{
+      font-size:0.35rem;color:#ffe96a;
+      text-shadow:1px 1px 2px rgba(0,0,0,0.8);
+      line-height:1.3;
+    }
+    .bet-zone .zone-payout{
+      font-size:0.2rem;color:rgba(255,233,106,0.6);
+      margin-top:2px;
+    }
+
+    /* Place bets: top row, each takes 1 column */
+    .bet-place4{grid-column:1;grid-row:1}
+    .bet-place5{grid-column:2;grid-row:1}
+    .bet-place6{grid-column:3;grid-row:1}
+    .bet-place8{grid-column:4;grid-row:1}
+    .bet-place9{grid-column:5;grid-row:1}
+    .bet-place10{grid-column:6;grid-row:1}
+
+    /* Pass Line: full width, second row */
+    .bet-pass{grid-column:1/-1;grid-row:2}
+
+    /* Field: full width, third row */
+    .bet-field{grid-column:1/-1;grid-row:3}
+
+    /* Hardways: full width, fourth row */
+    .bet-hardways{grid-column:1/-1;grid-row:4}
+
+    /* Win/lose flash */
+    .bet-zone.win-flash{animation:zone-win 0.5s ease 3;border-color:#4caf50;background:rgba(76,175,80,0.2)}
+    .bet-zone.lose-flash{animation:zone-lose 0.5s ease 3;border-color:#e53935;background:rgba(229,57,53,0.2)}
+    @keyframes zone-win{0%,100%{box-shadow:none}50%{box-shadow:inset 0 0 20px rgba(76,175,80,0.5)}}
+    @keyframes zone-lose{0%,100%{box-shadow:none}50%{box-shadow:inset 0 0 20px rgba(229,57,53,0.5)}}
+
+    /* ── Bet chips on felt ── */
+    .bet-chips-container{
+      position:absolute;inset:0;pointer-events:none;
+    }
+    .bet-chip-token{
+      position:absolute;
+      width:26px;height:26px;border-radius:50%;
+      font-size:0.16rem;display:flex;align-items:center;justify-content:center;
+      color:#fff;font-family:'Press Start 2P',monospace;
+      box-shadow:1px 2px 5px rgba(0,0,0,0.6);
+      border:3px solid;
+    }
+    .bet-chip-token.p0{background:#1a1a1a;border-color:var(--p1-color);color:var(--p1-color)}
+    .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
+    .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
+    .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
+    .bet-chip-token.pos-0{bottom:4px;left:8px}
+    .bet-chip-token.pos-1{bottom:4px;right:8px}
+    .bet-chip-token.pos-2{top:4px;left:8px}
+    .bet-chip-token.pos-3{top:4px;right:8px}
+
+    /* ── Dice on felt — clickable ── */
     .table-dice{
-      position:absolute;bottom:18%;left:50%;transform:translateX(-50%);
-      display:flex;gap:14px;z-index:10;
+      position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+      display:flex;gap:14px;z-index:15;
       cursor:pointer;
     }
     .table-dice.can-roll{
       filter:drop-shadow(0 0 12px rgba(255,233,106,0.7));
       animation:dice-pulse 1.2s ease-in-out infinite;
     }
-    .table-dice.locked{cursor:not-allowed;opacity:0.6}
+    .table-dice.locked{cursor:not-allowed;opacity:0.5}
     @keyframes dice-pulse{0%,100%{filter:drop-shadow(0 0 8px rgba(255,233,106,0.4))}50%{filter:drop-shadow(0 0 18px rgba(255,233,106,0.9))}}
     .die{
-      width:52px;height:52px;background:#fff;border-radius:7px;
+      width:48px;height:48px;background:#fff;border-radius:6px;
       border:3px solid #c00;
       display:flex;align-items:center;justify-content:center;
       box-shadow:2px 3px 8px rgba(0,0,0,0.5);
@@ -144,11 +257,19 @@
       75%{transform:rotate(270deg) scale(1.1)}
       100%{transform:rotate(360deg) scale(1)}
     }
+    .die-face{
+      width:100%;height:100%;display:grid;
+      grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:4px;
+    }
+    .pip{
+      width:8px;height:8px;background:#c00;border-radius:50%;
+      align-self:center;justify-self:center;display:none;
+    }
 
-    /* Roll prompt message */
+    /* Roll prompt */
     .roll-prompt{
-      position:absolute;bottom:8%;left:50%;transform:translateX(-50%);
-      z-index:20;font-size:0.35rem;color:#ffe96a;
+      position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
+      z-index:20;font-size:0.3rem;color:#ffe96a;
       text-shadow:0 0 8px rgba(255,233,106,0.6);
       animation:prompt-blink 1.5s ease-in-out infinite;
       white-space:nowrap;pointer-events:none;
@@ -160,96 +281,39 @@
       position:absolute;bottom:0;left:0;right:0;height:4px;z-index:25;
       background:rgba(0,0,0,0.5);
     }
-    .timer-bar-fill{
-      height:100%;background:#ffe96a;
-      transition:width 0.1s linear;
-    }
+    .timer-bar-fill{height:100%;background:#ffe96a;transition:width 0.1s linear}
     .timer-bar-fill.urgent{background:#e53935}
     .timer-label{
       position:absolute;bottom:6px;right:8px;z-index:26;
-      font-size:0.25rem;color:#ffe96a;pointer-events:none;
+      font-size:0.22rem;color:#ffe96a;pointer-events:none;
     }
-    .timer-label.no-more-bets{color:#e53935;font-size:0.4rem;left:50%;right:auto;transform:translateX(-50%);bottom:10px;text-shadow:0 0 10px rgba(229,57,53,0.6)}
-    .die-face{
-      width:100%;height:100%;display:grid;
-      grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:5px;
-    }
-    .pip{
-      width:9px;height:9px;background:#c00;border-radius:50%;
-      align-self:center;justify-self:center;display:none;
+    .timer-label.no-more-bets{
+      color:#e53935;font-size:0.35rem;
+      left:50%;right:auto;transform:translateX(-50%);
+      bottom:10px;text-shadow:0 0 10px rgba(229,57,53,0.6);
     }
 
-    /* Dealer */
-    .dealer-area{
-      position:absolute;top:4px;left:50%;transform:translateX(-50%);
-      display:flex;align-items:flex-start;gap:6px;z-index:15;
+    /* Shooter video PiP */
+    .shooter-video-pip{
+      position:absolute;bottom:4px;right:4px;
+      width:100px;height:75px;
+      border:2px solid #42a5f5;border-radius:4px;
+      background:#000;z-index:20;overflow:hidden;display:none;
     }
-    .dealer-portrait{
-      width:64px;height:76px;image-rendering:pixelated;
-      border:2px solid #5c4409;border-radius:4px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.6);
-    }
-    .dealer-speech{
-      max-width:180px;background:rgba(0,0,0,0.85);
-      border:2px solid #5c4409;border-radius:6px;
-      padding:6px 8px;font-size:0.3rem;color:#f5e6c8;line-height:1.6;position:relative;
-    }
-    .dealer-speech::before{
-      content:'';position:absolute;left:-7px;top:16px;
-      border:5px solid transparent;border-right-color:#5c4409;
-    }
+    .shooter-video-pip.active{display:block}
+    .shooter-video-pip video{width:100%;height:100%;object-fit:cover}
 
-    /* ── Bet Zones ── */
-    .bet-zone{
-      position:absolute;border:2px solid transparent;border-radius:4px;
-      cursor:pointer;transition:all 0.2s;z-index:5;
-    }
-    .bet-zone:hover{border-color:rgba(255,233,106,0.5);background:rgba(255,233,106,0.08)}
-    .bet-pass{bottom:2%;left:5%;width:90%;height:12%}
-    .bet-field{bottom:16%;left:5%;width:60%;height:10%}
-    .bet-place4{top:10%;left:5%;width:12%;height:18%}
-    .bet-place5{top:10%;left:18%;width:12%;height:18%}
-    .bet-place6{top:10%;left:31%;width:12%;height:18%}
-    .bet-place8{top:10%;left:44%;width:12%;height:18%}
-    .bet-place9{top:10%;left:57%;width:12%;height:18%}
-    .bet-place10{top:10%;left:70%;width:12%;height:18%}
-    .bet-hardways{top:32%;left:20%;width:45%;height:14%}
-
-    /* Bet chips on felt — each player positioned differently */
-    .bet-chips-container{
-      position:absolute;inset:0;pointer-events:none;
-    }
-    .bet-chip-token{
-      position:absolute;
-      width:24px;height:24px;border-radius:50%;
-      font-size:0.16rem;display:flex;align-items:center;justify-content:center;
-      color:#fff;font-family:'Press Start 2P',monospace;
-      box-shadow:1px 2px 5px rgba(0,0,0,0.6);
-      border:3px solid;
-    }
-    /* Each player's chip has their color as the ring and a dark center */
-    .bet-chip-token.p0{background:#1a1a1a;border-color:var(--p1-color);color:var(--p1-color)}
-    .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
-    .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
-    .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
-    /* Player chip positions within each zone: corners/edges */
-    .bet-chip-token.pos-0{bottom:4px;left:6px}   /* bottom-left */
-    .bet-chip-token.pos-1{bottom:4px;right:6px}  /* bottom-right */
-    .bet-chip-token.pos-2{top:4px;left:6px}      /* top-left */
-    .bet-chip-token.pos-3{top:4px;right:6px}     /* top-right */
-
-    /* ── Chat Box (below table) ── */
+    /* ── Chat Box ── */
     .chat-box{
-      flex-shrink:0;
-      height:100px;
+      flex-shrink:0;height:90px;
       display:flex;flex-direction:column;
       background:rgba(10,10,15,0.95);
       border-top:2px solid #2a3a1a;
       border-bottom:2px solid #2a3a1a;
     }
-    .chat-header{padding:4px 8px;font-size:0.3rem;color:#4caf50;border-bottom:1px solid #1a2a0a;flex-shrink:0}
-    .chat-messages{flex:1;overflow-y:auto;padding:4px 6px;display:flex;flex-direction:column;gap:2px}
-    .chat-msg{font-size:0.22rem;line-height:1.4;padding:2px 4px;border-radius:3px;background:rgba(0,0,0,0.3)}
+    .chat-header{padding:3px 8px;font-size:0.25rem;color:#4caf50;border-bottom:1px solid #1a2a0a;flex-shrink:0}
+    .chat-messages{flex:1;overflow-y:auto;padding:3px 6px;display:flex;flex-direction:column;gap:2px}
+    .chat-msg{font-size:0.2rem;line-height:1.3;padding:2px 4px;border-radius:3px;background:rgba(0,0,0,0.3)}
     .chat-msg .msg-name{font-weight:bold}
     .chat-msg .msg-text{color:#ccc}
     .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
@@ -260,33 +324,30 @@
     .chat-msg .msg-name.p1{color:var(--p2-color)}
     .chat-msg .msg-name.p2{color:var(--p3-color)}
     .chat-msg .msg-name.p3{color:var(--p4-color)}
-    .chat-input-area{display:flex;gap:3px;padding:4px 6px;border-top:1px solid #1a2a0a;flex-shrink:0}
+    .chat-input-area{display:flex;gap:3px;padding:3px 6px;border-top:1px solid #1a2a0a;flex-shrink:0}
     .chat-input{
-      flex:1;font-family:'Press Start 2P',monospace;font-size:0.22rem;
-      padding:4px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
+      flex:1;font-family:'Press Start 2P',monospace;font-size:0.2rem;
+      padding:3px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
     }
     .chat-input:focus{border-color:#4caf50}
     .chat-send{
-      font-family:'Press Start 2P',monospace;font-size:0.22rem;
-      padding:4px 8px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
+      font-family:'Press Start 2P',monospace;font-size:0.2rem;
+      padding:3px 6px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
     }
 
     /* ── Bottom Controls Row ── */
     .bottom-row{
       display:flex;align-items:center;
       background:rgba(10,10,15,0.95);
-      padding:6px 10px;gap:8px;
+      padding:5px 10px;gap:6px;
       flex-shrink:0;
     }
-    /* Local player portrait (small) */
     .local-player{
-      display:flex;align-items:center;gap:6px;
-      padding:4px 8px;
-      border-right:1px solid #2a3a1a;
-      flex-shrink:0;
+      display:flex;align-items:center;gap:5px;
+      padding:3px 6px;border-right:1px solid #2a3a1a;flex-shrink:0;
     }
     .local-player .portrait-frame{
-      width:40px;height:48px;
+      width:36px;height:44px;
       border:2px solid var(--p1-color);border-radius:4px;
       overflow:hidden;background:#000;flex-shrink:0;
       box-shadow:0 0 6px var(--p1-glow);
@@ -296,13 +357,12 @@
       image-rendering:pixelated;display:block;
     }
     .local-player .player-info{display:flex;flex-direction:column;gap:2px}
-    .local-player .nft-name{font-size:0.25rem;color:var(--p1-color);white-space:nowrap}
-    .local-player .player-stack-lbl{font-size:0.22rem;color:var(--p1-color)}
+    .local-player .nft-name{font-size:0.22rem;color:var(--p1-color);white-space:nowrap}
+    .local-player .player-stack-lbl{font-size:0.2rem;color:var(--p1-color)}
 
-    /* Chip tray */
-    .chip-tray{display:flex;gap:4px;align-items:center;padding:0 6px}
+    .chip-tray{display:flex;gap:4px;align-items:center;padding:0 4px}
     .chip{
-      width:36px;height:36px;border-radius:50%;cursor:pointer;
+      width:34px;height:34px;border-radius:50%;cursor:pointer;
       border:3px solid transparent;transition:all 0.15s;
       position:relative;overflow:hidden;
       background-image:url('assets/Oldjipt/Craps/jiptchips.png');
@@ -315,13 +375,12 @@
     .chip-10-sprite{background-position:100% 0%}
     .chip-25-sprite{background-position:0% 50%}
 
-    .point-display{font-size:0.3rem;color:#ffe96a;padding:0 4px}
+    .point-display{font-size:0.28rem;color:#ffe96a;padding:0 4px}
 
-    /* Control buttons */
     .controls{display:flex;gap:4px;margin-left:auto;align-items:center}
     .ctrl-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.35rem;
-      padding:8px 12px;border-radius:5px;cursor:pointer;
+      font-family:'Press Start 2P',monospace;font-size:0.3rem;
+      padding:7px 10px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
     .btn-clear{background:linear-gradient(180deg,#e53935,#b71c1c);border-color:#ef5350;color:#fff}
@@ -329,10 +388,9 @@
     .btn-cashout{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
     .btn-cashout:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
 
-    /* Audio / PTT / Shooter cam buttons */
     .audio-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.25rem;
-      padding:6px 8px;border:2px solid #555;border-radius:4px;
+      font-family:'Press Start 2P',monospace;font-size:0.22rem;
+      padding:5px 7px;border:2px solid #555;border-radius:4px;
       background:#1a1a2e;color:#ccc;cursor:pointer;white-space:nowrap;
     }
     .audio-btn:hover{border-color:#4caf50;color:#4caf50}
@@ -340,25 +398,14 @@
     .audio-btn.ptt{border-color:#e67e22;color:#e67e22}
     .audio-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
     @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
-    .audio-btn.cam-btn{border-color:#42a5f5;color:#42a5f5;font-size:0.2rem}
+    .audio-btn.cam-btn{border-color:#42a5f5;color:#42a5f5;font-size:0.18rem}
     .audio-btn.cam-btn.active{background:#1a2a3a;border-color:#64b5f6;color:#64b5f6}
     .btn-exit{
-      font-family:'Press Start 2P',monospace;font-size:0.25rem;
-      padding:6px 10px;border:2px solid #e53935;border-radius:4px;
+      font-family:'Press Start 2P',monospace;font-size:0.22rem;
+      padding:5px 8px;border:2px solid #e53935;border-radius:4px;
       background:rgba(229,57,53,0.15);color:#e53935;cursor:pointer;
     }
     .btn-exit:hover{background:rgba(229,57,53,0.3)}
-
-    /* Shooter video overlay (small PiP on the felt) */
-    .shooter-video-pip{
-      position:absolute;bottom:4px;right:4px;
-      width:100px;height:75px;
-      border:2px solid #42a5f5;border-radius:4px;
-      background:#000;z-index:20;overflow:hidden;
-      display:none;
-    }
-    .shooter-video-pip.active{display:block}
-    .shooter-video-pip video{width:100%;height:100%;object-fit:cover}
 
     /* ── Result Toast ── */
     .result-toast{
@@ -381,13 +428,9 @@
     .lobby-box{
       background:linear-gradient(180deg,#1e1608,#0a0a0f);
       border:2px solid #5c4409;border-radius:10px;
-      padding:28px 32px;max-width:500px;width:90%;
-      text-align:center;
+      padding:28px 32px;max-width:500px;width:90%;text-align:center;
     }
-    .lobby-title{
-      font-size:0.7rem;color:#4caf50;margin-bottom:16px;
-      text-shadow:0 0 12px rgba(76,175,80,0.4);
-    }
+    .lobby-title{font-size:0.7rem;color:#4caf50;margin-bottom:16px;text-shadow:0 0 12px rgba(76,175,80,0.4)}
     .lobby-subtitle{font-size:0.35rem;color:#8a7a5a;margin-bottom:20px;line-height:1.8}
     .lobby-btns{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
     .lobby-btn{
@@ -395,33 +438,20 @@
       padding:14px 20px;border-radius:6px;cursor:pointer;
       border:2px solid;transition:all 0.2s;text-align:center;
     }
-    .lobby-btn.public{
-      background:linear-gradient(180deg,#4caf50,#2e7d32);
-      border-color:#66bb6a;color:#fff;
-    }
+    .lobby-btn.public{background:linear-gradient(180deg,#4caf50,#2e7d32);border-color:#66bb6a;color:#fff}
     .lobby-btn.public:hover{background:linear-gradient(180deg,#66bb6a,#388e3c)}
-    .lobby-btn.private{
-      background:linear-gradient(180deg,#c9a84c,#8b6914);
-      border-color:#d4a017;color:#1a1005;
-    }
+    .lobby-btn.private{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
     .lobby-btn.private:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
-    .lobby-btn.join{
-      background:linear-gradient(180deg,#42a5f5,#1565c0);
-      border-color:#64b5f6;color:#fff;
-    }
+    .lobby-btn.join{background:linear-gradient(180deg,#42a5f5,#1565c0);border-color:#64b5f6;color:#fff}
     .lobby-btn.join:hover{background:linear-gradient(180deg,#64b5f6,#1e88e5)}
     .lobby-divider{font-size:0.3rem;color:#555;margin:8px 0}
-    .lobby-invite-area{
-      display:none;margin-top:12px;
-      background:rgba(0,0,0,0.4);border:1px solid #333;border-radius:6px;padding:10px;
-    }
+    .lobby-invite-area{display:none;margin-top:12px;background:rgba(0,0,0,0.4);border:1px solid #333;border-radius:6px;padding:10px}
     .lobby-invite-area.show{display:block}
     .lobby-invite-label{font-size:0.3rem;color:#4caf50;margin-bottom:6px}
     .lobby-invite-link{
       font-family:'Press Start 2P',monospace;font-size:0.25rem;
       width:100%;padding:8px;background:#111;border:1px solid #4caf50;
-      border-radius:4px;color:#4caf50;text-align:center;
-      cursor:pointer;word-break:break-all;
+      border-radius:4px;color:#4caf50;text-align:center;cursor:pointer;word-break:break-all;
     }
     .lobby-invite-link:hover{background:#1a2a1a}
     .lobby-copied{font-size:0.25rem;color:#ffe96a;margin-top:4px;opacity:0;transition:opacity 0.3s}
@@ -435,16 +465,14 @@
     .lobby-join-go{
       font-family:'Press Start 2P',monospace;font-size:0.3rem;
       padding:8px 16px;margin-top:6px;
-      background:#1565c0;border:1px solid #42a5f5;
-      border-radius:4px;color:#fff;cursor:pointer;
+      background:#1565c0;border:1px solid #42a5f5;border-radius:4px;color:#fff;cursor:pointer;
     }
     .lobby-join-go:hover{background:#1e88e5}
     .lobby-public-list{margin-top:12px;max-height:150px;overflow-y:auto}
     .lobby-table-row{
       display:flex;align-items:center;justify-content:space-between;
       padding:8px 10px;border:1px solid #333;border-radius:4px;
-      margin-bottom:4px;background:rgba(0,0,0,0.3);cursor:pointer;
-      transition:all 0.2s;
+      margin-bottom:4px;background:rgba(0,0,0,0.3);cursor:pointer;transition:all 0.2s;
     }
     .lobby-table-row:hover{border-color:#4caf50;background:rgba(76,175,80,0.08)}
     .lobby-table-name{font-size:0.3rem;color:#ccc}
@@ -452,16 +480,17 @@
 
     /* ── Responsive ── */
     @media(max-width:600px){
-      .remote-players-row{gap:8px;padding:4px 6px}
-      .remote-slot{min-width:70px;padding:3px 5px;gap:4px}
-      .remote-slot .slot-portrait{width:28px;height:34px}
-      .remote-slot .slot-name{font-size:0.18rem;max-width:50px}
-      .remote-slot .slot-stack{font-size:0.16rem}
-      .bottom-row{flex-wrap:wrap;justify-content:center;gap:6px;padding:4px 6px}
-      .local-player .portrait-frame{width:32px;height:38px}
-      .chip{width:30px;height:30px}
-      .ctrl-btn{font-size:0.3rem;padding:6px 8px}
-      .chat-box{height:80px}
+      .dealer-row{flex-wrap:wrap;gap:4px}
+      .dealer-speech{max-width:140px;font-size:0.18rem}
+      .remote-slot .slot-portrait{width:24px;height:28px}
+      .remote-slot .slot-name{font-size:0.14rem;max-width:40px}
+      .bet-zone .zone-label{font-size:0.25rem}
+      .bet-zone .zone-payout{font-size:0.15rem}
+      .bottom-row{flex-wrap:wrap;justify-content:center;gap:4px;padding:4px 6px}
+      .local-player .portrait-frame{width:30px;height:36px}
+      .chip{width:28px;height:28px}
+      .ctrl-btn{font-size:0.25rem;padding:5px 7px}
+      .chat-box{height:70px}
     }
   </style>
 </head>
@@ -504,38 +533,29 @@
 <!-- ── Table Wrapper ── -->
 <div class="table-wrapper" style="display:none" id="tableWrapper">
 
-  <!-- REMOTE PLAYERS ROW: 3 small chad portraits in a row -->
-  <div class="remote-players-row">
-    <div class="remote-slot empty" id="slot-1" data-seat="1">
-      <div class="slot-portrait"><img id="chad-1" src="" alt="" /></div>
-      <div class="slot-info">
-        <div class="slot-name" id="name-1">Waiting...</div>
-        <div class="slot-stack" id="stack-1"></div>
-      </div>
-    </div>
-    <div class="remote-slot empty" id="slot-2" data-seat="2">
-      <div class="slot-portrait"><img id="chad-2" src="" alt="" /></div>
-      <div class="slot-info">
-        <div class="slot-name" id="name-2">Waiting...</div>
-        <div class="slot-stack" id="stack-2"></div>
-      </div>
-    </div>
-    <div class="remote-slot empty" id="slot-3" data-seat="3">
-      <div class="slot-portrait"><img id="chad-3" src="" alt="" /></div>
-      <div class="slot-info">
-        <div class="slot-name" id="name-3">Waiting...</div>
-        <div class="slot-stack" id="stack-3"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FELT TABLE (takes ~75% of remaining space) -->
+  <!-- FELT TABLE -->
   <div class="table-area">
     <div class="felt-container" id="feltTable">
-      <!-- Dealer -->
-      <div class="dealer-area">
-        <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
-        <div class="dealer-speech" id="dealerSpeech">Place your bets! New shooter coming out.</div>
+
+      <!-- Dealer + Remote Players Row (on the felt, top) -->
+      <div class="dealer-row">
+        <div class="dealer-slot">
+          <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
+          <div class="dealer-speech" id="dealerSpeech">Place your bets!</div>
+        </div>
+        <div class="dealer-row-spacer"></div>
+        <div class="remote-slot empty" id="slot-1" data-seat="1">
+          <div class="slot-portrait"><img id="chad-1" src="" alt="" /></div>
+          <div class="slot-name" id="name-1">---</div>
+        </div>
+        <div class="remote-slot empty" id="slot-2" data-seat="2">
+          <div class="slot-portrait"><img id="chad-2" src="" alt="" /></div>
+          <div class="slot-name" id="name-2">---</div>
+        </div>
+        <div class="remote-slot empty" id="slot-3" data-seat="3">
+          <div class="slot-portrait"><img id="chad-3" src="" alt="" /></div>
+          <div class="slot-name" id="name-3">---</div>
+        </div>
       </div>
 
       <!-- Puck -->
@@ -543,36 +563,63 @@
         <img src="assets/Oldjipt/Craps/jiptoff.png" alt="OFF" id="puckImg" />
       </div>
 
-      <!-- Bet Zones -->
-      <div class="bet-zone bet-pass" data-bet="pass" onclick="placeBet('pass')">
-        <div class="bet-chips-container" id="chips-pass"></div>
-      </div>
-      <div class="bet-zone bet-field" data-bet="field" onclick="placeBet('field')">
-        <div class="bet-chips-container" id="chips-field"></div>
-      </div>
-      <div class="bet-zone bet-place4" data-bet="place4" onclick="placeBet('place4')">
-        <div class="bet-chips-container" id="chips-place4"></div>
-      </div>
-      <div class="bet-zone bet-place5" data-bet="place5" onclick="placeBet('place5')">
-        <div class="bet-chips-container" id="chips-place5"></div>
-      </div>
-      <div class="bet-zone bet-place6" data-bet="place6" onclick="placeBet('place6')">
-        <div class="bet-chips-container" id="chips-place6"></div>
-      </div>
-      <div class="bet-zone bet-place8" data-bet="place8" onclick="placeBet('place8')">
-        <div class="bet-chips-container" id="chips-place8"></div>
-      </div>
-      <div class="bet-zone bet-place9" data-bet="place9" onclick="placeBet('place9')">
-        <div class="bet-chips-container" id="chips-place9"></div>
-      </div>
-      <div class="bet-zone bet-place10" data-bet="place10" onclick="placeBet('place10')">
-        <div class="bet-chips-container" id="chips-place10"></div>
-      </div>
-      <div class="bet-zone bet-hardways" data-bet="hardways" onclick="placeBet('hardways')">
-        <div class="bet-chips-container" id="chips-hardways"></div>
-      </div>
+      <!-- CSS Craps Bet Grid -->
+      <div class="bet-grid">
+        <!-- Row 1: Place Bets -->
+        <div class="bet-zone bet-place4" data-bet="place4" onclick="placeBet('place4')">
+          <div class="zone-label">PLACE<br>4</div>
+          <div class="zone-payout">9:5</div>
+          <div class="bet-chips-container" id="chips-place4"></div>
+        </div>
+        <div class="bet-zone bet-place5" data-bet="place5" onclick="placeBet('place5')">
+          <div class="zone-label">PLACE<br>5</div>
+          <div class="zone-payout">7:5</div>
+          <div class="bet-chips-container" id="chips-place5"></div>
+        </div>
+        <div class="bet-zone bet-place6" data-bet="place6" onclick="placeBet('place6')">
+          <div class="zone-label">PLACE<br>6</div>
+          <div class="zone-payout">7:6</div>
+          <div class="bet-chips-container" id="chips-place6"></div>
+        </div>
+        <div class="bet-zone bet-place8" data-bet="place8" onclick="placeBet('place8')">
+          <div class="zone-label">PLACE<br>8</div>
+          <div class="zone-payout">7:6</div>
+          <div class="bet-chips-container" id="chips-place8"></div>
+        </div>
+        <div class="bet-zone bet-place9" data-bet="place9" onclick="placeBet('place9')">
+          <div class="zone-label">PLACE<br>9</div>
+          <div class="zone-payout">7:5</div>
+          <div class="bet-chips-container" id="chips-place9"></div>
+        </div>
+        <div class="bet-zone bet-place10" data-bet="place10" onclick="placeBet('place10')">
+          <div class="zone-label">PLACE<br>10</div>
+          <div class="zone-payout">9:5</div>
+          <div class="bet-chips-container" id="chips-place10"></div>
+        </div>
 
-      <!-- Dice (clickable to roll) -->
+        <!-- Row 2: Pass Line -->
+        <div class="bet-zone bet-pass" data-bet="pass" onclick="placeBet('pass')">
+          <div class="zone-label">PASS LINE</div>
+          <div class="zone-payout">Pays 1:1</div>
+          <div class="bet-chips-container" id="chips-pass"></div>
+        </div>
+
+        <!-- Row 3: Field -->
+        <div class="bet-zone bet-field" data-bet="field" onclick="placeBet('field')">
+          <div class="zone-label">FIELD</div>
+          <div class="zone-payout">2 pays 2:1 &bull; 3,4,9,10,11 pay 1:1 &bull; 12 pays 3:1</div>
+          <div class="bet-chips-container" id="chips-field"></div>
+        </div>
+
+        <!-- Row 4: Hardways -->
+        <div class="bet-zone bet-hardways" data-bet="hardways" onclick="placeBet('hardways')">
+          <div class="zone-label">HARD WAYS</div>
+          <div class="zone-payout">Hard 4/10: 7:1 &bull; Hard 6/8: 9:1</div>
+          <div class="bet-chips-container" id="chips-hardways"></div>
+        </div>
+      </div><!-- /bet-grid -->
+
+      <!-- Dice (clickable) -->
       <div class="table-dice can-roll" id="tableDice" onclick="rollDice()">
         <div class="die" id="die1"><div class="die-face" id="face1"></div></div>
         <div class="die" id="die2"><div class="die-face" id="face2"></div></div>
@@ -587,7 +634,7 @@
       </div>
       <div class="timer-label" id="timerLabel" style="display:none"></div>
 
-      <!-- Shooter video PiP (optional, shown when shooter has cam on) -->
+      <!-- Shooter video PiP -->
       <div class="shooter-video-pip" id="shooterPip"></div>
 
     </div><!-- /felt-container -->
@@ -605,7 +652,7 @@
     </div>
   </div>
 
-  <!-- BOTTOM ROW: Local Player + Chips + PTT + Controls + Exit -->
+  <!-- BOTTOM ROW -->
   <div class="bottom-row">
     <div class="local-player" id="panel-0">
       <div class="portrait-frame" id="frame-0">
@@ -650,33 +697,25 @@ import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
    CRAPS TABLE — Last Chad
    4-player multiplayer with Agora audio (PTT) + optional shooter video
    Server-side dice via Cloudflare Worker — no client-side RNG
-   Players: Seat 0 = local (green, bottom)
-            Seat 1 = remote (blue)
-            Seat 2 = remote (purple)
-            Seat 3 = remote (red)
    =================================================================== */
 
 const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
 
-// Fetch with timeout (15s default)
 function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-// Player color names for CSS classes
 const PLAYER_COLORS = ['#4caf50','#42a5f5','#ab47bc','#ef5350'];
 
-// ── Load session from gamble.html ──
 const crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null');
 
-// ── State ──
 const STATE = {
   stack: crapsSession ? crapsSession.stack : 0,
   selectedChip: 1,
-  bets: {},           // { pass: 50, field: 10, ... } — local player bets
-  remoteBets: {},     // { 1: {pass:30}, 2: {field:10}, 3: {} } — remote player bets by seat
+  bets: {},
+  remoteBets: {},
   phase: 'comeout',
   point: null,
   dice: [5, 5],
@@ -685,8 +724,7 @@ const STATE = {
   nftName: crapsSession ? ('Chad #' + crapsSession.tokenId) : '',
   playerId: Math.random().toString(36).slice(2, 8),
   chadId: crapsSession ? crapsSession.tokenId : null,
-  seat: 0,            // local player is always seat 0
-  // Worker session data
+  seat: 0,
   nonce: crapsSession ? crapsSession.nonce : null,
   sessionToken: crapsSession ? crapsSession.sessionToken : null,
   tokenId: crapsSession ? crapsSession.tokenId : null,
@@ -694,14 +732,12 @@ const STATE = {
   buyIn: crapsSession ? crapsSession.buyIn : 0,
 };
 
-// Remote player info: seat 1-3
 const remotePlayers = {
   1: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
   2: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
   3: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
 };
 
-// ── Agora Config ──
 const AGORA_APP_ID = '7917341a0c9c46a08328cc9a33989d75';
 let agoraClient = null;
 let localAudioTrack = null;
@@ -709,14 +745,9 @@ let localVideoTrack = null;
 let cameraOn = false;
 let pttActive = false;
 
-// ── Pip Patterns ──
 const PIP_MAP = {
-  1: [4],
-  2: [2, 6],
-  3: [2, 4, 6],
-  4: [0, 2, 6, 8],
-  5: [0, 2, 4, 6, 8],
-  6: [0, 2, 3, 5, 6, 8],
+  1: [4], 2: [2, 6], 3: [2, 4, 6],
+  4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8],
 };
 
 function renderDie(faceEl, value) {
@@ -729,7 +760,6 @@ function renderDie(faceEl, value) {
   }
 }
 
-// Init dice to 5,5
 renderDie(document.getElementById('face1'), 5);
 renderDie(document.getElementById('face2'), 5);
 
@@ -740,7 +770,7 @@ function selectChip(value) {
   document.querySelector(`.chip[data-value="${value}"]`).classList.add('selected');
 }
 
-// ── Bet Placement (server-side validated) ──
+// ── Bet Placement ──
 async function placeBet(zone) {
   if (STATE.isRolling || betsLocked) return;
   if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
@@ -749,11 +779,8 @@ async function placeBet(zone) {
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
     dealerSay("Place bets open after point.", 'neutral'); return;
   }
-
-  // Track pending bet optimistically for responsive UI
   STATE.stack -= amount;
   STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
-  // Also track as pending for the next roll
   if (!STATE._pendingBets) STATE._pendingBets = {};
   STATE._pendingBets[zone] = (STATE._pendingBets[zone] || 0) + amount;
   renderAllBetChips();
@@ -771,21 +798,18 @@ function formatBetName(zone) {
   return names[zone] || zone.toUpperCase();
 }
 
-// Render colored chip tokens — each player gets a different position in the zone
 function renderAllBetChips() {
   const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hardways'];
   for (const zone of zones) {
     const container = document.getElementById('chips-' + zone);
     if (!container) continue;
     container.innerHTML = '';
-    // Local player (seat 0) — bottom-left
     if (STATE.bets[zone] && STATE.bets[zone] > 0) {
       const chip = document.createElement('div');
       chip.className = 'bet-chip-token p0 pos-0';
       chip.textContent = STATE.bets[zone];
       container.appendChild(chip);
     }
-    // Remote players (seats 1-3) — different corners
     for (let s = 1; s <= 3; s++) {
       const rb = STATE.remoteBets[s];
       if (rb && rb[zone] && rb[zone] > 0) {
@@ -812,9 +836,8 @@ function updateLocalPlayerUI() {
 }
 
 // ── Turn Phase System ──
-// After each roll: 10s BET PHASE → "NO MORE BETS" → 10s ROLL PHASE (click dice or auto-roll)
 let turnTimer = null;
-let turnPhase = 'betting'; // 'betting' | 'no-more-bets' | 'rolling' | 'waiting'
+let turnPhase = 'betting';
 let betsLocked = false;
 
 function startBetPhase() {
@@ -826,13 +849,10 @@ function startBetPhase() {
   document.getElementById('rollPrompt').style.display = 'none';
   dealerSay("Place your bets!", 'happy');
   startTimer(10, 'PLACE BETS', () => {
-    // Bet time over → lock bets → show "NO MORE BETS"
     turnPhase = 'no-more-bets';
     betsLocked = true;
     showNoMoreBets();
-    setTimeout(() => {
-      startRollPhase();
-    }, 1500);
+    setTimeout(() => { startRollPhase(); }, 1500);
   });
 }
 
@@ -850,10 +870,7 @@ function startRollPhase() {
   diceEl.classList.add('can-roll');
   diceEl.classList.remove('locked');
   document.getElementById('rollPrompt').style.display = '';
-  startTimer(10, 'ROLL', () => {
-    // Auto-roll if player doesn't click dice in time
-    rollDice();
-  });
+  startTimer(10, 'ROLL', () => { rollDice(); });
 }
 
 function startTimer(seconds, label, onComplete) {
@@ -865,7 +882,7 @@ function startTimer(seconds, label, onComplete) {
   lbl.style.display = '';
   lbl.className = 'timer-label';
   fill.classList.remove('urgent');
-  let remaining = seconds * 10; // 100ms ticks
+  let remaining = seconds * 10;
   const total = remaining;
   function tick() {
     remaining--;
@@ -874,12 +891,9 @@ function startTimer(seconds, label, onComplete) {
     const secs = Math.ceil(remaining / 10);
     lbl.textContent = `${label}: ${secs}s`;
     if (remaining <= 30) fill.classList.add('urgent');
-    if (remaining <= 0) {
-      clearTimer();
-      onComplete();
-    }
+    if (remaining <= 0) { clearTimer(); onComplete(); }
   }
-  tick(); // immediate first tick
+  tick();
   turnTimer = setInterval(tick, 100);
 }
 
@@ -894,14 +908,13 @@ function hideTimer() {
   document.getElementById('timerBarFill').style.width = '100%';
 }
 
-// ── Dice Roll (click dice to roll — server-side via Worker) ──
+// ── Dice Roll ──
 async function rollDice() {
   if (STATE.isRolling) return;
   if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
   if (Object.keys(STATE.bets).length === 0 && !STATE._pendingBets) {
     dealerSay("Place a bet first!", 'neutral'); return;
   }
-  // Lock everything
   STATE.isRolling = true;
   turnPhase = 'waiting';
   betsLocked = true;
@@ -916,7 +929,6 @@ async function rollDice() {
   die1El.classList.add('rolling');
   die2El.classList.add('rolling');
 
-  // Visual animation while waiting for server
   const cycleInterval = setInterval(() => {
     renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
     renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
@@ -1001,7 +1013,6 @@ async function rollDice() {
       return;
     }
 
-    // After roll resolves, wait 2s then start next bet phase
     STATE.isRolling = false;
     diceEl.classList.remove('locked');
     setTimeout(() => startBetPhase(), 2000);
@@ -1016,13 +1027,8 @@ async function rollDice() {
 
   STATE.isRolling = false;
   diceEl.classList.remove('locked');
-  // Restart bet phase on error
   setTimeout(() => startBetPhase(), 2000);
 }
-
-// Client-side resolution removed — all resolution happens server-side in the Worker.
-// This prevents cheating: dice are generated server-side with crypto.getRandomValues(),
-// bets are resolved server-side, and the authoritative stack comes from the Worker.
 
 // ── Dealer ──
 function dealerSay(text, mood) {
@@ -1074,12 +1080,11 @@ function sendChat() {
 
 function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
-// ── Cash Out (Worker-signed + on-chain claim) ──
+// ── Cash Out ──
 async function cashOut() {
   if (STATE.isRolling) return;
   if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
 
-  // Return bets to stack for display
   let betsOnTable = 0;
   for (const val of Object.values(STATE.bets)) betsOnTable += val;
   const totalPayout = STATE.stack + betsOnTable;
@@ -1092,7 +1097,6 @@ async function cashOut() {
   dealerSay("Cashing out...", 'neutral');
 
   try {
-    // Ask Worker to sign the cashout
     const res = await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1113,7 +1117,6 @@ async function cashOut() {
       return;
     }
 
-    // Call claimWinnings on-chain with oracle signature
     dealerSay("Claiming cells on-chain...", 'neutral');
     const signer = getSigner();
     if (!signer) throw new Error('Wallet not connected');
@@ -1138,7 +1141,6 @@ async function cashOut() {
 
   } catch (err) {
     dealerSay('Cashout failed: ' + (err.reason || err.message || 'Unknown error'), 'sad');
-    // Restart bet phase on cashout failure
     startBetPhase();
   }
 }
@@ -1174,7 +1176,6 @@ function initPlayerFromSession() {
   updateLocalPlayerUI();
   addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} cells.`);
   dealerSay("Welcome! Place your bets.", 'happy');
-  // Start the first bet phase
   startBetPhase();
 }
 
@@ -1186,7 +1187,6 @@ function setChadPortrait(seat, chadId) {
     img.src = 'assets/chads/' + chadId + '.png';
     img.alt = 'Chad #' + chadId;
   }
-  // Mark remote slot as occupied
   if (seat > 0) {
     const slot = document.getElementById('slot-' + seat);
     if (slot) { slot.classList.remove('empty'); slot.classList.add('occupied'); }
@@ -1210,7 +1210,7 @@ function clearPlayerPanel(seat) {
   }
   const img = document.getElementById('chad-' + seat);
   if (img) { img.src = ''; img.alt = ''; }
-  setPlayerName(seat, 'Waiting...');
+  setPlayerName(seat, '---');
   const stack = document.getElementById('stack-' + seat);
   if (stack) stack.textContent = '';
 }
@@ -1226,7 +1226,6 @@ async function initAgora() {
   agoraClient.on('user-published', async (user, mediaType) => {
     await agoraClient.subscribe(user, mediaType);
     if (mediaType === 'video') {
-      // Show remote video in the shooter PiP on the felt
       const pip = document.getElementById('shooterPip');
       pip.classList.add('active');
       user.videoTrack.play('shooterPip');
@@ -1256,15 +1255,12 @@ async function initAgora() {
 }
 
 function getRemoteSeat(uid) {
-  // Check if already assigned
   for (let s = 1; s <= 3; s++) {
     if (remotePlayers[s].uid === String(uid)) return s;
   }
-  // Assign to first empty seat
   for (let s = 1; s <= 3; s++) {
     if (!remotePlayers[s].uid) {
       remotePlayers[s].uid = String(uid);
-      // Assign random Chad portrait for remote
       const cid = (parseInt(String(uid).slice(-2),36) % 20) + 1;
       remotePlayers[s].chadId = cid;
       remotePlayers[s].nftName = 'Chad #' + cid;
@@ -1276,7 +1272,7 @@ function getRemoteSeat(uid) {
       return s;
     }
   }
-  return null; // table full
+  return null;
 }
 
 function findSeatByUid(uid) {
@@ -1291,7 +1287,6 @@ async function joinRoom() {
   try {
     if (!agoraClient) await initAgora();
     const channel = 'lastchad-craps-' + (window.location.hash.slice(1) || 'main');
-    // Fetch token from worker for secured Agora authentication
     let token = null;
     try {
       const res = await fetchWithTimeout(WORKER_URL + '/agora/token', {
@@ -1309,7 +1304,6 @@ async function joinRoom() {
 
 async function toggleCamera() {
   if (!agoraClient) {
-    // Auto-join room first if not joined
     await joinRoom();
     if (!agoraClient) { addChatMsg('system','Could not join room.'); return; }
   }
@@ -1318,14 +1312,13 @@ async function toggleCamera() {
     try {
       localVideoTrack = await AgoraRTC.createCameraVideoTrack();
       await agoraClient.publish([localVideoTrack]);
-      // Show local video in the PiP
       const pip = document.getElementById('shooterPip');
       pip.classList.add('active');
       localVideoTrack.play('shooterPip');
       cameraOn = true;
       btn.textContent = 'CAM ON'; btn.classList.add('active');
     } catch (err) {
-      if (err.name === 'NotAllowedError') addChatMsg('system','Camera permission denied. Enable in browser settings.');
+      if (err.name === 'NotAllowedError') addChatMsg('system','Camera permission denied.');
       else addChatMsg('system','Camera error: '+err.message);
     }
   } else {
@@ -1342,7 +1335,6 @@ async function toggleCamera() {
   let micDenied = false;
   async function startTalking() {
     if (pttActive || micDenied) return;
-    // Auto-join room if not joined
     if (!agoraClient) {
       await joinRoom();
       if (!agoraClient) return;
@@ -1354,7 +1346,7 @@ async function toggleCamera() {
     } catch (err) {
       if (err.name === 'NotAllowedError') {
         micDenied = true;
-        addChatMsg('system','Mic permission denied. Enable in browser settings.');
+        addChatMsg('system','Mic permission denied.');
       } else { addChatMsg('system','Mic error: '+err.message); }
     }
   }
@@ -1371,14 +1363,13 @@ async function toggleCamera() {
   pttBtn.addEventListener('touchcancel', stopTalking);
 })();
 
-// ── Multiplayer Message Bus (stub) ──
 function broadcastMessage(msg) { console.log('broadcast:', msg); }
 
 // ===================================================================
-//  TABLE LOBBY — Public / Private tables
+//  TABLE LOBBY
 // ===================================================================
 
-let currentTableCode = null;  // the Agora channel suffix
+let currentTableCode = null;
 let tableIsPrivate = false;
 
 function generateTableCode() {
@@ -1389,7 +1380,6 @@ async function joinPublicTable() {
   currentTableCode = 'public-main';
   tableIsPrivate = false;
   enterTable();
-  // Register presence
   try {
     await fetchWithTimeout(WORKER_URL + '/tables/join', {
       method: 'POST',
@@ -1442,11 +1432,9 @@ function enterTable() {
   document.getElementById('tableWrapper').style.display = '';
   addChatMsg('system', `Table: ${currentTableCode}${tableIsPrivate ? ' (private)' : ' (public)'}`);
   startPresenceHeartbeat();
-  // Auto-join Agora room
   joinRoom();
 }
 
-// Auto-join if URL has a hash (invite link)
 (function checkHashJoin() {
   const hash = window.location.hash.slice(1);
   if (hash) {
@@ -1461,7 +1449,6 @@ function enterTable() {
   }
 })();
 
-// ── Lobby: fetch public table player counts ──
 async function refreshLobbyTables() {
   const list = document.getElementById('publicTableList');
   if (!list || document.getElementById('tableLobby').classList.contains('hidden')) return;
@@ -1484,7 +1471,6 @@ async function refreshLobbyTables() {
 refreshLobbyTables();
 setInterval(refreshLobbyTables, 10_000);
 
-// ── Presence heartbeat: ping every 30s while at a table ──
 let presenceInterval = null;
 function startPresenceHeartbeat() {
   if (presenceInterval) clearInterval(presenceInterval);
@@ -1497,7 +1483,6 @@ function startPresenceHeartbeat() {
     }).catch(() => {});
   }, 30_000);
 }
-// Leave table on page unload
 window.addEventListener('beforeunload', () => {
   if (currentTableCode) {
     navigator.sendBeacon(WORKER_URL + '/tables/leave',
@@ -1510,7 +1495,6 @@ renderDie(document.getElementById('face1'), 5);
 renderDie(document.getElementById('face2'), 5);
 if (AGORA_APP_ID) initAgora();
 
-// Auto-reconnect wallet if session exists
 if (crapsSession) {
   autoReconnect({
     onConnected: (address) => {
@@ -1525,12 +1509,10 @@ if (crapsSession) {
   });
 } else {
   dealerSay("No active session. Return to the Gamble Den to buy in.", 'sad');
-  // Lock dice since no session
   document.getElementById('tableDice').classList.remove('can-roll');
   document.getElementById('tableDice').classList.add('locked');
 }
 
-// Expose functions to global scope for onclick handlers
 window.rollDice = rollDice;
 window.cashOut = cashOut;
 window.connectWallet = connectWallet;
