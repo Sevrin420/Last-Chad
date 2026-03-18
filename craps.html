@@ -434,16 +434,19 @@
     @media(max-width:900px){
       .table-wrapper{
         grid-template-columns:1fr;
-        grid-template-rows:auto auto 1fr auto;
+        grid-template-rows:auto auto minmax(300px,1fr) auto;
       }
       .top-row{flex-wrap:wrap}
       .left-sidebar,.right-sidebar{
         grid-column:1;flex-direction:row;
         border:none;border-bottom:1px solid #2a3a1a;
-        max-height:140px;overflow-x:auto;
+        max-height:80px;overflow-x:auto;
       }
       .left-sidebar .player-panel,.right-sidebar .player-panel{flex-direction:row;min-width:160px}
+      .right-sidebar .chat-box{max-height:60px;overflow:hidden}
+      .right-sidebar .chat-input-area{display:none}
       .bottom-row{flex-wrap:wrap;justify-content:center}
+      .table-area{min-height:300px}
     }
   </style>
 </head>
@@ -1065,7 +1068,7 @@ function setChadPortrait(seat, chadId) {
   const img = document.getElementById('chad-' + seat);
   if (img) {
     img.onerror = function() { this.onerror=null; this.style.display='none'; };
-    img.src = 'chads/' + chadId + '.png';
+    img.src = 'assets/chads/' + chadId + '.png';
     img.alt = 'Chad #' + chadId;
   }
   const panel = document.getElementById('panel-' + seat);
