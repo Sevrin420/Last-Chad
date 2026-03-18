@@ -360,6 +360,89 @@
     .result-toast.lose{background:rgba(183,28,28,0.95);border:3px solid #e53935;color:#fff}
     .result-toast .toast-sub{font-size:0.35rem;margin-top:6px;opacity:0.8}
 
+    /* ── Table Lobby Overlay ── */
+    .table-lobby{
+      position:fixed;inset:0;z-index:400;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(0,0,0,0.92);
+    }
+    .table-lobby.hidden{display:none}
+    .lobby-box{
+      background:linear-gradient(180deg,#1e1608,#0a0a0f);
+      border:2px solid #5c4409;border-radius:10px;
+      padding:28px 32px;max-width:500px;width:90%;
+      text-align:center;
+    }
+    .lobby-title{
+      font-size:0.7rem;color:#4caf50;margin-bottom:16px;
+      text-shadow:0 0 12px rgba(76,175,80,0.4);
+    }
+    .lobby-subtitle{font-size:0.35rem;color:#8a7a5a;margin-bottom:20px;line-height:1.8}
+    .lobby-btns{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+    .lobby-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.4rem;
+      padding:14px 20px;border-radius:6px;cursor:pointer;
+      border:2px solid;transition:all 0.2s;text-align:center;
+    }
+    .lobby-btn.public{
+      background:linear-gradient(180deg,#4caf50,#2e7d32);
+      border-color:#66bb6a;color:#fff;
+    }
+    .lobby-btn.public:hover{background:linear-gradient(180deg,#66bb6a,#388e3c)}
+    .lobby-btn.private{
+      background:linear-gradient(180deg,#c9a84c,#8b6914);
+      border-color:#d4a017;color:#1a1005;
+    }
+    .lobby-btn.private:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
+    .lobby-btn.join{
+      background:linear-gradient(180deg,#42a5f5,#1565c0);
+      border-color:#64b5f6;color:#fff;
+    }
+    .lobby-btn.join:hover{background:linear-gradient(180deg,#64b5f6,#1e88e5)}
+    .lobby-divider{
+      font-size:0.3rem;color:#555;margin:8px 0;
+    }
+    .lobby-invite-area{
+      display:none;margin-top:12px;
+      background:rgba(0,0,0,0.4);border:1px solid #333;border-radius:6px;padding:10px;
+    }
+    .lobby-invite-area.show{display:block}
+    .lobby-invite-label{font-size:0.3rem;color:#4caf50;margin-bottom:6px}
+    .lobby-invite-link{
+      font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      width:100%;padding:8px;background:#111;border:1px solid #4caf50;
+      border-radius:4px;color:#4caf50;text-align:center;
+      cursor:pointer;word-break:break-all;
+    }
+    .lobby-invite-link:hover{background:#1a2a1a}
+    .lobby-copied{font-size:0.25rem;color:#ffe96a;margin-top:4px;opacity:0;transition:opacity 0.3s}
+    .lobby-copied.show{opacity:1}
+    .lobby-join-input{
+      font-family:'Press Start 2P',monospace;font-size:0.3rem;
+      width:100%;padding:10px;background:#111;border:1px solid #333;
+      border-radius:4px;color:#ccc;text-align:center;margin-top:8px;outline:none;
+    }
+    .lobby-join-input:focus{border-color:#42a5f5}
+    .lobby-join-go{
+      font-family:'Press Start 2P',monospace;font-size:0.3rem;
+      padding:8px 16px;margin-top:6px;
+      background:#1565c0;border:1px solid #42a5f5;
+      border-radius:4px;color:#fff;cursor:pointer;
+    }
+    .lobby-join-go:hover{background:#1e88e5}
+    .lobby-public-list{
+      margin-top:12px;max-height:150px;overflow-y:auto;
+    }
+    .lobby-table-row{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:8px 10px;border:1px solid #333;border-radius:4px;
+      margin-bottom:4px;background:rgba(0,0,0,0.3);cursor:pointer;
+      transition:all 0.2s;
+    }
+    .lobby-table-row:hover{border-color:#4caf50;background:rgba(76,175,80,0.08)}
+    .lobby-table-name{font-size:0.3rem;color:#ccc}
+    .lobby-table-players{font-size:0.25rem;color:#4caf50}
+
     /* ── Responsive ── */
     @media(max-width:900px){
       .table-wrapper{
@@ -389,8 +472,36 @@
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
 </div>
 
+<!-- ── Table Lobby ── -->
+<div class="table-lobby" id="tableLobby">
+  <div class="lobby-box">
+    <div class="lobby-title">CRAPS TABLE</div>
+    <div class="lobby-subtitle">Choose how you want to play</div>
+    <div class="lobby-btns">
+      <button class="lobby-btn public" onclick="joinPublicTable()">JOIN PUBLIC TABLE</button>
+      <div class="lobby-divider">— or —</div>
+      <button class="lobby-btn private" onclick="createPrivateTable()">CREATE PRIVATE TABLE</button>
+      <button class="lobby-btn join" onclick="showJoinPrivate()">JOIN PRIVATE TABLE</button>
+    </div>
+    <!-- Private table invite link (shown after creating) -->
+    <div class="lobby-invite-area" id="inviteArea">
+      <div class="lobby-invite-label">INVITE LINK (click to copy)</div>
+      <div class="lobby-invite-link" id="inviteLink" onclick="copyInviteLink()"></div>
+      <div class="lobby-copied" id="copiedMsg">Copied!</div>
+      <button class="lobby-btn public" style="margin-top:10px" onclick="enterTable()">ENTER TABLE</button>
+    </div>
+    <!-- Join private table input -->
+    <div class="lobby-invite-area" id="joinPrivateArea">
+      <input class="lobby-join-input" id="privateCodeInput" placeholder="Paste invite link or code..." />
+      <button class="lobby-join-go" onclick="joinPrivateTable()">JOIN</button>
+    </div>
+    <!-- Public tables list -->
+    <div class="lobby-public-list" id="publicTableList"></div>
+  </div>
+</div>
+
 <!-- ── Table Wrapper ── -->
-<div class="table-wrapper">
+<div class="table-wrapper" style="display:none" id="tableWrapper">
 
   <!-- TOP ROW: Ad Spot 1 | Remote Player 2 (blue) | Ad Spot 2 + Video Controls -->
   <div class="top-row">
@@ -1046,6 +1157,80 @@ function setAdImage(spotId, imgUrl) {
   if (!spot) return;
   spot.innerHTML = `<img src="${imgUrl}" alt="Sponsor" />`;
 }
+
+// ===================================================================
+//  TABLE LOBBY — Public / Private tables
+// ===================================================================
+
+let currentTableCode = null;  // the Agora channel suffix
+let tableIsPrivate = false;
+
+function generateTableCode() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function joinPublicTable() {
+  currentTableCode = 'public-main';
+  tableIsPrivate = false;
+  enterTable();
+}
+
+function createPrivateTable() {
+  currentTableCode = 'priv-' + generateTableCode();
+  tableIsPrivate = true;
+  const url = window.location.origin + window.location.pathname + '#' + currentTableCode;
+  document.getElementById('inviteLink').textContent = url;
+  document.getElementById('inviteArea').classList.add('show');
+  document.getElementById('joinPrivateArea').classList.remove('show');
+  document.getElementById('publicTableList').innerHTML = '';
+}
+
+function showJoinPrivate() {
+  document.getElementById('joinPrivateArea').classList.add('show');
+  document.getElementById('inviteArea').classList.remove('show');
+  document.getElementById('publicTableList').innerHTML = '';
+}
+
+function joinPrivateTable() {
+  const input = document.getElementById('privateCodeInput').value.trim();
+  if (!input) return;
+  // Extract code from full URL or raw code
+  if (input.includes('#')) {
+    currentTableCode = input.split('#').pop();
+  } else {
+    currentTableCode = input;
+  }
+  tableIsPrivate = true;
+  enterTable();
+}
+
+function copyInviteLink() {
+  const link = document.getElementById('inviteLink').textContent;
+  navigator.clipboard.writeText(link).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 2000);
+  });
+}
+
+function enterTable() {
+  // Set the hash for Agora channel
+  window.location.hash = currentTableCode || 'public-main';
+  // Hide lobby, show table
+  document.getElementById('tableLobby').classList.add('hidden');
+  document.getElementById('tableWrapper').style.display = '';
+  addChatMsg('system', `Table: ${currentTableCode}${tableIsPrivate ? ' (private)' : ' (public)'}`);
+}
+
+// Auto-join if URL has a hash (invite link)
+(function checkHashJoin() {
+  const hash = window.location.hash.slice(1);
+  if (hash) {
+    currentTableCode = hash;
+    tableIsPrivate = hash.startsWith('priv-');
+    enterTable();
+  }
+})();
 
 // ── Init ──
 renderDie(document.getElementById('face1'), 5);
