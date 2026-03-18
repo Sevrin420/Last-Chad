@@ -238,7 +238,7 @@
     .bet-chip-token.pos-2{top:4px;left:8px}
     .bet-chip-token.pos-3{top:4px;right:8px}
 
-    /* ── Dice on felt — clickable ── */
+    /* ── Dice on felt — docs.html style ── */
     .table-dice{
       position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
       display:flex;gap:14px;z-index:15;
@@ -251,27 +251,29 @@
     .table-dice.locked{cursor:not-allowed;opacity:0.5}
     @keyframes dice-pulse{0%,100%{filter:drop-shadow(0 0 8px rgba(255,233,106,0.4))}50%{filter:drop-shadow(0 0 18px rgba(255,233,106,0.9))}}
     .die{
-      width:48px;height:48px;background:#fff;border-radius:6px;
-      border:3px solid #c00;
+      width:clamp(44px,10vw,64px);height:clamp(44px,10vw,64px);
+      background:linear-gradient(145deg,#f8f8f8 0%,#e6e6e6 18%,#d2d2d2 36%,#c4c4c4 52%,#b2b2b2 68%,#a2a2a2 82%,#929292 100%);
+      border:2px solid #9a9a9a;border-radius:10px;
       display:flex;align-items:center;justify-content:center;
-      box-shadow:2px 3px 8px rgba(0,0,0,0.5);
-      transition:transform 0.3s;position:relative;
+      position:relative;transition:border-color 0.2s, box-shadow 0.2s;
+      box-shadow:inset 3px 3px 8px rgba(255,255,255,0.88),inset -2px -2px 6px rgba(0,0,0,0.28),2px 2px 0 #878787,3px 3px 0 #767676,4px 4px 0 #656565,5px 5px 12px rgba(0,0,0,0.72);
     }
-    .die.rolling{animation:dice-roll 0.4s ease-in-out}
-    @keyframes dice-roll{
-      0%{transform:rotate(0deg) scale(1)}
-      25%{transform:rotate(90deg) scale(1.2)}
-      50%{transform:rotate(180deg) scale(0.9)}
-      75%{transform:rotate(270deg) scale(1.1)}
-      100%{transform:rotate(360deg) scale(1)}
+    @keyframes dice-tumble{0%{transform:rotateX(0deg) rotateZ(0deg)}100%{transform:rotateX(360deg) rotateZ(270deg)}}
+    .die.rolling{
+      animation:dice-tumble 0.28s linear infinite;
+      border-color:#c9a84c;
+      box-shadow:inset 3px 3px 8px rgba(255,255,255,0.88),inset -2px -2px 6px rgba(0,0,0,0.28),2px 2px 0 #878787,3px 3px 0 #767676,4px 4px 0 #656565,5px 5px 12px rgba(0,0,0,0.72),0 0 18px rgba(201,168,76,0.45);
     }
+    .die.settled{border-color:#c9a84c}
     .die-face{
       width:100%;height:100%;display:grid;
-      grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:4px;
+      grid-template-rows:1fr 1fr 1fr;grid-template-columns:1fr 1fr 1fr;
+      padding:14%;gap:2px;
     }
-    .pip{
-      width:8px;height:8px;background:#c00;border-radius:50%;
-      align-self:center;justify-self:center;display:none;
+    .dot{
+      width:100%;aspect-ratio:1;background:#111;border-radius:50%;
+      box-shadow:inset 1px 1px 3px rgba(0,0,0,0.95),0 1px 1px rgba(255,255,255,0.18);
+      visibility:hidden;
     }
 
     /* Roll prompt */
@@ -775,18 +777,24 @@ let localVideoTrack = null;
 let cameraOn = false;
 let pttActive = false;
 
-const PIP_MAP = {
-  1: [4], 2: [2, 6], 3: [2, 4, 6],
-  4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8],
+const dotLayouts = {
+  1: [0,0,0, 0,1,0, 0,0,0],
+  2: [0,0,1, 0,0,0, 1,0,0],
+  3: [0,0,1, 0,1,0, 1,0,0],
+  4: [1,0,1, 0,0,0, 1,0,1],
+  5: [1,0,1, 0,1,0, 1,0,1],
+  6: [1,0,1, 1,0,1, 1,0,1],
 };
 
 function renderDie(faceEl, value) {
   faceEl.innerHTML = '';
+  if (!value) return;
+  const layout = dotLayouts[value];
   for (let i = 0; i < 9; i++) {
-    const pip = document.createElement('div');
-    pip.className = 'pip';
-    if (PIP_MAP[value] && PIP_MAP[value].includes(i)) pip.style.display = 'block';
-    faceEl.appendChild(pip);
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    if (layout[i]) dot.style.visibility = 'visible';
+    faceEl.appendChild(dot);
   }
 }
 
@@ -816,6 +824,7 @@ async function placeBet(zone) {
   renderAllBetChips();
   updateLocalPlayerUI();
   addChatMsg('system', `${STATE.nftName || STATE.playerName} bet ${amount} on ${formatBetName(zone)}`);
+  onFirstBet();
 }
 
 function formatBetName(zone) {
@@ -866,19 +875,29 @@ function updateLocalPlayerUI() {
 }
 
 // ── Turn Phase System ──
+// 30s bet window (starts on first bet), 10s roll window, auto-roll after 10s
 let turnTimer = null;
 let turnPhase = 'betting';
 let betsLocked = false;
+let betTimerStarted = false;
 
 function startBetPhase() {
   turnPhase = 'betting';
   betsLocked = false;
+  betTimerStarted = false;
   const diceEl = document.getElementById('tableDice');
   diceEl.classList.remove('can-roll');
   diceEl.classList.add('locked');
   document.getElementById('rollPrompt').style.display = 'none';
+  hideTimer();
   dealerSay("Place your bets!", 'happy');
-  startTimer(10, 'PLACE BETS', () => {
+  // No timer yet — waits for first bet via onFirstBet()
+}
+
+function onFirstBet() {
+  if (betTimerStarted || turnPhase !== 'betting') return;
+  betTimerStarted = true;
+  startTimer(30, 'PLACE BETS', () => {
     turnPhase = 'no-more-bets';
     betsLocked = true;
     showNoMoreBets();
@@ -956,6 +975,8 @@ async function rollDice() {
 
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
+  die1El.classList.remove('settled');
+  die2El.classList.remove('settled');
   die1El.classList.add('rolling');
   die2El.classList.add('rolling');
 
@@ -987,6 +1008,8 @@ async function rollDice() {
     renderDie(document.getElementById('face2'), d2);
     die1El.classList.remove('rolling');
     die2El.classList.remove('rolling');
+    die1El.classList.add('settled');
+    die2El.classList.add('settled');
 
     STATE.stack = data.stack;
     STATE.phase = data.phase;
@@ -1313,7 +1336,7 @@ function findSeatByUid(uid) {
 }
 
 async function joinRoom() {
-  if (!AGORA_APP_ID) { addChatMsg('system','No Agora App ID.'); return; }
+  if (!AGORA_APP_ID) return;
   try {
     if (!agoraClient) await initAgora();
     const channel = 'lastchad-craps-' + (window.location.hash.slice(1) || 'main');
@@ -1326,10 +1349,10 @@ async function joinRoom() {
       });
       const data = await res.json();
       if (data.token) token = data.token;
-    } catch (e) { console.warn('Token fetch failed, trying without:', e); }
+    } catch (e) { console.warn('Agora token fetch failed:', e.message); }
     await agoraClient.join(AGORA_APP_ID, channel, token, STATE.playerId);
-    addChatMsg('system', `Joined room: ${channel}`);
-  } catch (err) { addChatMsg('system', 'Join failed: ' + err.message); }
+    console.log('Agora joined:', channel);
+  } catch (err) { console.warn('Agora join failed:', err.message); }
 }
 
 async function toggleCamera() {
