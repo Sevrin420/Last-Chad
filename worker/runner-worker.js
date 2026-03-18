@@ -52,6 +52,8 @@ const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'cha
 
 const POKER_SESSION_TTL = 600;    // 10 minutes per session (reset on every interaction)
 const CRAPS_SESSION_TTL = 1200;   // 20 minutes per craps session (longer game)
+const TABLE_PRESENCE_TTL = 120;   // 2 minutes — heartbeat refreshes this
+const TABLE_STALE_MS = 90_000;    // 90s — entries older than this are filtered out
 const POKER_PAYOUTS = {
   'ROYAL FLUSH':      250,
   'STRAIGHT FLUSH':    50,
@@ -128,6 +130,22 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/craps/cashout') {
         return await handleCrapsCashout(request, env);
+      }
+
+      // Table presence endpoints
+      if (request.method === 'POST' && url.pathname === '/tables/join') {
+        return await handleTableJoin(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/tables/leave') {
+        return await handleTableLeave(request, env);
+      }
+      if (request.method === 'GET' && url.pathname === '/tables/list') {
+        return await handleTableList(env);
+      }
+
+      // Agora RTC token
+      if (request.method === 'POST' && url.pathname === '/agora/token') {
+        return await handleAgoraToken(request, env);
       }
     } catch (err) {
       console.error(err);
@@ -1092,4 +1110,181 @@ function json(data, status = 200) {
     status,
     headers: { 'Content-Type': 'application/json', ...CORS },
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TABLE PRESENCE (lobby player counts)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /tables/join  { table, playerId }
+async function handleTableJoin(request, env) {
+  const { table, playerId } = await parseBody(request);
+  if (!table || !playerId) return json({ error: 'Missing table or playerId' }, 400);
+
+  const key = `table_players:${table}`;
+  const existing = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
+  existing[playerId] = Date.now();
+  await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
+
+  const now = Date.now();
+  const count = Object.values(existing).filter(ts => now - ts < TABLE_STALE_MS).length;
+  return json({ ok: true, count });
+}
+
+// POST /tables/leave  { table, playerId }
+async function handleTableLeave(request, env) {
+  const { table, playerId } = await parseBody(request);
+  if (!table || !playerId) return json({ error: 'Missing table or playerId' }, 400);
+
+  const key = `table_players:${table}`;
+  const existing = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
+  delete existing[playerId];
+
+  if (Object.keys(existing).length === 0) {
+    await env.RUNNER_KV.delete(key);
+  } else {
+    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
+  }
+  return json({ ok: true });
+}
+
+// GET /tables/list
+async function handleTableList(env) {
+  const key = `table_players:public-main`;
+  const players = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
+  const now = Date.now();
+  const active = Object.entries(players).filter(([, ts]) => now - ts < TABLE_STALE_MS);
+
+  return json({
+    tables: [{
+      name: 'public-main',
+      label: 'PUBLIC TABLE',
+      players: active.length,
+    }],
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AGORA RTC TOKEN GENERATION (AccessToken v006)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /agora/token  { channelName, uid }
+async function handleAgoraToken(request, env) {
+  const { channelName, uid } = await parseBody(request);
+  if (!channelName) return json({ error: 'Missing channelName' }, 400);
+
+  const appId = env.AGORA_APP_ID;
+  const appCert = env.AGORA_APP_CERT;
+  if (!appId || !appCert) return json({ error: 'Agora not configured' }, 500);
+
+  const uidStr = String(uid || 0);
+  const expireTs = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+
+  // Privileges: joinChannel(1), publishAudio(2), publishVideo(3), publishData(4)
+  const privileges = { 1: expireTs, 2: expireTs, 3: expireTs, 4: expireTs };
+
+  const token = await buildAgoraToken006(appId, appCert, channelName, uidStr, privileges);
+  return json({ token });
+}
+
+// --- Agora AccessToken v006 implementation ---
+
+async function hmacSha256(keyBytes, dataBytes) {
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, dataBytes);
+  return new Uint8Array(sig);
+}
+
+function putUint16LE(arr, val) {
+  arr.push(val & 0xff, (val >> 8) & 0xff);
+}
+
+function putUint32LE(arr, val) {
+  arr.push(val & 0xff, (val >> 8) & 0xff, (val >> 16) & 0xff, (val >> 24) & 0xff);
+}
+
+function putString(arr, str) {
+  const bytes = new TextEncoder().encode(str);
+  putUint16LE(arr, bytes.length);
+  for (const b of bytes) arr.push(b);
+}
+
+function putBytes(arr, bytes) {
+  putUint16LE(arr, bytes.length);
+  for (const b of bytes) arr.push(b);
+}
+
+function putTreeMapUInt32(arr, map) {
+  const entries = Object.entries(map).sort((a, b) => Number(a[0]) - Number(b[0]));
+  putUint16LE(arr, entries.length);
+  for (const [k, v] of entries) {
+    putUint16LE(arr, Number(k));
+    putUint32LE(arr, v);
+  }
+}
+
+function uint32LEBytes(val) {
+  return new Uint8Array([val & 0xff, (val >> 8) & 0xff, (val >> 16) & 0xff, (val >> 24) & 0xff]);
+}
+
+// CRC32 (ISO 3309)
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let crc = i;
+    for (let j = 0; j < 8; j++) crc = (crc & 1) ? (0xEDB88320 ^ (crc >>> 1)) : (crc >>> 1);
+    table[i] = crc;
+  }
+  return table;
+})();
+
+function crc32(str) {
+  const bytes = new TextEncoder().encode(str);
+  let crc = 0xFFFFFFFF;
+  for (const b of bytes) crc = CRC32_TABLE[(crc ^ b) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+async function buildAgoraToken006(appId, appCert, channelName, uidStr, privileges) {
+  // Random salt and expiry timestamp
+  const saltArr = new Uint32Array(1);
+  crypto.getRandomValues(saltArr);
+  const salt = saltArr[0];
+  const ts = Math.floor(Date.now() / 1000) + 86400; // token struct expires in 24h
+
+  // Build signing key: HMAC chain
+  const appIdBytes = new TextEncoder().encode(appId);
+  const appCertBytes = new TextEncoder().encode(appCert);
+  let signing = await hmacSha256(appCertBytes, appIdBytes);
+  signing = await hmacSha256(signing, uint32LEBytes(salt));
+  signing = await hmacSha256(signing, uint32LEBytes(ts));
+
+  // Build message content: salt + ts + privileges
+  const content = [];
+  putUint32LE(content, salt);
+  putUint32LE(content, ts);
+  putTreeMapUInt32(content, privileges);
+  const contentBytes = new Uint8Array(content);
+
+  // Sign content
+  const signature = await hmacSha256(signing, contentBytes);
+
+  // CRC32 of channel name and uid
+  const crcChannel = crc32(channelName);
+  const crcUid = crc32(uidStr);
+
+  // Pack: string(signature) + uint32(crcChannel) + uint32(crcUid) + string(content)
+  const buf = [];
+  putBytes(buf, signature);
+  putUint32LE(buf, crcChannel);
+  putUint32LE(buf, crcUid);
+  putBytes(buf, contentBytes);
+
+  // Base64 encode
+  const packed = new Uint8Array(buf);
+  const b64 = btoa(String.fromCharCode(...packed));
+
+  return '006' + appId + b64;
 }

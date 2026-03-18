@@ -1,288 +1,253 @@
-# Gamble Contract — Logic Reference
+# Gamble System — Architecture Reference
 
 ## Overview
 
-`Gamble.sol` is an authorized game contract that lets players wager **cells** (the in-game currency tied to their Chad NFT) on chance-based games. It must be authorized in `LastChad.sol` via `setGameContract(gambleAddress, true)` before it can spend or award cells.
+The gambling system lets players wager **cells** (in-game currency tied to their Chad NFT) on casino games. It consists of:
+
+- **`Gamble.sol`** — on-chain contract for cell wagers and oracle-signed payouts
+- **`gamble.html`** — NPC-driven hub where players select games, choose a Chad, and buy in
+- **`craps.html`** — multiplayer craps table with Agora video/audio, server-authoritative dice
+- **Cloudflare Worker** (`runner-worker.js`) — server-side game logic, anti-cheat, payout signing
+
+**Contract address:** `GAMBLE_ADDRESS` in `js/config.js`
 
 ---
 
-## Contract Address
+## Player Flow (End-to-End)
 
-Set after deployment via GitHub Actions → Deploy → `target=gamble`.
-Address is auto-written to `js/config.js` as `GAMBLE_ADDRESS`.
+```
+gamble.html                     Blockchain                  Worker
+  │                                │                          │
+  │  1. Connect wallet             │                          │
+  │  2. Select Chad NFT            │                          │
+  │  3. Choose game (Craps)        │                          │
+  │  4. Set wager amount           │                          │
+  │                                │                          │
+  ├─ BUY IN ─────────────────────►│                          │
+  │        commitWager(tokenId,    │                          │
+  │          wagerAmount)          │                          │
+  │        → spendCells(wager)     │                          │
+  │        → emit WagerCommitted   │                          │
+  │          (..., nonce)          │                          │
+  │                                │                          │
+  ├─ POST /craps/start ──────────────────────────────────────►│
+  │  { tokenId, nonce, player }    │        Verify wager chain│
+  │                                │        Create KV session │
+  │◄──────────────────────── { ok, stack, sessionToken } ─────┤
+  │                                │                          │
+  │  5. Save to sessionStorage     │                          │
+  │  6. Redirect → craps.html      │                          │
+  │                                │                          │
+craps.html                         │                          │
+  │                                │                          │
+  │  7. Table lobby appears        │                          │
+  │     (shows public table        │                          │
+  │      player counts)            │                          │
+  │  8. Join public or private     │                          │
+  │                                │                          │
+  │  9. Fetch Agora RTC token ────────────────────────────────►│
+  │     POST /agora/token          │                          │
+  │◄──────────────────────────────────────────── { token } ───┤
+  │                                │                          │
+  │  10. Join Agora channel        │                          │
+  │      (video + push-to-talk)    │                          │
+  │                                │                          │
+  │  11. Place bets on felt        │                          │
+  │  12. Roll dice ────────────────────────────────────────────►│
+  │      POST /craps/roll          │        Validate bets     │
+  │      { nonce, newBets,         │        Roll server-side   │
+  │        sessionToken }          │        Resolve all bets   │
+  │◄──── { dice, resolution, stack, phase, bets } ────────────┤
+  │                                │                          │
+  │  ... repeats many times ...    │                          │
+  │                                │                          │
+  │  13. Cash out ─────────────────────────────────────────────►│
+  │      POST /craps/cashout       │        Return bets       │
+  │      { tokenId, nonce,         │        Sign payout       │
+  │        sessionToken }          │                          │
+  │◄──────────────── { payout, nonce, signature } ────────────┤
+  │                                │                          │
+  │  14. (if payout > 0)           │                          │
+  ├─ CLAIM ──────────────────────►│                          │
+  │    claimWinnings(tokenId,      │                          │
+  │      payout, nonce, oracleSig) │                          │
+  │    → awardCells(tokenId,       │                          │
+  │        payout)                 │                          │
+  │    → emit WinningsClaimed      │                          │
+```
 
 ---
 
-## Settlement Paths
+## Connection & Session Architecture
 
-### Path 1 — Coin Flip (`flip`)
+### Session Data (sessionStorage)
 
-Fully on-chain. No oracle required.
+When `gamble.html` completes the buy-in, it stores session data and redirects:
 
+```js
+sessionStorage.setItem('craps_session', JSON.stringify({
+  nonce,          // from commitWager tx event
+  tokenId,        // selected Chad NFT
+  stack,          // initial chip count (from worker /craps/start)
+  sessionToken,   // HMAC anti-cheat token (from worker)
+  player,         // wallet address
+  buyIn,          // original wager amount
+}));
+window.location.href = 'craps.html';
 ```
-Player calls flip(tokenId, wager)
-  → Requires: ownerOf(tokenId) == msg.sender
-  → Requires: !eliminated(tokenId)
-  → Requires: minWager <= wager <= maxWager
-  → Calls:    lastChad.spendCells(tokenId, wager)       ← deducted immediately
-  → Derives:  seed = keccak256(tokenId, wager, block.prevrandao, block.timestamp, msg.sender)
-  → Win if:   uint256(seed) % 100 < 40                  ← 40% win chance
-  → If win:   lastChad.awardCells(tokenId, wager * 2)   ← 2x payout
-  → Emits:    CoinFlip(tokenId, player, wager, won, seed)
-```
 
-**Odds:** 40% win, 60% lose. Expected value per cell wagered = −0.2 cells.
+`craps.html` reads this on load. If no session exists, the roll button is disabled and a warning is shown.
 
-**Entropy source:** `block.prevrandao` (Avalanche's RANDAO output). Not manipulable by end users. Validators could theoretically influence it, but stakes are too small to be worth the effort.
+### Agora RTC (Multiplayer Video/Audio)
+
+Players see and hear each other at the craps table via Agora RTC SDK.
+
+**Token flow (secured mode):**
+1. Client sends `POST /agora/token { channelName, uid }` to the worker
+2. Worker generates an AccessToken v006 using `AGORA_APP_ID` + `AGORA_APP_CERT` (secrets)
+3. Client calls `agoraClient.join(appId, channel, token, uid)` with the returned token
+4. Token expires after 1 hour; re-fetch on reconnect
+
+**Worker secrets required:**
+- `AGORA_APP_ID` — Agora project App ID
+- `AGORA_APP_CERT` — Agora project App Certificate (enables secured token mode)
+
+**Features:**
+- Camera toggle (on/off)
+- Push-to-talk audio (hold button)
+- Up to 4 players per table (1 local + 3 remote seats)
+- Text chat overlay
+
+### Table Presence Tracking
+
+The lobby shows live player counts for public tables.
+
+**Endpoints:**
+- `POST /tables/join { table, playerId }` — register presence (KV entry with TTL)
+- `POST /tables/leave { table, playerId }` — remove presence
+- `GET /tables/list` — returns all public tables with active player counts
+
+**Client behavior:**
+- Lobby polls `/tables/list` every 10 seconds while visible
+- After joining, client sends heartbeat every 30 seconds via `/tables/join`
+- On page unload, `navigator.sendBeacon` calls `/tables/leave`
+- KV entries auto-expire after 120s if no heartbeat (stale threshold: 90s)
 
 ---
 
-### Path 2 — Oracle-Signed Game Resolution (`resolveGame`)
+## Worker Endpoints (runner-worker.js)
 
-For off-chain games (blackjack, poker, etc.) where the outcome is computed by the Cloudflare Worker and signed before the player submits it on-chain.
+### Craps
 
-```
-1. Player plays game off-chain in the browser
-2. Worker determines outcome → signs keccak256(tokenId, wager, payout, gameId, nonce, player)
-3. Player calls resolveGame(tokenId, wager, payout, gameId, nonce, oracleSig)
-     → Requires: ownerOf(tokenId) == msg.sender
-     → Requires: !eliminated(tokenId)
-     → Requires: wager > 0
-     → Requires: !usedNonces[nonce]               ← prevents replaying winning signatures
-     → Verifies: ECDSA.recover(sig) == oracle     ← skipped if oracle not set
-     → Marks:    usedNonces[nonce] = true
-     → Calls:    lastChad.spendCells(tokenId, wager)
-     → If payout > 0: lastChad.awardCells(tokenId, payout)
-     → Emits:    GameResolved(tokenId, player, gameId, wager, payout)
-```
+| Method | Path | Body | Purpose |
+|--------|------|------|---------|
+| POST | `/craps/start` | `{ tokenId, nonce, player }` | Verify wager on-chain, create KV session |
+| POST | `/craps/bet` | `{ nonce, zone, amount, sessionToken }` | Place a single bet (validated server-side) |
+| POST | `/craps/roll` | `{ nonce, newBets, sessionToken }` | Place new bets + roll dice + resolve all bets |
+| POST | `/craps/cashout` | `{ tokenId, nonce, sessionToken }` | Return all bets to stack, sign payout |
 
-**Payout values:**
-- `payout = 0` → player lost, cells gone
-- `payout = wager * 2` → double-or-nothing (standard win)
-- `payout = any value` → Worker can express any odds (e.g. `wager * 3` for 3x)
+**Session KV key:** `craps:{nonce}` (TTL: 20 minutes, refreshed on every interaction)
 
----
+**Anti-cheat sessionToken:** HMAC-SHA256 of `craps:{nonce}:{player}` using `ORACLE_PRIVATE_KEY`. Generated at `/craps/start`, required on all subsequent calls. Prevents session hijacking.
 
-## Game IDs
+**Dice:** Generated server-side with `crypto.getRandomValues()`. Client never controls dice outcomes.
 
-Register game types here as they are built:
+**Bet resolution:** All bet math runs on the Worker. The client displays results but cannot alter the stack.
 
-| gameId | Game       | Status     |
-|--------|------------|------------|
-| 0      | (reserved) | —          |
-| 1      | Blackjack  | Planned    |
-| 2      | Poker      | Planned    |
-| 3      | Craps      | **Active** |
+### Poker
 
----
+| Method | Path | Body | Purpose |
+|--------|------|------|---------|
+| POST | `/poker/start` | `{ tokenId, nonce, player }` | Verify wager, create session with stack |
+| POST | `/poker/deal` | `{ nonce, handWager, sessionToken }` | Deal 5 cards from fresh deck |
+| POST | `/poker/draw` | `{ nonce, held: [5 bools], sessionToken }` | Replace unheld, evaluate hand, adjust stack |
+| POST | `/poker/cashout` | `{ tokenId, nonce, sessionToken }` | Sign final payout |
 
-## Wager Limits
+**Session KV key:** `poker:{nonce}` (TTL: 10 minutes)
 
-| Variable   | Default | Set via                          |
-|------------|---------|----------------------------------|
-| `minWager` | 1       | `setWagerLimits(min, max)` (owner only) |
-| `maxWager` | 50      | `setWagerLimits(min, max)` (owner only) |
+### Table Presence
 
-Applies to `flip()` only. `resolveGame()` accepts any `wager > 0` — the Worker enforces game-specific limits off-chain.
+| Method | Path | Body | Purpose |
+|--------|------|------|---------|
+| POST | `/tables/join` | `{ table, playerId }` | Register/heartbeat presence |
+| POST | `/tables/leave` | `{ table, playerId }` | Remove presence |
+| GET | `/tables/list` | — | List public tables with player counts |
+
+### Agora Token
+
+| Method | Path | Body | Purpose |
+|--------|------|------|---------|
+| POST | `/agora/token` | `{ channelName, uid }` | Generate Agora RTC AccessToken v006 |
 
 ---
 
-## Oracle Signature Format
+## Gamble.sol — Contract Interface
 
-The Worker signs using the same oracle private key as `QuestRewards`. Message is EIP-191 (`eth_sign`) over:
+### Two-Transaction Settlement
 
-```
-keccak256(abi.encodePacked(tokenId, wager, payout, gameId, nonce, playerAddress))
-```
+Games that run over multiple rounds (poker, craps) use a two-tx flow:
 
-**Nonce:** Must be unique per game session. Recommended: `keccak256(tokenId, gameId, timestamp, playerAddress)` generated by the Worker at game start. Once used on-chain it can never be reused, so a winning result cannot be replayed.
+1. **TX 1 — `commitWager(tokenId, wager)`** — cells are spent immediately, returns a `nonce`
+2. **(Off-chain game plays out via Worker)**
+3. **TX 2 — `claimWinnings(tokenId, payout, nonce, oracleSig)`** — oracle-signed payout awarded
 
----
+If `payout == 0`, TX 2 is skipped (cells already gone from TX 1).
 
-## Deployment
+### Single-Transaction Settlement
 
-```bash
-# Fuji testnet
-npx hardhat run scripts/deployGamble.js --network fuji
+Simple games (coin flip) resolve in one tx:
 
-# Mainnet
-npx hardhat run scripts/deployGamble.js --network avalanche
-```
+- **`flip(tokenId, wager)`** — 40% win chance, 2x payout, fully on-chain
 
-Or via GitHub Actions: **Actions → Deploy → target=`gamble` → network=`fuji`**
+### Oracle Signature Format
 
-The script will:
-1. Deploy `Gamble.sol`
-2. Call `lastChad.setGameContract(gambleAddress, true)`
-3. Call `gamble.setOracle(ORACLE_ADDRESS)` if `ORACLE_ADDRESS` env var is set
-4. Patch `js/config.js` with the new address and commit it
-
----
-
-## Adding a New Game (Checklist)
-
-1. Build the game UI in a new HTML file (e.g. `blackjack.html`)
-2. Import `GAMBLE_ADDRESS` and `GAMBLE_ABI` from `js/config.js`
-3. Assign it a `gameId` in the table above
-4. Have the Worker:
-   - Run game logic
-   - Generate a unique `nonce`
-   - Sign `(tokenId, wager, payout, gameId, nonce, playerAddress)`
-   - Return `{ payout, nonce, sig }` to the frontend
-5. Player submits `resolveGame(tokenId, wager, payout, gameId, nonce, sig)` to settle on-chain
-6. Read the `GameResolved` event from the receipt to confirm outcome
-
-No contract changes or redeployment needed for new games.
-
----
-
-## Video Poker — Implementation Plan
-
-### Why Two Transactions (Not `resolveGame`)
-
-`resolveGame` deducts wager + awards payout atomically in a single tx. Problem: a losing player simply never calls it and keeps their cells. Poker requires the wager to be **committed before the game starts** so the player can't back out after seeing their cards.
-
-### Architecture Overview
-
-```
-Player                       Blockchain                  Cloudflare Worker
-  │                              │                              │
-  ├─ ANTE UP! ──────────────────►│                              │
-  │                  commitWager(tokenId, wager)                │
-  │                  → spendCells(tokenId, wager)               │
-  │                  → emit WagerCommitted(..., nonce)          │
-  │                              │                              │
-  ├─ POST /poker/deal ──────────────────────────────────────────►│
-  │  { tokenId, nonce, player }  │                  Verify wager on-chain
-  │                              │                  Generate deck, store in KV
-  │◄─────────────────────────────────────────── { cards: [5] } ─┤
-  │                              │                              │
-  │  Player locks/holds cards    │                              │
-  │                              │                              │
-  ├─ POST /poker/draw ──────────────────────────────────────────►│
-  │  { tokenId, nonce,           │                  Replace unheld from KV deck
-  │    held: [b,b,b,b,b] }      │                  Evaluate hand
-  │                              │                  Compute payout
-  │                              │                  Sign (tokenId, payout, nonce, player)
-  │◄──────────────── { cards, hand, payout, nonce, signature } ─┤
-  │                              │                              │
-  │  (if payout > 0)             │                              │
-  ├─ CLAIM ─────────────────────►│                              │
-  │           claimWinnings(tokenId, payout, nonce, oracleSig)  │
-  │                  → verify oracle signature                  │
-  │                  → awardCells(tokenId, payout)              │
-  │                  → emit WinningsClaimed(...)                │
-  │                              │                              │
-  │  (if payout == 0)            │                              │
-  │  Nothing — cells already gone│                              │
-```
-
-### Step 1: Gamble.sol — Add Two Functions
-
-Add to `contracts/Gamble.sol` (no changes to existing `flip` or `resolveGame`):
-
-```solidity
-// ── Poker / two-tx settlement ──────────────────────────────────────────
-
-mapping(uint256 => uint256) public wagerAmounts;  // nonce → wager
-mapping(uint256 => address) public wagerPlayers;   // nonce → player
-uint256 public nextNonce;
-
-event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce);
-event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce);
-
-/// @notice TX 1 — Player commits cells before the game starts.
-///         Cells are spent immediately. Returns a nonce for the session.
-function commitWager(uint256 tokenId, uint256 wager) external returns (uint256) {
-    require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-    require(!lastChad.eliminated(tokenId), "Chad eliminated");
-    require(wager >= minWager && wager <= maxWager, "Wager out of range");
-
-    uint256 nonce = nextNonce++;
-    wagerAmounts[nonce] = wager;
-    wagerPlayers[nonce] = msg.sender;
-    lastChad.spendCells(tokenId, wager);
-
-    emit WagerCommitted(tokenId, msg.sender, wager, nonce);
-    return nonce;
-}
-
-/// @notice TX 2 — Player claims winnings after the Worker signs the result.
-///         Only called on a win (payout > 0). Losses need no TX 2.
-function claimWinnings(
-    uint256 tokenId,
-    uint256 payout,
-    uint256 nonce,
-    bytes calldata oracleSig
-) external {
-    require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-    require(wagerAmounts[nonce] > 0, "No active wager");
-    require(wagerPlayers[nonce] == msg.sender, "Not wager owner");
-    require(!usedNonces[nonce], "Already claimed");
-
-    if (oracle != address(0)) {
-        bytes32 message = keccak256(abi.encodePacked(
-            tokenId, payout, nonce, msg.sender
-        ));
-        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
-        address signer  = ECDSA.recover(ethHash, oracleSig);
-        require(signer == oracle, "Invalid oracle signature");
-    }
-
-    usedNonces[nonce] = true;
-    delete wagerAmounts[nonce];
-    delete wagerPlayers[nonce];
-
-    if (payout > 0) {
-        lastChad.awardCells(tokenId, payout);
-    }
-
-    emit WinningsClaimed(tokenId, msg.sender, payout, nonce);
-}
-```
-
-**Signature format for `claimWinnings`:**
 ```
 keccak256(abi.encodePacked(tokenId, payout, nonce, playerAddress))
 ```
-Signed with EIP-191 (`eth_sign`) using the same `ORACLE_PRIVATE_KEY` as the quest worker.
 
-**ABI additions for `js/config.js`:**
-```js
-// Add to GAMBLE_ABI:
-'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
-'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
-'function wagerAmounts(uint256 nonce) view returns (uint256)',
-'function nextNonce() view returns (uint256)',
-'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
-'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
-```
+Signed with EIP-191 (`eth_sign`) using `ORACLE_PRIVATE_KEY`.
 
-**Test file:** `test/Gamble.test.js` — test commitWager, claimWinnings, nonce replay prevention, invalid signatures.
+### Wager Limits
 
-### Step 2: Worker — Add Poker Endpoints
+| Variable | Default | Set via |
+|----------|---------|---------|
+| `minWager` | 1 | `setWagerLimits(min, max)` |
+| `maxWager` | 50 | `setWagerLimits(min, max)` |
 
-Add to `worker/runner-worker.js` (or a separate `poker-worker.js` if preferred):
+---
 
-**`POST /poker/deal`** `{ tokenId, nonce, player }`
-1. Verify `wagerAmounts[nonce] > 0` on-chain (player actually committed cells)
-2. Verify `wagerPlayers[nonce] == player` on-chain
-3. Generate shuffled 52-card deck using `crypto.getRandomValues()` (Worker-side, not manipulable by player)
-4. Deal first 5 cards
-5. Store full deck + nonce + player in KV: `poker:{nonce}` (TTL: 10 minutes)
-6. Return `{ ok: true, cards: [{rank, suit}, ...] }` — only the 5 dealt cards, NOT the rest of the deck
+## Craps — Bet Types & Payouts
 
-**`POST /poker/draw`** `{ tokenId, nonce, held: [bool,bool,bool,bool,bool] }`
-1. Load session from KV: `poker:{nonce}`
-2. Validate: session exists, not already drawn, player matches
-3. Replace unheld cards from the stored deck (positions 5, 6, 7... in order)
-4. Evaluate the final 5-card hand (Jacks or Better rules)
-5. Compute payout: `wager * PAYOUTS[hand]` (or 0 if no winning hand)
-6. Sign `keccak256(tokenId, payout, nonce, player)` with `ORACLE_PRIVATE_KEY`
-7. Mark session as complete in KV
-8. Return `{ ok: true, cards: [5], hand: "FLUSH"|null, payout: 30, nonce, signature }`
+### Multi-Roll Bets
 
-**Payout table (Jacks or Better, multiplied by wager):**
+| Bet | When Placed | Wins | Loses | Payout |
+|-----|-------------|------|-------|--------|
+| Pass Line | Come-out only | 7/11 come-out, or hit point | 2/3/12 come-out, or 7 after point | 1:1 |
+| Pass Odds | After point set | Hit point | 7-out | True odds |
+| Come | After point set | 7/11 on next roll, or hit come-point | 2/3/12, or 7 after come-point | 1:1 |
+| Place 4/10 | After point set | Number before 7 | 7 | 9:5 |
+| Place 5/9 | After point set | Number before 7 | 7 | 7:5 |
+| Place 6/8 | After point set | Number before 7 | 7 | 7:6 |
+| Hard 4/10 | Any time | Hard way before 7 or easy | 7 or easy way | 7:1 |
+| Hard 6/8 | Any time | Hard way before 7 or easy | 7 or easy way | 9:1 |
+
+### One-Roll Bets
+
+| Bet | Wins | Payout |
+|-----|------|--------|
+| Field | 2,3,4,9,10,11,12 | 1:1 (2 pays 2:1, 12 pays 3:1) |
+
+### True Odds (behind Pass/Come)
+
+| Point | Payout |
+|-------|--------|
+| 4/10 | 2:1 |
+| 5/9 | 3:2 |
+| 6/8 | 6:5 |
+
+---
+
+## Poker — Payout Table (Jacks or Better)
 
 | Hand | Multiplier |
 |------|-----------|
@@ -297,253 +262,45 @@ Add to `worker/runner-worker.js` (or a separate `poker-worker.js` if preferred):
 | Jacks or Better | 1x |
 | No win | 0x |
 
-**KV schema:**
-```json
-{
-  "key": "poker:{nonce}",
-  "value": {
-    "tokenId": "5",
-    "player": "0xabc...",
-    "wager": 10,
-    "deck": [0,1,2,...,51],
-    "dealt": 5,
-    "drawn": false,
-    "finalHand": null,
-    "payout": null
-  },
-  "ttl": 600
-}
-```
+---
 
-**Anti-cheat guarantees:**
-- Player never sees cards beyond their initial 5 (deck stored server-side)
-- Worker generates deck with `crypto.getRandomValues()` — player can't influence shuffle
-- Draw is one-shot (KV `drawn` flag) — can't retry draws to get better cards
-- Oracle signature ties payout to the specific nonce — can't replay a winning sig with a different nonce
-- On-chain nonce check prevents claiming twice
+## Frontend Files
 
-### Step 3: Frontend — Wire Up gamble.html
-
-Replace the `// TODO` blocks in `gamble.html` poker logic:
-
-**`beginPokerRound()` changes:**
-1. Call `gamble.commitWager(selectedTokenId, wagerAmount)` → wait for tx
-2. Read `WagerCommitted` event from receipt → extract `nonce`
-3. Call Worker `POST /poker/deal { tokenId, nonce, player }` → get 5 cards
-4. Display cards (replace current `Math.random()` deck with worker-dealt cards)
-5. Show DRAW button
-
-**`pokerDraw()` changes:**
-1. Call Worker `POST /poker/draw { tokenId, nonce, held }` → get final cards + hand + payout + signature
-2. Display final cards and result
-3. If `payout > 0`: show CLAIM button → calls `gamble.claimWinnings(tokenId, payout, nonce, signature)`
-4. If `payout == 0`: show "NO WIN" — no TX needed, cells already gone
-
-**Remove from frontend:**
-- `createDeck()`, `shuffleDeck()`, `evaluateHand()` — all move to Worker
-- `Math.random()` card dealing — replaced by Worker `/poker/deal` response
-
-**Keep on frontend:**
-- Card rendering (`renderPokerHand`)
-- Hold/lock toggle (`toggleHold`)
-- All CSS and UI overlays
-- Payout table display + highlight
-
-### Step 4: Deploy & Configure
-
-1. Compile and deploy updated `Gamble.sol`:
-   ```bash
-   npx hardhat run scripts/deployGamble.js --network fuji
-   ```
-2. Authorize: `lastChad.setGameContract(newGambleAddress, true)`
-3. Set oracle: `gamble.setOracle(ORACLE_ADDRESS)`
-4. Update `js/config.js` with new `GAMBLE_ADDRESS` and expanded `GAMBLE_ABI`
-5. Deploy updated Worker: `cd worker && npx wrangler deploy`
-6. Update `GAMBLE_ADDRESS` in Worker `wrangler.toml` if it changed
-
-### Game ID
-
-| gameId | Game       | Status     |
-|--------|------------|------------|
-| 0      | (reserved) | —          |
-| 1      | Blackjack  | Planned    |
-| 2      | Poker      | **Active** |
-
-Note: Poker uses `commitWager` + `claimWinnings` (two-tx), NOT `resolveGame` (single-tx). The `gameId` field is not used in the two-tx path but is reserved for event tracking if needed later.
+| File | Purpose |
+|------|---------|
+| `gamble.html` | NPC hub — game selection, Chad selection, wager, buy-in (commitWager). Redirects to game page. |
+| `craps.html` | Multiplayer craps table — lobby, Agora video/audio, server-authoritative gameplay |
 
 ---
 
-## Craps — Implementation Plan
+## Worker Secrets & Config
 
-### Overview
+**Cloudflare Worker secrets** (`wrangler secret put`):
+- `ORACLE_PRIVATE_KEY` — hex private key for signing payouts
+- `AGORA_APP_CERT` — Agora App Certificate for RTC token generation
 
-Craps uses the same `commitWager` + `claimWinnings` two-tx architecture as poker. Player buys in with cells (TX 1), plays unlimited rolls off-chain with the Worker tracking all bets and state, then cashes out (TX 2). The frontend (`craps.html`) runs the full game locally for instant UX, with the Worker validating and signing the final payout.
-
-### Contract Changes Required (Monday Redeploy)
-
-**No new functions needed** — craps reuses `commitWager()` and `claimWinnings()` exactly as specced for poker above. The only contract changes are the ones already listed in the poker section:
-
-1. Add `commitWager(uint256 tokenId, uint256 wager) → uint256 nonce`
-2. Add `claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig)`
-3. Add storage: `wagerAmounts`, `wagerPlayers`, `nextNonce`
-4. Add events: `WagerCommitted`, `WinningsClaimed`
-
-**ABI additions** (same as poker — add once, both games use them):
-```js
-// Add to GAMBLE_ABI in js/config.js:
-'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
-'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
-'function wagerAmounts(uint256 nonce) view returns (uint256)',
-'function nextNonce() view returns (uint256)',
-'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
-'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
-```
-
-### Craps Session Flow
-
-```
-Player                       Blockchain                  Cloudflare Worker
-  │                              │                              │
-  ├─ BUY IN ───────────────────►│                              │
-  │              commitWager(tokenId, buyIn)                    │
-  │              → spendCells(tokenId, buyIn)                   │
-  │              → emit WagerCommitted(..., nonce)              │
-  │                              │                              │
-  ├─ POST /craps/start ───────────────────────────────────────►│
-  │  { tokenId, nonce, player }  │            Verify wager on-chain
-  │                              │            Create session in KV
-  │◄──────────────────────────── { ok, sessionId, stack } ─────┤
-  │                              │                              │
-  │  Player places bets          │                              │
-  │  Player rolls dice           │                              │
-  │  (all computed locally)      │                              │
-  │  ... repeats many times ...  │                              │
-  │                              │                              │
-  ├─ POST /craps/cashout ─────────────────────────────────────►│
-  │  { tokenId, nonce,           │            Validate game log
-  │    finalStack, gameLog }     │            Verify math
-  │                              │            Sign payout
-  │◄───────── { payout, nonce, signature } ────────────────────┤
-  │                              │                              │
-  │  (if payout > 0)             │                              │
-  ├─ CASH OUT ─────────────────►│                              │
-  │        claimWinnings(tokenId, payout, nonce, oracleSig)    │
-  │              → awardCells(tokenId, payout)                  │
-  │              → emit WinningsClaimed(...)                    │
-  │                              │                              │
-  │  (if payout == 0)            │                              │
-  │  Nothing — cells already gone│                              │
-```
-
-### Bet Types & Payouts
-
-#### Multi-Roll Bets (persist across rolls)
-
-| Bet | When Placed | Wins | Loses | Payout |
-|-----|-------------|------|-------|--------|
-| Pass Line | Come-out only | 7/11 come-out, or hit point | 2/3/12 come-out, or 7 after point | 1:1 |
-| Pass Odds | After point set | Hit point | 7-out | True odds (see below) |
-| Come | After point set | 7/11 on next roll, or hit come-point | 2/3/12 on next roll, or 7 after come-point | 1:1 |
-| Come Odds | After come-point set | Hit come-point | 7-out | True odds (see below) |
-| Place 4/10 | After point set | That number before 7 | 7 | 9:5 |
-| Place 5/9 | After point set | That number before 7 | 7 | 7:5 |
-| Place 6/8 | After point set | That number before 7 | 7 | 7:6 |
-| Hard 4 | Any time | 2+2 before 7 or easy 4 | 7 or easy 4 (1+3) | 7:1 |
-| Hard 6 | Any time | 3+3 before 7 or easy 6 | 7 or easy 6 | 9:1 |
-| Hard 8 | Any time | 4+4 before 7 or easy 8 | 7 or easy 8 | 9:1 |
-| Hard 10 | Any time | 5+5 before 7 or easy 10 | 7 or easy 10 | 7:1 |
-
-#### One-Roll Bets (resolve immediately)
-
-| Bet | Wins | Payout |
-|-----|------|--------|
-| Field | 2, 3, 4, 9, 10, 11, 12 | 1:1 (2 pays 2:1, 12 pays 3:1) |
-
-#### True Odds Payouts (behind Pass/Come)
-
-| Point | Odds Payout |
-|-------|-------------|
-| 4 or 10 | 2:1 |
-| 5 or 9 | 3:2 |
-| 6 or 8 | 6:5 |
-
-### Worker Endpoints
-
-**`POST /craps/start`** `{ tokenId, nonce, player }`
-1. Verify `wagerAmounts[nonce] > 0` on-chain
-2. Verify `wagerPlayers[nonce] == player`
-3. Create session in KV: `craps:{nonce}` with initial stack = wager amount
-4. Return `{ ok: true, sessionId: nonce, stack: wagerAmount }`
-
-**`POST /craps/cashout`** `{ tokenId, nonce, finalStack, gameLog }`
-1. Load session from KV
-2. Validate game log integrity (replay all bets/rolls, verify final stack matches)
-3. Sign `keccak256(tokenId, payout, nonce, player)` with `ORACLE_PRIVATE_KEY`
-4. Delete session from KV
-5. Return `{ ok: true, payout: finalStack, nonce, signature }`
-
-**KV schema:**
-```json
-{
-  "key": "craps:{nonce}",
-  "value": {
-    "tokenId": "5",
-    "player": "0xabc...",
-    "initialStack": 25,
-    "gameLog": [],
-    "createdAt": 1710000000
-  },
-  "ttl": 3600
-}
-```
-
-### Frontend: craps.html
-
-Full craps table rendered as a top-down SVG/CSS layout. All game logic runs client-side with `Math.random()` for dice (not on-chain — this is gambling, not quest scoring). The Worker only validates the final stack at cashout.
-
-### Anti-Cheat
-
-- Player commits cells on-chain BEFORE playing — can't back out
-- Worker verifies the game log at cashout — replays every bet and roll to confirm final stack
-- Oracle signature prevents fabricating a payout
-- Frontend uses `crypto.getRandomValues()` for dice entropy (not `Math.random()`)
-- Game log is append-only: each entry = `{ action, bets, dice, stackAfter }`
+**wrangler.toml vars:**
+- `GAMBLE_ADDRESS` — Gamble.sol contract address
+- `READ_RPC` — Avalanche RPC URL
+- `AGORA_APP_ID` — Agora App ID
 
 ---
 
-## Craps — Required Assets
+## Deployment
 
-### Must-Have (game will not look right without these)
+```bash
+# Deploy Gamble.sol
+npx hardhat run scripts/deployGamble.js --network fuji
 
-| Asset | Format | Dimensions | Description |
-|-------|--------|------------|-------------|
-| **Craps table felt** | PNG | ~900x500 | Top-down view of felt layout: pass line, come area, place numbers (4-5-6-8-9-10), field strip, hard ways center. Dark green felt with gold/white line markings. This is the main visual centerpiece. |
-| **NPC dealer portrait** | PNG | ~400x600 | Craps dealer character for the dialogue box. Should match the Last Chad art style. Consider 2-3 expressions: neutral, excited (big win), sympathetic (seven-out). |
-| **Chip sprites** | PNG (spritesheet or individual) | ~40x40 each | 4-5 denominations: 1 cell (white), 5 cells (red), 10 cells (blue), 25 cells (green), 50 cells (black). Used to show bets on the table. |
-| **ON/OFF puck** | PNG | ~30x30 | The classic craps puck — white "ON" side, black "OFF" side. Placed on the point number when established. |
+# Deploy Worker
+cd worker && npx wrangler deploy
 
-### Nice-to-Have (elevates the experience significantly)
+# Set Agora secrets (one-time)
+cd worker
+wrangler secret put AGORA_APP_CERT
+```
 
-| Asset | Format | Description |
-|-------|--------|-------------|
-| **Dice roll video** | MP4 (short, ~2-3s) | Two dice tumbling on green felt, filmed top-down. Plays during each roll for dramatic effect. Multiple variations ideal. |
-| **Dice roll sound effect** | WAV/MP3 | Dice rattling and bouncing on felt. Short, punchy. |
-| **Chip stacking sound** | WAV/MP3 | Chips clinking when bet is placed or winnings collected. |
-| **Crowd cheer** | WAV/MP3 | Excited crowd reaction for big wins (hitting point, field 12, hard ways). |
-| **Crowd groan** | WAV/MP3 | Sympathetic crowd reaction for seven-out. |
-| **Win jingle** | WAV/MP3 | Cash-out celebration sound. |
-| **Table background** | PNG | ~1920x1080 | Full-screen casino environment behind the table (dark felt, wood rail, moody lighting). |
-| **Stickman calls** | WAV/MP3 (multiple) | Classic dealer calls: "Seven out!", "Winner!", "New shooter coming out!", "Hard eight!", "Yo eleven!" |
-| **Background music** | MP3 (loop) | Moody casino ambience. Jazzy or lounge vibe. Separate from the gamble.html music. |
-
-### Can Reuse From Existing Code (no new assets needed)
-
-| What | Source |
-|------|--------|
-| Dice dot rendering (CSS) | game.html — 3x3 dot grid, stainless steel dice boxes |
-| Roll animation | game.html — `@keyframes dice-tumble` |
-| Win/lose sound effects | `sound effects/youwin.wav`, `sound effects/youlose.wav` |
-| NPC dialogue system | gamble.html — typewriter, choice buttons |
-| Wallet connection | `js/wallet.js`, `js/wallet-modal.js` |
-| Character selection grid | gamble.html — NFT cards with cells display |
-| Background image | `assets/mainbg.png` (or create a craps-specific one) |
+After deploying Gamble.sol:
+1. `lastChad.setGameContract(gambleAddress, true)` — authorize cell spending
+2. `gamble.setOracle(ORACLE_ADDRESS)` — set oracle for signature verification
+3. Update `GAMBLE_ADDRESS` in `js/config.js` and `wrangler.toml`
