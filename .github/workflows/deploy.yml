@@ -162,12 +162,16 @@ jobs:
 
       - name: Push AGORA_APP_CERT secret to Worker
         working-directory: worker
-        if: ${{ secrets.AGORA_APP_CERT != '' }}
         env:
           CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           AGORA_APP_CERT:        ${{ secrets.AGORA_APP_CERT }}
-        run: echo "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
+        run: |
+          if [ -n "$AGORA_APP_CERT" ]; then
+            echo "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
+          else
+            echo "AGORA_APP_CERT not set — skipping"
+          fi
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 3: Re-authorize an already-deployed QuestRewards contract
@@ -405,12 +409,16 @@ jobs:
 
       - name: Push AGORA_APP_CERT secret to Worker
         working-directory: worker
-        if: ${{ secrets.AGORA_APP_CERT != '' }}
         env:
           CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           AGORA_APP_CERT:        ${{ secrets.AGORA_APP_CERT }}
-        run: echo "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
+        run: |
+          if [ -n "$AGORA_APP_CERT" ]; then
+            echo "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
+          else
+            echo "AGORA_APP_CERT not set — skipping"
+          fi
 
       - name: Commit synced wrangler.toml
         run: |
