@@ -130,7 +130,8 @@
     #table-screen {
       position: fixed; inset: 0; z-index: 100;
       display: none; flex-direction: column;
-      background: #0a0a0f;
+      background: url('assets/Oldjipt/Craps/felt.png') center/cover no-repeat;
+      background-color: #0a3a0a;
     }
     #table-screen.active { display: flex; }
 
@@ -144,13 +145,14 @@
 
     .craps-table {
       width: 100%; max-width: 720px;
-      background: url('assets/Oldjipt/Craps/felt.png') center/cover no-repeat;
+      background: rgba(0,60,0,0.6);
       border: 4px solid #8b6914;
       border-radius: 12px;
       box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 30px rgba(139,105,20,0.3);
       padding: 8px;
       display: flex; flex-direction: column; gap: 4px;
       position: relative;
+      backdrop-filter: blur(2px);
     }
 
     /* Puck */
@@ -276,28 +278,30 @@
     /* ── Dealer NPC ── */
     .dealer-area {
       display: flex; align-items: center; justify-content: center;
-      gap: 10px; padding: 4px 0;
+      gap: 12px; padding: 8px 0;
     }
     .dealer-portrait {
-      width: 64px; height: 72px;
+      width: 80px; height: 90px;
       background: url('assets/Oldjipt/Craps/jiptneutral.png') center/contain no-repeat;
       image-rendering: pixelated;
-      filter: drop-shadow(0 0 6px rgba(0,0,0,0.7));
+      filter: drop-shadow(0 0 8px rgba(0,0,0,0.8));
       transition: background-image 0.3s;
+      flex-shrink: 0;
     }
     .dealer-portrait.happy { background-image: url('assets/Oldjipt/Craps/jipthappy.png'); }
     .dealer-portrait.sad { background-image: url('assets/Oldjipt/Craps/jiptsad.png'); }
     .dealer-speech {
-      font-size: 0.3rem; color: #ffe96a;
-      background: rgba(0,0,0,0.7);
-      border: 1px solid #5c4409; border-radius: 6px;
-      padding: 6px 10px; max-width: 240px;
+      font-size: 0.32rem; color: #ffe96a;
+      background: rgba(0,0,0,0.75);
+      border: 2px solid #5c4409; border-radius: 8px;
+      padding: 8px 12px; max-width: 260px;
       text-shadow: 1px 1px 0 #000;
       position: relative;
+      line-height: 1.6;
     }
     .dealer-speech::before {
-      content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%);
-      border: 5px solid transparent; border-right-color: #5c4409;
+      content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+      border: 6px solid transparent; border-right-color: #5c4409;
     }
 
     /* ── Controls bar ── */
@@ -329,21 +333,23 @@
     .roll-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* ── Chip selector ── */
-    .chip-selector {
-      display: flex; align-items: center; gap: 8px;
+    .chip-tray {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 6px 0;
     }
-    .chip-selector-label { font-size: 0.3rem; color: #c9a84c; }
+    .chip-tray-label { font-size: 0.3rem; color: #c9a84c; text-shadow: 1px 1px 0 #000; }
     .chip {
-      width: 42px; height: 42px;
+      width: 48px; height: 48px;
       background: url('assets/Oldjipt/Craps/jiptchips.png') no-repeat;
       background-size: 300% 300%;
-      border: 2px solid transparent; border-radius: 50%;
+      border: 3px solid transparent; border-radius: 50%;
       cursor: pointer; transition: all 0.15s;
       position: relative;
       image-rendering: pixelated;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
     }
-    .chip:hover { transform: scale(1.15); filter: brightness(1.2); }
-    .chip.selected { border-color: #ffe96a; box-shadow: 0 0 10px rgba(255,233,106,0.6); transform: scale(1.15); }
+    .chip:hover { transform: scale(1.2); filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
+    .chip.selected { border-color: #ffe96a; box-shadow: 0 0 14px rgba(255,233,106,0.7); transform: scale(1.2); }
     /* Sprite positions from jiptchips.png — 3x3 grid: row0=[1,5,10] row1=[25,50,100] row2=[500,1000,?] */
     .chip[data-value="1"]  { background-position: 0% 0%; }
     .chip[data-value="5"]  { background-position: 50% 0%; }
@@ -423,10 +429,10 @@
       .bet-zone .zone-payout { font-size: 0.18rem; }
       .controls-bar { flex-wrap: wrap; gap: 6px; }
       .game-header { padding: 8px 10px; }
-      .dealer-portrait { width: 48px; height: 54px; }
+      .dealer-portrait { width: 56px; height: 63px; }
       .dealer-speech { font-size: 0.25rem; max-width: 180px; }
-      .chip { width: 34px; height: 34px; }
-      .chip-selector { gap: 5px; }
+      .chip { width: 38px; height: 38px; }
+      .chip-tray { gap: 8px; }
     }
 
     /* ── Desktop ── */
@@ -435,7 +441,7 @@
       .bet-zone { min-height: 44px; }
       .bet-zone .zone-label { font-size: 0.32rem; }
       .dealer-portrait { width: 80px; height: 90px; }
-      .chip { width: 50px; height: 50px; }
+      .chip { width: 56px; height: 56px; }
       .craps-die { width: 70px; height: 70px; }
     }
   </style>
@@ -580,17 +586,19 @@
         <div class="dealer-portrait" id="dealerPortrait"></div>
         <div class="dealer-speech" id="dealerSpeech">New shooter! Place your bets.</div>
       </div>
-    </div>
 
-    <!-- Controls -->
-    <div class="controls-bar">
-      <div class="chip-selector">
-        <span class="chip-selector-label">BET:</span>
+      <!-- Chip tray -->
+      <div class="chip-tray">
+        <span class="chip-tray-label">BET:</span>
         <div class="chip selected" data-value="1" title="1 cell"></div>
         <div class="chip" data-value="5" title="5 cells"></div>
         <div class="chip" data-value="10" title="10 cells"></div>
         <div class="chip" data-value="25" title="25 cells"></div>
       </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
       <button class="roll-btn" id="rollBtn" disabled>ROLL</button>
       <button class="cashout-btn" id="cashoutBtn">CASH OUT</button>
     </div>
