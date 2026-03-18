@@ -7,1281 +7,1235 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
+  <!-- Agora Web SDK 4.x -->
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      width:100vw;height:100vh;overflow:hidden;
+      background:#0a0a0f;
+      font-family:'Press Start 2P',monospace;
+      color:#ffe96a;
+    }
 
-    body {
-      width: 100vw; height: 100vh; overflow: hidden;
-      background: #0a0a0f;
-      font-family: 'Press Start 2P', monospace;
-      color: #ffe96a;
+    /* ── Player Colors ── */
+    :root{
+      --p1-color:#4caf50;  /* green — local player (you) */
+      --p2-color:#42a5f5;  /* blue — remote top */
+      --p3-color:#ab47bc;  /* purple — remote left */
+      --p4-color:#ef5350;  /* red — remote right */
+      --p1-glow:rgba(76,175,80,0.5);
+      --p2-glow:rgba(66,165,245,0.5);
+      --p3-glow:rgba(171,71,188,0.5);
+      --p4-glow:rgba(239,83,80,0.5);
     }
 
     /* ── Header ── */
-    .game-header {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 300;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 16px;
-      background: rgba(10, 10, 15, 0.95);
-      border-bottom: 2px solid #2a5a1a;
-      backdrop-filter: blur(8px);
+    .game-header{
+      position:fixed;top:0;left:0;right:0;z-index:300;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:8px 14px;
+      background:rgba(10,10,15,0.95);
+      border-bottom:2px solid #2a5a1a;
+      backdrop-filter:blur(8px);
     }
-    .wallet-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.5rem; padding: 8px 14px;
-      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
-      border: 2px solid #d4a017; border-radius: 4px;
-      color: #1a1005; cursor: pointer;
-      box-shadow: inset 0 1px 0 rgba(255,220,120,0.4), 0 2px 6px rgba(0,0,0,0.5);
+    .header-left{display:flex;align-items:center;gap:10px}
+    .header-title{font-size:0.55rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4)}
+    .wallet-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.45rem;padding:6px 12px;
+      background:linear-gradient(180deg,#c9a84c 0%,#8b6914 100%);
+      border:2px solid #d4a017;border-radius:4px;color:#1a1005;cursor:pointer;
+      box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
     }
-    .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
-    .wallet-btn.connected { font-size: 0.45rem; }
-    .wallet-wrapper { position: relative; }
-    .disconnect-dropdown {
-      display: none; position: absolute; top: calc(100% + 6px); right: 0;
-      background: linear-gradient(180deg, #1e1608 0%, #140f05 100%);
-      border: 2px solid #5c4409; border-radius: 4px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.7); z-index: 110; min-width: 160px;
-    }
-    .disconnect-dropdown.show { display: block; }
-    .disconnect-btn {
-      width: 100%; padding: 12px 16px;
-      font-family: 'Press Start 2P', monospace; font-size: 0.45rem;
-      color: #e53935; background: none; border: none; cursor: pointer;
-    }
-    .disconnect-btn:hover { background: rgba(229,57,53,0.15); }
+    .wallet-btn:hover{background:linear-gradient(180deg,#dabb5e 0%,#a07d1e 100%)}
+    .nav-wrapper{position:static}
 
-    /* ── Stack display ── */
-    .stack-display {
-      font-size: 0.55rem; color: #4caf50;
-      text-shadow: 0 0 8px rgba(76,175,80,0.5);
+    /* ── Table Wrapper (everything below header) ── */
+    .table-wrapper{
+      width:100%;height:calc(100vh - 44px);
+      margin-top:44px;
+      display:grid;
+      grid-template-columns:180px 1fr 180px;
+      grid-template-rows:auto 1fr auto;
+      gap:0;
     }
 
-    .nav-wrapper { position: static; }
+    /* ── Player Panel (shared) ── */
+    .player-panel{
+      display:flex;flex-direction:column;align-items:center;
+      padding:6px;gap:4px;
+      background:rgba(10,10,15,0.9);
+      position:relative;
+    }
+    .player-panel .portrait-frame{
+      width:80px;height:96px;
+      border:3px solid #555;border-radius:6px;
+      overflow:hidden;position:relative;
+      background:#000;
+    }
+    .player-panel .portrait-frame img{
+      width:100%;height:100%;object-fit:cover;
+      image-rendering:pixelated;display:block;
+    }
+    .player-panel .portrait-frame video{
+      width:100%;height:100%;object-fit:cover;
+      position:absolute;top:0;left:0;
+    }
+    .player-panel.has-video .chad-portrait{display:none}
+    .player-panel .chad-portrait{display:block}
+    .player-panel .nft-name{
+      font-size:0.3rem;color:#ccc;text-align:center;
+      max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .player-panel .player-stack-lbl{
+      font-size:0.3rem;text-align:center;
+    }
+    .player-panel.empty .portrait-frame{border-color:#333}
+    .player-panel.empty .nft-name{color:#555}
 
-    /* ── Full-screen overlay states ── */
-    .screen-overlay {
-      position: fixed; inset: 0; z-index: 200;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.92);
-      transition: opacity 0.4s;
-    }
-    .screen-overlay.hidden { opacity: 0; pointer-events: none; }
+    /* Per-player color coding */
+    .player-panel[data-seat="0"] .portrait-frame{border-color:var(--p1-color);box-shadow:0 0 10px var(--p1-glow)}
+    .player-panel[data-seat="0"] .nft-name{color:var(--p1-color)}
+    .player-panel[data-seat="0"] .player-stack-lbl{color:var(--p1-color)}
 
-    /* ── Setup screen (NFT select + buy-in) ── */
-    #setup-screen {
-      padding: 20px; overflow-y: auto;
-    }
-    .setup-title {
-      font-size: clamp(0.8rem, 3vw, 1.2rem);
-      color: #4caf50;
-      text-shadow: 0 0 20px rgba(76,175,80,0.4);
-      margin-bottom: 20px;
-      text-align: center;
-    }
-    .setup-subtitle {
-      font-size: 0.45rem; color: #8a7a5a;
-      text-align: center; margin-bottom: 16px;
-    }
-    #nft-grid {
-      display: flex; gap: 0.8em; flex-wrap: wrap;
-      justify-content: center; margin-bottom: 16px;
-      max-height: 30vh; overflow-y: auto;
-    }
-    .nft-card {
-      width: 80px; height: 100px; border: 2px solid #555;
-      border-radius: 6px; cursor: pointer; position: relative;
-      overflow: hidden; transition: all 0.2s;
-      background: rgba(0,0,0,0.5);
-    }
-    .nft-card img { width: 100%; height: 70%; object-fit: cover; image-rendering: pixelated; }
-    .nft-card .nft-id { font-size: 0.35rem; text-align: center; padding: 2px; color: #ffe96a; }
-    .nft-card:hover { border-color: #4caf50; transform: scale(1.06); }
-    .nft-card.selected { border-color: #4caf50; box-shadow: 0 0 14px rgba(76,175,80,0.5); }
+    .player-panel[data-seat="1"] .portrait-frame{border-color:var(--p2-color);box-shadow:0 0 10px var(--p2-glow)}
+    .player-panel[data-seat="1"] .nft-name{color:var(--p2-color)}
+    .player-panel[data-seat="1"] .player-stack-lbl{color:var(--p2-color)}
 
-    #buyin-section {
-      display: none; flex-direction: column; align-items: center; gap: 10px;
-      margin-top: 10px;
-    }
-    #buyin-section.visible { display: flex; }
-    #buyin-label { font-size: 0.45rem; color: #4caf50; }
-    #buyin-slider { width: 60%; max-width: 400px; accent-color: #4caf50; }
-    #buyin-amount { font-size: 0.6rem; color: #ffe96a; }
-    .buyin-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.6rem; color: #0a0a0f;
-      background: linear-gradient(180deg, #4caf50 0%, #2e7d32 100%);
-      border: none; border-bottom: 4px solid #1b5e20;
-      padding: 14px 36px; cursor: pointer;
-      letter-spacing: 0.08em; transition: all 0.15s;
-    }
-    .buyin-btn:hover { background: linear-gradient(180deg, #66bb6a 0%, #388e3c 100%); }
-    .buyin-btn:active { border-bottom-width: 2px; transform: translateY(2px); }
-    .buyin-btn:disabled { background: #333; border-color: #222; color: #666; cursor: not-allowed; }
-    .setup-status {
-      font-size: 0.38rem; color: #4caf50; min-height: 1.4em;
-      animation: blink 1s step-end infinite;
-    }
-    @keyframes blink { 50% { opacity: 0; } }
-    .setup-error { color: #e53935 !important; animation: none !important; }
+    .player-panel[data-seat="2"] .portrait-frame{border-color:var(--p3-color);box-shadow:0 0 10px var(--p3-glow)}
+    .player-panel[data-seat="2"] .nft-name{color:var(--p3-color)}
+    .player-panel[data-seat="2"] .player-stack-lbl{color:var(--p3-color)}
 
-    /* ── Table screen ── */
-    #table-screen {
-      position: fixed; inset: 0; z-index: 100;
-      display: none; flex-direction: column;
-      background: url('assets/Oldjipt/Craps/felt.png') center/cover no-repeat;
-      background-color: #0a3a0a;
-    }
-    #table-screen.active { display: flex; }
+    .player-panel[data-seat="3"] .portrait-frame{border-color:var(--p4-color);box-shadow:0 0 10px var(--p4-glow)}
+    .player-panel[data-seat="3"] .nft-name{color:var(--p4-color)}
+    .player-panel[data-seat="3"] .player-stack-lbl{color:var(--p4-color)}
 
-    /* ── Craps table ── */
-    .table-area {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 44px 8px 8px;
-      overflow-y: auto;
+    /* ── Top Row: Remote P2 (center top) + ad spots ── */
+    .top-row{
+      grid-column:1/-1;
+      display:flex;align-items:stretch;
+      border-bottom:2px solid #2a5a1a;
+      background:rgba(10,10,15,0.9);
+    }
+    .top-row .ad-spot{
+      flex:0 0 160px;
+      display:flex;align-items:center;justify-content:center;
+      border:2px dashed #333;margin:6px;border-radius:6px;
+      background:rgba(0,0,0,0.3);overflow:hidden;
+    }
+    .top-row .ad-spot img{width:100%;height:100%;object-fit:cover}
+    .top-row .ad-placeholder{font-size:0.25rem;color:#444;text-align:center}
+    .top-row .player-panel{flex:1;flex-direction:row;justify-content:center;gap:12px}
+    .top-row .player-panel .portrait-frame{width:80px;height:96px;flex-shrink:0}
+    .top-row .player-info{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+    .top-row .video-controls{
+      display:flex;flex-direction:column;gap:4px;justify-content:center;padding-left:12px;
     }
 
-    .craps-table {
-      width: 100%; max-width: 720px;
-      background: rgba(0,60,0,0.6);
-      border: 4px solid #8b6914;
-      border-radius: 12px;
-      box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 30px rgba(139,105,20,0.3);
-      padding: 8px;
-      display: flex; flex-direction: column; gap: 4px;
-      position: relative;
-      backdrop-filter: blur(2px);
+    /* ── Left Sidebar: Remote P3 + ad ── */
+    .left-sidebar{
+      grid-row:2;grid-column:1;
+      display:flex;flex-direction:column;
+      border-right:2px solid #2a3a1a;
+      background:rgba(10,10,15,0.9);
+    }
+    .left-sidebar .player-panel{border-bottom:1px solid #1a2a0a}
+    .left-sidebar .ad-spot{
+      flex:1;margin:6px;
+      border:2px dashed #333;border-radius:6px;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(0,0,0,0.3);overflow:hidden;
+    }
+    .left-sidebar .ad-spot img{width:100%;height:100%;object-fit:cover}
+    .left-sidebar .ad-placeholder{font-size:0.25rem;color:#444;text-align:center}
+
+    /* ── Right Sidebar: Remote P4 + chat ── */
+    .right-sidebar{
+      grid-row:2;grid-column:3;
+      display:flex;flex-direction:column;
+      border-left:2px solid #2a3a1a;
+      background:rgba(10,10,15,0.9);
+    }
+    .right-sidebar .player-panel{border-bottom:1px solid #1a2a0a}
+
+    /* Chat */
+    .chat-box{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .chat-header{padding:6px 8px;border-bottom:1px solid #1a2a0a;font-size:0.35rem;color:#4caf50}
+    .chat-messages{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:3px}
+    .chat-msg{font-size:0.25rem;line-height:1.5;padding:3px 5px;border-radius:3px;background:rgba(0,0,0,0.3)}
+    .chat-msg .msg-name{font-weight:bold}
+    .chat-msg .msg-text{color:#ccc}
+    .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
+    .chat-msg.roll-msg .msg-text{color:#ffe96a}
+    .chat-msg.win-msg .msg-text{color:#4caf50}
+    .chat-msg.lose-msg .msg-text{color:#e53935}
+    /* Color chat names by player */
+    .chat-msg .msg-name.p0{color:var(--p1-color)}
+    .chat-msg .msg-name.p1{color:var(--p2-color)}
+    .chat-msg .msg-name.p2{color:var(--p3-color)}
+    .chat-msg .msg-name.p3{color:var(--p4-color)}
+
+    .chat-input-area{display:flex;gap:3px;padding:6px;border-top:1px solid #1a2a0a}
+    .chat-input{
+      flex:1;font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      padding:6px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
+    }
+    .chat-input:focus{border-color:#4caf50}
+    .chat-send{
+      font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      padding:6px 8px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
+    }
+
+    /* ── Center: Table Area ── */
+    .table-area{
+      grid-row:2;grid-column:2;
+      position:relative;overflow:hidden;
+      display:flex;flex-direction:column;
+    }
+
+    /* Felt */
+    .felt-container{
+      flex:1;position:relative;
+      background:url('assets/Oldjipt/Craps/felt.png') center/contain no-repeat;
+      background-color:#1a5a1a;
     }
 
     /* Puck */
-    .puck {
-      position: absolute; top: 4px; right: 8px;
-      width: 36px; height: 36px;
-      z-index: 5; transition: all 0.3s;
-      background-size: contain; background-repeat: no-repeat;
-      background-position: center;
-      border: none; border-radius: 0;
-      font-size: 0; color: transparent; overflow: hidden;
-    }
-    .puck.off { background-image: url('assets/Oldjipt/Craps/jiptoff.png'); }
-    .puck.on { background-image: url('assets/Oldjipt/Craps/jipton.png'); box-shadow: 0 0 12px rgba(255,255,255,0.5); }
+    .puck{position:absolute;width:36px;height:36px;top:8%;right:12%;z-index:10}
+    .puck img{width:100%;height:100%;object-fit:contain}
 
-    /* Table rows */
-    .table-row {
-      display: flex; gap: 4px;
+    /* Dice on table */
+    .table-dice{
+      position:absolute;bottom:18%;left:50%;transform:translateX(-50%);
+      display:flex;gap:14px;z-index:10;
     }
-
-    .bet-zone {
-      flex: 1; min-height: 36px;
-      background: rgba(0,80,0,0.4);
-      border: 2px solid rgba(255,255,255,0.25);
-      border-radius: 4px;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      cursor: pointer; transition: all 0.15s;
-      padding: 3px 2px;
-      position: relative;
+    .die{
+      width:52px;height:52px;background:#fff;border-radius:7px;
+      border:3px solid #c00;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:2px 3px 8px rgba(0,0,0,0.5);
+      transition:transform 0.3s;position:relative;
     }
-    .bet-zone:hover { background: rgba(0,120,0,0.5); border-color: rgba(255,255,255,0.5); }
-    .bet-zone.active-bet { border-color: #ffe96a; box-shadow: 0 0 8px rgba(255,233,106,0.4); }
-    .bet-zone.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
-    .bet-zone.win-flash { animation: win-flash 0.5s ease 3; }
-    .bet-zone.lose-flash { animation: lose-flash 0.4s ease 2; }
-
-    @keyframes win-flash {
-      0%, 100% { background: rgba(0,80,0,0.4); }
-      50% { background: rgba(76,175,80,0.6); }
+    .die.rolling{animation:dice-roll 0.4s ease-in-out}
+    @keyframes dice-roll{
+      0%{transform:rotate(0deg) scale(1)}
+      25%{transform:rotate(90deg) scale(1.2)}
+      50%{transform:rotate(180deg) scale(0.9)}
+      75%{transform:rotate(270deg) scale(1.1)}
+      100%{transform:rotate(360deg) scale(1)}
     }
-    @keyframes lose-flash {
-      0%, 100% { background: rgba(0,80,0,0.4); }
-      50% { background: rgba(229,57,53,0.4); }
+    .die-face{
+      width:100%;height:100%;display:grid;
+      grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:5px;
+    }
+    .pip{
+      width:9px;height:9px;background:#c00;border-radius:50%;
+      align-self:center;justify-self:center;display:none;
     }
 
-    .bet-zone .zone-label {
-      font-size: 0.28rem; color: #fff;
-      text-shadow: 1px 1px 0 #000;
-      text-align: center; line-height: 1.4;
-      pointer-events: none;
+    /* Dealer */
+    .dealer-area{
+      position:absolute;top:4px;left:50%;transform:translateX(-50%);
+      display:flex;align-items:flex-start;gap:6px;z-index:15;
     }
-    .bet-zone .zone-payout {
-      font-size: 0.22rem; color: #c9a84c;
-      pointer-events: none;
+    .dealer-portrait{
+      width:64px;height:76px;image-rendering:pixelated;
+      border:2px solid #5c4409;border-radius:4px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.6);
     }
-    .bet-zone .bet-amount {
-      position: absolute; bottom: 2px; right: 4px;
-      font-size: 0.22rem; color: #ffe96a;
-      text-shadow: 0 0 4px rgba(0,0,0,0.8);
-      pointer-events: none;
+    .dealer-speech{
+      max-width:180px;background:rgba(0,0,0,0.85);
+      border:2px solid #5c4409;border-radius:6px;
+      padding:6px 8px;font-size:0.3rem;color:#f5e6c8;line-height:1.6;position:relative;
     }
-
-    /* Special zones */
-    .pass-line { min-height: 40px; background: rgba(0,80,0,0.5); }
-    .come-area { min-height: 36px; }
-    .field-zone {
-      background: rgba(120,80,0,0.35);
-      border-color: rgba(255,200,0,0.3);
-    }
-    .field-zone:hover { background: rgba(120,80,0,0.5); }
-    .hard-zone {
-      background: rgba(120,0,0,0.3);
-      border-color: rgba(255,100,100,0.3);
-    }
-    .hard-zone:hover { background: rgba(120,0,0,0.45); }
-
-    /* Place numbers row */
-    .place-zone .zone-label { font-size: 0.35rem; }
-
-    /* ── Dice area ── */
-    .dice-area {
-      display: flex; align-items: center; justify-content: center;
-      gap: 16px; padding: 8px 0;
+    .dealer-speech::before{
+      content:'';position:absolute;left:-7px;top:16px;
+      border:5px solid transparent;border-right-color:#5c4409;
     }
 
-    .craps-die {
-      width: clamp(44px, 10vw, 60px);
-      height: clamp(44px, 10vw, 60px);
-      background: linear-gradient(145deg, #f8f8f8 0%, #d2d2d2 50%, #929292 100%);
-      border: 2px solid #9a9a9a; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow:
-        inset 2px 2px 6px rgba(255,255,255,0.8),
-        inset -2px -2px 4px rgba(0,0,0,0.25),
-        2px 2px 0 #878787, 3px 3px 0 #767676,
-        4px 4px 8px rgba(0,0,0,0.6);
-      transition: transform 0.15s;
+    /* ── Bet Zones ── */
+    .bet-zone{
+      position:absolute;border:2px solid transparent;border-radius:4px;
+      cursor:pointer;transition:all 0.2s;z-index:5;
     }
-    .craps-die.rolling {
-      animation: dice-tumble 0.28s linear infinite;
-      border-color: #4caf50;
-      box-shadow:
-        inset 2px 2px 6px rgba(255,255,255,0.8),
-        inset -2px -2px 4px rgba(0,0,0,0.25),
-        0 0 14px rgba(76,175,80,0.5);
-    }
-    @keyframes dice-tumble {
-      0%   { transform: rotateX(0deg) rotateZ(0deg); }
-      100% { transform: rotateX(360deg) rotateZ(270deg); }
-    }
-    .dice-face {
-      width: 100%; height: 100%;
-      display: grid; grid-template: 1fr 1fr 1fr / 1fr 1fr 1fr;
-      padding: 14%; gap: 2px;
-    }
-    .dice-face .dot {
-      width: 100%; aspect-ratio: 1; background: #111; border-radius: 50%;
-      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.95), 0 1px 1px rgba(255,255,255,0.18);
-      visibility: hidden;
-    }
+    .bet-zone:hover{border-color:rgba(255,233,106,0.5);background:rgba(255,233,106,0.08)}
 
-    /* ── Dealer NPC ── */
-    .dealer-area {
-      display: flex; align-items: center; justify-content: center;
-      gap: 12px; padding: 8px 0;
-    }
-    .dealer-portrait {
-      width: 80px; height: 90px;
-      background: url('assets/Oldjipt/Craps/jiptneutral.png') center/contain no-repeat;
-      image-rendering: pixelated;
-      filter: drop-shadow(0 0 8px rgba(0,0,0,0.8));
-      transition: background-image 0.3s;
-      flex-shrink: 0;
-    }
-    .dealer-portrait.happy { background-image: url('assets/Oldjipt/Craps/jipthappy.png'); }
-    .dealer-portrait.sad { background-image: url('assets/Oldjipt/Craps/jiptsad.png'); }
-    .dealer-speech {
-      font-size: 0.32rem; color: #ffe96a;
-      background: rgba(0,0,0,0.75);
-      border: 2px solid #5c4409; border-radius: 8px;
-      padding: 8px 12px; max-width: 260px;
-      text-shadow: 1px 1px 0 #000;
-      position: relative;
-      line-height: 1.6;
-    }
-    .dealer-speech::before {
-      content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
-      border: 6px solid transparent; border-right-color: #5c4409;
-    }
+    .bet-pass{bottom:2%;left:5%;width:90%;height:12%}
+    .bet-field{bottom:16%;left:5%;width:60%;height:10%}
+    .bet-place4{top:10%;left:5%;width:12%;height:18%}
+    .bet-place5{top:10%;left:18%;width:12%;height:18%}
+    .bet-place6{top:10%;left:31%;width:12%;height:18%}
+    .bet-place8{top:10%;left:44%;width:12%;height:18%}
+    .bet-place9{top:10%;left:57%;width:12%;height:18%}
+    .bet-place10{top:10%;left:70%;width:12%;height:18%}
+    .bet-hardways{top:32%;left:20%;width:45%;height:14%}
 
-    /* ── Controls bar ── */
-    .controls-bar {
-      display: flex; align-items: center; justify-content: center;
-      gap: 10px; padding: 6px 8px;
-      background: rgba(10,10,15,0.9);
-      border-top: 2px solid #2a5a1a;
+    /* Bet chips on felt — colored per player */
+    .bet-chips-row{
+      position:absolute;bottom:2px;left:4px;right:4px;
+      display:flex;gap:3px;flex-wrap:wrap;
+      pointer-events:none;
     }
+    .bet-chip-token{
+      width:22px;height:22px;border-radius:50%;
+      font-size:0.18rem;display:flex;align-items:center;justify-content:center;
+      color:#fff;font-family:'Press Start 2P',monospace;
+      box-shadow:1px 1px 4px rgba(0,0,0,0.5);
+      border:2px solid;
+    }
+    .bet-chip-token.p0{background:var(--p1-color);border-color:#fff}
+    .bet-chip-token.p1{background:var(--p2-color);border-color:#fff}
+    .bet-chip-token.p2{background:var(--p3-color);border-color:#fff}
+    .bet-chip-token.p3{background:var(--p4-color);border-color:#fff}
 
-    .roll-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.5rem, 2vw, 0.65rem);
-      color: #fff; padding: 10px 28px;
-      background: linear-gradient(180deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%);
-      border: 2px solid #66bb6a; border-radius: 4px;
-      cursor: pointer;
-      box-shadow:
-        inset 0 2px 0 rgba(255,255,255,0.2),
-        inset 0 -2px 0 rgba(0,0,0,0.3),
-        0 3px 0 #1b5e20, 0 4px 10px rgba(0,0,0,0.5);
-      text-shadow: 1px 1px 0 #000;
-      transition: all 0.15s;
+    /* ── Bottom Row: Local Player (P1) ── */
+    .bottom-row{
+      grid-column:1/-1;
+      display:flex;align-items:center;
+      background:rgba(10,10,15,0.95);
+      border-top:2px solid #2a5a1a;
+      padding:6px 10px;gap:10px;
     }
-    .roll-btn:hover {
-      background: linear-gradient(180deg, #66bb6a 0%, #43a047 50%, #2e7d32 100%);
+    .bottom-row .player-panel{
+      flex-direction:row;gap:8px;padding:4px 8px;
+      background:none;border-right:1px solid #1a2a0a;
     }
-    .roll-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); }
-    .roll-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .bottom-row .player-panel .portrait-frame{width:56px;height:68px;flex-shrink:0}
+    .bottom-row .player-info{display:flex;flex-direction:column;gap:2px;justify-content:center}
 
-    /* ── Chip selector ── */
-    .chip-tray {
-      display: flex; align-items: center; justify-content: center;
-      gap: 12px; padding: 6px 0;
+    .chip-tray{display:flex;gap:6px;align-items:center;padding:0 8px}
+    .chip{
+      width:44px;height:44px;border-radius:50%;cursor:pointer;
+      border:3px solid transparent;transition:all 0.15s;
+      position:relative;overflow:hidden;
+      background-image:url('assets/Oldjipt/Craps/jiptchips.png');
+      background-size:300% 300%;
     }
-    .chip-tray-label { font-size: 0.3rem; color: #c9a84c; text-shadow: 1px 1px 0 #000; }
-    .chip {
-      width: 48px; height: 48px;
-      background: url('assets/Oldjipt/Craps/jiptchips.png') no-repeat;
-      background-size: 300% 300%;
-      border: 3px solid transparent; border-radius: 50%;
-      cursor: pointer; transition: all 0.15s;
-      position: relative;
-      image-rendering: pixelated;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
-    }
-    .chip:hover { transform: scale(1.2); filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
-    .chip.selected { border-color: #ffe96a; box-shadow: 0 0 14px rgba(255,233,106,0.7); transform: scale(1.2); }
-    /* Sprite positions from jiptchips.png — 3x3 grid: row0=[1,5,10] row1=[25,50,100] row2=[500,1000,?] */
-    .chip[data-value="1"]  { background-position: 0% 0%; }
-    .chip[data-value="5"]  { background-position: 50% 0%; }
-    .chip[data-value="10"] { background-position: 100% 0%; }
-    .chip[data-value="25"] { background-position: 0% 50%; }
+    .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
+    .chip.selected{border-color:var(--p1-color);box-shadow:0 0 14px var(--p1-glow);transform:scale(1.15)}
+    .chip-1-sprite{background-position:0% 0%}
+    .chip-5-sprite{background-position:50% 0%}
+    .chip-10-sprite{background-position:100% 0%}
+    .chip-25-sprite{background-position:0% 50%}
 
-    .cashout-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.4rem; color: #ffe96a;
-      background: rgba(92,68,9,0.4); border: 2px solid #8b6914;
-      border-radius: 4px; padding: 8px 14px;
-      cursor: pointer; transition: all 0.15s;
+    .controls{display:flex;gap:6px;margin-left:auto;align-items:center}
+    .ctrl-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.45rem;
+      padding:10px 16px;border-radius:5px;cursor:pointer;
+      border:2px solid;transition:all 0.2s;
     }
-    .cashout-btn:hover { background: rgba(139,105,20,0.4); }
+    .btn-roll{
+      background:linear-gradient(180deg,#4caf50,#2e7d32);
+      border-color:#66bb6a;color:#fff;
+      box-shadow:0 3px 10px rgba(76,175,80,0.4);
+    }
+    .btn-roll:hover{background:linear-gradient(180deg,#66bb6a,#388e3c)}
+    .btn-roll:disabled{opacity:0.4;cursor:not-allowed}
+    .btn-clear{background:linear-gradient(180deg,#e53935,#b71c1c);border-color:#ef5350;color:#fff}
+    .btn-clear:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
+    .btn-cashout{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
+    .btn-cashout:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
 
-    /* ── Message bar (legacy, hidden — dealer speech replaces it) ── */
+    .point-display{font-size:0.35rem;color:#ffe96a;padding:0 6px}
 
-    /* ── Result overlay ── */
-    #result-overlay {
-      display: none; position: fixed; inset: 0; z-index: 600;
-      align-items: center; justify-content: center;
-      flex-direction: column; background: rgba(0,0,0,0.85);
+    .vid-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.3rem;
+      padding:5px 8px;border:2px solid #555;border-radius:4px;
+      background:#1a1a2e;color:#ccc;cursor:pointer;white-space:nowrap;
     }
-    #result-overlay.active { display: flex; }
-    .result-text {
-      font-size: clamp(1rem, 5vw, 2.5rem);
-      text-shadow: 0 0 30px currentColor;
-      animation: result-pulse 0.6s ease-in-out infinite alternate;
-      margin-bottom: 20px;
-    }
-    .result-text.win { color: #4caf50; }
-    .result-text.lose { color: #e53935; }
-    @keyframes result-pulse { from { transform: scale(1); } to { transform: scale(1.06); } }
-    .result-detail { font-size: 0.5rem; color: #c9a84c; margin-bottom: 20px; }
-    .result-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.5rem; color: #0a0a0f; padding: 12px 32px;
-      background: #c9a84c; border: none; border-bottom: 4px solid #8b6914;
-      cursor: pointer;
-    }
-    .result-btn:hover { background: #e8c060; }
+    .vid-btn:hover{border-color:#4caf50;color:#4caf50}
+    .vid-btn.active{border-color:#4caf50;background:#1a3a1a;color:#4caf50}
+    .vid-btn.ptt{border-color:#e67e22;color:#e67e22}
+    .vid-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
+    @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
 
-    /* ── Cashout confirm modal ── */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0; z-index: 500;
-      align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.85);
+    /* ── Result Toast ── */
+    .result-toast{
+      position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
+      z-index:500;padding:20px 36px;border-radius:10px;
+      font-size:0.9rem;text-align:center;transition:transform 0.3s;
     }
-    .modal-overlay.active { display: flex; }
-    .modal-box {
-      background: #0a0a0f; border: 3px solid #4caf50;
-      border-radius: 8px; padding: 28px 24px;
-      max-width: 380px; width: 90%; text-align: center;
-    }
-    .modal-title { font-size: 0.7rem; color: #4caf50; margin-bottom: 16px; }
-    .modal-text { font-size: 0.4rem; color: #c9a84c; line-height: 2.4; margin-bottom: 20px; }
-    .modal-btns { display: flex; gap: 12px; justify-content: center; }
-    .modal-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.4rem; padding: 10px 16px;
-      border-radius: 4px; cursor: pointer; border: 2px solid;
-    }
-    .modal-btn.cancel { color: #8a7a5a; background: transparent; border-color: #5c4409; }
-    .modal-btn.confirm {
-      color: #fff; background: linear-gradient(180deg, #4caf50, #2e7d32);
-      border-color: #66bb6a;
-    }
-    .modal-status {
-      font-size: 0.32rem; color: #4caf50; margin-top: 12px; min-height: 1.4em;
-    }
+    .result-toast.show{transform:translate(-50%,-50%) scale(1)}
+    .result-toast.win{background:rgba(46,125,50,0.95);border:3px solid #4caf50;color:#fff}
+    .result-toast.lose{background:rgba(183,28,28,0.95);border:3px solid #e53935;color:#fff}
+    .result-toast .toast-sub{font-size:0.35rem;margin-top:6px;opacity:0.8}
 
-    /* ── Mobile ── */
-    @media (max-width: 520px) {
-      .craps-table { padding: 4px; gap: 2px; }
-      .bet-zone { min-height: 28px; }
-      .bet-zone .zone-label { font-size: 0.22rem; }
-      .bet-zone .zone-payout { font-size: 0.18rem; }
-      .controls-bar { flex-wrap: wrap; gap: 6px; }
-      .game-header { padding: 8px 10px; }
-      .dealer-portrait { width: 56px; height: 63px; }
-      .dealer-speech { font-size: 0.25rem; max-width: 180px; }
-      .chip { width: 38px; height: 38px; }
-      .chip-tray { gap: 8px; }
+    /* ── Table Lobby Overlay ── */
+    .table-lobby{
+      position:fixed;inset:0;z-index:400;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(0,0,0,0.92);
     }
+    .table-lobby.hidden{display:none}
+    .lobby-box{
+      background:linear-gradient(180deg,#1e1608,#0a0a0f);
+      border:2px solid #5c4409;border-radius:10px;
+      padding:28px 32px;max-width:500px;width:90%;
+      text-align:center;
+    }
+    .lobby-title{
+      font-size:0.7rem;color:#4caf50;margin-bottom:16px;
+      text-shadow:0 0 12px rgba(76,175,80,0.4);
+    }
+    .lobby-subtitle{font-size:0.35rem;color:#8a7a5a;margin-bottom:20px;line-height:1.8}
+    .lobby-btns{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+    .lobby-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.4rem;
+      padding:14px 20px;border-radius:6px;cursor:pointer;
+      border:2px solid;transition:all 0.2s;text-align:center;
+    }
+    .lobby-btn.public{
+      background:linear-gradient(180deg,#4caf50,#2e7d32);
+      border-color:#66bb6a;color:#fff;
+    }
+    .lobby-btn.public:hover{background:linear-gradient(180deg,#66bb6a,#388e3c)}
+    .lobby-btn.private{
+      background:linear-gradient(180deg,#c9a84c,#8b6914);
+      border-color:#d4a017;color:#1a1005;
+    }
+    .lobby-btn.private:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
+    .lobby-btn.join{
+      background:linear-gradient(180deg,#42a5f5,#1565c0);
+      border-color:#64b5f6;color:#fff;
+    }
+    .lobby-btn.join:hover{background:linear-gradient(180deg,#64b5f6,#1e88e5)}
+    .lobby-divider{
+      font-size:0.3rem;color:#555;margin:8px 0;
+    }
+    .lobby-invite-area{
+      display:none;margin-top:12px;
+      background:rgba(0,0,0,0.4);border:1px solid #333;border-radius:6px;padding:10px;
+    }
+    .lobby-invite-area.show{display:block}
+    .lobby-invite-label{font-size:0.3rem;color:#4caf50;margin-bottom:6px}
+    .lobby-invite-link{
+      font-family:'Press Start 2P',monospace;font-size:0.25rem;
+      width:100%;padding:8px;background:#111;border:1px solid #4caf50;
+      border-radius:4px;color:#4caf50;text-align:center;
+      cursor:pointer;word-break:break-all;
+    }
+    .lobby-invite-link:hover{background:#1a2a1a}
+    .lobby-copied{font-size:0.25rem;color:#ffe96a;margin-top:4px;opacity:0;transition:opacity 0.3s}
+    .lobby-copied.show{opacity:1}
+    .lobby-join-input{
+      font-family:'Press Start 2P',monospace;font-size:0.3rem;
+      width:100%;padding:10px;background:#111;border:1px solid #333;
+      border-radius:4px;color:#ccc;text-align:center;margin-top:8px;outline:none;
+    }
+    .lobby-join-input:focus{border-color:#42a5f5}
+    .lobby-join-go{
+      font-family:'Press Start 2P',monospace;font-size:0.3rem;
+      padding:8px 16px;margin-top:6px;
+      background:#1565c0;border:1px solid #42a5f5;
+      border-radius:4px;color:#fff;cursor:pointer;
+    }
+    .lobby-join-go:hover{background:#1e88e5}
+    .lobby-public-list{
+      margin-top:12px;max-height:150px;overflow-y:auto;
+    }
+    .lobby-table-row{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:8px 10px;border:1px solid #333;border-radius:4px;
+      margin-bottom:4px;background:rgba(0,0,0,0.3);cursor:pointer;
+      transition:all 0.2s;
+    }
+    .lobby-table-row:hover{border-color:#4caf50;background:rgba(76,175,80,0.08)}
+    .lobby-table-name{font-size:0.3rem;color:#ccc}
+    .lobby-table-players{font-size:0.25rem;color:#4caf50}
 
-    /* ── Desktop ── */
-    @media (min-width: 900px) {
-      .craps-table { max-width: 860px; }
-      .bet-zone { min-height: 44px; }
-      .bet-zone .zone-label { font-size: 0.32rem; }
-      .dealer-portrait { width: 80px; height: 90px; }
-      .chip { width: 56px; height: 56px; }
-      .craps-die { width: 70px; height: 70px; }
+    /* ── Responsive ── */
+    @media(max-width:900px){
+      .table-wrapper{
+        grid-template-columns:1fr;
+        grid-template-rows:auto auto 1fr auto;
+      }
+      .top-row{flex-wrap:wrap}
+      .top-row .ad-spot{flex:0 0 80px;height:60px}
+      .left-sidebar,.right-sidebar{
+        grid-column:1;flex-direction:row;
+        border:none;border-bottom:1px solid #2a3a1a;
+        max-height:140px;overflow-x:auto;
+      }
+      .left-sidebar .player-panel,.right-sidebar .player-panel{flex-direction:row;min-width:160px}
+      .bottom-row{flex-wrap:wrap;justify-content:center}
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <header class="game-header">
+<!-- ── Header ── -->
+<div class="game-header">
+  <div class="header-left">
     <div id="nav-placeholder"></div>
-    <div class="stack-display" id="stackDisplay">STACK: --</div>
-    <div class="wallet-wrapper">
-      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
-      <div class="disconnect-dropdown" id="disconnectDropdown">
-        <button class="disconnect-btn" id="disconnectBtn">DISCONNECT</button>
+    <span class="header-title">CRAPS TABLE</span>
+  </div>
+  <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
+</div>
+
+<!-- ── Table Lobby ── -->
+<div class="table-lobby" id="tableLobby">
+  <div class="lobby-box">
+    <div class="lobby-title">CRAPS TABLE</div>
+    <div class="lobby-subtitle">Choose how you want to play</div>
+    <div class="lobby-btns">
+      <button class="lobby-btn public" onclick="joinPublicTable()">JOIN PUBLIC TABLE</button>
+      <div class="lobby-divider">— or —</div>
+      <button class="lobby-btn private" onclick="createPrivateTable()">CREATE PRIVATE TABLE</button>
+      <button class="lobby-btn join" onclick="showJoinPrivate()">JOIN PRIVATE TABLE</button>
+    </div>
+    <!-- Private table invite link (shown after creating) -->
+    <div class="lobby-invite-area" id="inviteArea">
+      <div class="lobby-invite-label">INVITE LINK (click to copy)</div>
+      <div class="lobby-invite-link" id="inviteLink" onclick="copyInviteLink()"></div>
+      <div class="lobby-copied" id="copiedMsg">Copied!</div>
+      <button class="lobby-btn public" style="margin-top:10px" onclick="enterTable()">ENTER TABLE</button>
+    </div>
+    <!-- Join private table input -->
+    <div class="lobby-invite-area" id="joinPrivateArea">
+      <input class="lobby-join-input" id="privateCodeInput" placeholder="Paste invite link or code..." />
+      <button class="lobby-join-go" onclick="joinPrivateTable()">JOIN</button>
+    </div>
+    <!-- Public tables list -->
+    <div class="lobby-public-list" id="publicTableList"></div>
+  </div>
+</div>
+
+<!-- ── Table Wrapper ── -->
+<div class="table-wrapper" style="display:none" id="tableWrapper">
+
+  <!-- TOP ROW: Ad Spot 1 | Remote Player 2 (blue) | Ad Spot 2 + Video Controls -->
+  <div class="top-row">
+    <div class="ad-spot" id="adSpot1"><span class="ad-placeholder">AD SPOT 1</span></div>
+    <div class="player-panel empty" id="panel-1" data-seat="1">
+      <div class="portrait-frame" id="frame-1">
+        <img class="chad-portrait" id="chad-1" src="" alt="" />
+      </div>
+      <div class="player-info">
+        <div class="nft-name" id="name-1">Waiting...</div>
+        <div class="player-stack-lbl" id="stack-1"></div>
       </div>
     </div>
-  </header>
-
-  <!-- Setup screen: NFT select + buy-in -->
-  <div class="screen-overlay" id="setup-screen">
-    <div class="setup-title">CRAPS TABLE</div>
-    <div class="setup-subtitle">Select a Chad and buy in with cells</div>
-    <div class="setup-subtitle" id="setup-wallet-msg" style="color:#e53935; display:none;">Connect your wallet first!</div>
-    <div id="nft-grid"></div>
-    <div id="buyin-section">
-      <label id="buyin-label">BUY-IN (cells)</label>
-      <input type="range" id="buyin-slider" min="1" max="50" value="10" />
-      <div id="buyin-amount">10 cells</div>
-      <button class="buyin-btn" id="buyin-btn">SIT DOWN</button>
-      <div class="setup-status" id="setup-status"></div>
+    <div class="ad-spot" id="adSpot2"><span class="ad-placeholder">AD SPOT 2</span></div>
+    <div class="top-row" style="flex:0;display:flex;flex-direction:column;gap:4px;justify-content:center;padding:0 8px;border:none;background:none">
+      <button class="vid-btn" id="camBtn" onclick="toggleCamera()">CAM OFF</button>
+      <button class="vid-btn ptt" id="pttBtn">HOLD TO TALK</button>
+      <button class="vid-btn" id="joinBtn" onclick="joinRoom()">JOIN TABLE</button>
     </div>
   </div>
 
-  <!-- Table screen -->
-  <div id="table-screen">
-    <div class="table-area">
-      <div class="craps-table" id="crapsTable">
-
-        <!-- Puck -->
-        <div class="puck off" id="puck">OFF</div>
-
-        <!-- Row 1: Pass Line -->
-        <div class="table-row">
-          <div class="bet-zone pass-line" data-bet="pass">
-            <span class="zone-label">PASS LINE</span>
-            <span class="zone-payout">1:1</span>
-            <span class="bet-amount" id="bet-pass"></span>
-          </div>
-        </div>
-
-        <!-- Row 2: Place numbers -->
-        <div class="table-row">
-          <div class="bet-zone place-zone disabled" data-bet="place4">
-            <span class="zone-label">4</span>
-            <span class="zone-payout">9:5</span>
-            <span class="bet-amount" id="bet-place4"></span>
-          </div>
-          <div class="bet-zone place-zone disabled" data-bet="place5">
-            <span class="zone-label">5</span>
-            <span class="zone-payout">7:5</span>
-            <span class="bet-amount" id="bet-place5"></span>
-          </div>
-          <div class="bet-zone place-zone disabled" data-bet="place6">
-            <span class="zone-label">6</span>
-            <span class="zone-payout">7:6</span>
-            <span class="bet-amount" id="bet-place6"></span>
-          </div>
-          <div class="bet-zone place-zone disabled" data-bet="place8">
-            <span class="zone-label">8</span>
-            <span class="zone-payout">7:6</span>
-            <span class="bet-amount" id="bet-place8"></span>
-          </div>
-          <div class="bet-zone place-zone disabled" data-bet="place9">
-            <span class="zone-label">9</span>
-            <span class="zone-payout">7:5</span>
-            <span class="bet-amount" id="bet-place9"></span>
-          </div>
-          <div class="bet-zone place-zone disabled" data-bet="place10">
-            <span class="zone-label">10</span>
-            <span class="zone-payout">9:5</span>
-            <span class="bet-amount" id="bet-place10"></span>
-          </div>
-        </div>
-
-        <!-- Row 3: Come -->
-        <div class="table-row">
-          <div class="bet-zone come-area disabled" data-bet="come">
-            <span class="zone-label">COME</span>
-            <span class="zone-payout">1:1</span>
-            <span class="bet-amount" id="bet-come"></span>
-          </div>
-          <div class="bet-zone disabled" data-bet="passOdds" id="pass-odds-zone">
-            <span class="zone-label">ODDS</span>
-            <span class="zone-payout">True Odds</span>
-            <span class="bet-amount" id="bet-passOdds"></span>
-          </div>
-        </div>
-
-        <!-- Row 4: Field -->
-        <div class="table-row">
-          <div class="bet-zone field-zone" data-bet="field">
-            <span class="zone-label">FIELD — 2 3 4 9 10 11 12</span>
-            <span class="zone-payout">1:1 (2 pays 2:1, 12 pays 3:1)</span>
-            <span class="bet-amount" id="bet-field"></span>
-          </div>
-        </div>
-
-        <!-- Row 5: Hardways -->
-        <div class="table-row">
-          <div class="bet-zone hard-zone" data-bet="hard4">
-            <span class="zone-label">HARD 4</span>
-            <span class="zone-payout">7:1</span>
-            <span class="bet-amount" id="bet-hard4"></span>
-          </div>
-          <div class="bet-zone hard-zone" data-bet="hard6">
-            <span class="zone-label">HARD 6</span>
-            <span class="zone-payout">9:1</span>
-            <span class="bet-amount" id="bet-hard6"></span>
-          </div>
-          <div class="bet-zone hard-zone" data-bet="hard8">
-            <span class="zone-label">HARD 8</span>
-            <span class="zone-payout">9:1</span>
-            <span class="bet-amount" id="bet-hard8"></span>
-          </div>
-          <div class="bet-zone hard-zone" data-bet="hard10">
-            <span class="zone-label">HARD 10</span>
-            <span class="zone-payout">7:1</span>
-            <span class="bet-amount" id="bet-hard10"></span>
-          </div>
-        </div>
-
-        <!-- Dice -->
-        <div class="dice-area">
-          <div class="craps-die" id="die0"><div class="dice-face" id="face0"></div></div>
-          <div class="craps-die" id="die1"><div class="dice-face" id="face1"></div></div>
-        </div>
-
+  <!-- LEFT SIDEBAR: Remote Player 3 (purple) + Ad Spot -->
+  <div class="left-sidebar">
+    <div class="player-panel empty" id="panel-2" data-seat="2">
+      <div class="portrait-frame" id="frame-2">
+        <img class="chad-portrait" id="chad-2" src="" alt="" />
       </div>
+      <div class="nft-name" id="name-2">Waiting...</div>
+      <div class="player-stack-lbl" id="stack-2"></div>
+    </div>
+    <div class="ad-spot" id="adSpot3"><span class="ad-placeholder">AD SPOT 3</span></div>
+  </div>
 
-      <!-- Dealer NPC -->
+  <!-- CENTER: Felt Table -->
+  <div class="table-area">
+    <div class="felt-container" id="feltTable">
+
+      <!-- Dealer -->
       <div class="dealer-area">
-        <div class="dealer-portrait" id="dealerPortrait"></div>
-        <div class="dealer-speech" id="dealerSpeech">New shooter! Place your bets.</div>
+        <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
+        <div class="dealer-speech" id="dealerSpeech">Place your bets! New shooter coming out.</div>
       </div>
 
-      <!-- Chip tray -->
-      <div class="chip-tray">
-        <span class="chip-tray-label">BET:</span>
-        <div class="chip selected" data-value="1" title="1 cell"></div>
-        <div class="chip" data-value="5" title="5 cells"></div>
-        <div class="chip" data-value="10" title="10 cells"></div>
-        <div class="chip" data-value="25" title="25 cells"></div>
+      <!-- Puck -->
+      <div class="puck" id="puck">
+        <img src="assets/Oldjipt/Craps/jiptoff.png" alt="OFF" id="puckImg" />
       </div>
+
+      <!-- Bet Zones -->
+      <div class="bet-zone bet-pass" data-bet="pass" onclick="placeBet('pass')">
+        <div class="bet-chips-row" id="chips-pass"></div>
+      </div>
+      <div class="bet-zone bet-field" data-bet="field" onclick="placeBet('field')">
+        <div class="bet-chips-row" id="chips-field"></div>
+      </div>
+      <div class="bet-zone bet-place4" data-bet="place4" onclick="placeBet('place4')">
+        <div class="bet-chips-row" id="chips-place4"></div>
+      </div>
+      <div class="bet-zone bet-place5" data-bet="place5" onclick="placeBet('place5')">
+        <div class="bet-chips-row" id="chips-place5"></div>
+      </div>
+      <div class="bet-zone bet-place6" data-bet="place6" onclick="placeBet('place6')">
+        <div class="bet-chips-row" id="chips-place6"></div>
+      </div>
+      <div class="bet-zone bet-place8" data-bet="place8" onclick="placeBet('place8')">
+        <div class="bet-chips-row" id="chips-place8"></div>
+      </div>
+      <div class="bet-zone bet-place9" data-bet="place9" onclick="placeBet('place9')">
+        <div class="bet-chips-row" id="chips-place9"></div>
+      </div>
+      <div class="bet-zone bet-place10" data-bet="place10" onclick="placeBet('place10')">
+        <div class="bet-chips-row" id="chips-place10"></div>
+      </div>
+      <div class="bet-zone bet-hardways" data-bet="hardways" onclick="placeBet('hardways')">
+        <div class="bet-chips-row" id="chips-hardways"></div>
+      </div>
+
+      <!-- Dice -->
+      <div class="table-dice" id="tableDice">
+        <div class="die" id="die1"><div class="die-face" id="face1"></div></div>
+        <div class="die" id="die2"><div class="die-face" id="face2"></div></div>
+      </div>
+
+    </div><!-- /felt-container -->
+  </div><!-- /table-area -->
+
+  <!-- RIGHT SIDEBAR: Remote Player 4 (red) + Chat -->
+  <div class="right-sidebar">
+    <div class="player-panel empty" id="panel-3" data-seat="3">
+      <div class="portrait-frame" id="frame-3">
+        <img class="chad-portrait" id="chad-3" src="" alt="" />
+      </div>
+      <div class="nft-name" id="name-3">Waiting...</div>
+      <div class="player-stack-lbl" id="stack-3"></div>
     </div>
-
-    <!-- Controls -->
-    <div class="controls-bar">
-      <button class="roll-btn" id="rollBtn" disabled>ROLL</button>
-      <button class="cashout-btn" id="cashoutBtn">CASH OUT</button>
+    <div class="chat-box">
+      <div class="chat-header">TABLE CHAT</div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg system-msg">Welcome! Up to 4 players.</div>
+      </div>
+      <div class="chat-input-area">
+        <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
+        <button class="chat-send" onclick="sendChat()">></button>
+      </div>
     </div>
   </div>
 
-  <!-- Cashout modal -->
-  <div class="modal-overlay" id="cashoutModal">
-    <div class="modal-box">
-      <div class="modal-title">CASH OUT</div>
-      <div class="modal-text" id="cashout-text">
-        Your stack: <span id="cashout-amount">0</span> cells<br>
-        Return these cells to your Chad?
+  <!-- BOTTOM ROW: Local Player (P1, green) + Chips + Controls -->
+  <div class="bottom-row">
+    <div class="player-panel" id="panel-0" data-seat="0">
+      <div class="portrait-frame" id="frame-0">
+        <img class="chad-portrait" id="chad-0" src="" alt="" />
       </div>
-      <div class="modal-btns">
-        <button class="modal-btn cancel" id="cashout-cancel">KEEP PLAYING</button>
-        <button class="modal-btn confirm" id="cashout-confirm">CASH OUT</button>
+      <div class="player-info">
+        <div class="nft-name" id="name-0">Connect Wallet</div>
+        <div class="player-stack-lbl" id="stack-0"></div>
       </div>
-      <div class="modal-status" id="cashout-status"></div>
+    </div>
+    <div class="chip-tray">
+      <div class="chip chip-1-sprite selected" data-value="1" onclick="selectChip(1)"></div>
+      <div class="chip chip-5-sprite" data-value="5" onclick="selectChip(5)"></div>
+      <div class="chip chip-10-sprite" data-value="10" onclick="selectChip(10)"></div>
+      <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
+    </div>
+    <div class="point-display" id="pointDisplay"></div>
+    <div class="controls">
+      <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
+      <button class="ctrl-btn btn-roll" id="rollBtn" onclick="rollDice()">ROLL</button>
+      <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
     </div>
   </div>
 
-  <!-- Result overlay -->
-  <div id="result-overlay">
-    <div class="result-text" id="result-text"></div>
-    <div class="result-detail" id="result-detail"></div>
-    <button class="result-btn" id="result-btn">CONTINUE</button>
-  </div>
+</div><!-- /table-wrapper -->
 
-  <!-- Wallet Modal placeholder -->
-  <div id="wallet-modal-placeholder"></div>
+<!-- Result toast -->
+<div class="result-toast" id="resultToast">
+  <div id="toastText"></div>
+  <div class="toast-sub" id="toastSub"></div>
+</div>
 
-  <!-- Sound effects (reuse existing) -->
-  <audio id="sfx-win" src="sound effects/youwin.wav" preload="auto"></audio>
-  <audio id="sfx-lose" src="sound effects/youlose.wav" preload="auto"></audio>
+<script src="nav.js"></script>
+<script>
+/* ===================================================================
+   CRAPS TABLE — Last Chad
+   4-player multiplayer with Agora video/audio + chat
+   Players: Seat 0 = local (green, bottom)
+            Seat 1 = remote (blue, top)
+            Seat 2 = remote (purple, left)
+            Seat 3 = remote (red, right)
+   =================================================================== */
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <script type="module">
-    import { connectWallet, autoReconnect, disconnect,
-             getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC,
-             GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
+// Player color names for CSS classes
+const PLAYER_COLORS = ['#4caf50','#42a5f5','#ab47bc','#ef5350'];
 
-    // ════════════════════════════════════════
-    //  STATE
-    // ════════════════════════════════════════
-    document.getElementById('sfx-win').volume = 0.5;
-    document.getElementById('sfx-lose').volume = 0.5;
-    let userAddress = null;
-    let selectedTokenId = null;
-    let selectedCells = 0;
-    let stack = 0;            // current chip stack (off-chain during play)
-    let nonce = null;         // from commitWager
-    let sessionToken = null;  // from /craps/start
-    let gameLog = [];         // append-only log for Worker validation
+// ── State ──
+const STATE = {
+  stack: 1000,
+  selectedChip: 1,
+  bets: {},           // { pass: 50, field: 10, ... } — local player bets
+  remoteBets: {},     // { 1: {pass:30}, 2: {field:10}, 3: {} } — remote player bets by seat
+  phase: 'comeout',
+  point: null,
+  dice: [5, 5],
+  isRolling: false,
+  playerName: 'Player',
+  nftName: '',        // NFT character name
+  playerId: Math.random().toString(36).slice(2, 8),
+  chadId: null,
+  seat: 0,            // local player is always seat 0
+};
 
-    const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+// Remote player info: seat 1-3
+const remotePlayers = {
+  1: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
+  2: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
+  3: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
+};
 
-    function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+// ── Agora Config ──
+const AGORA_APP_ID = '7917341a0c9c46a08328cc9a33989d75';
+let agoraClient = null;
+let localAudioTrack = null;
+let localVideoTrack = null;
+let cameraOn = false;
+let pttActive = false;
+
+// ── Pip Patterns ──
+const PIP_MAP = {
+  1: [4],
+  2: [2, 6],
+  3: [2, 4, 6],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8],
+};
+
+function renderDie(faceEl, value) {
+  faceEl.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const pip = document.createElement('div');
+    pip.className = 'pip';
+    if (PIP_MAP[value] && PIP_MAP[value].includes(i)) pip.style.display = 'block';
+    faceEl.appendChild(pip);
+  }
+}
+
+// Init dice to 5,5
+renderDie(document.getElementById('face1'), 5);
+renderDie(document.getElementById('face2'), 5);
+
+// ── Chip Selection ──
+function selectChip(value) {
+  STATE.selectedChip = value;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.chip[data-value="${value}"]`).classList.add('selected');
+}
+
+// ── Bet Placement ──
+function placeBet(zone) {
+  if (STATE.isRolling) return;
+  const amount = STATE.selectedChip;
+  if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
+  if (zone.startsWith('place') && STATE.phase === 'comeout') {
+    dealerSay("Place bets open after point.", 'neutral'); return;
+  }
+  STATE.stack -= amount;
+  STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
+  renderAllBetChips();
+  updateLocalPlayerUI();
+  addChatMsg('system', `${STATE.nftName || STATE.playerName} bet ${amount} on ${formatBetName(zone)}`);
+}
+
+function formatBetName(zone) {
+  const names = {
+    pass:'PASS LINE', field:'FIELD',
+    place4:'PLACE 4', place5:'PLACE 5', place6:'PLACE 6',
+    place8:'PLACE 8', place9:'PLACE 9', place10:'PLACE 10',
+    hardways:'HARD WAYS'
+  };
+  return names[zone] || zone.toUpperCase();
+}
+
+// Render colored chip tokens on each bet zone for all players
+function renderAllBetChips() {
+  const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hardways'];
+  for (const zone of zones) {
+    const container = document.getElementById('chips-' + zone);
+    if (!container) continue;
+    container.innerHTML = '';
+    // Local player (seat 0)
+    if (STATE.bets[zone] && STATE.bets[zone] > 0) {
+      const chip = document.createElement('div');
+      chip.className = 'bet-chip-token p0';
+      chip.textContent = STATE.bets[zone];
+      container.appendChild(chip);
     }
-
-    // Craps state
-    let phase = 'comeout';    // 'comeout' or 'point'
-    let point = 0;            // the point number (4,5,6,8,9,10)
-    let isRolling = false;
-
-    // Active bets: { betType: amount }
-    let bets = {};
-
-    // Come bet state: { point: amount } for come bets that have traveled to a number
-    let comeBets = {};        // e.g. { 6: 5, 8: 3 }
-    let comeOdds = {};        // odds behind come bets { 6: 10 }
-
-    // ════════════════════════════════════════
-    //  WALLET
-    // ════════════════════════════════════════
-    const walletBtn = document.getElementById('walletBtn');
-    const disconnectDropdown = document.getElementById('disconnectDropdown');
-
-    function onConnected(addr) {
-      userAddress = addr;
-      walletBtn.textContent = truncateAddress(addr);
-      walletBtn.classList.add('connected');
-      document.getElementById('setup-wallet-msg').style.display = 'none';
-      loadNFTs();
-    }
-    function onDisconnected() {
-      userAddress = null;
-      walletBtn.textContent = 'Connect Wallet';
-      walletBtn.classList.remove('connected');
-    }
-
-    walletBtn.addEventListener('click', () => {
-      if (userAddress) { disconnectDropdown.classList.toggle('show'); return; }
-      document.dispatchEvent(new CustomEvent('open-wallet-modal'));
-    });
-    document.getElementById('disconnectBtn').addEventListener('click', () => {
-      disconnectDropdown.classList.remove('show');
-      disconnect(onDisconnected);
-    });
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
-    });
-    document.addEventListener('wallet-selected', e =>
-      connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
-    autoReconnect({ onConnected, onDisconnected });
-
-    // ════════════════════════════════════════
-    //  LOAD NFTs
-    // ════════════════════════════════════════
-    async function loadNFTs() {
-      const grid = document.getElementById('nft-grid');
-      grid.innerHTML = '<div style="font-size:0.4rem;color:#4caf50" class="setup-status">Loading Chads...</div>';
-
-      const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
-
-      let balance;
-      try { balance = (await contract.balanceOf(userAddress)).toNumber(); }
-      catch { grid.innerHTML = '<div style="color:#e53935;font-size:0.4rem">Error loading NFTs</div>'; return; }
-
-      const owned = [];
-      for (let idx = 0; idx < balance; idx++) {
-        try {
-          const id = (await contract.tokenOfOwnerByIndex(userAddress, idx)).toNumber();
-          const cells = (await contract.getCells(id)).toNumber();
-          owned.push({ id, cells });
-        } catch {}
-      }
-
-      grid.innerHTML = '';
-      if (owned.length === 0) {
-        grid.innerHTML = '<div style="color:#e53935;font-size:0.4rem">No Chads found. Mint one first!</div>';
-        return;
-      }
-
-      for (const token of owned) {
-        const card = document.createElement('div');
-        card.className = 'nft-card';
-        card.innerHTML = `
-          <img src="assets/chads/framed/${token.id}.png" alt="Chad #${token.id}" />
-          <div class="nft-id">#${token.id} (${token.cells})</div>
-        `;
-        card.addEventListener('click', () => selectNFT(token, owned));
-        grid.appendChild(card);
-      }
-    }
-
-    function selectNFT(token, allTokens) {
-      selectedTokenId = token.id;
-      selectedCells = token.cells;
-
-      document.querySelectorAll('.nft-card').forEach((c, i) => {
-        c.classList.toggle('selected', allTokens[i].id === token.id);
-      });
-
-      const section = document.getElementById('buyin-section');
-      section.classList.add('visible');
-
-      const slider = document.getElementById('buyin-slider');
-      const maxBuy = Math.min(selectedCells, 50);
-      slider.max = maxBuy;
-      slider.min = 1;
-      slider.value = Math.min(10, maxBuy);
-      document.getElementById('buyin-amount').textContent = slider.value + ' cells';
-
-      slider.oninput = () => {
-        document.getElementById('buyin-amount').textContent = slider.value + ' cells';
-      };
-
-      document.getElementById('setup-status').textContent = '';
-    }
-
-    // ════════════════════════════════════════
-    //  BUY IN
-    // ════════════════════════════════════════
-    document.getElementById('buyin-btn').addEventListener('click', async () => {
-      const btn = document.getElementById('buyin-btn');
-      const status = document.getElementById('setup-status');
-      const buyIn = parseInt(document.getElementById('buyin-slider').value);
-
-      if (!userAddress) {
-        document.getElementById('setup-wallet-msg').style.display = '';
-        return;
-      }
-      if (buyIn < 1) { status.textContent = 'Min buy-in is 1'; status.classList.add('setup-error'); return; }
-
-      btn.disabled = true;
-      status.textContent = 'Committing wager on-chain...';
-      status.classList.remove('setup-error');
-
-      try {
-        const signer = getSigner();
-        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
-
-        const tx = await gamble.commitWager(selectedTokenId, buyIn);
-        status.textContent = 'Confirming transaction...';
-        const receipt = await tx.wait();
-
-        // Extract nonce from WagerCommitted event
-        const iface = new ethers.utils.Interface(GAMBLE_ABI);
-        const wagerLog = receipt.logs
-          .map(log => { try { return iface.parseLog(log); } catch { return null; } })
-          .find(e => e && e.name === 'WagerCommitted');
-
-        if (wagerLog) {
-          nonce = wagerLog.args.nonce.toNumber();
-        } else {
-          nonce = Date.now(); // fallback
-        }
-
-        stack = buyIn;
-        gameLog = [{ action: 'buyin', amount: buyIn, nonce }];
-
-        // Register session with worker
-        status.textContent = 'Setting up craps table...';
-        const startRes = await fetchWithTimeout(WORKER_URL + '/craps/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tokenId: selectedTokenId, nonce, player: userAddress }),
-        });
-        const startData = await startRes.json();
-        if (!startData.ok) throw new Error(startData.error || 'Failed to start craps session');
-        sessionToken = startData.sessionToken || null;
-        stack = startData.stack;
-
-        enterTable();
-
-      } catch (err) {
-        const reason = err.reason || err.data?.message || err.message || String(err);
-        status.textContent = reason.slice(0, 80);
-        status.classList.add('setup-error');
-        btn.disabled = false;
-      }
-    });
-
-    // ════════════════════════════════════════
-    //  ENTER TABLE
-    // ════════════════════════════════════════
-    function enterTable() {
-      document.getElementById('setup-screen').classList.add('hidden');
-      document.getElementById('table-screen').classList.add('active');
-      updateStackDisplay();
-      updateBetZoneStates();
-      setDealerMood('neutral');
-      setMessage("New shooter coming out! Place your pass line bet.");
-    }
-
-    function updateStackDisplay() {
-      document.getElementById('stackDisplay').textContent = 'STACK: ' + stack;
-    }
-
-    // ════════════════════════════════════════
-    //  DICE RENDERING
-    // ════════════════════════════════════════
-    const dotLayouts = {
-      1: [0,0,0, 0,1,0, 0,0,0],
-      2: [0,0,1, 0,0,0, 1,0,0],
-      3: [0,0,1, 0,1,0, 1,0,0],
-      4: [1,0,1, 0,0,0, 1,0,1],
-      5: [1,0,1, 0,1,0, 1,0,1],
-      6: [1,0,1, 1,0,1, 1,0,1]
-    };
-
-    function renderFace(faceId, value) {
-      const face = document.getElementById(faceId);
-      face.innerHTML = '';
-      if (!value) return;
-      const layout = dotLayouts[value];
-      for (let i = 0; i < 9; i++) {
-        const dot = document.createElement('div');
-        dot.className = 'dot';
-        if (layout[i]) dot.style.visibility = 'visible';
-        face.appendChild(dot);
+    // Remote players (seats 1-3)
+    for (let s = 1; s <= 3; s++) {
+      const rb = STATE.remoteBets[s];
+      if (rb && rb[zone] && rb[zone] > 0) {
+        const chip = document.createElement('div');
+        chip.className = 'bet-chip-token p' + s;
+        chip.textContent = rb[zone];
+        container.appendChild(chip);
       }
     }
+  }
+}
 
-    // Init dice showing hard 4 (2+2)
-    renderFace('face0', 2);
-    renderFace('face1', 2);
+function clearBets() {
+  if (STATE.isRolling) return;
+  for (const zone of Object.keys(STATE.bets)) STATE.stack += STATE.bets[zone];
+  STATE.bets = {};
+  renderAllBetChips();
+  updateLocalPlayerUI();
+}
 
-    // ════════════════════════════════════════
-    //  BET PLACEMENT
-    // ════════════════════════════════════════
-    // ── Chip selector ──
-    let selectedChipValue = 1;
+function updateLocalPlayerUI() {
+  document.getElementById('stack-0').textContent = STATE.stack + ' chips';
+}
 
-    document.querySelectorAll('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-        chip.classList.add('selected');
-        selectedChipValue = parseInt(chip.dataset.value);
-      });
-    });
+// ── Dice Roll ──
+function rollDice() {
+  if (STATE.isRolling) return;
+  if (Object.keys(STATE.bets).length === 0) {
+    dealerSay("Place a bet first!", 'neutral'); return;
+  }
+  STATE.isRolling = true;
+  document.getElementById('rollBtn').disabled = true;
+  const die1El = document.getElementById('die1');
+  const die2El = document.getElementById('die2');
+  die1El.classList.add('rolling');
+  die2El.classList.add('rolling');
 
-    function getBetAmount() {
-      return selectedChipValue;
+  let ticks = 0;
+  const ticker = setInterval(() => {
+    renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
+    renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
+    if (++ticks >= 12) {
+      clearInterval(ticker);
+      const d1 = Math.floor(Math.random()*6)+1;
+      const d2 = Math.floor(Math.random()*6)+1;
+      STATE.dice = [d1, d2];
+      renderDie(document.getElementById('face1'), d1);
+      renderDie(document.getElementById('face2'), d2);
+      die1El.classList.remove('rolling');
+      die2El.classList.remove('rolling');
+      setTimeout(() => resolveRoll(d1, d2), 400);
     }
+  }, 80);
+}
 
-    // ── Dealer NPC ──
-    function setDealerMood(mood) {
-      const portrait = document.getElementById('dealerPortrait');
-      portrait.classList.remove('happy', 'sad');
-      if (mood === 'happy') portrait.classList.add('happy');
-      else if (mood === 'sad') portrait.classList.add('sad');
+// ── Craps Rules Resolution ──
+function resolveRoll(d1, d2) {
+  const total = d1 + d2;
+  const isHard = d1 === d2;
+  let netWin = 0;
+  addChatMsg('roll', `Dice: ${d1} + ${d2} = ${total}${isHard ? ' (HARD)' : ''}`);
+
+  if (STATE.phase === 'comeout') netWin += resolveComeout(total);
+  else netWin += resolvePoint(total, isHard);
+
+  // Field
+  if (STATE.bets.field) {
+    const fb = STATE.bets.field;
+    if ([2,12].includes(total)) {
+      const mult = total===2?2:3; const win = fb*mult;
+      STATE.stack += fb+win; netWin += win;
+      addChatMsg('win', `FIELD ${total} pays ${mult}:1! +${win}`);
+    } else if ([3,4,9,10,11].includes(total)) {
+      STATE.stack += fb*2; netWin += fb;
+      addChatMsg('win', `FIELD wins! +${fb}`);
+    } else { addChatMsg('lose', `FIELD loses. -${fb}`); }
+    delete STATE.bets.field;
+  }
+
+  // Hardways
+  if (STATE.bets.hardways && isHard && [4,6,8,10].includes(total)) {
+    const hb = STATE.bets.hardways;
+    const pays = {4:7,6:9,8:9,10:7};
+    const win = hb*pays[total];
+    STATE.stack += hb+win; netWin += win;
+    addChatMsg('win', `HARD ${total}! +${win}`);
+    delete STATE.bets.hardways;
+  } else if (STATE.bets.hardways && (total===7 || (!isHard && [4,6,8,10].includes(total)))) {
+    addChatMsg('lose', `Hard ways loses. -${STATE.bets.hardways}`);
+    delete STATE.bets.hardways;
+  }
+
+  resolvePlaceBets(total);
+  renderAllBetChips();
+  updateLocalPlayerUI();
+
+  if (netWin > 0) { showToast(`+${netWin}`, 'win', `Total: ${total}`); dealerSay(getWinQuip(), 'happy'); }
+  else if (netWin < 0) { showToast(`${netWin}`, 'lose', `Total: ${total}`); dealerSay(getLoseQuip(), 'sad'); }
+  else { dealerSay(`${total}. ${STATE.phase==='point'?`Point is ${STATE.point}.`:'Place your bets.'}`, 'neutral'); }
+
+  STATE.isRolling = false;
+  document.getElementById('rollBtn').disabled = false;
+}
+
+function resolveComeout(total) {
+  let net = 0; const pb = STATE.bets.pass || 0;
+  if ([7,11].includes(total)) {
+    if (pb) { STATE.stack += pb*2; net += pb; addChatMsg('win', `PASS LINE wins! +${pb}`); delete STATE.bets.pass; }
+  } else if ([2,3,12].includes(total)) {
+    if (pb) { addChatMsg('lose', `Craps ${total}! -${pb}`); net -= pb; delete STATE.bets.pass; }
+  } else {
+    STATE.phase = 'point'; STATE.point = total;
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+    document.getElementById('pointDisplay').textContent = 'POINT: ' + total;
+    addChatMsg('system', `Point is ${total}.`);
+    dealerSay(`Point is ${total}!`, 'neutral');
+  }
+  return net;
+}
+
+function resolvePoint(total, isHard) {
+  let net = 0; const pb = STATE.bets.pass || 0;
+  if (total === STATE.point) {
+    if (pb) { STATE.stack += pb*2; net += pb; addChatMsg('win', `POINT HIT! +${pb}`); delete STATE.bets.pass; }
+    resetToComeout();
+  } else if (total === 7) {
+    if (pb) { addChatMsg('lose', `SEVEN OUT! -${pb}`); net -= pb; delete STATE.bets.pass; }
+    for (const k of Object.keys(STATE.bets)) {
+      if (k.startsWith('place')) { addChatMsg('lose', `${formatBetName(k)} loses. -${STATE.bets[k]}`); net -= STATE.bets[k]; delete STATE.bets[k]; }
     }
+    resetToComeout();
+    addChatMsg('system', 'New shooter!');
+  }
+  return net;
+}
 
-    function setDealerSpeech(msg) {
-      document.getElementById('dealerSpeech').textContent = msg;
+function resolvePlaceBets(total) {
+  const pk = 'place' + total;
+  if (STATE.bets[pk] && STATE.phase === 'point') {
+    const pb = STATE.bets[pk];
+    const pays = {place4:9/5,place5:7/5,place6:7/6,place8:7/6,place9:7/5,place10:9/5};
+    const win = Math.floor(pb * (pays[pk]||1));
+    STATE.stack += pb + win;
+    addChatMsg('win', `${formatBetName(pk)} hits! +${win}`);
+    delete STATE.bets[pk];
+  }
+}
+
+function resetToComeout() {
+  STATE.phase = 'comeout'; STATE.point = null;
+  document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+  document.getElementById('pointDisplay').textContent = '';
+}
+
+// ── Dealer ──
+function dealerSay(text, mood) {
+  document.getElementById('dealerSpeech').textContent = text;
+  const m = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+  document.getElementById('dealerImg').src = 'assets/Oldjipt/Craps/' + (m[mood]||m.neutral);
+}
+function getWinQuip() {
+  return ["Winner winner!","Hot dice!","Pay the man!","Keep 'em coming!","Lucky roll!"][Math.floor(Math.random()*5)];
+}
+function getLoseQuip() {
+  return ["House wins.","Tough break.","That's craps.","Dice are cold.","Better luck next roll."][Math.floor(Math.random()*5)];
+}
+
+// ── Toast ──
+function showToast(text, type, sub) {
+  const el = document.getElementById('resultToast');
+  el.className = 'result-toast ' + type;
+  document.getElementById('toastText').textContent = text;
+  document.getElementById('toastSub').textContent = sub || '';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// ── Chat ──
+function addChatMsg(type, text, name, seatIndex) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg' + (type==='system'?' system-msg':'') +
+    (type==='roll'?' roll-msg':'') + (type==='win'?' win-msg':'') + (type==='lose'?' lose-msg':'');
+  if (name) {
+    const colorClass = typeof seatIndex === 'number' ? ' p'+seatIndex : ' p0';
+    div.innerHTML = `<span class="msg-name${colorClass}">${escapeHtml(name)}:</span> <span class="msg-text">${escapeHtml(text)}</span>`;
+  } else {
+    div.innerHTML = `<span class="msg-text">${escapeHtml(text)}</span>`;
+  }
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  addChatMsg('chat', text, STATE.nftName || STATE.playerName, 0);
+  broadcastMessage({ type:'chat', name:STATE.nftName||STATE.playerName, text, seat:0 });
+  input.value = '';
+}
+
+function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+
+// ── Cash Out ──
+function cashOut() {
+  if (STATE.isRolling) return;
+  clearBets();
+  addChatMsg('system', `${STATE.nftName||STATE.playerName} cashed out with ${STATE.stack} chips.`);
+  dealerSay("See ya around, partner.", 'neutral');
+}
+
+// ── Wallet ──
+function connectWallet() {
+  const btn = document.getElementById('walletBtn');
+  btn.textContent = '0x' + STATE.playerId.slice(0,4) + '...' + STATE.playerId.slice(-4);
+  btn.classList.add('connected');
+  STATE.playerName = 'Chad_' + STATE.playerId.slice(0,4);
+  // Random Chad + NFT name — in production, pull from on-chain data
+  STATE.chadId = Math.floor(Math.random()*20)+1;
+  STATE.nftName = 'Chad #' + STATE.chadId;
+  // Set local player panel
+  setChadPortrait(0, STATE.chadId);
+  setPlayerName(0, STATE.nftName);
+  updateLocalPlayerUI();
+  addChatMsg('system', `${STATE.nftName} joined the table.`);
+  dealerSay("Welcome! Place your bets.", 'happy');
+}
+
+// ── Player Panel Helpers ──
+function setChadPortrait(seat, chadId) {
+  const img = document.getElementById('chad-' + seat);
+  if (img) { img.src = 'chads/' + chadId + '.png'; img.alt = 'Chad #' + chadId; }
+  const panel = document.getElementById('panel-' + seat);
+  if (panel) panel.classList.remove('empty');
+}
+
+function setPlayerName(seat, nftName) {
+  const el = document.getElementById('name-' + seat);
+  if (el) el.textContent = nftName || 'Unknown';
+}
+
+function setPlayerStack(seat, stack) {
+  const el = document.getElementById('stack-' + seat);
+  if (el) el.textContent = stack + ' chips';
+}
+
+function clearPlayerPanel(seat) {
+  const panel = document.getElementById('panel-' + seat);
+  if (panel) panel.classList.add('empty');
+  const img = document.getElementById('chad-' + seat);
+  if (img) { img.src = ''; img.alt = ''; }
+  setPlayerName(seat, 'Waiting...');
+  const stack = document.getElementById('stack-' + seat);
+  if (stack) stack.textContent = '';
+}
+
+// ===================================================================
+//  AGORA — Video + Push-to-Talk Audio
+// ===================================================================
+
+async function initAgora() {
+  if (!AGORA_APP_ID) return;
+  agoraClient = AgoraRTC.createClient({ mode:'rtc', codec:'vp8' });
+
+  agoraClient.on('user-published', async (user, mediaType) => {
+    await agoraClient.subscribe(user, mediaType);
+    const seat = getRemoteSeat(user.uid);
+    if (mediaType === 'video' && seat !== null) {
+      const panel = document.getElementById('panel-' + seat);
+      if (panel) panel.classList.add('has-video');
+      user.videoTrack.play('frame-' + seat);
     }
+    if (mediaType === 'audio') user.audioTrack.play();
+  });
 
-    function updateBetZoneStates() {
-      const placeZones = document.querySelectorAll('.place-zone');
-      const comeZone = document.querySelector('[data-bet="come"]');
-      const passOddsZone = document.getElementById('pass-odds-zone');
-
-      if (phase === 'comeout') {
-        // Come-out: only pass line, field, hardways
-        placeZones.forEach(z => z.classList.add('disabled'));
-        comeZone.classList.add('disabled');
-        passOddsZone.classList.add('disabled');
-      } else {
-        // Point phase: place, come, field, hardways, pass odds
-        placeZones.forEach(z => z.classList.remove('disabled'));
-        comeZone.classList.remove('disabled');
-        passOddsZone.classList.remove('disabled');
-      }
-
-      // Enable roll button if there are any active bets
-      const hasAnyBet = Object.values(bets).some(v => v > 0)
-                     || Object.values(comeBets).some(v => v > 0);
-      document.getElementById('rollBtn').disabled = !hasAnyBet || isRolling;
-    }
-
-    function updateBetDisplays() {
-      for (const [key, val] of Object.entries(bets)) {
-        const el = document.getElementById('bet-' + key);
-        if (el) el.textContent = val > 0 ? val : '';
-      }
-      // Mark active
-      document.querySelectorAll('.bet-zone').forEach(z => {
-        const bet = z.dataset.bet;
-        const hasAmount = (bets[bet] && bets[bet] > 0);
-        z.classList.toggle('active-bet', hasAmount);
-      });
-    }
-
-    // Click handler for bet zones
-    document.querySelectorAll('.bet-zone').forEach(zone => {
-      zone.addEventListener('click', () => {
-        if (zone.classList.contains('disabled')) return;
-        if (isRolling) return;
-
-        const betType = zone.dataset.bet;
-        const amount = getBetAmount();
-
-        if (amount > stack) {
-          setMessage("Not enough cells! You have " + stack);
-          return;
-        }
-
-        // Some bets have restrictions
-        if (betType === 'pass' && phase !== 'comeout') {
-          setMessage("Pass line bets only on come-out roll!");
-          return;
-        }
-        if (betType === 'passOdds' && phase !== 'point') {
-          setMessage("Odds bets only after point is set!");
-          return;
-        }
-        if (betType === 'passOdds' && !bets.pass) {
-          setMessage("Place a pass line bet first!");
-          return;
-        }
-
-        // Place bet
-        if (!bets[betType]) bets[betType] = 0;
-        bets[betType] += amount;
-        stack -= amount;
-
-        updateStackDisplay();
-        updateBetDisplays();
-        updateBetZoneStates();
-
-        setMessage(betType.toUpperCase().replace(/([0-9])/g, ' $1') + ' — ' + amount + ' cells');
-      });
-    });
-
-    // ════════════════════════════════════════
-    //  ROLL DICE
-    // ════════════════════════════════════════
-    document.getElementById('rollBtn').addEventListener('click', rollDice);
-
-    async function rollDice() {
-      if (isRolling) return;
-      isRolling = true;
-      document.getElementById('rollBtn').disabled = true;
-
-      // Start rolling animation
-      document.getElementById('die0').classList.add('rolling');
-      document.getElementById('die1').classList.add('rolling');
-
-      // Rapid cycling animation
-      const cycleInterval = setInterval(() => {
-        renderFace('face0', Math.floor(Math.random() * 6) + 1);
-        renderFace('face1', Math.floor(Math.random() * 6) + 1);
-      }, 60);
-
-      try {
-        // Send bets to worker — worker generates dice and resolves
-        const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nonce,
-            bets: { ...bets },
-            comeBets: { ...comeBets },
-            comeOdds: { ...comeOdds },
-            sessionToken,
-          }),
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'Roll failed');
-
-        // Let animation run at least 1.2s
-        await new Promise(r => setTimeout(r, 1200));
-        clearInterval(cycleInterval);
-
-        const [d1, d2] = data.dice;
-
-        // Show final dice
-        renderFace('face0', d1);
-        renderFace('face1', d2);
-        document.getElementById('die0').classList.remove('rolling');
-        document.getElementById('die1').classList.remove('rolling');
-
-        // Sync state from worker
-        stack = data.stack;
-        phase = data.phase;
-        point = data.point;
-
-        // Process resolution
-        const r2 = data.resolution;
-        if (r2.message) setMessage(r2.message);
-
-        // Zero out resolved bets locally to match worker state
-        for (const key of Object.keys(bets)) {
-          if (key === 'field' || key === 'come') bets[key] = 0;
-          if (r2.wins.includes(key) || r2.losses.includes(key)) bets[key] = 0;
-        }
-        if (r2.wins.includes('pass')) bets.passOdds = 0;
-        if (r2.message === 'SEVEN OUT!') {
-          bets.pass = 0;
-          bets.passOdds = 0;
-        }
-
-        // Sync come bets from worker
-        if (data.comeBets) comeBets = data.comeBets;
-        if (data.comeOdds) comeOdds = data.comeOdds;
-
-        updatePuck();
-
-        // Flash animations
-        await new Promise(r => setTimeout(r, 200));
-        for (const key of (r2.wins || [])) {
-          const zone = document.querySelector(`[data-bet="${key}"]`);
-          if (zone) zone.classList.add('win-flash');
-        }
-        for (const key of (r2.losses || [])) {
-          const zone = document.querySelector(`[data-bet="${key}"]`);
-          if (zone) zone.classList.add('lose-flash');
-        }
-        await new Promise(r => setTimeout(r, 1500));
-        document.querySelectorAll('.win-flash, .lose-flash').forEach(z => {
-          z.classList.remove('win-flash', 'lose-flash');
-        });
-
-        gameLog.push({
-          action: 'roll', dice: data.dice, total: data.total,
-          phase: data.phase, point: data.point,
-          netWin: r2.netWin, stackAfter: data.stack,
-        });
-
-      } catch (err) {
-        clearInterval(cycleInterval);
-        document.getElementById('die0').classList.remove('rolling');
-        document.getElementById('die1').classList.remove('rolling');
-        setMessage('Roll error: ' + (err.message || 'try again'));
-      }
-
-      isRolling = false;
-      updateStackDisplay();
-      updateBetDisplays();
-      updateBetZoneStates();
-
-      // Check if busted
-      if (stack <= 0 && !Object.values(bets).some(v => v > 0)
-                     && !Object.values(comeBets).some(v => v > 0)) {
-        await new Promise(r => setTimeout(r, 800));
-        showBusted();
+  agoraClient.on('user-unpublished', (user, mediaType) => {
+    if (mediaType === 'video') {
+      const seat = findSeatByUid(user.uid);
+      if (seat !== null) {
+        const panel = document.getElementById('panel-' + seat);
+        if (panel) panel.classList.remove('has-video');
       }
     }
+  });
 
-    function updatePuck() {
-      const puck = document.getElementById('puck');
-      if (phase === 'comeout') {
-        puck.className = 'puck off';
-        puck.textContent = 'OFF';
-      } else {
-        puck.className = 'puck on';
-        puck.textContent = point;
-      }
+  agoraClient.on('user-left', (user) => {
+    const seat = findSeatByUid(user.uid);
+    if (seat !== null) {
+      clearPlayerPanel(seat);
+      remotePlayers[seat].uid = null;
+      remotePlayers[seat].name = '';
+      remotePlayers[seat].nftName = '';
+      remotePlayers[seat].chadId = null;
+      delete STATE.remoteBets[seat];
+      renderAllBetChips();
     }
+    addChatMsg('system', 'A player left the table.');
+  });
+}
 
-    function setMessage(msg) {
-      setDealerSpeech(msg);
-      // Determine dealer mood from message context
-      const lmsg = msg.toLowerCase();
-      if (lmsg.includes('win') || lmsg.includes('hits') || lmsg.includes('yo ') || lmsg.includes('+')) {
-        setDealerMood('happy');
-      } else if (lmsg.includes('craps') || lmsg.includes('seven out') || lmsg.includes('busted') || lmsg.includes('lose') || lmsg.includes('not enough')) {
-        setDealerMood('sad');
-      } else {
-        setDealerMood('neutral');
-      }
+function getRemoteSeat(uid) {
+  // Check if already assigned
+  for (let s = 1; s <= 3; s++) {
+    if (remotePlayers[s].uid === String(uid)) return s;
+  }
+  // Assign to first empty seat
+  for (let s = 1; s <= 3; s++) {
+    if (!remotePlayers[s].uid) {
+      remotePlayers[s].uid = String(uid);
+      // Assign random Chad portrait for remote
+      const cid = (parseInt(String(uid).slice(-2),36) % 20) + 1;
+      remotePlayers[s].chadId = cid;
+      remotePlayers[s].nftName = 'Chad #' + cid;
+      remotePlayers[s].stack = 1000;
+      setChadPortrait(s, cid);
+      setPlayerName(s, remotePlayers[s].nftName);
+      setPlayerStack(s, remotePlayers[s].stack);
+      addChatMsg('system', `${remotePlayers[s].nftName} joined (Seat ${s+1}).`);
+      return s;
     }
+  }
+  return null; // table full
+}
 
-    // ════════════════════════════════════════
-    //  BUSTED / CASHOUT
-    // ════════════════════════════════════════
-    function showBusted() {
-      const overlay = document.getElementById('result-overlay');
-      const text = document.getElementById('result-text');
-      const detail = document.getElementById('result-detail');
-      text.textContent = 'BUSTED';
-      text.className = 'result-text lose';
-      detail.textContent = 'You lost all your cells.';
-      overlay.classList.add('active');
-      setDealerMood('sad');
-      setDealerSpeech("Better luck next time, partner.");
+function findSeatByUid(uid) {
+  for (let s = 1; s <= 3; s++) {
+    if (remotePlayers[s].uid === String(uid)) return s;
+  }
+  return null;
+}
 
-      const sfx = document.getElementById('sfx-lose');
-      sfx.currentTime = 0;
-      sfx.play().catch(() => {});
+async function joinRoom() {
+  if (!AGORA_APP_ID) { addChatMsg('system','No Agora App ID.'); return; }
+  try {
+    if (!agoraClient) await initAgora();
+    const channel = 'lastchad-craps-' + (window.location.hash.slice(1) || 'main');
+    await agoraClient.join(AGORA_APP_ID, channel, null, STATE.playerId);
+    addChatMsg('system', `Joined room: ${channel}`);
+    document.getElementById('joinBtn').textContent = 'JOINED';
+    document.getElementById('joinBtn').classList.add('active');
+  } catch (err) { addChatMsg('system', 'Join failed: ' + err.message); }
+}
 
-      document.getElementById('result-btn').onclick = () => {
-        overlay.classList.remove('active');
-        window.location.reload();
-      };
-    }
+async function toggleCamera() {
+  if (!agoraClient) { addChatMsg('system','Join table first.'); return; }
+  const btn = document.getElementById('camBtn');
+  const panel = document.getElementById('panel-0');
+  if (!cameraOn) {
+    try {
+      localVideoTrack = await AgoraRTC.createCameraVideoTrack();
+      await agoraClient.publish([localVideoTrack]);
+      panel.classList.add('has-video');
+      localVideoTrack.play('frame-0');
+      cameraOn = true;
+      btn.textContent = 'CAM ON'; btn.classList.add('active');
+    } catch (err) { addChatMsg('system','Camera error: '+err.message); }
+  } else {
+    if (localVideoTrack) { await agoraClient.unpublish([localVideoTrack]); localVideoTrack.close(); localVideoTrack=null; }
+    panel.classList.remove('has-video');
+    cameraOn = false;
+    btn.textContent = 'CAM OFF'; btn.classList.remove('active');
+  }
+}
 
-    document.getElementById('cashoutBtn').addEventListener('click', () => {
-      if (isRolling) return;
+// Push-to-Talk
+(function initPTT() {
+  const pttBtn = document.getElementById('pttBtn');
+  async function startTalking() {
+    if (!agoraClient || pttActive) return;
+    try {
+      localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+      await agoraClient.publish([localAudioTrack]);
+      pttActive = true; pttBtn.classList.add('talking'); pttBtn.textContent = 'TALKING...';
+    } catch (err) { addChatMsg('system','Mic error: '+err.message); }
+  }
+  async function stopTalking() {
+    if (!pttActive) return;
+    if (localAudioTrack) { await agoraClient.unpublish([localAudioTrack]); localAudioTrack.close(); localAudioTrack=null; }
+    pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'HOLD TO TALK';
+  }
+  pttBtn.addEventListener('mousedown', startTalking);
+  pttBtn.addEventListener('mouseup', stopTalking);
+  pttBtn.addEventListener('mouseleave', stopTalking);
+  pttBtn.addEventListener('touchstart', (e)=>{e.preventDefault();startTalking()});
+  pttBtn.addEventListener('touchend', (e)=>{e.preventDefault();stopTalking()});
+  pttBtn.addEventListener('touchcancel', stopTalking);
+})();
 
-      // Return any active bets to stack first
-      let betsOnTable = 0;
-      for (const [key, val] of Object.entries(bets)) {
-        betsOnTable += val;
-      }
-      for (const [key, val] of Object.entries(comeBets)) {
-        betsOnTable += val;
-      }
-      for (const [key, val] of Object.entries(comeOdds)) {
-        betsOnTable += val;
-      }
+// ── Multiplayer Message Bus (stub) ──
+function broadcastMessage(msg) { console.log('broadcast:', msg); }
 
-      document.getElementById('cashout-amount').textContent = stack + betsOnTable;
-      document.getElementById('cashoutModal').classList.add('active');
-    });
+// ── Ad Spot Management ──
+function setAdImage(spotId, imgUrl) {
+  const spot = document.getElementById(spotId);
+  if (!spot) return;
+  spot.innerHTML = `<img src="${imgUrl}" alt="Sponsor" />`;
+}
 
-    document.getElementById('cashout-cancel').addEventListener('click', () => {
-      document.getElementById('cashoutModal').classList.remove('active');
-    });
+// ===================================================================
+//  TABLE LOBBY — Public / Private tables
+// ===================================================================
 
-    document.getElementById('cashout-confirm').addEventListener('click', async () => {
-      const statusEl = document.getElementById('cashout-status');
-      const confirmBtn = document.getElementById('cashout-confirm');
-      confirmBtn.disabled = true;
+let currentTableCode = null;  // the Agora channel suffix
+let tableIsPrivate = false;
 
-      // Return all bets to stack
-      for (const [key, val] of Object.entries(bets)) {
-        stack += val; bets[key] = 0;
-      }
-      for (const [key, val] of Object.entries(comeBets)) {
-        stack += val; delete comeBets[key];
-      }
-      for (const [key, val] of Object.entries(comeOdds)) {
-        stack += val; delete comeOdds[key];
-      }
+function generateTableCode() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
 
-      const finalPayout = stack;
-      gameLog.push({ action: 'cashout', finalStack: finalPayout });
+function joinPublicTable() {
+  currentTableCode = 'public-main';
+  tableIsPrivate = false;
+  enterTable();
+}
 
-      if (finalPayout <= 0) {
-        document.getElementById('cashoutModal').classList.remove('active');
-        showBusted();
-        return;
-      }
+function createPrivateTable() {
+  currentTableCode = 'priv-' + generateTableCode();
+  tableIsPrivate = true;
+  const url = window.location.origin + window.location.pathname + '#' + currentTableCode;
+  document.getElementById('inviteLink').textContent = url;
+  document.getElementById('inviteArea').classList.add('show');
+  document.getElementById('joinPrivateArea').classList.remove('show');
+  document.getElementById('publicTableList').innerHTML = '';
+}
 
-      statusEl.textContent = 'Getting oracle signature...';
+function showJoinPrivate() {
+  document.getElementById('joinPrivateArea').classList.add('show');
+  document.getElementById('inviteArea').classList.remove('show');
+  document.getElementById('publicTableList').innerHTML = '';
+}
 
-      try {
-        // Ask worker to sign the cashout
-        const cashoutRes = await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tokenId: selectedTokenId,
-            nonce,
-            sessionToken,
-          }),
-        });
-        const cashoutData = await cashoutRes.json();
-        if (!cashoutData.ok) throw new Error(cashoutData.error || 'Cashout failed');
+function joinPrivateTable() {
+  const input = document.getElementById('privateCodeInput').value.trim();
+  if (!input) return;
+  // Extract code from full URL or raw code
+  if (input.includes('#')) {
+    currentTableCode = input.split('#').pop();
+  } else {
+    currentTableCode = input;
+  }
+  tableIsPrivate = true;
+  enterTable();
+}
 
-        const serverPayout = cashoutData.payout;
+function copyInviteLink() {
+  const link = document.getElementById('inviteLink').textContent;
+  navigator.clipboard.writeText(link).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 2000);
+  });
+}
 
-        if (serverPayout === 0) {
-          document.getElementById('cashoutModal').classList.remove('active');
-          showBusted();
-          return;
-        }
+function enterTable() {
+  // Set the hash for Agora channel
+  window.location.hash = currentTableCode || 'public-main';
+  // Hide lobby, show table
+  document.getElementById('tableLobby').classList.add('hidden');
+  document.getElementById('tableWrapper').style.display = '';
+  addChatMsg('system', `Table: ${currentTableCode}${tableIsPrivate ? ' (private)' : ' (public)'}`);
+}
 
-        // Call claimWinnings with real oracle signature
-        statusEl.textContent = 'Claiming cells on-chain...';
-        const signer = getSigner();
-        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
-        const tx = await gamble.claimWinnings(selectedTokenId, serverPayout, cashoutData.nonce, cashoutData.signature);
-        statusEl.textContent = 'Confirming...';
-        await tx.wait();
+// Auto-join if URL has a hash (invite link)
+(function checkHashJoin() {
+  const hash = window.location.hash.slice(1);
+  if (hash) {
+    currentTableCode = hash;
+    tableIsPrivate = hash.startsWith('priv-');
+    enterTable();
+  }
+})();
 
-        document.getElementById('cashoutModal').classList.remove('active');
-
-        // Show result
-        const overlay = document.getElementById('result-overlay');
-        const text = document.getElementById('result-text');
-        const detail = document.getElementById('result-detail');
-
-        const buyIn = gameLog[0].amount;
-        const profit = serverPayout - buyIn;
-
-        if (profit > 0) {
-          text.textContent = 'WINNER!';
-          text.className = 'result-text win';
-          detail.textContent = '+' + profit + ' cells profit!';
-          const sfx = document.getElementById('sfx-win');
-          sfx.currentTime = 0; sfx.play().catch(() => {});
-        } else if (profit < 0) {
-          text.textContent = 'TOUGH LUCK';
-          text.className = 'result-text lose';
-          detail.textContent = profit + ' cells';
-          const sfx = document.getElementById('sfx-lose');
-          sfx.currentTime = 0; sfx.play().catch(() => {});
-        } else {
-          text.textContent = 'BREAK EVEN';
-          text.className = 'result-text win';
-          detail.textContent = 'Got your cells back!';
-        }
-
-        overlay.classList.add('active');
-        document.getElementById('result-btn').onclick = () => {
-          overlay.classList.remove('active');
-          window.location.reload();
-        };
-
-      } catch (err) {
-        const reason = err.reason || err.data?.message || err.message || String(err);
-        statusEl.textContent = reason.slice(0, 80);
-        confirmBtn.disabled = false;
-      }
-    });
-
-    // ════════════════════════════════════════
-    //  INIT
-    // ════════════════════════════════════════
-    if (!userAddress) {
-      document.getElementById('setup-wallet-msg').style.display = '';
-    }
-
-  </script>
-  <script src="js/wallet-modal.js"></script>
-  <script src="nav.js"></script>
+// ── Init ──
+renderDie(document.getElementById('face1'), 5);
+renderDie(document.getElementById('face2'), 5);
+if (AGORA_APP_ID) initAgora();
+</script>
 </body>
 </html>
