@@ -117,11 +117,18 @@
     .puck{position:absolute;width:36px;height:36px;top:8%;right:12%;z-index:10}
     .puck img{width:100%;height:100%;object-fit:contain}
 
-    /* Dice on table */
+    /* Dice on table — clickable */
     .table-dice{
       position:absolute;bottom:18%;left:50%;transform:translateX(-50%);
       display:flex;gap:14px;z-index:10;
+      cursor:pointer;
     }
+    .table-dice.can-roll{
+      filter:drop-shadow(0 0 12px rgba(255,233,106,0.7));
+      animation:dice-pulse 1.2s ease-in-out infinite;
+    }
+    .table-dice.locked{cursor:not-allowed;opacity:0.6}
+    @keyframes dice-pulse{0%,100%{filter:drop-shadow(0 0 8px rgba(255,233,106,0.4))}50%{filter:drop-shadow(0 0 18px rgba(255,233,106,0.9))}}
     .die{
       width:52px;height:52px;background:#fff;border-radius:7px;
       border:3px solid #c00;
@@ -137,6 +144,32 @@
       75%{transform:rotate(270deg) scale(1.1)}
       100%{transform:rotate(360deg) scale(1)}
     }
+
+    /* Roll prompt message */
+    .roll-prompt{
+      position:absolute;bottom:8%;left:50%;transform:translateX(-50%);
+      z-index:20;font-size:0.35rem;color:#ffe96a;
+      text-shadow:0 0 8px rgba(255,233,106,0.6);
+      animation:prompt-blink 1.5s ease-in-out infinite;
+      white-space:nowrap;pointer-events:none;
+    }
+    @keyframes prompt-blink{0%,100%{opacity:1}50%{opacity:0.4}}
+
+    /* Timer bar */
+    .timer-bar{
+      position:absolute;bottom:0;left:0;right:0;height:4px;z-index:25;
+      background:rgba(0,0,0,0.5);
+    }
+    .timer-bar-fill{
+      height:100%;background:#ffe96a;
+      transition:width 0.1s linear;
+    }
+    .timer-bar-fill.urgent{background:#e53935}
+    .timer-label{
+      position:absolute;bottom:6px;right:8px;z-index:26;
+      font-size:0.25rem;color:#ffe96a;pointer-events:none;
+    }
+    .timer-label.no-more-bets{color:#e53935;font-size:0.4rem;left:50%;right:auto;transform:translateX(-50%);bottom:10px;text-shadow:0 0 10px rgba(229,57,53,0.6)}
     .die-face{
       width:100%;height:100%;display:grid;
       grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:5px;
@@ -182,23 +215,28 @@
     .bet-place10{top:10%;left:70%;width:12%;height:18%}
     .bet-hardways{top:32%;left:20%;width:45%;height:14%}
 
-    /* Bet chips on felt — colored per player */
-    .bet-chips-row{
-      position:absolute;bottom:2px;left:4px;right:4px;
-      display:flex;gap:3px;flex-wrap:wrap;
-      pointer-events:none;
+    /* Bet chips on felt — each player positioned differently */
+    .bet-chips-container{
+      position:absolute;inset:0;pointer-events:none;
     }
     .bet-chip-token{
-      width:22px;height:22px;border-radius:50%;
-      font-size:0.18rem;display:flex;align-items:center;justify-content:center;
+      position:absolute;
+      width:24px;height:24px;border-radius:50%;
+      font-size:0.16rem;display:flex;align-items:center;justify-content:center;
       color:#fff;font-family:'Press Start 2P',monospace;
-      box-shadow:1px 1px 4px rgba(0,0,0,0.5);
-      border:2px solid;
+      box-shadow:1px 2px 5px rgba(0,0,0,0.6);
+      border:3px solid;
     }
-    .bet-chip-token.p0{background:var(--p1-color);border-color:#fff}
-    .bet-chip-token.p1{background:var(--p2-color);border-color:#fff}
-    .bet-chip-token.p2{background:var(--p3-color);border-color:#fff}
-    .bet-chip-token.p3{background:var(--p4-color);border-color:#fff}
+    /* Each player's chip has their color as the ring and a dark center */
+    .bet-chip-token.p0{background:#1a1a1a;border-color:var(--p1-color);color:var(--p1-color)}
+    .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
+    .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
+    .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
+    /* Player chip positions within each zone: corners/edges */
+    .bet-chip-token.pos-0{bottom:4px;left:6px}   /* bottom-left */
+    .bet-chip-token.pos-1{bottom:4px;right:6px}  /* bottom-right */
+    .bet-chip-token.pos-2{top:4px;left:6px}      /* top-left */
+    .bet-chip-token.pos-3{top:4px;right:6px}     /* top-right */
 
     /* ── Chat Box (below table) ── */
     .chat-box{
@@ -286,13 +324,6 @@
       padding:8px 12px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
-    .btn-roll{
-      background:linear-gradient(180deg,#4caf50,#2e7d32);
-      border-color:#66bb6a;color:#fff;
-      box-shadow:0 3px 10px rgba(76,175,80,0.4);
-    }
-    .btn-roll:hover{background:linear-gradient(180deg,#66bb6a,#388e3c)}
-    .btn-roll:disabled{opacity:0.4;cursor:not-allowed}
     .btn-clear{background:linear-gradient(180deg,#e53935,#b71c1c);border-color:#ef5350;color:#fff}
     .btn-clear:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
     .btn-cashout{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
@@ -514,38 +545,47 @@
 
       <!-- Bet Zones -->
       <div class="bet-zone bet-pass" data-bet="pass" onclick="placeBet('pass')">
-        <div class="bet-chips-row" id="chips-pass"></div>
+        <div class="bet-chips-container" id="chips-pass"></div>
       </div>
       <div class="bet-zone bet-field" data-bet="field" onclick="placeBet('field')">
-        <div class="bet-chips-row" id="chips-field"></div>
+        <div class="bet-chips-container" id="chips-field"></div>
       </div>
       <div class="bet-zone bet-place4" data-bet="place4" onclick="placeBet('place4')">
-        <div class="bet-chips-row" id="chips-place4"></div>
+        <div class="bet-chips-container" id="chips-place4"></div>
       </div>
       <div class="bet-zone bet-place5" data-bet="place5" onclick="placeBet('place5')">
-        <div class="bet-chips-row" id="chips-place5"></div>
+        <div class="bet-chips-container" id="chips-place5"></div>
       </div>
       <div class="bet-zone bet-place6" data-bet="place6" onclick="placeBet('place6')">
-        <div class="bet-chips-row" id="chips-place6"></div>
+        <div class="bet-chips-container" id="chips-place6"></div>
       </div>
       <div class="bet-zone bet-place8" data-bet="place8" onclick="placeBet('place8')">
-        <div class="bet-chips-row" id="chips-place8"></div>
+        <div class="bet-chips-container" id="chips-place8"></div>
       </div>
       <div class="bet-zone bet-place9" data-bet="place9" onclick="placeBet('place9')">
-        <div class="bet-chips-row" id="chips-place9"></div>
+        <div class="bet-chips-container" id="chips-place9"></div>
       </div>
       <div class="bet-zone bet-place10" data-bet="place10" onclick="placeBet('place10')">
-        <div class="bet-chips-row" id="chips-place10"></div>
+        <div class="bet-chips-container" id="chips-place10"></div>
       </div>
       <div class="bet-zone bet-hardways" data-bet="hardways" onclick="placeBet('hardways')">
-        <div class="bet-chips-row" id="chips-hardways"></div>
+        <div class="bet-chips-container" id="chips-hardways"></div>
       </div>
 
-      <!-- Dice -->
-      <div class="table-dice" id="tableDice">
+      <!-- Dice (clickable to roll) -->
+      <div class="table-dice can-roll" id="tableDice" onclick="rollDice()">
         <div class="die" id="die1"><div class="die-face" id="face1"></div></div>
         <div class="die" id="die2"><div class="die-face" id="face2"></div></div>
       </div>
+
+      <!-- Roll prompt -->
+      <div class="roll-prompt" id="rollPrompt" style="display:none">CLICK DICE TO ROLL</div>
+
+      <!-- Timer bar -->
+      <div class="timer-bar" id="timerBar" style="display:none">
+        <div class="timer-bar-fill" id="timerBarFill"></div>
+      </div>
+      <div class="timer-label" id="timerLabel" style="display:none"></div>
 
       <!-- Shooter video PiP (optional, shown when shooter has cam on) -->
       <div class="shooter-video-pip" id="shooterPip"></div>
@@ -587,7 +627,6 @@
     <button class="audio-btn cam-btn" id="camBtn" onclick="toggleCamera()">SHOOTER CAM</button>
     <div class="controls">
       <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
-      <button class="ctrl-btn btn-roll" id="rollBtn" onclick="rollDice()">ROLL</button>
       <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
       <button class="btn-exit" onclick="exitTable()">EXIT</button>
     </div>
@@ -703,7 +742,7 @@ function selectChip(value) {
 
 // ── Bet Placement (server-side validated) ──
 async function placeBet(zone) {
-  if (STATE.isRolling) return;
+  if (STATE.isRolling || betsLocked) return;
   if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
   const amount = STATE.selectedChip;
   if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
@@ -732,26 +771,26 @@ function formatBetName(zone) {
   return names[zone] || zone.toUpperCase();
 }
 
-// Render colored chip tokens on each bet zone for all players
+// Render colored chip tokens — each player gets a different position in the zone
 function renderAllBetChips() {
   const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hardways'];
   for (const zone of zones) {
     const container = document.getElementById('chips-' + zone);
     if (!container) continue;
     container.innerHTML = '';
-    // Local player (seat 0)
+    // Local player (seat 0) — bottom-left
     if (STATE.bets[zone] && STATE.bets[zone] > 0) {
       const chip = document.createElement('div');
-      chip.className = 'bet-chip-token p0';
+      chip.className = 'bet-chip-token p0 pos-0';
       chip.textContent = STATE.bets[zone];
       container.appendChild(chip);
     }
-    // Remote players (seats 1-3)
+    // Remote players (seats 1-3) — different corners
     for (let s = 1; s <= 3; s++) {
       const rb = STATE.remoteBets[s];
       if (rb && rb[zone] && rb[zone] > 0) {
         const chip = document.createElement('div');
-        chip.className = 'bet-chip-token p' + s;
+        chip.className = 'bet-chip-token p' + s + ' pos-' + s;
         chip.textContent = rb[zone];
         container.appendChild(chip);
       }
@@ -760,7 +799,7 @@ function renderAllBetChips() {
 }
 
 function clearBets() {
-  if (STATE.isRolling) return;
+  if (STATE.isRolling || betsLocked) return;
   for (const zone of Object.keys(STATE.bets)) STATE.stack += STATE.bets[zone];
   STATE.bets = {};
   STATE._pendingBets = {};
@@ -772,15 +811,106 @@ function updateLocalPlayerUI() {
   document.getElementById('stack-0').textContent = STATE.stack + ' chips';
 }
 
-// ── Dice Roll (server-side via Worker — no client RNG) ──
+// ── Turn Phase System ──
+// After each roll: 10s BET PHASE → "NO MORE BETS" → 10s ROLL PHASE (click dice or auto-roll)
+let turnTimer = null;
+let turnPhase = 'betting'; // 'betting' | 'no-more-bets' | 'rolling' | 'waiting'
+let betsLocked = false;
+
+function startBetPhase() {
+  turnPhase = 'betting';
+  betsLocked = false;
+  const diceEl = document.getElementById('tableDice');
+  diceEl.classList.remove('can-roll');
+  diceEl.classList.add('locked');
+  document.getElementById('rollPrompt').style.display = 'none';
+  dealerSay("Place your bets!", 'happy');
+  startTimer(10, 'PLACE BETS', () => {
+    // Bet time over → lock bets → show "NO MORE BETS"
+    turnPhase = 'no-more-bets';
+    betsLocked = true;
+    showNoMoreBets();
+    setTimeout(() => {
+      startRollPhase();
+    }, 1500);
+  });
+}
+
+function showNoMoreBets() {
+  hideTimer();
+  const label = document.getElementById('timerLabel');
+  label.textContent = 'NO MORE BETS';
+  label.className = 'timer-label no-more-bets';
+  label.style.display = '';
+}
+
+function startRollPhase() {
+  turnPhase = 'rolling';
+  const diceEl = document.getElementById('tableDice');
+  diceEl.classList.add('can-roll');
+  diceEl.classList.remove('locked');
+  document.getElementById('rollPrompt').style.display = '';
+  startTimer(10, 'ROLL', () => {
+    // Auto-roll if player doesn't click dice in time
+    rollDice();
+  });
+}
+
+function startTimer(seconds, label, onComplete) {
+  clearTimer();
+  const bar = document.getElementById('timerBar');
+  const fill = document.getElementById('timerBarFill');
+  const lbl = document.getElementById('timerLabel');
+  bar.style.display = '';
+  lbl.style.display = '';
+  lbl.className = 'timer-label';
+  fill.classList.remove('urgent');
+  let remaining = seconds * 10; // 100ms ticks
+  const total = remaining;
+  function tick() {
+    remaining--;
+    const pct = (remaining / total) * 100;
+    fill.style.width = pct + '%';
+    const secs = Math.ceil(remaining / 10);
+    lbl.textContent = `${label}: ${secs}s`;
+    if (remaining <= 30) fill.classList.add('urgent');
+    if (remaining <= 0) {
+      clearTimer();
+      onComplete();
+    }
+  }
+  tick(); // immediate first tick
+  turnTimer = setInterval(tick, 100);
+}
+
+function clearTimer() {
+  if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+}
+
+function hideTimer() {
+  clearTimer();
+  document.getElementById('timerBar').style.display = 'none';
+  document.getElementById('timerLabel').style.display = 'none';
+  document.getElementById('timerBarFill').style.width = '100%';
+}
+
+// ── Dice Roll (click dice to roll — server-side via Worker) ──
 async function rollDice() {
   if (STATE.isRolling) return;
   if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
-  if (Object.keys(STATE.bets).length === 0) {
+  if (Object.keys(STATE.bets).length === 0 && !STATE._pendingBets) {
     dealerSay("Place a bet first!", 'neutral'); return;
   }
+  // Lock everything
   STATE.isRolling = true;
-  document.getElementById('rollBtn').disabled = true;
+  turnPhase = 'waiting';
+  betsLocked = true;
+  hideTimer();
+  document.getElementById('rollPrompt').style.display = 'none';
+  const diceEl = document.getElementById('tableDice');
+  diceEl.classList.remove('can-roll');
+  diceEl.classList.add('locked');
+
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
   die1El.classList.add('rolling');
@@ -793,7 +923,6 @@ async function rollDice() {
   }, 60);
 
   try {
-    // Send new bets to Worker — Worker validates against stack, generates dice, resolves
     const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -803,11 +932,10 @@ async function rollDice() {
         sessionToken: STATE.sessionToken,
       }),
     });
-    STATE._pendingBets = {}; // Clear pending after sending
+    STATE._pendingBets = {};
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Roll failed');
 
-    // Let animation run a bit
     await new Promise(r => setTimeout(r, 1200));
     clearInterval(cycleInterval);
 
@@ -818,7 +946,6 @@ async function rollDice() {
     die1El.classList.remove('rolling');
     die2El.classList.remove('rolling');
 
-    // Sync authoritative state from Worker — server is the source of truth
     STATE.stack = data.stack;
     STATE.phase = data.phase;
     STATE.point = data.point || null;
@@ -826,14 +953,11 @@ async function rollDice() {
     const r = data.resolution;
     const total = data.total;
 
-    // Use server-authoritative bet state (not client-tracked)
     if (data.bets) STATE.bets = data.bets;
-    // Remove zeroed bets for clean display
     for (const k of Object.keys(STATE.bets)) {
       if (STATE.bets[k] === 0) delete STATE.bets[k];
     }
 
-    // Update puck
     if (STATE.phase === 'point' && STATE.point) {
       document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
       document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
@@ -847,7 +971,6 @@ async function rollDice() {
       dealerSay(r.message, r.wins.length > 0 ? 'happy' : r.losses.length > 0 ? 'sad' : 'neutral');
     }
 
-    // Flash animations
     await new Promise(r2 => setTimeout(r2, 200));
     for (const key of r.wins) {
       const zone = document.querySelector(`[data-bet="${key}"]`);
@@ -865,18 +988,24 @@ async function rollDice() {
     if (netWin > 0) showToast(`+${netWin}`, 'win', `Total: ${total}`);
     else if (netWin < 0) showToast(`${netWin}`, 'lose', `Total: ${total}`);
 
-    // Clear flash classes after animation
     setTimeout(() => {
       document.querySelectorAll('.win-flash,.lose-flash').forEach(el => {
         el.classList.remove('win-flash','lose-flash');
       });
     }, 1500);
 
-    // Check if busted
     if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
       dealerSay("You're busted! Better luck next time.", 'sad');
       addChatMsg('system', `${STATE.nftName || STATE.playerName} busted out!`);
+      STATE.isRolling = false;
+      return;
     }
+
+    // After roll resolves, wait 2s then start next bet phase
+    STATE.isRolling = false;
+    diceEl.classList.remove('locked');
+    setTimeout(() => startBetPhase(), 2000);
+    return;
 
   } catch (err) {
     clearInterval(cycleInterval);
@@ -886,7 +1015,9 @@ async function rollDice() {
   }
 
   STATE.isRolling = false;
-  document.getElementById('rollBtn').disabled = false;
+  diceEl.classList.remove('locked');
+  // Restart bet phase on error
+  setTimeout(() => startBetPhase(), 2000);
 }
 
 // Client-side resolution removed — all resolution happens server-side in the Worker.
@@ -955,7 +1086,9 @@ async function cashOut() {
 
   if (!confirm(`Cash out ${totalPayout} cells?`)) return;
 
-  document.getElementById('rollBtn').disabled = true;
+  hideTimer();
+  betsLocked = true;
+  document.getElementById('tableDice').classList.add('locked');
   dealerSay("Cashing out...", 'neutral');
 
   try {
@@ -1005,8 +1138,9 @@ async function cashOut() {
 
   } catch (err) {
     dealerSay('Cashout failed: ' + (err.reason || err.message || 'Unknown error'), 'sad');
+    // Restart bet phase on cashout failure
+    startBetPhase();
   }
-  document.getElementById('rollBtn').disabled = false;
 }
 
 // ── Exit Table ──
@@ -1040,6 +1174,8 @@ function initPlayerFromSession() {
   updateLocalPlayerUI();
   addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} cells.`);
   dealerSay("Welcome! Place your bets.", 'happy');
+  // Start the first bet phase
+  startBetPhase();
 }
 
 // ── Player Panel Helpers ──
@@ -1389,7 +1525,9 @@ if (crapsSession) {
   });
 } else {
   dealerSay("No active session. Return to the Gamble Den to buy in.", 'sad');
-  document.getElementById('rollBtn').disabled = true;
+  // Lock dice since no session
+  document.getElementById('tableDice').classList.remove('can-roll');
+  document.getElementById('tableDice').classList.add('locked');
 }
 
 // Expose functions to global scope for onclick handlers
