@@ -162,7 +162,7 @@ jobs:
 
       - name: Push AGORA_APP_CERT secret to Worker
         working-directory: worker
-        if: secrets.AGORA_APP_CERT != ''
+        if: ${{ secrets.AGORA_APP_CERT != '' }}
         env:
           CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -405,7 +405,7 @@ jobs:
 
       - name: Push AGORA_APP_CERT secret to Worker
         working-directory: worker
-        if: secrets.AGORA_APP_CERT != ''
+        if: ${{ secrets.AGORA_APP_CERT != '' }}
         env:
           CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
