@@ -183,27 +183,27 @@
       color:rgba(255,233,106,0.6);
     }
 
-    /* ── Place Bets (6 boxes across the top of the image) ── */
-    .bet-place4  {left:5%;  top:13%; width:12%; height:18%}
-    .bet-place5  {left:17%; top:13%; width:12%; height:18%}
-    .bet-place6  {left:29%; top:13%; width:12%; height:18%}
-    .bet-place8  {left:41%; top:13%; width:12%; height:18%}
-    .bet-place9  {left:53%; top:13%; width:12%; height:18%}
-    .bet-place10 {left:65%; top:13%; width:12%; height:18%}
+    /* ── Place Bets (right on top of the place numbers) ── */
+    .bet-place4  {left:5%;  top:16%; width:12%; height:16%}
+    .bet-place5  {left:17%; top:16%; width:12%; height:16%}
+    .bet-place6  {left:29%; top:16%; width:12%; height:16%}
+    .bet-place8  {left:41%; top:16%; width:12%; height:16%}
+    .bet-place9  {left:53%; top:16%; width:12%; height:16%}
+    .bet-place10 {left:65%; top:16%; width:12%; height:16%}
 
     /* ── Pass Line — L-shaped: right strip + bottom strip ── */
     .bet-pass{left:80%; top:4%; width:17%; height:92%}
     .bet-pass-bottom{left:4%; top:86%; width:76%; height:10%}
 
-    /* ── Hard Ways (center 4 boxes) ── */
-    .bet-hard4  {left:16%; top:42%; width:13%; height:14%}
-    .bet-hard6  {left:29%; top:42%; width:13%; height:14%}
-    .bet-hard8  {left:42%; top:42%; width:13%; height:14%}
-    .bet-hard10 {left:55%; top:42%; width:13%; height:14%}
+    /* ── Hard Ways (right on top of hardway numbers) ── */
+    .bet-hard4  {left:18%; top:46%; width:12%; height:12%}
+    .bet-hard6  {left:30%; top:46%; width:12%; height:12%}
+    .bet-hard8  {left:42%; top:46%; width:12%; height:12%}
+    .bet-hard10 {left:54%; top:46%; width:13%; height:12%}
 
-    /* ── FIELD (below hard ways, above bottom pass line) ── */
+    /* ── FIELD (FIELD label + numbers below) ── */
     .bet-field{
-      left:4%; top:58%; width:74%; height:26%;
+      left:5%; top:60%; width:73%; height:19%;
     }
 
     /* Win/lose flash */
@@ -214,24 +214,25 @@
 
     /* ── Bet chips on felt ── */
     .bet-chips-container{
-      position:absolute;inset:0;pointer-events:none;
+      position:absolute;inset:0;pointer-events:none;z-index:10;
     }
     .bet-chip-token{
       position:absolute;
-      width:26px;height:26px;border-radius:50%;
-      font-size:0.16rem;display:flex;align-items:center;justify-content:center;
-      color:#fff;font-family:'Press Start 2P',monospace;
-      box-shadow:1px 2px 5px rgba(0,0,0,0.6);
+      width:28px;height:28px;border-radius:50%;
+      font-size:0.18rem;display:flex;align-items:center;justify-content:center;
+      font-family:'Press Start 2P',monospace;
+      box-shadow:0 0 6px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.15);
       border:3px solid;
+      z-index:11;
     }
     .bet-chip-token.p0{background:#1a1a1a;border-color:var(--p1-color);color:var(--p1-color)}
     .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
     .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
     .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
-    .bet-chip-token.pos-0{bottom:4px;left:8px}
-    .bet-chip-token.pos-1{bottom:4px;right:8px}
-    .bet-chip-token.pos-2{top:4px;left:8px}
-    .bet-chip-token.pos-3{top:4px;right:8px}
+    .bet-chip-token.pos-0{top:2px;left:2px}
+    .bet-chip-token.pos-1{top:2px;right:2px}
+    .bet-chip-token.pos-2{bottom:2px;left:2px}
+    .bet-chip-token.pos-3{bottom:2px;right:2px}
 
     /* ── Dice on felt — docs.html style ── */
     .table-dice{
