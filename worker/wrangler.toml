@@ -14,9 +14,11 @@ QUEST_REWARDS_ADDRESS = "0x0CcA830784D13F4E9B606F914eB0c1deecA925eB"
 GAMBLE_ADDRESS        = "0x12527ec23064D11Fa128d6B36Db69252b86Ec0AC"
 READ_RPC              = "https://api.avax-test.network/ext/bc/C/rpc"
 GAME_BASE_URL         = "https://lastchad.xyz"
+AGORA_APP_ID          = "7917341a0c9c46a08328cc9a33989d75"
 
-# ORACLE_PRIVATE_KEY is a secret — never put it here.
-# Set it with: npx wrangler secret put ORACLE_PRIVATE_KEY
+# Secrets — never put these here. Set them with wrangler secret put:
+#   npx wrangler secret put ORACLE_PRIVATE_KEY
+#   npx wrangler secret put AGORA_APP_CERT
 # Then derive the oracle address and call QuestRewards.setOracle(address).
 #
 # To create the KV namespace:
