@@ -64,6 +64,12 @@
       position:relative;overflow:hidden;
     }
     .video-slot video{width:100%;height:100%;object-fit:cover}
+    .video-slot .chad-portrait{
+      width:100%;height:100%;object-fit:cover;
+      image-rendering:pixelated;
+      display:block;
+    }
+    .video-slot.has-video .chad-portrait{display:none}
     .video-slot .video-label{
       position:absolute;bottom:0;left:0;right:0;
       background:rgba(0,0,0,0.7);
@@ -71,6 +77,7 @@
       color:#4caf50;text-align:center;
     }
     .video-slot.shooter-slot{border-color:#4caf50;flex:0 0 280px}
+    .video-slot.empty .chad-portrait{display:none}
     .video-slot.empty{
       display:flex;align-items:center;justify-content:center;
       font-size:0.4rem;color:#555;
@@ -439,15 +446,19 @@
   <!-- Video Strip (row 1, all columns) -->
   <div class="video-strip">
     <div class="video-slot shooter-slot" id="shooterVideo">
+      <img class="chad-portrait" id="chad-shooterVideo" src="" alt="" />
       <div class="video-label">SHOOTER CAM</div>
     </div>
     <div class="video-slot" id="player2Video">
+      <img class="chad-portrait" id="chad-player2Video" src="" alt="" />
       <div class="video-label">PLAYER 2</div>
     </div>
     <div class="video-slot" id="player3Video">
+      <img class="chad-portrait" id="chad-player3Video" src="" alt="" />
       <div class="video-label">PLAYER 3</div>
     </div>
     <div class="video-slot" id="player4Video">
+      <img class="chad-portrait" id="chad-player4Video" src="" alt="" />
       <div class="video-label">PLAYER 4</div>
     </div>
     <div class="video-controls">
@@ -592,6 +603,7 @@ const STATE = {
   playerId: Math.random().toString(36).slice(2, 8),
   players: [],        // [{id, name, stack, isShooter}]
   shooterIndex: 0,
+  chadId: null,        // NFT token ID for portrait (1-20)
 };
 
 // ── Agora Config ──
@@ -967,9 +979,24 @@ function connectWallet() {
   btn.textContent = '0x' + STATE.playerId.slice(0, 4) + '...' + STATE.playerId.slice(-4);
   btn.classList.add('connected');
   STATE.playerName = 'Chad_' + STATE.playerId.slice(0, 4);
+  // Assign a random Chad portrait (1-20) — in production, use their actual NFT tokenId
+  STATE.chadId = Math.floor(Math.random() * 20) + 1;
+  setChadPortrait('shooterVideo', STATE.chadId);
   updatePlayerSlot(0, STATE.playerName, STATE.stack, true);
   addChatMsg('system', `${STATE.playerName} joined the table.`);
   dealerSay("Welcome to the table! Place your bets.", 'happy');
+}
+
+// ── Chad Portraits in Video Slots ──
+function setChadPortrait(slotId, chadId) {
+  const img = document.getElementById('chad-' + slotId);
+  if (img) {
+    img.src = 'chads/' + chadId + '.png';
+    img.alt = 'Chad #' + chadId;
+  }
+  // Remove empty class so portrait shows
+  const slot = document.getElementById(slotId);
+  if (slot) slot.classList.remove('empty');
 }
 
 // ── Player Slots ──
@@ -995,8 +1022,12 @@ async function initAgora() {
   agoraClient.on('user-published', async (user, mediaType) => {
     await agoraClient.subscribe(user, mediaType);
     if (mediaType === 'video') {
-      const slot = getAvailableVideoSlot(user.uid);
-      if (slot) user.videoTrack.play(slot);
+      const slotId = getAvailableVideoSlot(user.uid);
+      if (slotId) {
+        const slotEl = document.getElementById(slotId);
+        slotEl.classList.add('has-video');  // hide Chad portrait
+        user.videoTrack.play(slotId);
+      }
     }
     if (mediaType === 'audio') {
       user.audioTrack.play();
@@ -1005,11 +1036,26 @@ async function initAgora() {
 
   agoraClient.on('user-unpublished', (user, mediaType) => {
     if (mediaType === 'video') {
-      // Clear slot
+      // Restore Chad portrait when remote user turns off cam
+      const slotId = findSlotByUid(user.uid);
+      if (slotId) {
+        const slotEl = document.getElementById(slotId);
+        slotEl.classList.remove('has-video');
+      }
     }
   });
 
   agoraClient.on('user-left', (user) => {
+    // Clear their video slot and restore to empty
+    const slotId = findSlotByUid(user.uid);
+    if (slotId) {
+      const slotEl = document.getElementById(slotId);
+      slotEl.classList.remove('has-video');
+      slotEl.dataset.uid = '';
+      // Reset portrait to empty
+      const img = document.getElementById('chad-' + slotId);
+      if (img) { img.src = ''; img.alt = ''; }
+    }
     addChatMsg('system', `Player left the table.`);
   });
 }
@@ -1037,10 +1083,12 @@ async function toggleCamera() {
     return;
   }
   const btn = document.getElementById('camBtn');
+  const shooterSlot = document.getElementById('shooterVideo');
   if (!cameraOn) {
     try {
       localVideoTrack = await AgoraRTC.createCameraVideoTrack();
       await agoraClient.publish([localVideoTrack]);
+      shooterSlot.classList.add('has-video');  // hides Chad portrait
       localVideoTrack.play('shooterVideo');
       cameraOn = true;
       btn.textContent = 'CAM ON';
@@ -1054,6 +1102,7 @@ async function toggleCamera() {
       localVideoTrack.close();
       localVideoTrack = null;
     }
+    shooterSlot.classList.remove('has-video');  // shows Chad portrait again
     cameraOn = false;
     btn.textContent = 'CAM OFF';
     btn.classList.remove('active');
@@ -1102,12 +1151,28 @@ async function toggleCamera() {
 function getAvailableVideoSlot(uid) {
   // Assign remote users to player 2-4 video slots
   const slots = ['player2Video', 'player3Video', 'player4Video'];
+  // Check if already assigned
+  for (const id of slots) {
+    if (document.getElementById(id).dataset.uid === String(uid)) return id;
+  }
+  // Find first empty slot
   for (const id of slots) {
     const el = document.getElementById(id);
     if (!el.dataset.uid) {
       el.dataset.uid = uid;
+      // Assign a random Chad portrait for this remote player
+      const remoteChadId = (parseInt(String(uid).slice(-2), 36) % 20) + 1;
+      setChadPortrait(id, remoteChadId);
       return id;
     }
+  }
+  return null;
+}
+
+function findSlotByUid(uid) {
+  const slots = ['player2Video', 'player3Video', 'player4Video'];
+  for (const id of slots) {
+    if (document.getElementById(id).dataset.uid === String(uid)) return id;
   }
   return null;
 }
