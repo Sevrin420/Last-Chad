@@ -67,6 +67,7 @@ const POKER_PAYOUTS = {
 const GAMBLE_ABI = [
   'function wagerAmounts(uint256 nonce) view returns (uint256)',
   'function wagerPlayers(uint256 nonce) view returns (address)',
+  'function usedNonces(uint256 nonce) view returns (bool)',
 ];
 
 const GETSTATS_ABI = [
@@ -118,6 +119,9 @@ export default {
       // Craps endpoints
       if (request.method === 'POST' && url.pathname === '/craps/start') {
         return await handleCrapsStart(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/craps/bet') {
+        return await handleCrapsBet(request, env);
       }
       if (request.method === 'POST' && url.pathname === '/craps/roll') {
         return await handleCrapsRoll(request, env);
@@ -563,7 +567,7 @@ async function generateSessionToken(nonce, player, env) {
 }
 
 function verifySessionToken(session, sessionToken) {
-  if (!session._expectedToken) return true; // legacy sessions without token
+  if (!session._expectedToken || !sessionToken) return false; // fail closed
   return session._expectedToken === sessionToken;
 }
 
@@ -593,9 +597,23 @@ async function handleCrapsStart(request, env) {
     return json({ error: 'Invalid player address' }, 400);
   }
 
+  // Check if nonce was already cashed out (KV marker persists after session deletion)
+  const cashoutKey = `craps_done:${nonce}`;
+  const alreadyCashedOut = await env.RUNNER_KV.get(cashoutKey);
+  if (alreadyCashedOut) {
+    return json({ error: 'Nonce already used' }, 403);
+  }
+
   // Verify wager on-chain
   const provider = new ethers.JsonRpcProvider(env.READ_RPC);
   const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
+
+  // Check if nonce was already claimed on-chain
+  const used = await gamble.usedNonces(BigInt(nonce));
+  if (used) {
+    return json({ error: 'Nonce already claimed on-chain' }, 403);
+  }
+
   const wager    = Number(await gamble.wagerAmounts(BigInt(nonce)));
   if (wager === 0) {
     return json({ error: 'No active wager for this nonce' }, 403);
@@ -629,10 +647,44 @@ async function handleCrapsStart(request, env) {
   return json({ ok: true, stack: wager, sessionToken });
 }
 
-// POST /craps/roll  { nonce, bets, comeBets, comeOdds }
-// Client sends desired bets; worker validates, generates dice, resolves.
+// POST /craps/bet  { nonce, zone, amount }
+// Place a single bet server-side. Stack is deducted on the Worker.
+async function handleCrapsBet(request, env) {
+  const { nonce, zone, amount, sessionToken } = await parseBody(request);
+  if (nonce == null || !zone) return json({ error: 'Missing nonce or zone' }, 400);
+
+  const key     = `craps:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No craps session' }, 403);
+  if (!verifyCrapsSessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+
+  const validBetZones = new Set([
+    'pass','field','come','passOdds',
+    'place4','place5','place6','place8','place9','place10',
+    'hard4','hard6','hard8','hard10',
+  ]);
+  if (!validBetZones.has(zone)) return json({ error: 'Invalid bet zone' }, 400);
+  if (zone.startsWith('place') && session.phase === 'comeout') {
+    return json({ error: 'Place bets open after point' }, 400);
+  }
+
+  const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
+  if (amt <= 0) return json({ error: 'Invalid amount or insufficient stack' }, 400);
+
+  session.stack -= amt;
+  session.bets[zone] = (session.bets[zone] || 0) + amt;
+
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+  return json({ ok: true, stack: session.stack, bets: session.bets });
+}
+
+// POST /craps/roll  { nonce, newBets: { zone: amount } }
+// Client sends NEW bets to place; worker validates each against stack, then rolls.
+// Bets are tracked server-side — client cannot inflate existing bets.
 async function handleCrapsRoll(request, env) {
-  const { nonce, bets, comeBets, comeOdds, sessionToken } = await parseBody(request);
+  const { nonce, newBets, sessionToken } = await parseBody(request);
   if (nonce == null) return json({ error: 'Missing nonce' }, 400);
 
   const key     = `craps:${nonce}`;
@@ -642,14 +694,33 @@ async function handleCrapsRoll(request, env) {
     return json({ error: 'Invalid session token' }, 403);
   }
 
-  // Sync bets from client (validated against stack)
-  // The client tracks bets locally; here we accept them as authoritative
-  // but validate total bet ≤ original wager stack
-  if (bets) session.bets = bets;
-  if (comeBets) session.comeBets = comeBets;
-  if (comeOdds) session.comeOdds = comeOdds;
+  // ── Server-side bet placement: validate each new bet against stack ──
+  const validBetZones = new Set([
+    'pass','field','come','passOdds',
+    'place4','place5','place6','place8','place9','place10',
+    'hard4','hard6','hard8','hard10',
+  ]);
+  if (newBets && typeof newBets === 'object') {
+    for (const [zone, amount] of Object.entries(newBets)) {
+      if (!validBetZones.has(zone)) continue;
+      const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
+      if (amt <= 0) continue;
+      // Place bets only valid during point phase
+      if (zone.startsWith('place') && session.phase === 'comeout') continue;
+      session.stack -= amt;
+      session.bets[zone] = (session.bets[zone] || 0) + amt;
+    }
+  }
 
-  // Generate dice server-side
+  // Must have at least one bet on the table
+  const totalBets = Object.values(session.bets).reduce((s, v) => s + v, 0)
+    + Object.values(session.comeBets || {}).reduce((s, v) => s + v, 0);
+  if (totalBets === 0) {
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+    return json({ error: 'No bets on table' }, 400);
+  }
+
+  // Generate dice server-side — crypto.getRandomValues, not Math.random
   const arr = new Uint32Array(2);
   crypto.getRandomValues(arr);
   const d1 = (arr[0] % 6) + 1;
@@ -657,7 +728,7 @@ async function handleCrapsRoll(request, env) {
   const total = d1 + d2;
   const isHard = (d1 === d2);
 
-  // Resolve all bets
+  // Resolve all bets (server-side authoritative)
   const resolution = crapsResolveBets(session, d1, d2, total, isHard);
 
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
@@ -671,6 +742,8 @@ async function handleCrapsRoll(request, env) {
     stack: session.stack,
     phase: session.phase,
     point: session.point,
+    bets: session.bets,
+    comeBets: session.comeBets || {},
   });
 }
 
@@ -698,8 +771,12 @@ async function handleCrapsCashout(request, env) {
   for (const val of Object.values(session.comeOdds || {})) betsOnTable += val;
   const payout = session.stack + betsOnTable;
 
+  // Mark nonce as done to prevent reuse (persists 24h after session deletion)
+  const cashoutKey = `craps_done:${nonce}`;
+
   if (payout === 0) {
     await env.RUNNER_KV.delete(key);
+    await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
     return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
   }
 
@@ -710,7 +787,9 @@ async function handleCrapsCashout(request, env) {
   );
   const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
 
+  // Delete session and mark nonce as used
   await env.RUNNER_KV.delete(key);
+  await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
   return json({ ok: true, payout, nonce: Number(nonce), signature });
 }
 
@@ -891,7 +970,7 @@ async function generateCrapsSessionToken(nonce, player, env) {
 }
 
 function verifyCrapsSessionToken(session, sessionToken) {
-  if (!session._expectedToken) return true;
+  if (!session._expectedToken || !sessionToken) return false; // fail closed
   return session._expectedToken === sessionToken;
 }
 
