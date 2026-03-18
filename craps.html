@@ -710,6 +710,7 @@
     <div class="controls">
       <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
       <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
+      <button class="ctrl-btn" style="background:#555;color:#fff" onclick="testRemoteChips()">TEST CHIPS</button>
       <button class="btn-exit" onclick="exitTable()">EXIT</button>
     </div>
   </div>
@@ -863,6 +864,21 @@ function renderAllBetChips() {
       }
     }
   }
+}
+
+function testRemoteChips() {
+  const hasBets = Object.keys(STATE.bets).some(k => STATE.bets[k] > 0);
+  if (!hasBets) {
+    // No bets placed yet — put a test chip on every zone
+    const allZones = ['pass','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
+    for (const z of allZones) STATE.bets[z] = 1;
+  }
+  // Copy local bets to all 3 remote seats
+  for (let s = 1; s <= 3; s++) {
+    STATE.remoteBets[s] = Object.assign({}, STATE.bets);
+  }
+  renderAllBetChips();
+  addChatMsg('system', 'TEST: Simulated 3 remote players mirroring your bets');
 }
 
 function clearBets() {
