@@ -70,15 +70,14 @@
       box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
       display:flex;align-items:center;justify-content:center;
     }
-    /* Wrapper — craps table image tightly cropped: no dark green bars */
+    /* Wrapper — craps table image, fill middle naturally */
     .table-image-wrap{
       position:relative;
-      aspect-ratio:1/0.42;
-      height:100%;max-width:100%;
-      background:url('assets/Oldjipt/Craps/crapstable.jpg') no-repeat;
-      background-size:115% auto;
-      background-position:42% 46%;
+      width:100%;
       overflow:hidden;
+    }
+    .table-image-wrap > .table-bg{
+      display:block; width:100%; height:auto;
     }
 
     /* ── Dealer + Remote Players Row ── */
@@ -187,25 +186,25 @@
     }
 
     /* ── Place Bets — top row number boxes (4,5,6,8,9,10) ── */
-    .bet-place4  {left:1%;  top:8%;  width:13%; height:42%}
-    .bet-place5  {left:14%; top:8%;  width:13%; height:42%}
-    .bet-place6  {left:27%; top:8%;  width:13%; height:42%}
-    .bet-place8  {left:40%; top:8%;  width:13%; height:42%}
-    .bet-place9  {left:53%; top:8%;  width:13%; height:42%}
-    .bet-place10 {left:66%; top:8%;  width:14%; height:42%}
+    .bet-place4  {left:4%;  top:33%; width:11%; height:17%}
+    .bet-place5  {left:15%; top:33%; width:11%; height:17%}
+    .bet-place6  {left:26%; top:33%; width:11%; height:17%}
+    .bet-place8  {left:37%; top:33%; width:11%; height:17%}
+    .bet-place9  {left:48%; top:33%; width:11%; height:17%}
+    .bet-place10 {left:59%; top:33%; width:12%; height:17%}
 
     /* ── Pass Line (right vertical strip) ── */
-    .bet-pass{left:82%; top:0%; width:18%; height:100%}
+    .bet-pass{left:72%; top:28%; width:16%; height:42%}
 
     /* ── Hard Ways — center row boxes (4,6,8,10) ── */
-    .bet-hard4  {left:16%; top:56%; width:15%; height:16%}
-    .bet-hard6  {left:31%; top:56%; width:15%; height:16%}
-    .bet-hard8  {left:46%; top:56%; width:15%; height:16%}
-    .bet-hard10 {left:61%; top:56%; width:15%; height:16%}
+    .bet-hard4  {left:15%; top:54%; width:13%; height:7%}
+    .bet-hard6  {left:28%; top:54%; width:13%; height:7%}
+    .bet-hard8  {left:41%; top:54%; width:13%; height:7%}
+    .bet-hard10 {left:54%; top:54%; width:13%; height:7%}
 
     /* ── FIELD — bottom wide strip ── */
     .bet-field{
-      left:1%; top:76%; width:80%; height:24%;
+      left:4%; top:63%; width:67%; height:8%;
     }
 
     /* Win/lose flash */
@@ -592,6 +591,7 @@
 
     <div class="felt-container" id="feltTable">
       <div class="table-image-wrap">
+      <img class="table-bg" src="assets/Oldjipt/Craps/crapstable.jpg" alt="Craps Table" />
 
       <!-- Puck -->
       <div class="puck" id="puck">
