@@ -69,12 +69,14 @@
       box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
       display:flex;align-items:center;justify-content:center;
     }
-    /* Square wrapper that matches the 1024x1024 table image exactly */
+    /* Wrapper that matches the craps table image — clipped below the field row */
     .table-image-wrap{
       position:relative;
-      aspect-ratio:1/1;
+      aspect-ratio:1/0.85;
       height:100%;max-width:100%;
-      background:url('assets/Oldjipt/Craps/crapstable.jpg') center/100% 100% no-repeat;
+      background:url('assets/Oldjipt/Craps/crapstable.jpg') top/100% auto no-repeat;
+      background-size:100% calc(100% / 0.85);
+      overflow:hidden;
     }
 
     /* ── Dealer + Remote Players Row (above the felt image) ── */
@@ -191,9 +193,8 @@
     .bet-place9  {left:53%; top:24%; width:12%; height:17%}
     .bet-place10 {left:65%; top:24%; width:13%; height:17%}
 
-    /* ── Pass Line — L-shaped: right strip + bottom strip ── */
-    .bet-pass{left:82%; top:6%; width:15%; height:88%}
-    .bet-pass-bottom{left:5%; top:88%; width:77%; height:10%}
+    /* ── Pass Line (right strip only — bottom is clipped off) ── */
+    .bet-pass{left:82%; top:6%; width:15%; height:78%}
 
     /* ── Hard Ways (right on top of hardway numbers) ── */
     .bet-hard4  {left:18%; top:53%; width:13%; height:12%}
@@ -247,7 +248,7 @@
 
     /* ── Dice on felt — docs.html style ── */
     .table-dice{
-      position:absolute;bottom:2%;left:38%;transform:translateX(-50%);
+      position:absolute;bottom:4%;left:38%;transform:translateX(-50%);
       display:flex;gap:14px;z-index:15;
       cursor:pointer;
     }
@@ -255,14 +256,16 @@
       filter:drop-shadow(0 0 12px rgba(255,233,106,0.7));
       animation:dice-pulse 1.2s ease-in-out infinite;
     }
-    .table-dice.locked{cursor:not-allowed;opacity:0.5}
+    .table-dice.locked{cursor:not-allowed;opacity:0.85}
     @keyframes dice-pulse{0%,100%{filter:drop-shadow(0 0 8px rgba(255,233,106,0.4))}50%{filter:drop-shadow(0 0 18px rgba(255,233,106,0.9))}}
     .die{
       width:clamp(44px,10vw,64px);height:clamp(44px,10vw,64px);
-      background:linear-gradient(145deg,#f8f8f8 0%,#e6e6e6 18%,#d2d2d2 36%,#c4c4c4 52%,#b2b2b2 68%,#a2a2a2 82%,#929292 100%);
+      background:#e8e8e8;
+      background-image:linear-gradient(145deg,#f8f8f8 0%,#e6e6e6 18%,#d2d2d2 36%,#c4c4c4 52%,#b2b2b2 68%,#a2a2a2 82%,#929292 100%);
       border:2px solid #9a9a9a;border-radius:10px;
       display:flex;align-items:center;justify-content:center;
       position:relative;transition:border-color 0.2s, box-shadow 0.2s;
+      opacity:1;
       box-shadow:inset 3px 3px 8px rgba(255,255,255,0.88),inset -2px -2px 6px rgba(0,0,0,0.28),2px 2px 0 #878787,3px 3px 0 #767676,4px 4px 0 #656565,5px 5px 12px rgba(0,0,0,0.72);
     }
     @keyframes dice-tumble{0%{transform:rotateX(0deg) rotateZ(0deg)}100%{transform:rotateX(360deg) rotateZ(270deg)}}
@@ -285,7 +288,7 @@
 
     /* Roll prompt */
     .roll-prompt{
-      position:absolute;bottom:12%;left:38%;transform:translateX(-50%);
+      position:absolute;bottom:14%;left:38%;transform:translateX(-50%);
       z-index:20;font-size:0.3rem;color:#ffe96a;
       text-shadow:0 0 8px rgba(255,233,106,0.6);
       animation:prompt-blink 1.5s ease-in-out infinite;
@@ -623,12 +626,6 @@
           <div class="bet-chips-container" id="chips-pass"></div>
         </div>
 
-        <!-- Pass Line (bottom strip) -->
-        <div class="bet-zone bet-pass-bottom" data-bet="pass" onclick="placeBet('pass')">
-          <div class="zone-label">PASS</div>
-          <div class="bet-chips-container" id="chips-pass-bottom"></div>
-        </div>
-
         <!-- Hard Ways (4 individual boxes) -->
         <div class="bet-zone bet-hard4" data-bet="hard4" onclick="placeBet('hard4')">
           <div class="zone-label">H4</div>
@@ -764,7 +761,7 @@ const STATE = {
   isRolling: false,
   playerName: 'Player',
   nftName: crapsSession ? ('Chad #' + crapsSession.tokenId) : '',
-  playerId: Math.random().toString(36).slice(2, 8),
+  playerId: Math.floor(Math.random() * 100000) + 1,
   chadId: crapsSession ? crapsSession.tokenId : null,
   seat: 0,
   nonce: crapsSession ? crapsSession.nonce : null,
@@ -872,12 +869,12 @@ function resetPuckPosition() {
 }
 
 function renderAllBetChips() {
-  const zones = ['pass','pass-bottom','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
+  const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
   for (const zone of zones) {
     const container = document.getElementById('chips-' + zone);
     if (!container) continue;
     container.innerHTML = '';
-    const betKey = zone === 'pass-bottom' ? 'pass' : zone;
+    const betKey = zone;
     if (STATE.bets[betKey] && STATE.bets[betKey] > 0) {
       const chip = document.createElement('div');
       chip.className = 'bet-chip-token p0 pos-0';
@@ -1400,9 +1397,13 @@ async function joinRoom() {
       const data = await res.json();
       if (data.token) token = data.token;
     } catch (e) { console.warn('Agora token fetch failed:', e.message); }
-    await agoraClient.join(AGORA_APP_ID, channel, token, STATE.playerId);
-    console.log('Agora joined:', channel);
-  } catch (err) { console.warn('Agora join failed:', err.message); }
+    const uid = await agoraClient.join(AGORA_APP_ID, channel, token, STATE.playerId);
+    console.log('Agora joined:', channel, 'uid:', uid);
+    addChatMsg('system', 'Voice chat connected.');
+  } catch (err) {
+    console.warn('Agora join failed:', err.message);
+    addChatMsg('system', 'Voice chat unavailable: ' + err.message);
+  }
 }
 
 async function toggleCamera() {
@@ -1632,6 +1633,7 @@ window.joinPrivateTable = joinPrivateTable;
 window.copyInviteLink = copyInviteLink;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
+window.testRemoteChips = testRemoteChips;
 </script>
 </body>
 </html>
