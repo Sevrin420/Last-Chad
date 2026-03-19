@@ -70,14 +70,14 @@
       box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
       display:flex;align-items:center;justify-content:center;
     }
-    /* Wrapper — craps table image clipped: top green space removed, bottom below field removed */
+    /* Wrapper — craps table image tightly cropped: no dark green bars */
     .table-image-wrap{
       position:relative;
-      aspect-ratio:1/0.60;
+      aspect-ratio:1/0.48;
       height:100%;max-width:100%;
       background:url('assets/Oldjipt/Craps/crapstable.jpg') no-repeat;
       background-size:100% auto;
-      background-position:0 50%;
+      background-position:0 44%;
       overflow:hidden;
     }
 
@@ -186,26 +186,26 @@
       color:rgba(255,233,106,0.6);
     }
 
-    /* ── Place Bets — top row: 4,5,6,8,9,10 boxes ── */
-    .bet-place4  {left:4%;  top:5%;  width:12%; height:30%}
-    .bet-place5  {left:16%; top:5%;  width:12%; height:30%}
-    .bet-place6  {left:28%; top:5%;  width:12%; height:30%}
-    .bet-place8  {left:40%; top:5%;  width:12%; height:30%}
-    .bet-place9  {left:52%; top:5%;  width:12%; height:30%}
-    .bet-place10 {left:64%; top:5%;  width:14%; height:30%}
+    /* ── Place Bets — top row number boxes (4,5,6,8,9,10) ── */
+    .bet-place4  {left:4%;  top:12%; width:12%; height:38%}
+    .bet-place5  {left:16%; top:12%; width:12%; height:38%}
+    .bet-place6  {left:28%; top:12%; width:12%; height:38%}
+    .bet-place8  {left:40%; top:12%; width:12%; height:38%}
+    .bet-place9  {left:52%; top:12%; width:12%; height:38%}
+    .bet-place10 {left:64%; top:12%; width:14%; height:38%}
 
     /* ── Pass Line (right vertical strip) ── */
     .bet-pass{left:80%; top:0%; width:18%; height:100%}
 
-    /* ── Hard Ways — center row: 4,6,8,10 ── */
-    .bet-hard4  {left:17%; top:50%; width:14%; height:18%}
-    .bet-hard6  {left:31%; top:50%; width:14%; height:18%}
-    .bet-hard8  {left:45%; top:50%; width:14%; height:18%}
-    .bet-hard10 {left:59%; top:50%; width:14%; height:18%}
+    /* ── Hard Ways — center row boxes (4,6,8,10) ── */
+    .bet-hard4  {left:17%; top:58%; width:14%; height:16%}
+    .bet-hard6  {left:31%; top:58%; width:14%; height:16%}
+    .bet-hard8  {left:45%; top:58%; width:14%; height:16%}
+    .bet-hard10 {left:59%; top:58%; width:14%; height:16%}
 
     /* ── FIELD — bottom wide strip ── */
     .bet-field{
-      left:4%; top:76%; width:74%; height:22%;
+      left:4%; top:78%; width:74%; height:20%;
     }
 
     /* Win/lose flash */
@@ -265,8 +265,8 @@
 
     /* ── Dice on felt — stacked in bottom-left corner ── */
     .table-dice{
-      position:absolute;bottom:3%;left:2%;
-      display:flex;flex-direction:column;gap:6px;z-index:15;
+      position:absolute;bottom:1%;left:1%;
+      display:flex;flex-direction:column;gap:4px;z-index:15;
       cursor:pointer;
     }
     .table-dice.can-roll{
@@ -305,8 +305,8 @@
 
     /* Roll prompt — above stacked dice in bottom-left */
     .roll-prompt{
-      position:absolute;bottom:48%;left:2%;
-      z-index:20;font-size:0.25rem;color:#ffe96a;
+      position:absolute;bottom:55%;left:1%;
+      z-index:20;font-size:0.22rem;color:#ffe96a;
       text-shadow:0 0 8px rgba(255,233,106,0.6);
       animation:prompt-blink 1.5s ease-in-out infinite;
       white-space:nowrap;pointer-events:none;
