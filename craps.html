@@ -186,26 +186,26 @@
       color:rgba(255,233,106,0.6);
     }
 
-    /* ── Place Bets — recalculated for cropped image (visible: 20%-80% of original) ── */
-    .bet-place4  {left:5%;  top:7%;  width:12%; height:28%}
-    .bet-place5  {left:17%; top:7%;  width:12%; height:28%}
-    .bet-place6  {left:29%; top:7%;  width:12%; height:28%}
-    .bet-place8  {left:41%; top:7%;  width:12%; height:28%}
-    .bet-place9  {left:53%; top:7%;  width:12%; height:28%}
-    .bet-place10 {left:65%; top:7%;  width:13%; height:28%}
+    /* ── Place Bets — top row: 4,5,6,8,9,10 boxes ── */
+    .bet-place4  {left:4%;  top:5%;  width:12%; height:30%}
+    .bet-place5  {left:16%; top:5%;  width:12%; height:30%}
+    .bet-place6  {left:28%; top:5%;  width:12%; height:30%}
+    .bet-place8  {left:40%; top:5%;  width:12%; height:30%}
+    .bet-place9  {left:52%; top:5%;  width:12%; height:30%}
+    .bet-place10 {left:64%; top:5%;  width:14%; height:30%}
 
-    /* ── Pass Line (right strip) ── */
-    .bet-pass{left:82%; top:0%; width:15%; height:100%}
+    /* ── Pass Line (right vertical strip) ── */
+    .bet-pass{left:80%; top:0%; width:18%; height:100%}
 
-    /* ── Hard Ways ── */
-    .bet-hard4  {left:18%; top:55%; width:13%; height:20%}
-    .bet-hard6  {left:31%; top:55%; width:13%; height:20%}
-    .bet-hard8  {left:44%; top:55%; width:13%; height:20%}
-    .bet-hard10 {left:57%; top:55%; width:13%; height:20%}
+    /* ── Hard Ways — center row: 4,6,8,10 ── */
+    .bet-hard4  {left:17%; top:50%; width:14%; height:18%}
+    .bet-hard6  {left:31%; top:50%; width:14%; height:18%}
+    .bet-hard8  {left:45%; top:50%; width:14%; height:18%}
+    .bet-hard10 {left:59%; top:50%; width:14%; height:18%}
 
-    /* ── FIELD ── */
+    /* ── FIELD — bottom wide strip ── */
     .bet-field{
-      left:5%; top:77%; width:73%; height:23%;
+      left:4%; top:76%; width:74%; height:22%;
     }
 
     /* Win/lose flash */
@@ -231,26 +231,42 @@
     .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
     .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
     .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
-    .bet-chip-token.pos-0{top:2px;left:2px}
-    .bet-chip-token.pos-1{top:2px;right:2px}
-    .bet-chip-token.pos-2{bottom:2px;left:2px}
-    .bet-chip-token.pos-3{bottom:2px;right:2px}
-    /* Center chips in wide zones like FIELD */
-    /* Nudge local-player chip right on hardways */
-    .bet-hard4  .bet-chip-token.pos-0{top:2px;left:10px}
-    .bet-hard6  .bet-chip-token.pos-0{top:2px;left:10px}
-    .bet-hard8  .bet-chip-token.pos-0{top:2px;left:18px}
-    .bet-hard10 .bet-chip-token.pos-0{top:2px;left:18px}
+    /* Default corner positions for place bets (4 players, each gets a corner) */
+    .bet-chip-token.pos-0{bottom:2px;right:2px}
+    .bet-chip-token.pos-1{bottom:2px;left:2px}
+    .bet-chip-token.pos-2{top:2px;right:2px}
+    .bet-chip-token.pos-3{top:2px;left:2px}
 
-    .bet-field .bet-chip-token.pos-0{top:2px;left:calc(50% - 44px)}
-    .bet-field .bet-chip-token.pos-1{top:2px;left:calc(50% + 16px)}
-    .bet-field .bet-chip-token.pos-2{bottom:2px;left:calc(50% - 44px)}
-    .bet-field .bet-chip-token.pos-3{bottom:2px;left:calc(50% + 16px)}
+    /* Hard ways — center chips in each box */
+    .bet-hard4  .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
+    .bet-hard4  .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
+    .bet-hard4  .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
+    .bet-hard6  .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
+    .bet-hard6  .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
+    .bet-hard6  .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
+    .bet-hard8  .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
+    .bet-hard8  .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
+    .bet-hard8  .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
+    .bet-hard10 .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
+    .bet-hard10 .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
+    .bet-hard10 .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
 
-    /* ── Dice on felt — docs.html style ── */
+    /* Field — center bets horizontally across the wide strip */
+    .bet-field .bet-chip-token.pos-0{top:50%;left:calc(50% - 36px);transform:translateY(-50%)}
+    .bet-field .bet-chip-token.pos-1{top:50%;left:calc(50% + 8px);transform:translateY(-50%)}
+    .bet-field .bet-chip-token.pos-2{top:50%;left:calc(50% - 68px);transform:translateY(-50%)}
+    .bet-field .bet-chip-token.pos-3{top:50%;left:calc(50% + 40px);transform:translateY(-50%)}
+
+    /* Pass line — center chips vertically in the right strip */
+    .bet-pass .bet-chip-token.pos-0{top:40%;left:50%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-1{top:55%;left:50%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-2{top:70%;left:50%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-3{top:25%;left:50%;transform:translate(-50%,-50%)}
+
+    /* ── Dice on felt — stacked in bottom-left corner ── */
     .table-dice{
-      position:absolute;bottom:4%;left:38%;transform:translateX(-50%);
-      display:flex;gap:14px;z-index:15;
+      position:absolute;bottom:3%;left:2%;
+      display:flex;flex-direction:column;gap:6px;z-index:15;
       cursor:pointer;
     }
     .table-dice.can-roll{
@@ -287,10 +303,10 @@
       visibility:hidden;
     }
 
-    /* Roll prompt */
+    /* Roll prompt — above stacked dice in bottom-left */
     .roll-prompt{
-      position:absolute;bottom:14%;left:38%;transform:translateX(-50%);
-      z-index:20;font-size:0.3rem;color:#ffe96a;
+      position:absolute;bottom:48%;left:2%;
+      z-index:20;font-size:0.25rem;color:#ffe96a;
       text-shadow:0 0 8px rgba(255,233,106,0.6);
       animation:prompt-blink 1.5s ease-in-out infinite;
       white-space:nowrap;pointer-events:none;
