@@ -141,7 +141,7 @@
     .remote-slot[data-seat="3"]{--slot-color:var(--p4-color);--slot-glow:var(--p4-glow)}
 
     /* ── Puck ── */
-    .puck{position:absolute;width:32px;height:32px;top:6px;right:10px;z-index:20}
+    .puck{position:absolute;width:32px;height:32px;top:6px;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
     .puck img{width:100%;height:100%;object-fit:contain}
 
     /* ── Bet Zone Overlay (positioned on crapstable image) ── */
@@ -234,6 +234,12 @@
     .bet-chip-token.pos-2{bottom:2px;left:2px}
     .bet-chip-token.pos-3{bottom:2px;right:2px}
     /* Center chips in wide zones like FIELD */
+    /* Nudge local-player chip right on hardways */
+    .bet-hard4  .bet-chip-token.pos-0{top:2px;left:10px}
+    .bet-hard6  .bet-chip-token.pos-0{top:2px;left:10px}
+    .bet-hard8  .bet-chip-token.pos-0{top:2px;left:18px}
+    .bet-hard10 .bet-chip-token.pos-0{top:2px;left:18px}
+
     .bet-field .bet-chip-token.pos-0{top:2px;left:calc(50% - 44px)}
     .bet-field .bet-chip-token.pos-1{top:2px;left:calc(50% + 16px)}
     .bet-field .bet-chip-token.pos-2{bottom:2px;left:calc(50% - 44px)}
@@ -841,6 +847,30 @@ function formatBetName(zone) {
   return names[zone] || zone.toUpperCase();
 }
 
+function movePuckToPoint(point) {
+  const placeZone = document.querySelector('.bet-place' + point);
+  const puck = document.getElementById('puck');
+  if (!placeZone || !puck) return;
+  const zoneLeft = parseFloat(placeZone.style.left || getComputedStyle(placeZone).left);
+  const zoneWidth = parseFloat(placeZone.style.width || getComputedStyle(placeZone).width);
+  const parent = placeZone.offsetParent || placeZone.parentElement;
+  const parentW = parent.offsetWidth;
+  const puckW = puck.offsetWidth;
+  const centerPx = placeZone.offsetLeft + (placeZone.offsetWidth / 2) - (puckW / 2);
+  const topPx = placeZone.offsetTop - puckW - 4;
+  puck.style.left = centerPx + 'px';
+  puck.style.top = topPx + 'px';
+  puck.style.right = 'auto';
+}
+
+function resetPuckPosition() {
+  const puck = document.getElementById('puck');
+  if (!puck) return;
+  puck.style.left = '';
+  puck.style.top = '6px';
+  puck.style.right = '10px';
+}
+
 function renderAllBetChips() {
   const zones = ['pass','pass-bottom','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
   for (const zone of zones) {
@@ -1046,9 +1076,11 @@ async function rollDice() {
     if (STATE.phase === 'point' && STATE.point) {
       document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
       document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+      movePuckToPoint(STATE.point);
     } else {
       document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
       document.getElementById('pointDisplay').textContent = '';
+      resetPuckPosition();
     }
 
     addChatMsg('roll', `Dice: ${d1} + ${d2} = ${total}${data.isHard ? ' (HARD)' : ''}`);
