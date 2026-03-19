@@ -70,14 +70,14 @@
       box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
       display:flex;align-items:center;justify-content:center;
     }
-    /* Wrapper — craps table image clipped top (above place bets) & bottom (below field) */
+    /* Wrapper — craps table image clipped: top green space removed, bottom below field removed */
     .table-image-wrap{
       position:relative;
-      aspect-ratio:1/0.67;
+      aspect-ratio:1/0.60;
       height:100%;max-width:100%;
       background:url('assets/Oldjipt/Craps/crapstable.jpg') no-repeat;
-      background-size:100% calc(100% / 0.67);
-      background-position:0 -26.87%;  /* shift up by 18/67 of container height */
+      background-size:100% auto;
+      background-position:0 50%;
       overflow:hidden;
     }
 
@@ -144,7 +144,7 @@
     .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
 
     /* ── Puck ── */
-    .puck{position:absolute;width:32px;height:32px;top:2%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
+    .puck{position:absolute;width:28px;height:28px;top:1%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
     .puck img{width:100%;height:100%;object-fit:contain}
 
     /* ── Bet Zone Overlay (positioned on crapstable image) ── */
@@ -186,26 +186,26 @@
       color:rgba(255,233,106,0.6);
     }
 
-    /* ── Place Bets — recalculated for top+bottom clipped image ── */
-    .bet-place4  {left:5%;  top:9%;  width:12%; height:25%}
-    .bet-place5  {left:17%; top:9%;  width:12%; height:25%}
-    .bet-place6  {left:29%; top:9%;  width:12%; height:25%}
-    .bet-place8  {left:41%; top:9%;  width:12%; height:25%}
-    .bet-place9  {left:53%; top:9%;  width:12%; height:25%}
-    .bet-place10 {left:65%; top:9%;  width:13%; height:25%}
+    /* ── Place Bets — recalculated for cropped image (visible: 20%-80% of original) ── */
+    .bet-place4  {left:5%;  top:7%;  width:12%; height:28%}
+    .bet-place5  {left:17%; top:7%;  width:12%; height:28%}
+    .bet-place6  {left:29%; top:7%;  width:12%; height:28%}
+    .bet-place8  {left:41%; top:7%;  width:12%; height:28%}
+    .bet-place9  {left:53%; top:7%;  width:12%; height:28%}
+    .bet-place10 {left:65%; top:7%;  width:13%; height:28%}
 
     /* ── Pass Line (right strip) ── */
-    .bet-pass{left:82%; top:0%; width:15%; height:98%}
+    .bet-pass{left:82%; top:0%; width:15%; height:100%}
 
     /* ── Hard Ways ── */
-    .bet-hard4  {left:18%; top:52%; width:13%; height:18%}
-    .bet-hard6  {left:31%; top:52%; width:13%; height:18%}
-    .bet-hard8  {left:44%; top:52%; width:13%; height:18%}
-    .bet-hard10 {left:57%; top:52%; width:13%; height:18%}
+    .bet-hard4  {left:18%; top:55%; width:13%; height:20%}
+    .bet-hard6  {left:31%; top:55%; width:13%; height:20%}
+    .bet-hard8  {left:44%; top:55%; width:13%; height:20%}
+    .bet-hard10 {left:57%; top:55%; width:13%; height:20%}
 
     /* ── FIELD ── */
     .bet-field{
-      left:5%; top:72%; width:73%; height:25%;
+      left:5%; top:77%; width:73%; height:23%;
     }
 
     /* Win/lose flash */
@@ -679,7 +679,7 @@
   <div class="chat-box">
     <div class="chat-header">TABLE CHAT</div>
     <div class="chat-messages" id="chatMessages">
-      <div class="chat-msg system-msg">Welcome! Up to 4 players.</div>
+      <div class="chat-msg system-msg">Welcome! Up to 3 players.</div>
     </div>
     <div class="chat-input-area">
       <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
@@ -1398,7 +1398,7 @@ async function joinRoom() {
     addChatMsg('system', 'Voice chat connected.');
   } catch (err) {
     console.warn('Agora join failed:', err.message);
-    addChatMsg('system', 'Voice chat unavailable: ' + err.message);
+    addChatMsg('system', 'Voice chat unavailable.');
   }
 }
 
@@ -1596,16 +1596,17 @@ renderDie(document.getElementById('face2'), 5);
 if (AGORA_APP_ID) initAgora();
 
 if (crapsSession) {
+  let playerInitDone = false;
   autoReconnect({
     onConnected: (address) => {
       STATE.player = address.toLowerCase();
-      initPlayerFromSession();
+      if (!playerInitDone) { playerInitDone = true; initPlayerFromSession(); }
     },
     onDisconnected: () => {},
     onChainChanged: () => {},
     onAccountsChanged: () => {},
   }).then(() => {
-    if (STATE.chadId) initPlayerFromSession();
+    if (STATE.chadId && !playerInitDone) { playerInitDone = true; initPlayerFromSession(); }
   });
 } else {
   dealerSay("No active session. Return to the Gamble Den to buy in.", 'sad');
