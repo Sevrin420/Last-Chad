@@ -73,11 +73,11 @@
     /* Wrapper — craps table image tightly cropped: no dark green bars */
     .table-image-wrap{
       position:relative;
-      aspect-ratio:1/0.48;
+      aspect-ratio:1/0.42;
       height:100%;max-width:100%;
       background:url('assets/Oldjipt/Craps/crapstable.jpg') no-repeat;
-      background-size:100% auto;
-      background-position:0 44%;
+      background-size:115% auto;
+      background-position:42% 46%;
       overflow:hidden;
     }
 
@@ -187,25 +187,25 @@
     }
 
     /* ── Place Bets — top row number boxes (4,5,6,8,9,10) ── */
-    .bet-place4  {left:4%;  top:12%; width:12%; height:38%}
-    .bet-place5  {left:16%; top:12%; width:12%; height:38%}
-    .bet-place6  {left:28%; top:12%; width:12%; height:38%}
-    .bet-place8  {left:40%; top:12%; width:12%; height:38%}
-    .bet-place9  {left:52%; top:12%; width:12%; height:38%}
-    .bet-place10 {left:64%; top:12%; width:14%; height:38%}
+    .bet-place4  {left:1%;  top:8%;  width:13%; height:42%}
+    .bet-place5  {left:14%; top:8%;  width:13%; height:42%}
+    .bet-place6  {left:27%; top:8%;  width:13%; height:42%}
+    .bet-place8  {left:40%; top:8%;  width:13%; height:42%}
+    .bet-place9  {left:53%; top:8%;  width:13%; height:42%}
+    .bet-place10 {left:66%; top:8%;  width:14%; height:42%}
 
     /* ── Pass Line (right vertical strip) ── */
-    .bet-pass{left:80%; top:0%; width:18%; height:100%}
+    .bet-pass{left:82%; top:0%; width:18%; height:100%}
 
     /* ── Hard Ways — center row boxes (4,6,8,10) ── */
-    .bet-hard4  {left:17%; top:58%; width:14%; height:16%}
-    .bet-hard6  {left:31%; top:58%; width:14%; height:16%}
-    .bet-hard8  {left:45%; top:58%; width:14%; height:16%}
-    .bet-hard10 {left:59%; top:58%; width:14%; height:16%}
+    .bet-hard4  {left:16%; top:56%; width:15%; height:16%}
+    .bet-hard6  {left:31%; top:56%; width:15%; height:16%}
+    .bet-hard8  {left:46%; top:56%; width:15%; height:16%}
+    .bet-hard10 {left:61%; top:56%; width:15%; height:16%}
 
     /* ── FIELD — bottom wide strip ── */
     .bet-field{
-      left:4%; top:78%; width:74%; height:20%;
+      left:1%; top:76%; width:80%; height:24%;
     }
 
     /* Win/lose flash */
@@ -830,7 +830,6 @@ function selectChip(value) {
 // ── Bet Placement ──
 async function placeBet(zone) {
   if (STATE.isRolling || betsLocked) return;
-  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
   const amount = STATE.selectedChip;
   if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
@@ -1017,10 +1016,37 @@ function hideTimer() {
 }
 
 // ── Dice Roll ──
+// ── Local craps resolution for test mode (no worker needed) ──
+function localCalcOdds(pt, bet) {
+  switch(pt){ case 4:case 10:return bet*2; case 5:case 9:return Math.floor(bet*3/2); case 6:case 8:return Math.floor(bet*6/5); default:return 0; }
+}
+function localResolveBets(d1, d2) {
+  const total = d1+d2, isHard = d1===d2;
+  const bets = STATE.bets;
+  let netWin=0; const wins=[], losses=[]; let message='';
+
+  // FIELD
+  if(bets.field){ const fn=[2,3,4,9,10,11,12]; if(fn.includes(total)){ let p=bets.field; if(total===2)p=bets.field*2; else if(total===12)p=bets.field*3; netWin+=p; STATE.stack+=bets.field+p; wins.push('field'); message='FIELD '+total+'! +'+p; } else { losses.push('field'); } bets.field=0; }
+
+  // HARDWAYS
+  const hm={hard4:4,hard6:6,hard8:8,hard10:10}, hp={hard4:7,hard6:9,hard8:9,hard10:7};
+  for(const[k,n]of Object.entries(hm)){ if(!bets[k])continue; if(total===n&&isHard){ const p=bets[k]*hp[k]; netWin+=p; STATE.stack+=bets[k]+p; wins.push(k); message='HARD '+n+'! +'+p; bets[k]=0; } else if(total===7||(total===n&&!isHard)){ losses.push(k); bets[k]=0; } }
+
+  // PLACE BETS
+  const pp={4:[9,5],5:[7,5],6:[7,6],8:[7,6],9:[7,5],10:[9,5]};
+  for(const num of[4,5,6,8,9,10]){ const k='place'+num; if(!bets[k])continue; if(total===num){ const[pn,pd]=pp[num]; const p=Math.floor(bets[k]*pn/pd); netWin+=p; STATE.stack+=bets[k]+p; wins.push(k); message='PLACE '+num+' hits! +'+p; bets[k]=0; } else if(total===7){ losses.push(k); bets[k]=0; } }
+
+  // PASS LINE
+  if(STATE.phase==='comeout'){ if(bets.pass){ if(total===7||total===11){ netWin+=bets.pass; STATE.stack+=bets.pass*2; wins.push('pass'); message=total===7?'SEVEN! Winner!':'YO ELEVEN! Winner!'; bets.pass=0; } else if(total===2||total===3||total===12){ losses.push('pass'); message=total===12?'TWELVE! Craps!':total===2?'SNAKE EYES! Craps!':'THREE CRAPS!'; bets.pass=0; } else { STATE.point=total; STATE.phase='point'; message='Point is '+total+'!'; } } } else { if(total===STATE.point){ if(bets.pass){ netWin+=bets.pass; STATE.stack+=bets.pass*2; wins.push('pass'); message='WINNER! Point '+STATE.point+'!'; bets.pass=0; } STATE.phase='comeout'; STATE.point=null; } else if(total===7){ if(bets.pass){ losses.push('pass'); bets.pass=0; } message='SEVEN OUT!'; STATE.phase='comeout'; STATE.point=null; } }
+
+  // Clean zero bets
+  for(const k of Object.keys(bets)){ if(bets[k]===0) delete bets[k]; }
+  return { netWin, wins, losses, message, total, dice:[d1,d2], isHard, stack:STATE.stack, phase:STATE.phase, point:STATE.point, bets };
+}
+
 async function rollDice() {
   if (STATE.isRolling) return;
-  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
-  if (Object.keys(STATE.bets).length === 0 && !STATE._pendingBets) {
+  if (Object.keys(STATE.bets).length === 0 && !(STATE._pendingBets && Object.keys(STATE._pendingBets).length)) {
     dealerSay("Place a bet first!", 'neutral'); return;
   }
   STATE.isRolling = true;
@@ -1045,18 +1071,27 @@ async function rollDice() {
   }, 60);
 
   try {
-    const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nonce: STATE.nonce,
-        newBets: STATE._pendingBets || {},
-        sessionToken: STATE.sessionToken,
-      }),
-    });
-    STATE._pendingBets = {};
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Roll failed');
+    let data;
+    if (STATE._testMode) {
+      // Local test mode — no worker needed
+      STATE._pendingBets = {};
+      const ld1 = Math.floor(Math.random()*6)+1, ld2 = Math.floor(Math.random()*6)+1;
+      const lr = localResolveBets(ld1, ld2);
+      data = { ok:true, dice:lr.dice, total:lr.total, isHard:lr.isHard, stack:lr.stack, phase:lr.phase, point:lr.point, bets:lr.bets, resolution:{ netWin:lr.netWin, wins:lr.wins, losses:lr.losses, message:lr.message } };
+    } else {
+      const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nonce: STATE.nonce,
+          newBets: STATE._pendingBets || {},
+          sessionToken: STATE.sessionToken,
+        }),
+      });
+      STATE._pendingBets = {};
+      data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Roll failed');
+    }
 
     await new Promise(r => setTimeout(r, 1200));
     clearInterval(cycleInterval);
@@ -1195,11 +1230,30 @@ function escapeHtml(str) { const d=document.createElement('div'); d.textContent=
 // ── Cash Out ──
 async function cashOut() {
   if (STATE.isRolling) return;
-  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
 
   let betsOnTable = 0;
   for (const val of Object.values(STATE.bets)) betsOnTable += val;
   const totalPayout = STATE.stack + betsOnTable;
+
+  if (STATE._testMode) {
+    // Test mode — just reset to 100 chips
+    addChatMsg('system', `${STATE.nftName || STATE.playerName} cashed out ${totalPayout} chips. Resetting to 100.`);
+    dealerSay("Test mode — chips reset to 100!", 'happy');
+    STATE.stack = 100;
+    STATE.bets = {};
+    STATE._pendingBets = {};
+    STATE.phase = 'comeout';
+    STATE.point = null;
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+    document.getElementById('pointDisplay').textContent = '';
+    resetPuckPosition();
+    renderAllBetChips();
+    updateLocalPlayerUI();
+    startBetPhase();
+    return;
+  }
+
+  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
 
   if (!confirm(`Cash out ${totalPayout} cells?`)) return;
 
@@ -1625,9 +1679,13 @@ if (crapsSession) {
     if (STATE.chadId && !playerInitDone) { playerInitDone = true; initPlayerFromSession(); }
   });
 } else {
-  dealerSay("No active session. Return to the Gamble Den to buy in.", 'sad');
-  document.getElementById('tableDice').classList.remove('can-roll');
-  document.getElementById('tableDice').classList.add('locked');
+  // Test mode — 100 free chips, no wallet or worker needed
+  STATE._testMode = true;
+  STATE.stack = 100;
+  STATE.nftName = 'Test Player';
+  STATE.playerName = 'Test Player';
+  STATE.nonce = 'test-' + Date.now();
+  initPlayerFromSession();
 }
 
 window.rollDice = rollDice;
