@@ -62,48 +62,50 @@
     .felt-container{
       flex:1;position:relative;
       background-color:#0d3d0d;
-      border:4px solid var(--felt-border);
-      border-radius:12px;
-      margin:4px;
+      border:3px solid var(--felt-border);
+      border-top:none;
+      border-radius:0 0 8px 8px;
+      margin:0 4px 2px 4px;
       overflow:hidden;
       box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
       display:flex;align-items:center;justify-content:center;
     }
-    /* Wrapper that matches the craps table image — clipped below the field row */
+    /* Wrapper — craps table image clipped top (above place bets) & bottom (below field) */
     .table-image-wrap{
       position:relative;
-      aspect-ratio:1/0.85;
+      aspect-ratio:1/0.67;
       height:100%;max-width:100%;
-      background:url('assets/Oldjipt/Craps/crapstable.jpg') top/100% auto no-repeat;
-      background-size:100% calc(100% / 0.85);
+      background:url('assets/Oldjipt/Craps/crapstable.jpg') no-repeat;
+      background-size:100% calc(100% / 0.67);
+      background-position:0 -26.87%;  /* shift up by 18/67 of container height */
       overflow:hidden;
     }
 
-    /* ── Dealer + Remote Players Row (above the felt image) ── */
+    /* ── Dealer + Remote Players Row ── */
     .dealer-row{
       position:relative;z-index:15;
-      display:flex;align-items:flex-start;
-      padding:6px 8px;gap:6px;
+      display:flex;align-items:center;
+      padding:4px 8px;gap:6px;
       background:rgba(10,10,15,0.9);
       border-bottom:2px solid #2a5a1a;
       flex-shrink:0;
     }
     /* Dealer */
     .dealer-slot{
-      display:flex;align-items:flex-start;gap:6px;
+      display:flex;align-items:center;gap:6px;
       flex-shrink:0;min-width:0;
     }
     .dealer-portrait{
-      width:48px;height:58px;image-rendering:pixelated;
+      width:40px;height:48px;image-rendering:pixelated;
       border:2px solid #5c4409;border-radius:4px;
       box-shadow:0 2px 8px rgba(0,0,0,0.6);
       flex-shrink:0;
     }
     .dealer-speech{
-      max-width:200px;min-width:100px;
+      max-width:180px;min-width:80px;
       background:rgba(0,0,0,0.8);
       border:2px solid #5c4409;border-radius:6px;
-      padding:5px 7px;font-size:0.22rem;color:#f5e6c8;line-height:1.5;
+      padding:4px 6px;font-size:0.2rem;color:#f5e6c8;line-height:1.4;
       position:relative;flex-shrink:1;
     }
     .dealer-speech::before{
@@ -140,10 +142,9 @@
     .remote-slot.empty .slot-name{color:#555}
     .remote-slot[data-seat="1"]{--slot-color:var(--p2-color);--slot-glow:var(--p2-glow)}
     .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
-    .remote-slot[data-seat="3"]{--slot-color:var(--p4-color);--slot-glow:var(--p4-glow)}
 
     /* ── Puck ── */
-    .puck{position:absolute;width:32px;height:32px;top:6px;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
+    .puck{position:absolute;width:32px;height:32px;top:2%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
     .puck img{width:100%;height:100%;object-fit:contain}
 
     /* ── Bet Zone Overlay (positioned on crapstable image) ── */
@@ -185,26 +186,26 @@
       color:rgba(255,233,106,0.6);
     }
 
-    /* ── Place Bets (right on top of the place numbers) ── */
-    .bet-place4  {left:5%;  top:24%; width:12%; height:17%}
-    .bet-place5  {left:17%; top:24%; width:12%; height:17%}
-    .bet-place6  {left:29%; top:24%; width:12%; height:17%}
-    .bet-place8  {left:41%; top:24%; width:12%; height:17%}
-    .bet-place9  {left:53%; top:24%; width:12%; height:17%}
-    .bet-place10 {left:65%; top:24%; width:13%; height:17%}
+    /* ── Place Bets — recalculated for top+bottom clipped image ── */
+    .bet-place4  {left:5%;  top:9%;  width:12%; height:25%}
+    .bet-place5  {left:17%; top:9%;  width:12%; height:25%}
+    .bet-place6  {left:29%; top:9%;  width:12%; height:25%}
+    .bet-place8  {left:41%; top:9%;  width:12%; height:25%}
+    .bet-place9  {left:53%; top:9%;  width:12%; height:25%}
+    .bet-place10 {left:65%; top:9%;  width:13%; height:25%}
 
-    /* ── Pass Line (right strip only — bottom is clipped off) ── */
-    .bet-pass{left:82%; top:6%; width:15%; height:78%}
+    /* ── Pass Line (right strip) ── */
+    .bet-pass{left:82%; top:0%; width:15%; height:98%}
 
-    /* ── Hard Ways (right on top of hardway numbers) ── */
-    .bet-hard4  {left:18%; top:53%; width:13%; height:12%}
-    .bet-hard6  {left:31%; top:53%; width:13%; height:12%}
-    .bet-hard8  {left:44%; top:53%; width:13%; height:12%}
-    .bet-hard10 {left:57%; top:53%; width:13%; height:12%}
+    /* ── Hard Ways ── */
+    .bet-hard4  {left:18%; top:52%; width:13%; height:18%}
+    .bet-hard6  {left:31%; top:52%; width:13%; height:18%}
+    .bet-hard8  {left:44%; top:52%; width:13%; height:18%}
+    .bet-hard10 {left:57%; top:52%; width:13%; height:18%}
 
-    /* ── FIELD (FIELD label + numbers below) ── */
+    /* ── FIELD ── */
     .bet-field{
-      left:5%; top:66%; width:73%; height:17%;
+      left:5%; top:72%; width:73%; height:25%;
     }
 
     /* Win/lose flash */
@@ -325,7 +326,7 @@
 
     /* ── Chat Box ── */
     .chat-box{
-      flex-shrink:0;height:90px;
+      flex:1;min-height:90px;max-height:200px;
       display:flex;flex-direction:column;
       background:rgba(10,10,15,0.95);
       border-top:2px solid #2a3a1a;
@@ -510,7 +511,7 @@
       .local-player .portrait-frame{width:30px;height:36px}
       .chip{width:28px;height:28px}
       .ctrl-btn{font-size:0.25rem;padding:5px 7px}
-      .chat-box{height:70px}
+      .chat-box{min-height:70px;max-height:140px}
     }
   </style>
 </head>
@@ -570,10 +571,6 @@
       <div class="remote-slot empty" id="slot-2" data-seat="2">
         <div class="slot-portrait"><img id="chad-2" src="" alt="" /></div>
         <div class="slot-name" id="name-2">---</div>
-      </div>
-      <div class="remote-slot empty" id="slot-3" data-seat="3">
-        <div class="slot-portrait"><img id="chad-3" src="" alt="" /></div>
-        <div class="slot-name" id="name-3">---</div>
       </div>
     </div>
 
@@ -774,7 +771,6 @@ const STATE = {
 const remotePlayers = {
   1: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
   2: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
-  3: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
 };
 
 const AGORA_APP_ID = '7917341a0c9c46a08328cc9a33989d75';
@@ -864,7 +860,7 @@ function resetPuckPosition() {
   const puck = document.getElementById('puck');
   if (!puck) return;
   puck.style.left = '';
-  puck.style.top = '6px';
+  puck.style.top = '2%';
   puck.style.right = '10px';
 }
 
@@ -881,7 +877,7 @@ function renderAllBetChips() {
       chip.textContent = STATE.bets[betKey];
       container.appendChild(chip);
     }
-    for (let s = 1; s <= 3; s++) {
+    for (let s = 1; s <= 2; s++) {
       const rb = STATE.remoteBets[s];
       if (rb && rb[betKey] && rb[betKey] > 0) {
         const chip = document.createElement('div');
@@ -900,12 +896,12 @@ function testRemoteChips() {
     const allZones = ['pass','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
     for (const z of allZones) STATE.bets[z] = 1;
   }
-  // Copy local bets to all 3 remote seats
-  for (let s = 1; s <= 3; s++) {
+  // Copy local bets to both remote seats
+  for (let s = 1; s <= 2; s++) {
     STATE.remoteBets[s] = Object.assign({}, STATE.bets);
   }
   renderAllBetChips();
-  addChatMsg('system', 'TEST: Simulated 3 remote players mirroring your bets');
+  addChatMsg('system', 'TEST: Simulated 2 remote players mirroring your bets');
 }
 
 function clearBets() {
@@ -1355,10 +1351,10 @@ async function initAgora() {
 }
 
 function getRemoteSeat(uid) {
-  for (let s = 1; s <= 3; s++) {
+  for (let s = 1; s <= 2; s++) {
     if (remotePlayers[s].uid === String(uid)) return s;
   }
-  for (let s = 1; s <= 3; s++) {
+  for (let s = 1; s <= 2; s++) {
     if (!remotePlayers[s].uid) {
       remotePlayers[s].uid = String(uid);
       const cid = (parseInt(String(uid).slice(-2),36) % 20) + 1;
@@ -1376,7 +1372,7 @@ function getRemoteSeat(uid) {
 }
 
 function findSeatByUid(uid) {
-  for (let s = 1; s <= 3; s++) {
+  for (let s = 1; s <= 2; s++) {
     if (remotePlayers[s].uid === String(uid)) return s;
   }
   return null;
