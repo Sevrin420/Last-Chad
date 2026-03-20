@@ -222,7 +222,7 @@
     .bet-hard10 {left:78%;  top:49%; width:17%; height:14%}
 
     /* ── Pass Line — bottom-right green rectangle ── */
-    .bet-pass{left:25%; top:67%; width:65%; height:22%}
+    .bet-pass{left:29%; top:63%; width:63%; height:20%}
 
     /* Win/lose flash */
     .bet-zone.win-flash{animation:zone-win 0.5s ease 3;border-color:#4caf50;background:rgba(76,175,80,0.2)}
@@ -977,12 +977,13 @@ function renderAllBetChips() {
 function renderPressButtons() {
   // Remove existing press buttons
   document.querySelectorAll('.press-btn').forEach(el => el.remove());
-  for (const [zone, amount] of Object.entries(STATE.pressOptions)) {
+  for (const [zone, winnings] of Object.entries(STATE.pressOptions)) {
     const zoneEl = document.querySelector(`[data-bet="${zone}"]`);
     if (!zoneEl) continue;
+    const currentBet = STATE.bets[zone] || 0;
     const btn = document.createElement('button');
     btn.className = 'press-btn';
-    btn.textContent = `PRESS +${amount}`;
+    btn.textContent = `PRESS ${currentBet}\u2192${currentBet * 2}`;
     btn.style.bottom = '-22px';
     btn.style.left = '50%';
     btn.style.transform = 'translateX(-50%)';
@@ -992,18 +993,22 @@ function renderPressButtons() {
 }
 
 function pressBet(zone) {
-  const amount = STATE.pressOptions[zone];
-  if (!amount || STATE.stack < amount) {
+  const winnings = STATE.pressOptions[zone];
+  if (!winnings) return;
+  const currentBet = STATE.bets[zone] || 0;
+  const pressAmount = currentBet; // double the bet
+  if (STATE.stack < pressAmount) {
     dealerSay("Not enough chips to press!", 'sad');
     return;
   }
-  STATE.stack -= amount;
-  STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
+  STATE.stack -= pressAmount;
+  STATE.bets[zone] = currentBet + pressAmount;
+  // any extra winnings beyond the press cost stay in stack
   delete STATE.pressOptions[zone];
   renderAllBetChips();
   renderPressButtons();
   updateLocalPlayerUI();
-  addChatMsg('system', `${STATE.nftName || STATE.playerName} pressed ${formatBetName(zone)} +${amount}!`);
+  addChatMsg('system', `${STATE.nftName || STATE.playerName} pressed ${formatBetName(zone)} to ${STATE.bets[zone]}!`);
 }
 
 function clearPressButtons() {
