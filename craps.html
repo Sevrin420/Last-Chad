@@ -1121,8 +1121,8 @@ function localResolveBets(d1, d2) {
 
 async function rollDice() {
   if (STATE.isRolling) return;
-  if (Object.keys(STATE.bets).length === 0 && !(STATE._pendingBets && Object.keys(STATE._pendingBets).length)) {
-    dealerSay("Place a bet first!", 'neutral'); return;
+  if (!STATE.bets.pass) {
+    dealerSay("Pass line bet required to roll!", 'neutral'); return;
   }
   STATE.isRolling = true;
   turnPhase = 'waiting';
