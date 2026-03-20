@@ -1243,8 +1243,8 @@ async function rollDice() {
     die1El.classList.remove('rolling');
     die1El.classList.add('settled');
 
-    // Die2 keeps spinning for 3 more seconds
-    await new Promise(r => setTimeout(r, 3000));
+    // Die2 keeps spinning for 2.4 more seconds
+    await new Promise(r => setTimeout(r, 2400));
     die2cycling = false;
     clearInterval(cycleInterval2);
 
