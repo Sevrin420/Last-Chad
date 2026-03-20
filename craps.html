@@ -142,6 +142,20 @@
     .remote-slot[data-seat="1"]{--slot-color:var(--p2-color);--slot-glow:var(--p2-glow)}
     .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
 
+    /* ── Press Button (appears on winning bets) ── */
+    .press-btn{
+      position:absolute;z-index:12;
+      font-family:'Press Start 2P',monospace;font-size:0.2rem;
+      padding:4px 8px;border-radius:4px;cursor:pointer;
+      background:linear-gradient(180deg,#4caf50,#2e7d32);
+      border:2px solid #66bb6a;color:#fff;
+      box-shadow:0 0 8px rgba(76,175,80,0.5);
+      animation:press-pulse 1s ease-in-out infinite;
+      white-space:nowrap;
+    }
+    .press-btn:hover{background:linear-gradient(180deg,#66bb6a,#388e3c);transform:scale(1.1)}
+    @keyframes press-pulse{0%,100%{box-shadow:0 0 6px rgba(76,175,80,0.4)}50%{box-shadow:0 0 14px rgba(76,175,80,0.8)}}
+
     /* ── Puck ── */
     .puck{position:absolute;width:28px;height:28px;top:1%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
     .puck img{width:100%;height:100%;object-fit:contain}
@@ -186,26 +200,24 @@
     }
 
     /* ── Place Bets — top row number boxes (4,5,6,8,9,10) ── */
-    .bet-place4  {left:4%;  top:33%; width:11%; height:17%}
-    .bet-place5  {left:15%; top:33%; width:11%; height:17%}
-    .bet-place6  {left:26%; top:33%; width:11%; height:17%}
-    .bet-place8  {left:37%; top:33%; width:11%; height:17%}
-    .bet-place9  {left:48%; top:33%; width:11%; height:17%}
-    .bet-place10 {left:59%; top:33%; width:12%; height:17%}
+    .bet-place4  {left:4%;   top:7%;  width:14.5%; height:18%}
+    .bet-place5  {left:19.5%;top:7%;  width:14.5%; height:18%}
+    .bet-place6  {left:35%;  top:7%;  width:14.5%; height:18%}
+    .bet-place8  {left:50.5%;top:7%;  width:14.5%; height:18%}
+    .bet-place9  {left:66%;  top:7%;  width:14.5%; height:18%}
+    .bet-place10 {left:81.5%;top:7%;  width:14%;   height:18%}
 
-    /* ── Pass Line (right vertical strip) ── */
-    .bet-pass{left:72%; top:28%; width:16%; height:42%}
+    /* ── FIELD — tall left column ── */
+    .bet-field{left:3%; top:36%; width:22%; height:53%}
 
     /* ── Hard Ways — center row boxes (4,6,8,10) ── */
-    .bet-hard4  {left:15%; top:54%; width:13%; height:7%}
-    .bet-hard6  {left:28%; top:54%; width:13%; height:7%}
-    .bet-hard8  {left:41%; top:54%; width:13%; height:7%}
-    .bet-hard10 {left:54%; top:54%; width:13%; height:7%}
+    .bet-hard4  {left:33%;  top:46%; width:14%; height:16%}
+    .bet-hard6  {left:47.5%;top:46%; width:14%; height:16%}
+    .bet-hard8  {left:62%;  top:46%; width:14%; height:16%}
+    .bet-hard10 {left:76.5%;top:46%; width:14%; height:16%}
 
-    /* ── FIELD — bottom wide strip ── */
-    .bet-field{
-      left:4%; top:63%; width:67%; height:8%;
-    }
+    /* ── Pass Line — bottom right ── */
+    .bet-pass{left:33%; top:72%; width:58%; height:20%}
 
     /* Win/lose flash */
     .bet-zone.win-flash{animation:zone-win 0.5s ease 3;border-color:#4caf50;background:rgba(76,175,80,0.2)}
@@ -250,17 +262,17 @@
     .bet-hard10 .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
     .bet-hard10 .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
 
-    /* Field — center bets horizontally across the wide strip */
-    .bet-field .bet-chip-token.pos-0{top:50%;left:calc(50% - 36px);transform:translateY(-50%)}
-    .bet-field .bet-chip-token.pos-1{top:50%;left:calc(50% + 8px);transform:translateY(-50%)}
-    .bet-field .bet-chip-token.pos-2{top:50%;left:calc(50% - 68px);transform:translateY(-50%)}
-    .bet-field .bet-chip-token.pos-3{top:50%;left:calc(50% + 40px);transform:translateY(-50%)}
+    /* Field — stack chips vertically in the tall left column */
+    .bet-field .bet-chip-token.pos-0{top:30%;left:50%;transform:translate(-50%,-50%)}
+    .bet-field .bet-chip-token.pos-1{top:50%;left:50%;transform:translate(-50%,-50%)}
+    .bet-field .bet-chip-token.pos-2{top:70%;left:50%;transform:translate(-50%,-50%)}
+    .bet-field .bet-chip-token.pos-3{top:90%;left:50%;transform:translate(-50%,-50%)}
 
-    /* Pass line — center chips vertically in the right strip */
-    .bet-pass .bet-chip-token.pos-0{top:40%;left:50%;transform:translate(-50%,-50%)}
-    .bet-pass .bet-chip-token.pos-1{top:55%;left:50%;transform:translate(-50%,-50%)}
-    .bet-pass .bet-chip-token.pos-2{top:70%;left:50%;transform:translate(-50%,-50%)}
-    .bet-pass .bet-chip-token.pos-3{top:25%;left:50%;transform:translate(-50%,-50%)}
+    /* Pass line — center chips in bottom-right box */
+    .bet-pass .bet-chip-token.pos-0{top:50%;left:35%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-1{top:50%;left:55%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-2{top:50%;left:75%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-3{top:50%;left:15%;transform:translate(-50%,-50%)}
 
     /* ── Dice on felt — stacked in bottom-left corner ── */
     .table-dice{
@@ -642,22 +654,22 @@
         <!-- Hard Ways (4 individual boxes) -->
         <div class="bet-zone bet-hard4" data-bet="hard4" onclick="placeBet('hard4')">
           <div class="zone-label">H4</div>
-          <div class="zone-payout">7:1</div>
+          <div class="zone-payout">9:1</div>
           <div class="bet-chips-container" id="chips-hard4"></div>
         </div>
         <div class="bet-zone bet-hard6" data-bet="hard6" onclick="placeBet('hard6')">
           <div class="zone-label">H6</div>
-          <div class="zone-payout">9:1</div>
+          <div class="zone-payout">7:1</div>
           <div class="bet-chips-container" id="chips-hard6"></div>
         </div>
         <div class="bet-zone bet-hard8" data-bet="hard8" onclick="placeBet('hard8')">
           <div class="zone-label">H8</div>
-          <div class="zone-payout">9:1</div>
+          <div class="zone-payout">7:1</div>
           <div class="bet-chips-container" id="chips-hard8"></div>
         </div>
         <div class="bet-zone bet-hard10" data-bet="hard10" onclick="placeBet('hard10')">
           <div class="zone-label">H10</div>
-          <div class="zone-payout">7:1</div>
+          <div class="zone-payout">9:1</div>
           <div class="bet-chips-container" id="chips-hard10"></div>
         </div>
 
@@ -768,6 +780,7 @@ const STATE = {
   selectedChip: 1,
   bets: {},
   remoteBets: {},
+  pressOptions: {},
   phase: 'comeout',
   point: null,
   dice: [5, 5],
@@ -904,6 +917,44 @@ function renderAllBetChips() {
   }
 }
 
+// ── Press Button System ──
+function renderPressButtons() {
+  // Remove existing press buttons
+  document.querySelectorAll('.press-btn').forEach(el => el.remove());
+  for (const [zone, amount] of Object.entries(STATE.pressOptions)) {
+    const zoneEl = document.querySelector(`[data-bet="${zone}"]`);
+    if (!zoneEl) continue;
+    const btn = document.createElement('button');
+    btn.className = 'press-btn';
+    btn.textContent = `PRESS +${amount}`;
+    btn.style.bottom = '-22px';
+    btn.style.left = '50%';
+    btn.style.transform = 'translateX(-50%)';
+    btn.onclick = (e) => { e.stopPropagation(); pressBet(zone); };
+    zoneEl.appendChild(btn);
+  }
+}
+
+function pressBet(zone) {
+  const amount = STATE.pressOptions[zone];
+  if (!amount || STATE.stack < amount) {
+    dealerSay("Not enough chips to press!", 'sad');
+    return;
+  }
+  STATE.stack -= amount;
+  STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
+  delete STATE.pressOptions[zone];
+  renderAllBetChips();
+  renderPressButtons();
+  updateLocalPlayerUI();
+  addChatMsg('system', `${STATE.nftName || STATE.playerName} pressed ${formatBetName(zone)} +${amount}!`);
+}
+
+function clearPressButtons() {
+  STATE.pressOptions = {};
+  document.querySelectorAll('.press-btn').forEach(el => el.remove());
+}
+
 function testRemoteChips() {
   const hasBets = Object.keys(STATE.bets).some(k => STATE.bets[k] > 0);
   if (!hasBets) {
@@ -943,6 +994,7 @@ function startBetPhase() {
   turnPhase = 'betting';
   betsLocked = false;
   betTimerStarted = false;
+  clearPressButtons();
   const diceEl = document.getElementById('tableDice');
   diceEl.classList.remove('can-roll');
   diceEl.classList.add('locked');
@@ -1024,24 +1076,25 @@ function localResolveBets(d1, d2) {
   const total = d1+d2, isHard = d1===d2;
   const bets = STATE.bets;
   let netWin=0; const wins=[], losses=[]; let message='';
+  const pressOpts = {};
 
-  // FIELD
-  if(bets.field){ const fn=[2,3,4,9,10,11,12]; if(fn.includes(total)){ let p=bets.field; if(total===2)p=bets.field*2; else if(total===12)p=bets.field*3; netWin+=p; STATE.stack+=bets.field+p; wins.push('field'); message='FIELD '+total+'! +'+p; } else { losses.push('field'); } bets.field=0; }
+  // FIELD (one-roll bet — wins pay out, bet stays; loss removes bet)
+  if(bets.field){ const fn=[2,3,4,9,10,11,12]; if(fn.includes(total)){ let p=bets.field; if(total===2)p=bets.field*2; else if(total===12)p=bets.field*3; netWin+=p; STATE.stack+=p; wins.push('field'); message='FIELD '+total+'! +'+p; pressOpts.field=p; } else { losses.push('field'); bets.field=0; } }
 
   // HARDWAYS
-  const hm={hard4:4,hard6:6,hard8:8,hard10:10}, hp={hard4:7,hard6:9,hard8:9,hard10:7};
-  for(const[k,n]of Object.entries(hm)){ if(!bets[k])continue; if(total===n&&isHard){ const p=bets[k]*hp[k]; netWin+=p; STATE.stack+=bets[k]+p; wins.push(k); message='HARD '+n+'! +'+p; bets[k]=0; } else if(total===7||(total===n&&!isHard)){ losses.push(k); bets[k]=0; } }
+  const hm={hard4:4,hard6:6,hard8:8,hard10:10}, hp={hard4:9,hard6:7,hard8:7,hard10:9};
+  for(const[k,n]of Object.entries(hm)){ if(!bets[k])continue; if(total===n&&isHard){ const p=bets[k]*hp[k]; netWin+=p; STATE.stack+=p; wins.push(k); message='HARD '+n+'! +'+p; pressOpts[k]=p; } else if(total===7||(total===n&&!isHard)){ losses.push(k); bets[k]=0; } }
 
   // PLACE BETS
   const pp={4:[9,5],5:[7,5],6:[7,6],8:[7,6],9:[7,5],10:[9,5]};
-  for(const num of[4,5,6,8,9,10]){ const k='place'+num; if(!bets[k])continue; if(total===num){ const[pn,pd]=pp[num]; const p=Math.floor(bets[k]*pn/pd); netWin+=p; STATE.stack+=bets[k]+p; wins.push(k); message='PLACE '+num+' hits! +'+p; bets[k]=0; } else if(total===7){ losses.push(k); bets[k]=0; } }
+  for(const num of[4,5,6,8,9,10]){ const k='place'+num; if(!bets[k])continue; if(total===num){ const[pn,pd]=pp[num]; const p=Math.floor(bets[k]*pn/pd); netWin+=p; STATE.stack+=p; wins.push(k); message='PLACE '+num+' hits! +'+p; pressOpts[k]=p; } else if(total===7){ losses.push(k); bets[k]=0; } }
 
   // PASS LINE
-  if(STATE.phase==='comeout'){ if(bets.pass){ if(total===7||total===11){ netWin+=bets.pass; STATE.stack+=bets.pass*2; wins.push('pass'); message=total===7?'SEVEN! Winner!':'YO ELEVEN! Winner!'; bets.pass=0; } else if(total===2||total===3||total===12){ losses.push('pass'); message=total===12?'TWELVE! Craps!':total===2?'SNAKE EYES! Craps!':'THREE CRAPS!'; bets.pass=0; } else { STATE.point=total; STATE.phase='point'; message='Point is '+total+'!'; } } } else { if(total===STATE.point){ if(bets.pass){ netWin+=bets.pass; STATE.stack+=bets.pass*2; wins.push('pass'); message='WINNER! Point '+STATE.point+'!'; bets.pass=0; } STATE.phase='comeout'; STATE.point=null; } else if(total===7){ if(bets.pass){ losses.push('pass'); bets.pass=0; } message='SEVEN OUT!'; STATE.phase='comeout'; STATE.point=null; } }
+  if(STATE.phase==='comeout'){ if(bets.pass){ if(total===7||total===11){ netWin+=bets.pass; STATE.stack+=bets.pass; wins.push('pass'); message=total===7?'SEVEN! Winner!':'YO ELEVEN! Winner!'; pressOpts.pass=bets.pass; } else if(total===2||total===3||total===12){ losses.push('pass'); message=total===12?'TWELVE! Craps!':total===2?'SNAKE EYES! Craps!':'THREE CRAPS!'; bets.pass=0; } else { STATE.point=total; STATE.phase='point'; message='Point is '+total+'!'; } } } else { if(total===STATE.point){ if(bets.pass){ netWin+=bets.pass; STATE.stack+=bets.pass; wins.push('pass'); message='WINNER! Point '+STATE.point+'!'; pressOpts.pass=bets.pass; } STATE.phase='comeout'; STATE.point=null; } else if(total===7){ if(bets.pass){ losses.push('pass'); bets.pass=0; } message='SEVEN OUT!'; STATE.phase='comeout'; STATE.point=null; } }
 
   // Clean zero bets
   for(const k of Object.keys(bets)){ if(bets[k]===0) delete bets[k]; }
-  return { netWin, wins, losses, message, total, dice:[d1,d2], isHard, stack:STATE.stack, phase:STATE.phase, point:STATE.point, bets };
+  return { netWin, wins, losses, message, total, dice:[d1,d2], isHard, stack:STATE.stack, phase:STATE.phase, point:STATE.point, bets, pressOptions:pressOpts };
 }
 
 async function rollDice() {
@@ -1077,7 +1130,7 @@ async function rollDice() {
       STATE._pendingBets = {};
       const ld1 = Math.floor(Math.random()*6)+1, ld2 = Math.floor(Math.random()*6)+1;
       const lr = localResolveBets(ld1, ld2);
-      data = { ok:true, dice:lr.dice, total:lr.total, isHard:lr.isHard, stack:lr.stack, phase:lr.phase, point:lr.point, bets:lr.bets, resolution:{ netWin:lr.netWin, wins:lr.wins, losses:lr.losses, message:lr.message } };
+      data = { ok:true, dice:lr.dice, total:lr.total, isHard:lr.isHard, stack:lr.stack, phase:lr.phase, point:lr.point, bets:lr.bets, resolution:{ netWin:lr.netWin, wins:lr.wins, losses:lr.losses, message:lr.message }, pressOptions:lr.pressOptions };
     } else {
       const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
         method: 'POST',
@@ -1142,6 +1195,12 @@ async function rollDice() {
 
     renderAllBetChips();
     updateLocalPlayerUI();
+
+    // Show press buttons for winning bets
+    if (data.pressOptions && Object.keys(data.pressOptions).length > 0) {
+      STATE.pressOptions = data.pressOptions;
+      renderPressButtons();
+    }
 
     const netWin = r.netWin || 0;
     if (netWin > 0) showToast(`+${netWin}`, 'win', `Total: ${total}`);
@@ -1705,6 +1764,7 @@ window.copyInviteLink = copyInviteLink;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
 window.testRemoteChips = testRemoteChips;
+window.pressBet = pressBet;
 </script>
 </body>
 </html>
