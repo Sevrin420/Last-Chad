@@ -60,15 +60,14 @@
       min-height:0;
     }
     .felt-container{
-      flex:1;position:relative;
-      background-color:#0d3d0d;
+      flex:0 0 auto;position:relative;
+      background-color:#0a0a0f;
       border:3px solid var(--felt-border);
       border-top:none;
       border-radius:0 0 8px 8px;
       margin:0 4px 2px 4px;
       overflow:hidden;
       box-shadow:inset 0 0 40px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
-      display:flex;align-items:center;justify-content:center;
     }
     /* Wrapper — craps table image, fill middle naturally */
     .table-image-wrap{
@@ -920,7 +919,6 @@ async function placeBet(zone) {
   STATE._pendingBets[zone] = (STATE._pendingBets[zone] || 0) + amount;
   renderAllBetChips();
   updateLocalPlayerUI();
-  addChatMsg('system', `${STATE.nftName || STATE.playerName} bet ${amount} on ${formatBetName(zone)}`);
   onFirstBet();
 }
 
@@ -1018,7 +1016,6 @@ function pressBet(zone) {
   renderAllBetChips();
   renderPressButtons();
   updateLocalPlayerUI();
-  addChatMsg('system', `${STATE.nftName || STATE.playerName} pressed ${formatBetName(zone)} to ${STATE.bets[zone]}!`);
 }
 
 function clearPressButtons() {
@@ -1038,7 +1035,6 @@ function testRemoteChips() {
     STATE.remoteBets[s] = Object.assign({}, STATE.bets);
   }
   renderAllBetChips();
-  addChatMsg('system', 'TEST: Simulated 2 remote players mirroring your bets');
 }
 
 function clearBets() {
@@ -1255,7 +1251,6 @@ async function rollDice() {
       resetPuckPosition();
     }
 
-    addChatMsg('roll', `Dice: ${d1} + ${d2} = ${total}${data.isHard ? ' (HARD)' : ''}`);
     if (r.message) {
       dealerSay(r.message, r.wins.length > 0 ? 'happy' : r.losses.length > 0 ? 'sad' : 'neutral');
     }
@@ -1289,7 +1284,6 @@ async function rollDice() {
 
     if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
       dealerSay("You're busted! Better luck next time.", 'sad');
-      addChatMsg('system', `${STATE.nftName || STATE.playerName} busted out!`);
       STATE.isRolling = false;
       return;
     }
@@ -1371,7 +1365,6 @@ async function cashOut() {
 
   if (STATE._testMode) {
     // Test mode — just reset to 100 chips
-    addChatMsg('system', `${STATE.nftName || STATE.playerName} cashed out ${totalPayout} chips. Resetting to 100.`);
     dealerSay("Test mode — chips reset to 100!", 'happy');
     STATE.stack = 100;
     STATE.bets = {};
@@ -1411,7 +1404,6 @@ async function cashOut() {
     if (!data.ok) throw new Error(data.error || 'Cashout failed');
 
     if (data.payout === 0) {
-      addChatMsg('system', `${STATE.nftName || STATE.playerName} busted out. 0 cells returned.`);
       dealerSay("Better luck next time.", 'sad');
       sessionStorage.removeItem('craps_session');
       STATE.nonce = null;
@@ -1427,7 +1419,6 @@ async function cashOut() {
     await tx.wait();
 
     const profit = data.payout - STATE.buyIn;
-    addChatMsg('system', `${STATE.nftName || STATE.playerName} cashed out ${data.payout} cells${profit > 0 ? ' (+' + profit + ' profit!)' : ''}.`);
     if (profit > 0) {
       dealerSay("Winner! See ya around, partner.", 'happy');
       showToast(`+${profit}`, 'win', 'Profit!');
@@ -1600,17 +1591,15 @@ async function joinRoom() {
     } catch (e) { console.warn('Agora token fetch failed:', e.message); }
     const uid = await agoraClient.join(AGORA_APP_ID, channel, token, STATE.playerId);
     console.log('Agora joined:', channel, 'uid:', uid);
-    addChatMsg('system', 'Voice chat connected.');
   } catch (err) {
     console.warn('Agora join failed:', err.message);
-    addChatMsg('system', 'Voice chat unavailable.');
   }
 }
 
 async function toggleCamera() {
   if (!agoraClient) {
     await joinRoom();
-    if (!agoraClient) { addChatMsg('system','Could not join room.'); return; }
+    if (!agoraClient) { return; }
   }
   const btn = document.getElementById('camBtn');
   if (!cameraOn) {
@@ -1623,8 +1612,7 @@ async function toggleCamera() {
       cameraOn = true;
       btn.textContent = 'CAM ON'; btn.classList.add('active');
     } catch (err) {
-      if (err.name === 'NotAllowedError') addChatMsg('system','Camera permission denied.');
-      else addChatMsg('system','Camera error: '+err.message);
+      console.warn('Camera error:', err.message);
     }
   } else {
     if (localVideoTrack) { await agoraClient.unpublish([localVideoTrack]); localVideoTrack.close(); localVideoTrack=null; }
@@ -1651,8 +1639,8 @@ async function toggleCamera() {
     } catch (err) {
       if (err.name === 'NotAllowedError') {
         micDenied = true;
-        addChatMsg('system','Mic permission denied.');
-      } else { addChatMsg('system','Mic error: '+err.message); }
+        console.warn('Mic permission denied.');
+      } else { console.warn('Mic error:', err.message); }
     }
   }
   async function stopTalking() {
@@ -1735,7 +1723,6 @@ function enterTable() {
   window.location.hash = currentTableCode || 'public-main';
   document.getElementById('tableLobby').classList.add('hidden');
   document.getElementById('tableWrapper').style.display = '';
-  addChatMsg('system', `Table: ${currentTableCode}${tableIsPrivate ? ' (private)' : ' (public)'}`);
   startPresenceHeartbeat();
   joinRoom();
 }
