@@ -309,6 +309,7 @@
     .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
     .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
     .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
+    .bet-chip-token.off{opacity:0.35;filter:grayscale(0.6)}
     /* ── Place Bets chip positions — inside boxes ──
        p0 (local): top-left, p1 (remote1): top-right, p2 (remote2): bottom-left */
     .bet-chip-token.pos-0{top:8%;left:2%}
@@ -944,14 +945,17 @@ function resetPuckPosition() {
 
 function renderAllBetChips() {
   const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
+  const offZones = new Set(['place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10']);
+  const isComeout = STATE.phase === 'comeout';
   for (const zone of zones) {
     const container = document.getElementById('chips-' + zone);
     if (!container) continue;
     container.innerHTML = '';
     const betKey = zone;
+    const isOff = isComeout && offZones.has(zone);
     if (STATE.bets[betKey] && STATE.bets[betKey] > 0) {
       const chip = document.createElement('div');
-      chip.className = 'bet-chip-token p0 pos-0';
+      chip.className = 'bet-chip-token p0 pos-0' + (isOff ? ' off' : '');
       chip.textContent = STATE.bets[betKey];
       container.appendChild(chip);
     }
@@ -959,7 +963,7 @@ function renderAllBetChips() {
       const rb = STATE.remoteBets[s];
       if (rb && rb[betKey] && rb[betKey] > 0) {
         const chip = document.createElement('div');
-        chip.className = 'bet-chip-token p' + s + ' pos-' + s;
+        chip.className = 'bet-chip-token p' + s + ' pos-' + s + (isOff ? ' off' : '');
         chip.textContent = rb[betKey];
         container.appendChild(chip);
       }
@@ -1084,7 +1088,19 @@ function startBetPhase() {
   diceEl.classList.add('locked');
   document.getElementById('rollPrompt').style.display = 'none';
   hideTimer();
-  dealerSay("Place your bets!", 'happy');
+  if (STATE.phase === 'comeout') {
+    // Check if any place/hardway bets are still on table
+    const offKeys = ['place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
+    const hasOffBets = offKeys.some(k => STATE.bets[k] > 0);
+    if (hasOffBets) {
+      dealerSay("Come-out roll — all bets OFF except Pass Line and Field.", 'neutral');
+    } else {
+      dealerSay("Come-out roll — place your bets!", 'happy');
+    }
+  } else {
+    dealerSay("Place your bets!", 'happy');
+  }
+  renderAllBetChips();
   // No timer yet — waits for first bet via onFirstBet()
 }
 
@@ -1165,13 +1181,13 @@ function localResolveBets(d1, d2) {
   // FIELD (one-roll bet — wins pay out, bet stays; loss removes bet)
   if(bets.field){ const fn=[2,3,4,9,10,11,12]; if(fn.includes(total)){ let p=bets.field; if(total===2)p=bets.field*2; else if(total===12)p=bets.field*3; netWin+=p; STATE.stack+=p; wins.push('field'); message='FIELD '+total+'! +'+p; pressOpts.field=p; } else { losses.push('field'); bets.field=0; } }
 
-  // HARDWAYS
+  // HARDWAYS (off on come-out)
   const hm={hard4:4,hard6:6,hard8:8,hard10:10}, hp={hard4:9,hard6:7,hard8:7,hard10:9};
-  for(const[k,n]of Object.entries(hm)){ if(!bets[k])continue; if(total===n&&isHard){ const p=bets[k]*hp[k]; netWin+=p; STATE.stack+=p; wins.push(k); message='HARD '+n+'! +'+p; pressOpts[k]=p; } else if(total===7||(total===n&&!isHard)){ losses.push(k); bets[k]=0; } }
+  if(STATE.phase!=='comeout'){ for(const[k,n]of Object.entries(hm)){ if(!bets[k])continue; if(total===n&&isHard){ const p=bets[k]*hp[k]; netWin+=p; STATE.stack+=p; wins.push(k); message='HARD '+n+'! +'+p; pressOpts[k]=p; } else if(total===7||(total===n&&!isHard)){ losses.push(k); bets[k]=0; } } }
 
-  // PLACE BETS
+  // PLACE BETS (off on come-out)
   const pp={4:[9,5],5:[7,5],6:[7,6],8:[7,6],9:[7,5],10:[9,5]};
-  for(const num of[4,5,6,8,9,10]){ const k='place'+num; if(!bets[k])continue; if(total===num){ const[pn,pd]=pp[num]; const p=Math.floor(bets[k]*pn/pd); netWin+=p; STATE.stack+=p; wins.push(k); message='PLACE '+num+' hits! +'+p; pressOpts[k]=p; } else if(total===7){ losses.push(k); bets[k]=0; } }
+  if(STATE.phase!=='comeout'){ for(const num of[4,5,6,8,9,10]){ const k='place'+num; if(!bets[k])continue; if(total===num){ const[pn,pd]=pp[num]; const p=Math.floor(bets[k]*pn/pd); netWin+=p; STATE.stack+=p; wins.push(k); message='PLACE '+num+' hits! +'+p; pressOpts[k]=p; } else if(total===7){ losses.push(k); bets[k]=0; } } }
 
   // PASS LINE
   if(STATE.phase==='comeout'){ if(bets.pass){ if(total===7||total===11){ const p=bets.pass; netWin+=p; STATE.stack+=p+p; wins.push('pass'); message=total===7?'SEVEN! Winner! +'+(p*2):'YO ELEVEN! Winner! +'+(p*2); bets.pass=0; } else if(total===2||total===3||total===12){ losses.push('pass'); message=total===12?'TWELVE! Craps!':total===2?'SNAKE EYES! Craps!':'THREE CRAPS!'; bets.pass=0; } else { STATE.point=total; STATE.phase='point'; message='Point is '+total+'!'; } } } else { if(total===STATE.point){ if(bets.pass){ const p=bets.pass; netWin+=p; STATE.stack+=p+p; wins.push('pass'); message='WINNER! Point '+STATE.point+'! +'+(p*2); bets.pass=0; } STATE.phase='comeout'; STATE.point=null; } else if(total===7){ if(bets.pass){ losses.push('pass'); bets.pass=0; } message='SEVEN OUT!'; STATE.phase='comeout'; STATE.point=null; } }
