@@ -1245,8 +1245,8 @@ async function rollDice() {
       if (!data.ok) throw new Error(data.error || 'Roll failed');
     }
 
-    // Spin for 2.4s total, then settle die1 first
-    await new Promise(r => setTimeout(r, 3000));
+    // Spin for 2.5s total, then settle die1 first
+    await new Promise(r => setTimeout(r, 2500));
     clearInterval(cycleInterval1);
 
     const [d1, d2] = data.dice;
