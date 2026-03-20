@@ -292,10 +292,10 @@
       display:flex;flex-direction:column;align-items:center;gap:2px;
     }
     .table-stack-label{
-      font-size:0.35rem;color:#8a7a5a;text-shadow:1px 1px 2px #000;
+      font-size:0.5rem;color:#8a7a5a;text-shadow:1px 1px 2px #000;
     }
     .table-stack-value{
-      font-size:0.95rem;color:#ffe96a;
+      font-size:1.4rem;color:#ffe96a;
       text-shadow:0 0 10px rgba(255,233,106,0.5),2px 2px 4px rgba(0,0,0,0.9);
     }
 
@@ -556,8 +556,8 @@
       .bottom-row{flex-wrap:wrap;justify-content:center;gap:4px;padding:4px 6px}
       .ctrl-btn{font-size:0.25rem;padding:5px 7px}
       .chat-box{min-height:84px;max-height:168px}
-      .table-stack-value{font-size:0.6rem}
-      .table-stack-label{font-size:0.24rem}
+      .table-stack-value{font-size:0.9rem}
+      .table-stack-label{font-size:0.35rem}
       .table-chip-tray .chip{width:34px;height:34px}
       .table-chip-tray{gap:5px}
       .die{width:50px!important;height:50px!important}
@@ -747,13 +747,7 @@
 
   <!-- BOTTOM ROW -->
   <div class="bottom-row">
-    <div class="local-player" id="panel-0">
-      <div class="player-info">
-        <div class="nft-name" id="name-0">Connect Wallet</div>
-        <div class="player-stack-lbl" id="stack-0"></div>
-      </div>
-    </div>
-    <div class="point-display" id="pointDisplay"></div>
+    <div id="pointDisplay" style="display:none"></div>
     <button class="audio-btn ptt" id="pttBtn">HOLD TO TALK</button>
     <div class="controls">
       <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
@@ -898,7 +892,7 @@ function movePuckToPoint(point) {
   const parentW = parent.offsetWidth;
   const puckW = puck.offsetWidth;
   const centerPx = placeZone.offsetLeft + (placeZone.offsetWidth / 2) - (puckW / 2);
-  const topPx = placeZone.offsetTop - puckW - 4;
+  const topPx = placeZone.offsetTop - puckW + 8;
   puck.style.left = centerPx + 'px';
   puck.style.top = topPx + 'px';
   puck.style.right = 'auto';
@@ -1184,6 +1178,8 @@ async function rollDice() {
     die1El.classList.add('settled');
     die2El.classList.add('settled');
 
+    const prevPoint = STATE.point;
+    const prevPhase = STATE.phase;
     STATE.stack = data.stack;
     STATE.phase = data.phase;
     STATE.point = data.point || null;
@@ -1206,6 +1202,13 @@ async function rollDice() {
       document.getElementById('puck').classList.remove('on-glow');
       document.getElementById('pointDisplay').textContent = '';
       resetPuckPosition();
+    }
+
+    // Chat messages for point acquired / point made
+    if (!prevPoint && STATE.point) {
+      addChatMsg('system', 'POINT SET: ' + STATE.point);
+    } else if (prevPoint && !STATE.point && prevPhase === 'point' && total === prevPoint) {
+      addChatMsg('win', 'POINT ' + prevPoint + ' MADE!');
     }
 
     if (r.message) {
