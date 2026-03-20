@@ -998,7 +998,6 @@ function clearBets() {
 }
 
 function updateLocalPlayerUI() {
-  document.getElementById('stack-0').textContent = STATE.stack + ' chips';
   const tableStack = document.getElementById('tableStackDisplay');
   if (tableStack) tableStack.textContent = STATE.stack;
 }
