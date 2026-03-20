@@ -1146,7 +1146,7 @@
   <script type="module">
     import { connectWallet, autoReconnect, disconnect,
              getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI, CRAPS_GAME_ADDRESS, CRAPS_GAME_ABI } from './js/config.js';
+    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
 
     // ── Music & Enter ──
     const jiptImage  = document.getElementById('jipt-image');
@@ -1495,24 +1495,23 @@
 
       const statusEl = document.createElement('p');
       statusEl.className = 'loading';
-      statusEl.textContent = 'Starting craps session on-chain...';
+      statusEl.textContent = 'Committing wager on-chain...';
       dialogueText.appendChild(statusEl);
 
       try {
-        // ── ON-CHAIN: CrapsGame.startSession (spends cells, generates seed) ──
-        const crapsContract = new ethers.Contract(CRAPS_GAME_ADDRESS, CRAPS_GAME_ABI, signer);
-        const tx = await crapsContract.startSession(selectedTokenId, wagerAmount);
+        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+        const tx = await gamble.commitWager(selectedTokenId, wagerAmount);
         statusEl.textContent = 'Confirming transaction...';
         const receipt = await tx.wait();
 
-        // Parse SessionStarted event
-        const iface = crapsContract.interface;
-        const startLog = receipt.logs
+        const iface = new ethers.utils.Interface(GAMBLE_ABI);
+        const wagerLog = receipt.logs
           .map(log => { try { return iface.parseLog(log); } catch { return null; } })
-          .find(e => e && e.name === 'SessionStarted');
+          .find(e => e && e.name === 'WagerCommitted');
 
+        crapsNonce = wagerLog ? wagerLog.args.nonce.toNumber() : Date.now();
         crapsStack = wagerAmount;
-        crapsGameLog = [{ action: 'buyin', amount: wagerAmount, seed: startLog?.args?.seed }];
+        crapsGameLog = [{ action: 'buyin', amount: wagerAmount, nonce: crapsNonce }];
 
         // Reset craps state
         crapsPhase = 'comeout';
@@ -1521,11 +1520,60 @@
         crapsBets = {};
         crapsComeBets = {};
         crapsComeOdds = {};
+      } catch (err) {
+        statusEl.remove();
+        const errP = document.createElement('p');
+        const reason = err.reason || err.data?.message || err.error?.message || err.message || String(err);
+        errP.textContent = 'Transaction failed: ' + reason;
+        errP.style.color = '#e53935';
+        dialogueText.appendChild(errP);
+        showChoices([
+          { label: "Try again", action: beginCrapsRound },
+          { label: "Pick another Chad", action: startCrapsGame },
+        ]);
+        return;
+      }
+
+      // Register session with worker (retry up to 3 times — cells are already committed)
+      statusEl.textContent = 'Setting up craps table...';
+      let startData;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const startRes = await fetchWithTimeout(WORKER_URL + '/craps/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokenId: selectedTokenId, nonce: crapsNonce, player: userAddress }),
+          });
+          startData = await startRes.json();
+          if (startData.ok) break;
+          startData = null;
+        } catch { startData = null; }
+        if (attempt < 2) await delay(1000 * (attempt + 1));
+      }
+
+      if (!startData || !startData.ok) {
+        statusEl.remove();
+        const errP = document.createElement('p');
+        errP.textContent = 'Server error: could not start craps session. Your wager is safe — try again.';
+        errP.style.color = '#e53935';
+        dialogueText.appendChild(errP);
+        showChoices([
+          { label: "Try again", action: beginCrapsRound },
+          { label: "Pick another Chad", action: startCrapsGame },
+        ]);
+        return;
+      }
+
+      try {
+        crapsSessionToken = startData.sessionToken || null;
+        crapsStack = startData.stack;
 
         // Save session data and redirect to the multiplayer craps table
         sessionStorage.setItem('craps_session', JSON.stringify({
+          nonce: crapsNonce,
           tokenId: selectedTokenId,
           stack: crapsStack,
+          sessionToken: crapsSessionToken,
           player: userAddress,
           buyIn: wagerAmount,
         }));
@@ -1534,8 +1582,7 @@
       } catch (err) {
         statusEl.remove();
         const errP = document.createElement('p');
-        const reason = err.reason || err.data?.message || err.error?.message || err.message || String(err);
-        errP.textContent = 'Transaction failed: ' + reason;
+        errP.textContent = 'Error setting up table: ' + (err.message || String(err));
         errP.style.color = '#e53935';
         dialogueText.appendChild(errP);
         showChoices([

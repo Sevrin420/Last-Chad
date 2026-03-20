@@ -118,12 +118,18 @@ export default {
         return await handlePokerCashout(request, env);
       }
 
-      // Craps recording endpoints (game logic is on-chain via CrapsGame.sol)
-      if (request.method === 'POST' && url.pathname === '/craps/log-roll') {
-        return await handleCrapsLogRoll(request, env);
+      // Craps endpoints
+      if (request.method === 'POST' && url.pathname === '/craps/start') {
+        return await handleCrapsStart(request, env);
       }
-      if (request.method === 'GET' && url.pathname === '/craps/table-state') {
-        return await handleCrapsTableState(url, env);
+      if (request.method === 'POST' && url.pathname === '/craps/bet') {
+        return await handleCrapsBet(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/craps/roll') {
+        return await handleCrapsRoll(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/craps/cashout') {
+        return await handleCrapsCashout(request, env);
       }
 
       // Table presence endpoints
@@ -596,75 +602,10 @@ function shuffleDeckCrypto() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  CRAPS — ON-CHAIN RECORDING LAYER
-//  Game logic lives in CrapsGame.sol. Worker records events for
-//  multiplayer display and anti-cheat audit.
+//  CRAPS ENDPOINTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-// POST /craps/log-roll  { tokenId, table, d1, d2, total, netWin, stack, phase, point, player }
-// Frontend posts after each on-chain roll() tx for multiplayer broadcast + audit log.
-async function handleCrapsLogRoll(request, env) {
-  const body = await parseBody(request);
-  const { tokenId, table, d1, d2, total, netWin, stack, phase, point, player } = body;
-
-  if (tokenId == null || !table || d1 == null || d2 == null) {
-    return json({ error: 'Missing required fields' }, 400);
-  }
-  if (!player || !ethers.isAddress(player)) {
-    return json({ error: 'Invalid player address' }, 400);
-  }
-
-  // Record the roll in KV for the table (other players poll this)
-  const tableKey = `craps_table:${table}`;
-  const existing = await env.RUNNER_KV.get(tableKey, { type: 'json' }) || { rolls: [], players: {} };
-
-  // Append roll to log (keep last 50 rolls per table)
-  existing.rolls.push({
-    tokenId: String(tokenId),
-    player: player.toLowerCase(),
-    d1, d2, total, netWin, stack, phase, point,
-    ts: Date.now(),
-  });
-  if (existing.rolls.length > 50) existing.rolls = existing.rolls.slice(-50);
-
-  // Update player state for this table
-  existing.players[player.toLowerCase()] = {
-    tokenId: String(tokenId),
-    stack,
-    phase,
-    point,
-    lastRoll: [d1, d2],
-    ts: Date.now(),
-  };
-
-  await env.RUNNER_KV.put(tableKey, JSON.stringify(existing), { expirationTtl: CRAPS_SESSION_TTL });
-
-  return json({ ok: true, rollCount: existing.rolls.length });
-}
-
-// GET /craps/table-state?table=X
-// Other players poll this to see rolls and state at their table.
-async function handleCrapsTableState(url, env) {
-  const table = url.searchParams.get('table');
-  if (!table) return json({ error: 'Missing table param' }, 400);
-
-  const tableKey = `craps_table:${table}`;
-  const data = await env.RUNNER_KV.get(tableKey, { type: 'json' });
-  if (!data) return json({ rolls: [], players: {} });
-
-  // Filter stale players (no activity in 2 minutes)
-  const now = Date.now();
-  for (const [addr, info] of Object.entries(data.players || {})) {
-    if (now - info.ts > TABLE_STALE_MS) delete data.players[addr];
-  }
-
-  return json(data);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  LEGACY — kept for reference during migration, will be removed
-// ═══════════════════════════════════════════════════════════════════════════
-/* eslint-disable no-unused-vars */
+// POST /craps/start  { tokenId, nonce, player }
 async function handleCrapsStart(request, env) {
   const { tokenId, nonce, player } = await parseBody(request);
   if (tokenId == null || nonce == null || !player) {
@@ -1050,8 +991,6 @@ function verifyCrapsSessionToken(session, sessionToken) {
   if (!session._expectedToken || !sessionToken) return false; // fail closed
   return session._expectedToken === sessionToken;
 }
-/* eslint-enable no-unused-vars */
-// ═══════════════════════════════════════════════════════════════════════════
 
 /** Convert card index (0-51) to { rank: 0-12, suit: 0-3 } */
 function cardFromIndex(idx) {

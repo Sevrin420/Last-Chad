@@ -769,13 +769,12 @@
 <script type="module">
 import { connectWallet as walletConnect, autoReconnect, disconnect,
          getSigner, getUserAddress, truncateAddress } from './js/wallet.js';
-import { CRAPS_GAME_ADDRESS, CRAPS_GAME_ABI } from './js/config.js';
+import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
 
 /* ===================================================================
    CRAPS TABLE — Last Chad
    4-player multiplayer with Agora audio (PTT) + optional shooter video
-   On-chain dice via CrapsGame.sol — deterministic keccak256 seeds
-   Worker records rolls for multiplayer display + anti-cheat audit
+   Server-side dice via Cloudflare Worker — no client-side RNG
    =================================================================== */
 
 const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
@@ -1120,25 +1119,6 @@ function localResolveBets(d1, d2) {
   return { netWin, wins, losses, message, total, dice:[d1,d2], isHard, stack:STATE.stack, phase:STATE.phase, point:STATE.point, bets, pressOptions:pressOpts };
 }
 
-// ── Bet zone name → contract bet index mapping ──
-const BET_ZONE_TO_INDEX = {
-  pass: 0, passOdds: 1, field: 2, come: 3,
-  hard4: 4, hard6: 5, hard8: 6, hard10: 7,
-  place4: 8, place5: 9, place6: 10, place8: 11, place9: 12, place10: 13,
-};
-const BET_INDEX_TO_ZONE = Object.fromEntries(
-  Object.entries(BET_ZONE_TO_INDEX).map(([k,v]) => [v,k])
-);
-
-// Rebuild STATE.bets from on-chain 26-element array
-function syncBetsFromChain(allBets) {
-  STATE.bets = {};
-  for (const [zone, idx] of Object.entries(BET_ZONE_TO_INDEX)) {
-    const val = Number(allBets[idx]);
-    if (val > 0) STATE.bets[zone] = val;
-  }
-}
-
 async function rollDice() {
   if (STATE.isRolling) return;
   if (!STATE.bets.pass) {
@@ -1166,76 +1146,32 @@ async function rollDice() {
   }, 60);
 
   try {
-    let d1, d2, total, netWin, newStack, newPhase, newPoint;
-
+    let data;
     if (STATE._testMode) {
-      // Local test mode — no contract needed
+      // Local test mode — no worker needed
       STATE._pendingBets = {};
-      d1 = Math.floor(Math.random()*6)+1;
-      d2 = Math.floor(Math.random()*6)+1;
-      const lr = localResolveBets(d1, d2);
-      total = lr.total; netWin = lr.netWin; newStack = lr.stack;
-      newPhase = lr.phase === 'point' ? 1 : 0;
-      newPoint = lr.point || 0;
+      const ld1 = Math.floor(Math.random()*6)+1, ld2 = Math.floor(Math.random()*6)+1;
+      const lr = localResolveBets(ld1, ld2);
+      data = { ok:true, dice:lr.dice, total:lr.total, isHard:lr.isHard, stack:lr.stack, phase:lr.phase, point:lr.point, bets:lr.bets, resolution:{ netWin:lr.netWin, wins:lr.wins, losses:lr.losses, message:lr.message }, pressOptions:lr.pressOptions };
     } else {
-      // ── ON-CHAIN ROLL via CrapsGame.sol ──
-      const signer = getSigner();
-      if (!signer) throw new Error('Wallet not connected');
-      const crapsContract = new ethers.Contract(CRAPS_GAME_ADDRESS, CRAPS_GAME_ABI, signer);
-
-      // Build pending bet arrays for placeBetsAndRoll
-      const pendingBets = STATE._pendingBets || {};
-      const zones = [];
-      const amounts = [];
-      for (const [zone, amt] of Object.entries(pendingBets)) {
-        if (amt > 0 && BET_ZONE_TO_INDEX[zone] !== undefined) {
-          zones.push(BET_ZONE_TO_INDEX[zone]);
-          amounts.push(amt);
-        }
-      }
+      const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nonce: STATE.nonce,
+          newBets: STATE._pendingBets || {},
+          sessionToken: STATE.sessionToken,
+        }),
+      });
       STATE._pendingBets = {};
-
-      // Single tx: place bets + roll
-      dealerSay("Rolling on-chain...", 'neutral');
-      const tx = await crapsContract.placeBetsAndRoll(STATE.tokenId, zones, amounts);
-      const receipt = await tx.wait();
-
-      // Parse DiceRolled event
-      const iface = crapsContract.interface;
-      const diceLog = receipt.logs
-        .map(l => { try { return iface.parseLog(l); } catch { return null; } })
-        .find(e => e && e.name === 'DiceRolled');
-      if (!diceLog) throw new Error('DiceRolled event not found');
-
-      d1 = Number(diceLog.args.d1);
-      d2 = Number(diceLog.args.d2);
-      total = d1 + d2;
-      netWin = Number(diceLog.args.netWin);
-      newStack = Number(diceLog.args.newStack);
-      newPhase = Number(diceLog.args.newPhase);
-      newPoint = Number(diceLog.args.newPoint);
-
-      // Sync bets from chain
-      const allBets = await crapsContract.getAllBets(STATE.tokenId);
-      syncBetsFromChain(allBets);
-
-      // Log roll to worker for multiplayer
-      try {
-        fetchWithTimeout(WORKER_URL + '/craps/log-roll', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tokenId: STATE.tokenId, table: currentTableCode || 'public-main',
-            d1, d2, total, netWin, stack: newStack, phase: newPhase,
-            point: newPoint, player: STATE.player,
-          }),
-        }).catch(() => {});
-      } catch (_) {}
+      data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Roll failed');
     }
 
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1200));
     clearInterval(cycleInterval);
 
+    const [d1, d2] = data.dice;
     STATE.dice = [d1, d2];
     renderDie(document.getElementById('face1'), d1);
     renderDie(document.getElementById('face2'), d2);
@@ -1246,11 +1182,14 @@ async function rollDice() {
 
     const prevPoint = STATE.point;
     const prevPhase = STATE.phase;
-    STATE.stack = newStack;
-    STATE.phase = newPhase === 1 ? 'point' : 'comeout';
-    STATE.point = newPoint || null;
+    STATE.stack = data.stack;
+    STATE.phase = data.phase;
+    STATE.point = data.point || null;
 
-    // Clean zero bets
+    const r = data.resolution;
+    const total = data.total;
+
+    if (data.bets) STATE.bets = data.bets;
     for (const k of Object.keys(STATE.bets)) {
       if (STATE.bets[k] === 0) delete STATE.bets[k];
     }
@@ -1268,7 +1207,6 @@ async function rollDice() {
     }
 
     // Chat messages for point lifecycle
-    total = d1 + d2;
     if (!prevPoint && STATE.point) {
       addChatMsg('system', 'POINT IS ' + STATE.point);
     } else if (prevPoint && !STATE.point && prevPhase === 'point' && total === prevPoint) {
@@ -1281,22 +1219,30 @@ async function rollDice() {
       addChatMsg('lose', total === 2 ? 'SNAKE EYES! CRAPS!' : total === 3 ? 'THREE! CRAPS!' : 'TWELVE! CRAPS!');
     }
 
-    // Dealer message based on outcome
-    if (netWin > 0) {
-      dealerSay(getWinQuip() + ' +' + netWin, 'happy');
-    } else if (total === 7 && prevPhase === 'point') {
-      dealerSay('SEVEN OUT!', 'sad');
-    } else if (prevPhase === 'comeout' && [2,3,12].includes(total)) {
-      dealerSay(total === 12 ? 'TWELVE! Craps!' : total === 2 ? 'SNAKE EYES!' : 'THREE CRAPS!', 'sad');
-    } else if (STATE.point && !prevPoint) {
-      dealerSay('Point is ' + STATE.point + '!', 'neutral');
-    } else {
-      dealerSay('Total: ' + total, 'neutral');
+    if (r.message) {
+      dealerSay(r.message, r.wins.length > 0 ? 'happy' : r.losses.length > 0 ? 'sad' : 'neutral');
+    }
+
+    await new Promise(r2 => setTimeout(r2, 200));
+    for (const key of r.wins) {
+      document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('win-flash'));
+    }
+    for (const key of r.losses) {
+      document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('lose-flash'));
     }
 
     renderAllBetChips();
     updateLocalPlayerUI();
 
+    // Show press buttons for winning bets (auto-clear after 5s)
+    if (data.pressOptions && Object.keys(data.pressOptions).length > 0) {
+      STATE.pressOptions = data.pressOptions;
+      renderPressButtons();
+      if (window._pressTimeout) clearTimeout(window._pressTimeout);
+      window._pressTimeout = setTimeout(() => clearPressButtons(), 5000);
+    }
+
+    const netWin = r.netWin || 0;
     if (netWin > 0) showToast(`+${netWin}`, 'win', `Total: ${total}`);
     else if (netWin < 0) showToast(`${netWin}`, 'lose', `Total: ${total}`);
 
@@ -1314,14 +1260,15 @@ async function rollDice() {
 
     STATE.isRolling = false;
     diceEl.classList.remove('locked');
-    setTimeout(() => startBetPhase(), 2000);
+    const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
+    setTimeout(() => startBetPhase(), hasPress ? 5000 : 2000);
     return;
 
   } catch (err) {
     clearInterval(cycleInterval);
     die1El.classList.remove('rolling');
     die2El.classList.remove('rolling');
-    dealerSay('Roll failed: ' + (err.reason || err.message || 'Network error'), 'sad');
+    dealerSay('Roll failed: ' + (err.message || 'Network error'), 'sad');
   }
 
   STATE.isRolling = false;
@@ -1405,43 +1352,53 @@ async function cashOut() {
     return;
   }
 
-  if (!STATE.tokenId) { dealerSay("No active session!", 'sad'); return; }
+  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
 
-  if (!confirm(`Cash out ~${totalPayout} cells?`)) return;
+  if (!confirm(`Cash out ${totalPayout} cells?`)) return;
 
   hideTimer();
   betsLocked = true;
   document.getElementById('tableDice').classList.add('locked');
-  dealerSay("Cashing out on-chain...", 'neutral');
+  dealerSay("Cashing out...", 'neutral');
 
   try {
-    // ── ON-CHAIN CASHOUT via CrapsGame.sol ──
+    const res = await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tokenId: STATE.tokenId,
+        nonce: STATE.nonce,
+        sessionToken: STATE.sessionToken,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Cashout failed');
+
+    if (data.payout === 0) {
+      dealerSay("Better luck next time.", 'sad');
+      sessionStorage.removeItem('craps_session');
+      STATE.nonce = null;
+      return;
+    }
+
+    dealerSay("Claiming cells on-chain...", 'neutral');
     const signer = getSigner();
     if (!signer) throw new Error('Wallet not connected');
-    const crapsContract = new ethers.Contract(CRAPS_GAME_ADDRESS, CRAPS_GAME_ABI, signer);
-    const tx = await crapsContract.cashout(STATE.tokenId);
+    const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+    const tx = await gamble.claimWinnings(STATE.tokenId, data.payout, data.nonce, data.signature);
     dealerSay("Confirming transaction...", 'neutral');
-    const receipt = await tx.wait();
+    await tx.wait();
 
-    // Parse CashedOut event
-    const iface = crapsContract.interface;
-    const cashLog = receipt.logs
-      .map(l => { try { return iface.parseLog(l); } catch { return null; } })
-      .find(e => e && e.name === 'CashedOut');
-    const payout = cashLog ? Number(cashLog.args.payout) : 0;
-
-    const profit = payout - STATE.buyIn;
+    const profit = data.payout - STATE.buyIn;
     if (profit > 0) {
       dealerSay("Winner! See ya around, partner.", 'happy');
       showToast(`+${profit}`, 'win', 'Profit!');
-    } else if (payout > 0) {
-      dealerSay("See ya around, partner.", 'neutral');
     } else {
-      dealerSay("Better luck next time.", 'sad');
+      dealerSay("See ya around, partner.", 'neutral');
     }
 
     sessionStorage.removeItem('craps_session');
-    STATE.tokenId = null;
+    STATE.nonce = null;
     STATE.bets = {};
     renderAllBetChips();
 
@@ -1453,7 +1410,7 @@ async function cashOut() {
 
 // ── Exit Table ──
 function exitTable() {
-  if (STATE.tokenId && Object.keys(STATE.bets).length > 0) {
+  if (STATE.nonce && Object.keys(STATE.bets).length > 0) {
     if (!confirm('You have active bets. Cash out first or lose them. Exit anyway?')) return;
   }
   window.location.href = 'gamble.html';

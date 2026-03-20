@@ -6,7 +6,6 @@ export const ITEMS_CONTRACT_ADDRESS   = '0x239066699C706152f6E2Fa5a82a05fC13C967
 export const QUEST_REWARDS_ADDRESS    = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
 export const MARKET_ADDRESS           = '0x204203b3495C940293b87cF1ff4ce7EEf81F1A1A';
 export const GAMBLE_ADDRESS           = '0x42Ae979c86cF4868F8648A1eec16567CbBF19698';
-export const CRAPS_GAME_ADDRESS       = '0x0000000000000000000000000000000000000000'; // Deploy with deployCraps.js
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
 
 export const LASTCHAD_ABI = [
@@ -192,28 +191,4 @@ export const MARKET_ABI = [
   'event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice)',
   'function setLastChadContract(address _lastChad)',
   'function lastChadContract() view returns (address)',
-];
-
-export const CRAPS_GAME_ABI = [
-  // Session management
-  'function startSession(uint256 tokenId, uint256 wager) external',
-  'function placeBets(uint256 tokenId, uint8[] zones, uint256[] amounts) external',
-  'function placeBetsAndRoll(uint256 tokenId, uint8[] zones, uint256[] amounts) external',
-  'function roll(uint256 tokenId) external',
-  'function cashout(uint256 tokenId) external',
-  // Admin
-  'function setWagerLimits(uint256 min, uint256 max) external',
-  'function forceEnd(uint256 tokenId) external',
-  // View
-  'function getSession(uint256 tokenId) view returns (address player, uint256 stack, uint8 phase, uint8 point, uint256 rollCount, bytes32 baseSeed, bool active)',
-  'function getAllBets(uint256 tokenId) view returns (uint256[26])',
-  'function previewDice(uint256 tokenId) view returns (uint8 d1, uint8 d2)',
-  'function minWager() view returns (uint256)',
-  'function maxWager() view returns (uint256)',
-  // Events
-  'event SessionStarted(uint256 indexed tokenId, address indexed player, uint256 wager, bytes32 seed)',
-  'event BetsPlaced(uint256 indexed tokenId, uint8[] zones, uint256[] amounts)',
-  'event DiceRolled(uint256 indexed tokenId, uint8 d1, uint8 d2, int256 netWin, uint256 newStack, uint8 newPhase, uint8 newPoint)',
-  'event CashedOut(uint256 indexed tokenId, uint256 payout)',
-  'event SessionForceEnded(uint256 indexed tokenId, uint256 payout)',
 ];
