@@ -70,9 +70,8 @@
 
     /* ── Felt Table Area ── */
     .table-area{
-      flex:1;position:relative;overflow:hidden;
+      flex:0 0 auto;position:relative;
       display:flex;flex-direction:column;
-      min-height:0;
     }
     .felt-container{
       flex:0 0 auto;position:relative;
@@ -440,7 +439,7 @@
     /* ── Chat Box ── */
     /* ── Chat Box ── */
     .chat-box{
-      flex:0 0 140px;height:140px;
+      flex:0 0 180px;height:180px;
       display:flex;flex-direction:column;
       background:rgba(10,10,15,0.95);
       border-top:2px solid #2a3a1a;
@@ -774,8 +773,10 @@
       </div><!-- /table-image-wrap -->
     </div><!-- /felt-container -->
 
-    <!-- CHAT BOX (directly under craps table) -->
-    <div class="chat-box">
+  </div><!-- /table-area -->
+
+  <!-- CHAT BOX -->
+  <div class="chat-box">
     <div class="chat-header">TABLE CHAT</div>
     <div class="chat-messages" id="chatMessages">
       <div class="chat-msg system-msg">Welcome! Up to 3 players.</div>
@@ -785,7 +786,6 @@
       <button class="chat-send" onclick="sendChat()">></button>
     </div>
   </div>
-  </div><!-- /table-area -->
 
   <!-- Remote Players Row (below chat) -->
   <div class="dealer-row">
