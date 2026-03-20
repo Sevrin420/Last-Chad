@@ -242,37 +242,38 @@
     .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
     .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
     .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
-    /* Default corner positions for place bets (4 players, each gets a corner) */
-    .bet-chip-token.pos-0{bottom:2px;right:2px}
-    .bet-chip-token.pos-1{bottom:2px;left:2px}
-    .bet-chip-token.pos-2{top:2px;right:2px}
-    .bet-chip-token.pos-3{top:2px;left:2px}
+    /* ── Place Bets chip positions — inside boxes ──
+       p0 (local): top-left, p1 (remote1): top-right, p2 (remote2): bottom-left */
+    .bet-chip-token.pos-0{top:8%;left:8%}
+    .bet-chip-token.pos-1{top:8%;right:8%;left:auto}
+    .bet-chip-token.pos-2{bottom:8%;left:8%;top:auto}
+    .bet-chip-token.pos-3{bottom:8%;right:8%;top:auto;left:auto}
 
-    /* Hard ways — center chips in each box */
-    .bet-hard4  .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
-    .bet-hard4  .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
-    .bet-hard4  .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
-    .bet-hard6  .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
-    .bet-hard6  .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
-    .bet-hard6  .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
-    .bet-hard8  .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
-    .bet-hard8  .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
-    .bet-hard8  .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
-    .bet-hard10 .bet-chip-token.pos-0{top:50%;left:50%;transform:translate(-50%,-50%)}
-    .bet-hard10 .bet-chip-token.pos-1{top:50%;left:20%;transform:translate(-50%,-50%)}
-    .bet-hard10 .bet-chip-token.pos-2{top:50%;left:80%;transform:translate(-50%,-50%)}
+    /* ── Hardways — same corner layout inside each box ── */
+    .bet-hard4  .bet-chip-token.pos-0,
+    .bet-hard6  .bet-chip-token.pos-0,
+    .bet-hard8  .bet-chip-token.pos-0,
+    .bet-hard10 .bet-chip-token.pos-0{top:6%;left:6%}
+    .bet-hard4  .bet-chip-token.pos-1,
+    .bet-hard6  .bet-chip-token.pos-1,
+    .bet-hard8  .bet-chip-token.pos-1,
+    .bet-hard10 .bet-chip-token.pos-1{top:6%;right:6%;left:auto}
+    .bet-hard4  .bet-chip-token.pos-2,
+    .bet-hard6  .bet-chip-token.pos-2,
+    .bet-hard8  .bet-chip-token.pos-2,
+    .bet-hard10 .bet-chip-token.pos-2{bottom:6%;left:6%;top:auto}
 
-    /* Field — stack chips vertically in the tall left column */
+    /* ── Field — stack chips vertically in the tall left column ── */
     .bet-field .bet-chip-token.pos-0{top:30%;left:50%;transform:translate(-50%,-50%)}
     .bet-field .bet-chip-token.pos-1{top:50%;left:50%;transform:translate(-50%,-50%)}
     .bet-field .bet-chip-token.pos-2{top:70%;left:50%;transform:translate(-50%,-50%)}
     .bet-field .bet-chip-token.pos-3{top:90%;left:50%;transform:translate(-50%,-50%)}
 
-    /* Pass line — center chips in bottom-right box */
-    .bet-pass .bet-chip-token.pos-0{top:50%;left:35%;transform:translate(-50%,-50%)}
-    .bet-pass .bet-chip-token.pos-1{top:50%;left:55%;transform:translate(-50%,-50%)}
-    .bet-pass .bet-chip-token.pos-2{top:50%;left:75%;transform:translate(-50%,-50%)}
-    .bet-pass .bet-chip-token.pos-3{top:50%;left:15%;transform:translate(-50%,-50%)}
+    /* ── Pass line — all chips left of the "1:1" text ── */
+    .bet-pass .bet-chip-token.pos-0{top:50%;left:10%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-1{top:50%;left:25%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-2{top:50%;left:40%;transform:translate(-50%,-50%)}
+    .bet-pass .bet-chip-token.pos-3{top:30%;left:10%;transform:translate(-50%,-50%)}
 
     /* ── On-table HUD — bottom strip of image ── */
     .table-hud{
