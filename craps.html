@@ -159,6 +159,11 @@
     /* ── Puck ── */
     .puck{position:absolute;width:28px;height:28px;top:1%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
     .puck img{width:100%;height:100%;object-fit:contain}
+    .puck.on-glow{
+      filter:drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 0 20px rgba(255,180,0,0.6));
+      animation:puck-glow 1.5s ease-in-out infinite;
+    }
+    @keyframes puck-glow{0%,100%{filter:drop-shadow(0 0 8px rgba(255,215,0,0.7)) drop-shadow(0 0 16px rgba(255,180,0,0.4))}50%{filter:drop-shadow(0 0 14px rgba(255,215,0,1)) drop-shadow(0 0 28px rgba(255,180,0,0.8))}}
 
     /* ── Bet Zone Overlay (positioned on crapstable image) ── */
     .bet-grid{
@@ -896,6 +901,9 @@ async function placeBet(zone) {
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
     dealerSay("Place bets open after point.", 'neutral'); return;
   }
+  if (zone === 'pass' && STATE.phase === 'point') {
+    dealerSay("Pass line only on come-out roll.", 'neutral'); return;
+  }
   STATE.stack -= amount;
   STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
   if (!STATE._pendingBets) STATE._pendingBets = {};
@@ -1222,10 +1230,12 @@ async function rollDice() {
 
     if (STATE.phase === 'point' && STATE.point) {
       document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+      document.getElementById('puck').classList.add('on-glow');
       document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
       movePuckToPoint(STATE.point);
     } else {
       document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+      document.getElementById('puck').classList.remove('on-glow');
       document.getElementById('pointDisplay').textContent = '';
       resetPuckPosition();
     }
@@ -1354,6 +1364,7 @@ async function cashOut() {
     STATE.phase = 'comeout';
     STATE.point = null;
     document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+    document.getElementById('puck').classList.remove('on-glow');
     document.getElementById('pointDisplay').textContent = '';
     resetPuckPosition();
     renderAllBetChips();
