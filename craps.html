@@ -438,16 +438,17 @@
 
 
     /* ── Chat Box ── */
+    /* ── Chat Box ── */
     .chat-box{
-      flex:0 0 auto;height:120px;
+      flex:0 0 auto;max-height:180px;
       display:flex;flex-direction:column;
       background:rgba(10,10,15,0.95);
       border-top:2px solid #2a3a1a;
       border-bottom:2px solid #2a3a1a;
     }
     .chat-header{padding:4px 8px;font-size:0.28rem;color:#4caf50;border-bottom:1px solid #1a2a0a;flex-shrink:0}
-    .chat-messages{flex:1;overflow-y:auto;padding:4px 8px;display:flex;flex-direction:column;gap:3px}
-    .chat-msg{font-size:0.22rem;line-height:1.4;padding:3px 6px;border-radius:3px;background:rgba(0,0,0,0.3)}
+    .chat-messages{overflow-y:auto;padding:4px 8px;display:flex;flex-direction:column;gap:3px}
+    .chat-msg{font-size:0.33rem;line-height:1.4;padding:3px 6px;border-radius:3px;background:rgba(0,0,0,0.3)}
     .chat-msg .msg-name{font-weight:bold}
     .chat-msg .msg-text{color:#ccc}
     .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
@@ -460,12 +461,12 @@
     .chat-msg .msg-name.p3{color:var(--p4-color)}
     .chat-input-area{display:flex;gap:6px;padding:6px 8px;border-top:1px solid #1a2a0a;flex-shrink:0}
     .chat-input{
-      flex:1;font-family:'Press Start 2P',monospace;font-size:0.2rem;
+      flex:1;font-family:'Press Start 2P',monospace;font-size:0.3rem;
       padding:9px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
     }
     .chat-input:focus{border-color:#4caf50}
     .chat-send{
-      font-family:'Press Start 2P',monospace;font-size:0.6rem;
+      font-family:'Press Start 2P',monospace;font-size:0.9rem;
       padding:9px 18px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
     }
 
