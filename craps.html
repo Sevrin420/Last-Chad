@@ -253,10 +253,16 @@
     .bet-chip-token.pos-1{top:8%;right:2%;left:auto}
     .bet-chip-token.pos-2{bottom:8%;left:2%;top:auto}
     .bet-chip-token.pos-3{bottom:8%;right:2%;top:auto;left:auto}
-    /* Nudge 4,5,6 place bet chips further left */
-    .bet-place4 .bet-chip-token{left:-8%}
-    .bet-place5 .bet-chip-token{left:-8%}
-    .bet-place6 .bet-chip-token{left:-8%}
+    /* Nudge 4,5,6 local player chips left, remote chips right */
+    .bet-place4 .bet-chip-token.pos-0{left:-8%}
+    .bet-place5 .bet-chip-token.pos-0{left:-8%}
+    .bet-place6 .bet-chip-token.pos-0{left:-8%}
+    .bet-place4 .bet-chip-token.pos-1{right:-8%;left:auto}
+    .bet-place5 .bet-chip-token.pos-1{right:-8%;left:auto}
+    .bet-place6 .bet-chip-token.pos-1{right:-8%;left:auto}
+    .bet-place4 .bet-chip-token.pos-2{left:-8%}
+    .bet-place5 .bet-chip-token.pos-2{left:-8%}
+    .bet-place6 .bet-chip-token.pos-2{left:-8%}
 
     /* ── Hardways — chips inside box, top-left near number ── */
     .bet-hard4  .bet-chip-token.pos-0,
