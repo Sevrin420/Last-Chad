@@ -93,32 +93,53 @@
       display:block; width:100%; height:auto;
     }
 
-    /* ── Remote Players Row (below chat) ── */
-    .dealer-row{
-      position:relative;z-index:15;
-      display:flex;align-items:center;
-      padding:4px 8px;gap:6px;
+    /* ── Player Bar (below chat) ── */
+    .player-bar{
+      flex:1;
+      display:flex;align-items:stretch;
       background:rgba(10,10,15,0.9);
       border-top:2px solid #2a3a1a;
-      border-bottom:2px solid #2a5a1a;
-      flex-shrink:0;
-      justify-content:center;
+      min-height:0;
     }
-    .remote-slot{
-      display:flex;align-items:center;gap:4px;
-      padding:3px 6px;border-radius:4px;
-      background:rgba(0,0,0,0.25);
-      border:2px solid #333;
-      flex-shrink:0;
+    .remote-card{
+      flex:1;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:6px;padding:8px;
+      border-right:1px solid #1a2a0a;
     }
-    .remote-slot.occupied{border-color:var(--slot-color,#555)}
-    .remote-slot .slot-name{
+    .remote-card[data-seat="1"]{--slot-color:var(--p2-color)}
+    .remote-card[data-seat="2"]{--slot-color:var(--p3-color)}
+    .remote-avatar{
+      width:60px;height:60px;
+      border:3px solid var(--slot-color,#333);
+      border-radius:6px;
+      background:rgba(0,0,0,0.4);
+      display:flex;align-items:center;justify-content:center;
+      overflow:hidden;
+      image-rendering:pixelated;
+    }
+    .remote-avatar img{width:100%;height:100%;object-fit:cover;display:none}
+    .remote-avatar img.visible{display:block}
+    .remote-name{
       font-size:0.22rem;color:var(--slot-color,#555);
-      max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      max-width:100%;
     }
-    .remote-slot.empty .slot-name{color:#555;font-style:italic}
-    .remote-slot[data-seat="1"]{--slot-color:var(--p2-color);--slot-glow:var(--p2-glow)}
-    .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
+    .ptt-card{
+      flex:1;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:6px;padding:8px;
+    }
+    .ptt-card-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.22rem;
+      width:100%;height:100%;min-height:60px;
+      border:3px solid #e67e22;border-radius:6px;
+      background:rgba(90,58,10,0.4);color:#e67e22;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      text-align:center;line-height:1.5;padding:6px;
+    }
+    .ptt-card-btn:hover{background:rgba(90,58,10,0.7)}
+    .ptt-card-btn.talking{background:rgba(90,58,10,0.9);border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
 
     /* ── Announcer Overlay (over craps table) ── */
     .announcer-overlay{
@@ -198,7 +219,7 @@
     @keyframes press-pulse{0%,100%{box-shadow:0 0 6px rgba(76,175,80,0.4)}50%{box-shadow:0 0 14px rgba(76,175,80,0.8)}}
 
     /* ── Puck ── */
-    .puck{position:absolute;width:56px;height:56px;top:1%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
+    .puck{position:absolute;width:42px;height:42px;top:1%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
     .puck img{width:100%;height:100%;object-fit:contain}
     .puck.on-glow{
       filter:drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 0 20px rgba(255,180,0,0.6));
@@ -469,54 +490,12 @@
       padding:9px 18px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
     }
 
-    /* ── Bottom Controls Row ── */
-    .bottom-row{
-      display:flex;align-items:center;
-      background:rgba(10,10,15,0.95);
-      padding:5px 10px;gap:6px;
-      flex-shrink:0;
-    }
-    .local-player{
-      display:flex;align-items:center;gap:5px;
-      padding:3px 6px;border-right:1px solid #2a3a1a;flex-shrink:0;
-    }
-    .local-player .player-info{display:flex;flex-direction:column;gap:2px}
-    .local-player .nft-name{font-size:0.22rem;color:var(--p1-color);white-space:nowrap}
-    .local-player .player-stack-lbl{font-size:0.2rem;color:var(--p1-color)}
-
-    .chip-tray{display:flex;gap:4px;align-items:center;padding:0 4px}
-    .chip{
-      width:34px;height:34px;border-radius:50%;cursor:pointer;
-      border:3px solid transparent;transition:all 0.15s;
-      position:relative;overflow:hidden;
-      background-image:url('assets/Oldjipt/Craps/jiptchips.png');
-      background-size:300% 300%;
-    }
-    .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
-    .chip.selected{border-color:var(--p1-color);box-shadow:0 0 14px var(--p1-glow);transform:scale(1.15)}
-    .chip-1-sprite{background-position:0% 0%}
-    .chip-5-sprite{background-position:50% 0%}
-    .chip-10-sprite{background-position:100% 0%}
-    .chip-25-sprite{background-position:0% 50%}
-
-    .point-display{font-size:0.28rem;color:#ffe96a;padding:0 4px}
-
     .controls{display:flex;gap:4px;margin-left:auto;align-items:center}
     .ctrl-btn{
       font-family:'Press Start 2P',monospace;font-size:0.3rem;
       padding:7px 10px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
-
-    .audio-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.22rem;
-      padding:5px 7px;border:2px solid #555;border-radius:4px;
-      background:#1a1a2e;color:#ccc;cursor:pointer;white-space:nowrap;
-    }
-    .audio-btn:hover{border-color:#4caf50;color:#4caf50}
-    .audio-btn.active{border-color:#4caf50;background:#1a3a1a;color:#4caf50}
-    .audio-btn.ptt{border-color:#e67e22;color:#e67e22}
-    .audio-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
     @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
 
     /* ── Result Toast ── */
@@ -593,13 +572,10 @@
     /* ── Responsive ── */
     @media(max-width:600px){
       .dealer-row{flex-wrap:wrap;gap:4px}
-      .remote-slot .slot-portrait{width:24px;height:28px}
-      .remote-slot .slot-name{font-size:0.14rem;max-width:40px}
       .bet-zone:hover .zone-label{font-size:0.2rem}
       .bet-zone:hover .zone-payout{font-size:0.12rem}
-      .bottom-row{flex-wrap:wrap;justify-content:center;gap:4px;padding:4px 6px}
-      .ctrl-btn{font-size:0.25rem;padding:5px 7px}
-      .chat-box{min-height:84px;max-height:168px}
+      .remote-avatar{width:44px;height:44px}
+      .remote-name{font-size:0.16rem}
       .table-stack-value{font-size:0.9rem}
       .table-stack-label{font-size:0.35rem}
       .table-chip-tray .chip{width:34px;height:34px}
@@ -665,6 +641,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Test Chips Button (top-left, above place bets) -->
+      <button onclick="testRemoteChips()" style="position:absolute;top:1%;left:1%;z-index:25;font-family:'Press Start 2P',monospace;font-size:0.18rem;padding:4px 7px;background:#333;border:1px solid #555;color:#aaa;border-radius:3px;cursor:pointer;opacity:0.7">TEST CHIPS</button>
 
       <!-- Puck -->
       <div class="puck" id="puck">
@@ -787,23 +766,28 @@
     </div>
   </div>
 
-  <!-- Remote Players Row (below chat) -->
-  <div class="dealer-row">
-    <div class="remote-slot empty" id="slot-1" data-seat="1">
-      <div class="slot-name" id="name-1">Waiting</div>
+  <!-- Player Bar (below chat) -->
+  <div class="player-bar">
+    <div class="remote-card" id="slot-1" data-seat="1">
+      <div class="remote-avatar" id="avatar-1">
+        <img id="avatarImg-1" src="" alt="" />
+      </div>
+      <div class="remote-name" id="name-1">Waiting</div>
     </div>
-    <div class="remote-slot empty" id="slot-2" data-seat="2">
-      <div class="slot-name" id="name-2">Waiting</div>
+    <div class="remote-card" id="slot-2" data-seat="2">
+      <div class="remote-avatar" id="avatar-2">
+        <img id="avatarImg-2" src="" alt="" />
+      </div>
+      <div class="remote-name" id="name-2">Waiting</div>
+    </div>
+    <div class="ptt-card">
+      <button class="ptt-card-btn" id="pttBtn">PUSH TO TALK</button>
     </div>
   </div>
 
-  <!-- BOTTOM ROW -->
-  <div class="bottom-row">
-    <div id="pointDisplay" style="display:none"></div>
-    <button class="audio-btn ptt" id="pttBtn">HOLD TO TALK</button>
-    <div class="controls">
-      <button class="ctrl-btn" style="background:#555;color:#fff" onclick="testRemoteChips()">TEST CHIPS</button>
-    </div>
+  <!-- BOTTOM ROW (test button only) -->
+  <div style="display:none" id="bottomRow">
+    <div id="pointDisplay"></div>
   </div>
 
 </div><!-- /table-wrapper -->
@@ -1764,7 +1748,7 @@ async function joinRoom() {
   async function stopTalking() {
     if (!pttActive) return;
     if (localAudioTrack) { await agoraClient.unpublish([localAudioTrack]); localAudioTrack.close(); localAudioTrack=null; }
-    pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'HOLD TO TALK';
+    pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'PUSH TO TALK';
   }
   pttBtn.addEventListener('mousedown', startTalking);
   pttBtn.addEventListener('mouseup', stopTalking);
