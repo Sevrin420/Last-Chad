@@ -35,7 +35,22 @@
       backdrop-filter:blur(8px);height:40px;
     }
     .header-left{display:flex;align-items:center;gap:10px}
-    .header-title{font-size:0.5rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4)}
+    .header-title{font-size:0.5rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4);display:none}
+    .header-action-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.35rem;
+      padding:6px 12px;border-radius:5px;cursor:pointer;
+      border:2px solid #5c4409;color:#1a1005;
+      background:linear-gradient(180deg,#c9a84c 0%,#8b6914 100%);
+      box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
+      white-space:nowrap;
+    }
+    .header-action-btn:hover{background:linear-gradient(180deg,#dabb5e 0%,#a07d1e 100%)}
+    .header-action-btn.cashout-mode{
+      border-color:#e53935;
+      background:linear-gradient(180deg,#e53935 0%,#b71c1c 100%);
+      color:#fff;
+    }
+    .header-action-btn.cashout-mode:hover{background:linear-gradient(180deg,#ef5350 0%,#c62828 100%)}
     .wallet-btn{
       font-family:'Press Start 2P',monospace;font-size:0.35rem;
       padding:6px 12px;border-radius:5px;cursor:pointer;
@@ -122,29 +137,29 @@
       max-width:90%;
     }
     .announcer-portrait{
-      width:56px;height:66px;image-rendering:pixelated;
+      width:112px;height:132px;image-rendering:pixelated;
       border:2px solid #5c4409;border-radius:4px;
       box-shadow:0 2px 8px rgba(0,0,0,0.6);
       flex-shrink:0;
     }
     .announcer-content{
-      display:flex;flex-direction:column;gap:4px;
+      display:flex;flex-direction:column;gap:6px;
       min-width:0;
     }
     .announcer-call{
-      font-size:0.4rem;color:#ffe96a;
+      font-size:0.8rem;color:#ffe96a;
       text-shadow:0 0 10px rgba(255,233,106,0.6), 2px 2px 4px rgba(0,0,0,0.9);
       line-height:1.4;
     }
     .announcer-sub{
-      font-size:0.22rem;color:#f5e6c8;
+      font-size:0.4rem;color:#f5e6c8;
       line-height:1.3;opacity:0.85;
     }
     .announcer-dice{
-      display:flex;gap:6px;align-items:center;
+      display:flex;gap:10px;align-items:center;
     }
     .announcer-die{
-      width:36px;height:36px;
+      width:56px;height:56px;
       background:#e8e8e8;
       background-image:linear-gradient(145deg,#f8f8f8 0%,#d2d2d2 50%,#a2a2a2 100%);
       border:2px solid #9a9a9a;border-radius:6px;
@@ -161,11 +176,11 @@
       visibility:hidden;
     }
     @media(max-width:600px){
-      .announcer-inner{padding:6px 10px;gap:6px}
-      .announcer-portrait{width:40px;height:48px}
-      .announcer-call{font-size:0.3rem}
-      .announcer-sub{font-size:0.18rem}
-      .announcer-die{width:28px;height:28px}
+      .announcer-inner{padding:8px 12px;gap:8px}
+      .announcer-portrait{width:80px;height:96px}
+      .announcer-call{font-size:0.55rem}
+      .announcer-sub{font-size:0.3rem}
+      .announcer-die{width:40px;height:40px}
     }
 
     /* ── Press Button (appears on winning bets) ── */
@@ -491,10 +506,6 @@
       padding:7px 10px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
-    .btn-clear{background:linear-gradient(180deg,#e53935,#b71c1c);border-color:#ef5350;color:#fff}
-    .btn-clear:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
-    .btn-cashout{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
-    .btn-cashout:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
 
     .audio-btn{
       font-family:'Press Start 2P',monospace;font-size:0.22rem;
@@ -506,12 +517,6 @@
     .audio-btn.ptt{border-color:#e67e22;color:#e67e22}
     .audio-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
     @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
-    .btn-exit{
-      font-family:'Press Start 2P',monospace;font-size:0.22rem;
-      padding:5px 8px;border:2px solid #e53935;border-radius:4px;
-      background:rgba(229,57,53,0.15);color:#e53935;cursor:pointer;
-    }
-    .btn-exit:hover{background:rgba(229,57,53,0.3)}
 
     /* ── Result Toast ── */
     .result-toast{
@@ -608,7 +613,7 @@
 <div class="game-header">
   <div class="header-left">
     <div id="nav-placeholder"></div>
-    <span class="header-title">CRAPS TABLE</span>
+    <button class="header-action-btn" id="headerActionBtn" onclick="headerAction()">CLEAR CHIPS</button>
   </div>
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
 </div>
@@ -795,10 +800,7 @@
     <div id="pointDisplay" style="display:none"></div>
     <button class="audio-btn ptt" id="pttBtn">HOLD TO TALK</button>
     <div class="controls">
-      <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
-      <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
       <button class="ctrl-btn" style="background:#555;color:#fff" onclick="testRemoteChips()">TEST CHIPS</button>
-      <button class="btn-exit" onclick="exitTable()">EXIT</button>
     </div>
   </div>
 
@@ -1048,6 +1050,34 @@ function clearBets() {
 function updateLocalPlayerUI() {
   const tableStack = document.getElementById('tableStackDisplay');
   if (tableStack) tableStack.textContent = STATE.stack;
+  updateHeaderButton();
+}
+
+function hasNonPassBets() {
+  for (const zone of Object.keys(STATE.bets)) {
+    if (zone !== 'pass' && STATE.bets[zone] > 0) return true;
+  }
+  return false;
+}
+
+function updateHeaderButton() {
+  const btn = document.getElementById('headerActionBtn');
+  if (!btn) return;
+  if (hasNonPassBets()) {
+    btn.textContent = 'CLEAR CHIPS';
+    btn.classList.remove('cashout-mode');
+  } else {
+    btn.textContent = 'CASH OUT';
+    btn.classList.add('cashout-mode');
+  }
+}
+
+function headerAction() {
+  if (hasNonPassBets()) {
+    clearBets();
+  } else {
+    cashOut();
+  }
 }
 
 // ── Turn Phase System ──
@@ -1395,7 +1425,7 @@ function showAnnouncer(d1, d2, phase, sub) {
   announcerTimeout = setTimeout(() => {
     overlay.classList.remove('visible');
     announcerTimeout = null;
-  }, 3000);
+  }, 6000);
 }
 
 function dealerSay(text, mood) {
@@ -1417,7 +1447,7 @@ function dealerSay(text, mood) {
   announcerTimeout = setTimeout(() => {
     overlay.classList.remove('visible');
     announcerTimeout = null;
-  }, 3000);
+  }, 6000);
 }
 
 function getWinQuip() {
@@ -1880,6 +1910,7 @@ window.connectWallet = connectWallet;
 window.placeBet = placeBet;
 window.selectChip = selectChip;
 window.clearBets = clearBets;
+window.headerAction = headerAction;
 window.sendChat = sendChat;
 window.joinRoom = joinRoom;
 window.joinPublicTable = joinPublicTable;
