@@ -614,7 +614,7 @@
 <div class="game-header">
   <div class="header-left">
     <div id="nav-placeholder"></div>
-    <button class="header-action-btn" id="headerActionBtn" onclick="headerAction()">CLEAR CHIPS</button>
+    <button class="header-action-btn" id="headerActionBtn" onclick="headerAction()">CLEAR / CASH OUT</button>
   </div>
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
 </div>
@@ -1065,10 +1065,8 @@ function updateHeaderButton() {
   const btn = document.getElementById('headerActionBtn');
   if (!btn) return;
   if (hasNonPassBets()) {
-    btn.textContent = 'CLEAR CHIPS';
     btn.classList.remove('cashout-mode');
   } else {
-    btn.textContent = 'CASH OUT';
     btn.classList.add('cashout-mode');
   }
 }
