@@ -1300,7 +1300,8 @@ async function rollDice() {
     } else if (r.message) {
       announcerSub = r.message;
     }
-    showAnnouncer(d1, d2, announcerPhase, announcerSub);
+    const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
+    showAnnouncer(d1, d2, announcerPhase, announcerSub, isNewPoint);
 
     await new Promise(r2 => setTimeout(r2, 200));
     for (const key of r.wins) {
@@ -1387,18 +1388,30 @@ function getDiceCallKey(d1, d2) {
 
 let announcerTimeout = null;
 
-function showAnnouncer(d1, d2, phase, sub) {
+function showAnnouncer(d1, d2, phase, sub, isNewPoint) {
   const key = getDiceCallKey(d1, d2);
   const entry = DICE_CALLS[key];
   if (!entry) return;
 
-  let callText = entry.call;
-  if (entry.comeout && phase === 'comeout') callText = entry.comeout;
-  else if (entry.point && phase === 'point') callText = entry.point;
+  let callText, mood;
 
-  const mood = (callText.includes('Winner') || callText === 'Yo, 11 Yo') ? 'happy'
-    : (callText.includes('Out') || callText.includes('Snake') || callText === 'Boxcars 12' || callText === 'Craps 3') ? 'sad'
-    : entry.mood || 'neutral';
+  if (isNewPoint) {
+    const total = d1 + d2;
+    const isHard = d1 === d2;
+    const hardWayNums = [4, 6, 8, 10];
+    callText = 'New Point. Point of ' + total + '.';
+    if (hardWayNums.includes(total)) {
+      callText += ' ' + (isHard ? 'Hard ' : 'Easy ') + total;
+    }
+    mood = 'neutral';
+  } else {
+    callText = entry.call;
+    if (entry.comeout && phase === 'comeout') callText = entry.comeout;
+    else if (entry.point && phase === 'point') callText = entry.point;
+    mood = (callText.includes('Winner') || callText === 'Yo, 11 Yo') ? 'happy'
+      : (callText.includes('Out') || callText.includes('Snake') || callText === 'Boxcars 12' || callText === 'Craps 3') ? 'sad'
+      : entry.mood || 'neutral';
+  }
   const moodMap = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
 
   const overlay = document.getElementById('announcerOverlay');
