@@ -274,10 +274,47 @@
     .bet-pass .bet-chip-token.pos-2{top:50%;left:75%;transform:translate(-50%,-50%)}
     .bet-pass .bet-chip-token.pos-3{top:50%;left:15%;transform:translate(-50%,-50%)}
 
-    /* ── Dice on felt — stacked in bottom-left corner ── */
+    /* ── On-table HUD — bottom strip of image ── */
+    .table-hud{
+      position:absolute;bottom:0;left:0;right:0;
+      height:14%;z-index:14;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 2%;
+      pointer-events:none;
+    }
+    .table-hud > *{pointer-events:auto}
+
+    /* Stack display — bottom-left */
+    .table-stack{
+      display:flex;flex-direction:column;align-items:center;gap:2px;
+    }
+    .table-stack-label{
+      font-size:0.18rem;color:#8a7a5a;text-shadow:1px 1px 2px #000;
+    }
+    .table-stack-value{
+      font-size:0.45rem;color:#ffe96a;
+      text-shadow:0 0 10px rgba(255,233,106,0.5),2px 2px 4px rgba(0,0,0,0.9);
+    }
+
+    /* Chip tray — bottom-center (on felt) */
+    .table-chip-tray{
+      display:flex;gap:6px;align-items:center;
+    }
+    .table-chip-tray .chip{
+      width:clamp(32px,8vw,48px);height:clamp(32px,8vw,48px);
+      border-radius:50%;cursor:pointer;
+      border:3px solid transparent;transition:all 0.15s;
+      position:relative;overflow:hidden;
+      background-image:url('assets/Oldjipt/Craps/jiptchips.png');
+      background-size:300% 300%;
+    }
+    .table-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
+    .table-chip-tray .chip.selected{border-color:var(--p1-color);box-shadow:0 0 14px var(--p1-glow);transform:scale(1.15)}
+
+    /* ── Dice on felt — bottom-right ── */
     .table-dice{
-      position:absolute;bottom:1%;left:1%;
-      display:flex;flex-direction:column;gap:4px;z-index:15;
+      position:relative;
+      display:flex;flex-direction:row;gap:6px;z-index:15;
       cursor:pointer;
     }
     .table-dice.can-roll{
@@ -314,9 +351,9 @@
       visibility:hidden;
     }
 
-    /* Roll prompt — above stacked dice in bottom-left */
+    /* Roll prompt — above dice on the right */
     .roll-prompt{
-      position:absolute;bottom:55%;left:1%;
+      position:absolute;bottom:15%;right:2%;
       z-index:20;font-size:0.22rem;color:#ffe96a;
       text-shadow:0 0 8px rgba(255,233,106,0.6);
       animation:prompt-blink 1.5s ease-in-out infinite;
@@ -536,9 +573,13 @@
       .bet-zone:hover .zone-payout{font-size:0.12rem}
       .bottom-row{flex-wrap:wrap;justify-content:center;gap:4px;padding:4px 6px}
       .local-player .portrait-frame{width:30px;height:36px}
-      .chip{width:28px;height:28px}
       .ctrl-btn{font-size:0.25rem;padding:5px 7px}
       .chat-box{min-height:70px;max-height:140px}
+      .table-stack-value{font-size:0.3rem}
+      .table-stack-label{font-size:0.14rem}
+      .table-chip-tray .chip{width:28px;height:28px}
+      .table-chip-tray{gap:4px}
+      .die{width:36px!important;height:36px!important}
     }
   </style>
 </head>
@@ -681,10 +722,22 @@
         </div>
       </div><!-- /bet-grid -->
 
-      <!-- Dice (clickable) -->
-      <div class="table-dice can-roll" id="tableDice" onclick="rollDice()">
-        <div class="die" id="die1"><div class="die-face" id="face1"></div></div>
-        <div class="die" id="die2"><div class="die-face" id="face2"></div></div>
+      <!-- On-table HUD: stack (left), chips (center), dice (right) -->
+      <div class="table-hud">
+        <div class="table-stack">
+          <div class="table-stack-label">CHIPS</div>
+          <div class="table-stack-value" id="tableStackDisplay">0</div>
+        </div>
+        <div class="table-chip-tray">
+          <div class="chip chip-1-sprite selected" data-value="1" onclick="selectChip(1)"></div>
+          <div class="chip chip-5-sprite" data-value="5" onclick="selectChip(5)"></div>
+          <div class="chip chip-10-sprite" data-value="10" onclick="selectChip(10)"></div>
+          <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
+        </div>
+        <div class="table-dice can-roll" id="tableDice" onclick="rollDice()">
+          <div class="die" id="die1"><div class="die-face" id="face1"></div></div>
+          <div class="die" id="die2"><div class="die-face" id="face2"></div></div>
+        </div>
       </div>
 
       <!-- Roll prompt -->
@@ -725,12 +778,6 @@
         <div class="nft-name" id="name-0">Connect Wallet</div>
         <div class="player-stack-lbl" id="stack-0"></div>
       </div>
-    </div>
-    <div class="chip-tray">
-      <div class="chip chip-1-sprite selected" data-value="1" onclick="selectChip(1)"></div>
-      <div class="chip chip-5-sprite" data-value="5" onclick="selectChip(5)"></div>
-      <div class="chip chip-10-sprite" data-value="10" onclick="selectChip(10)"></div>
-      <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
     </div>
     <div class="point-display" id="pointDisplay"></div>
     <button class="audio-btn ptt" id="pttBtn">HOLD TO TALK</button>
@@ -981,6 +1028,8 @@ function clearBets() {
 
 function updateLocalPlayerUI() {
   document.getElementById('stack-0').textContent = STATE.stack + ' chips';
+  const tableStack = document.getElementById('tableStackDisplay');
+  if (tableStack) tableStack.textContent = STATE.stack;
 }
 
 // ── Turn Phase System ──
