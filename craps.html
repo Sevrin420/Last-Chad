@@ -975,6 +975,7 @@ function pressBet(zone) {
 }
 
 function clearPressButtons() {
+  if (window._pressTimeout) { clearTimeout(window._pressTimeout); window._pressTimeout = null; }
   STATE.pressOptions = {};
   document.querySelectorAll('.press-btn').forEach(el => el.remove());
 }
@@ -1222,10 +1223,12 @@ async function rollDice() {
     renderAllBetChips();
     updateLocalPlayerUI();
 
-    // Show press buttons for winning bets
+    // Show press buttons for winning bets (auto-clear after 5s)
     if (data.pressOptions && Object.keys(data.pressOptions).length > 0) {
       STATE.pressOptions = data.pressOptions;
       renderPressButtons();
+      if (window._pressTimeout) clearTimeout(window._pressTimeout);
+      window._pressTimeout = setTimeout(() => clearPressButtons(), 5000);
     }
 
     const netWin = r.netWin || 0;
