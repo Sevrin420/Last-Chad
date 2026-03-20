@@ -1206,11 +1206,17 @@ async function rollDice() {
       resetPuckPosition();
     }
 
-    // Chat messages for point acquired / point made
+    // Chat messages for point lifecycle
     if (!prevPoint && STATE.point) {
-      addChatMsg('system', 'POINT SET: ' + STATE.point);
+      addChatMsg('system', 'POINT IS ' + STATE.point);
     } else if (prevPoint && !STATE.point && prevPhase === 'point' && total === prevPoint) {
-      addChatMsg('win', 'POINT ' + prevPoint + ' MADE!');
+      addChatMsg('win', 'WINNER! POINT ' + prevPoint + ' MADE!');
+    } else if (prevPoint && !STATE.point && prevPhase === 'point' && total === 7) {
+      addChatMsg('lose', 'SEVEN OUT!');
+    } else if (prevPhase === 'comeout' && (total === 7 || total === 11)) {
+      addChatMsg('win', (total === 7 ? 'SEVEN' : 'YO ELEVEN') + '! WINNER!');
+    } else if (prevPhase === 'comeout' && (total === 2 || total === 3 || total === 12)) {
+      addChatMsg('lose', total === 2 ? 'SNAKE EYES! CRAPS!' : total === 3 ? 'THREE! CRAPS!' : 'TWELVE! CRAPS!');
     }
 
     if (r.message) {
