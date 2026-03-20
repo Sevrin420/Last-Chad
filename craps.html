@@ -94,15 +94,16 @@
       display:block; width:100%; height:auto;
     }
 
-    /* ── Remote Players Row (above felt) ── */
+    /* ── Remote Players Row (below chat) ── */
     .dealer-row{
       position:relative;z-index:15;
       display:flex;align-items:center;
       padding:4px 8px;gap:6px;
       background:rgba(10,10,15,0.9);
+      border-top:2px solid #2a3a1a;
       border-bottom:2px solid #2a5a1a;
       flex-shrink:0;
-      justify-content:flex-end;
+      justify-content:center;
     }
     .remote-slot{
       display:flex;align-items:center;gap:4px;
@@ -649,16 +650,6 @@
   <!-- FELT TABLE -->
   <div class="table-area">
 
-    <!-- Remote Players Row (above the felt image) -->
-    <div class="dealer-row">
-      <div class="remote-slot empty" id="slot-1" data-seat="1">
-        <div class="slot-name" id="name-1">Waiting</div>
-      </div>
-      <div class="remote-slot empty" id="slot-2" data-seat="2">
-        <div class="slot-name" id="name-2">Waiting</div>
-      </div>
-    </div>
-
     <div class="felt-container" id="feltTable">
       <div class="table-image-wrap">
       <img class="table-bg" src="assets/Oldjipt/Craps/crapstable.jpg" alt="Craps Table" />
@@ -792,6 +783,16 @@
     <div class="chat-input-area">
       <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
       <button class="chat-send" onclick="sendChat()">></button>
+    </div>
+  </div>
+
+  <!-- Remote Players Row (below chat) -->
+  <div class="dealer-row">
+    <div class="remote-slot empty" id="slot-1" data-seat="1">
+      <div class="slot-name" id="name-1">Waiting</div>
+    </div>
+    <div class="remote-slot empty" id="slot-2" data-seat="2">
+      <div class="slot-name" id="name-2">Waiting</div>
     </div>
   </div>
 
@@ -1215,9 +1216,12 @@ async function rollDice() {
   die1El.classList.add('rolling');
   die2El.classList.add('rolling');
 
-  const cycleInterval = setInterval(() => {
+  let die2cycling = true;
+  const cycleInterval1 = setInterval(() => {
     renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
-    renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
+  }, 60);
+  const cycleInterval2 = setInterval(() => {
+    if (die2cycling) renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
   }, 60);
 
   try {
@@ -1243,16 +1247,23 @@ async function rollDice() {
       if (!data.ok) throw new Error(data.error || 'Roll failed');
     }
 
-    await new Promise(r => setTimeout(r, 1200));
-    clearInterval(cycleInterval);
+    // Spin for 2.4s total, then settle die1 first
+    await new Promise(r => setTimeout(r, 2400));
+    clearInterval(cycleInterval1);
 
     const [d1, d2] = data.dice;
     STATE.dice = [d1, d2];
     renderDie(document.getElementById('face1'), d1);
-    renderDie(document.getElementById('face2'), d2);
     die1El.classList.remove('rolling');
-    die2El.classList.remove('rolling');
     die1El.classList.add('settled');
+
+    // Die2 keeps spinning for 3 more seconds
+    await new Promise(r => setTimeout(r, 3000));
+    die2cycling = false;
+    clearInterval(cycleInterval2);
+
+    renderDie(document.getElementById('face2'), d2);
+    die2El.classList.remove('rolling');
     die2El.classList.add('settled');
 
     const prevPoint = STATE.point;
@@ -1335,7 +1346,8 @@ async function rollDice() {
     return;
 
   } catch (err) {
-    clearInterval(cycleInterval);
+    clearInterval(cycleInterval1);
+    clearInterval(cycleInterval2);
     die1El.classList.remove('rolling');
     die2El.classList.remove('rolling');
     dealerSay('Roll failed: ' + (err.message || 'Network error'), 'sad');
