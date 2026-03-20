@@ -1278,9 +1278,9 @@ async function rollDice() {
     // Announcer call with dice and context
     const announcerPhase = prevPhase; // phase before this roll resolved
     let announcerSub = '';
-    if (!prevPoint && STATE.point) {
+    if (prevPhase === 'comeout' && !prevPoint && !!STATE.point) {
       announcerSub = 'Point is ' + STATE.point;
-    } else if (prevPoint && total === prevPoint) {
+    } else if (prevPhase === 'point' && prevPoint && total === prevPoint) {
       announcerSub = 'Point ' + prevPoint + ' made!';
     } else if (r.message) {
       announcerSub = r.message;
