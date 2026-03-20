@@ -79,7 +79,7 @@
       display:block; width:100%; height:auto;
     }
 
-    /* ── Dealer + Remote Players Row ── */
+    /* ── Remote Players Row (above felt) ── */
     .dealer-row{
       position:relative;z-index:15;
       display:flex;align-items:center;
@@ -87,32 +87,8 @@
       background:rgba(10,10,15,0.9);
       border-bottom:2px solid #2a5a1a;
       flex-shrink:0;
+      justify-content:flex-end;
     }
-    /* Dealer */
-    .dealer-slot{
-      display:flex;align-items:center;gap:6px;
-      flex-shrink:0;min-width:0;
-    }
-    .dealer-portrait{
-      width:40px;height:48px;image-rendering:pixelated;
-      border:2px solid #5c4409;border-radius:4px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.6);
-      flex-shrink:0;
-    }
-    .dealer-speech{
-      max-width:180px;min-width:80px;
-      background:rgba(0,0,0,0.8);
-      border:2px solid #5c4409;border-radius:6px;
-      padding:4px 6px;font-size:0.2rem;color:#f5e6c8;line-height:1.4;
-      position:relative;flex-shrink:1;
-    }
-    .dealer-speech::before{
-      content:'';position:absolute;left:-7px;top:14px;
-      border:5px solid transparent;border-right-color:#5c4409;
-    }
-    /* Spacer pushes remote players to the right */
-    .dealer-row-spacer{flex:1}
-    /* Remote player slots */
     .remote-slot{
       display:flex;align-items:center;gap:4px;
       padding:3px 6px;border-radius:4px;
@@ -128,6 +104,69 @@
     .remote-slot.empty .slot-name{color:#555;font-style:italic}
     .remote-slot[data-seat="1"]{--slot-color:var(--p2-color);--slot-glow:var(--p2-glow)}
     .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
+
+    /* ── Announcer Overlay (over craps table) ── */
+    .announcer-overlay{
+      position:absolute;top:0;left:0;right:0;bottom:0;
+      z-index:30;pointer-events:none;
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;transition:opacity 0.3s ease;
+    }
+    .announcer-overlay.visible{opacity:1}
+    .announcer-inner{
+      display:flex;align-items:center;gap:10px;
+      background:rgba(0,0,0,0.85);
+      border:3px solid #c9a84c;border-radius:10px;
+      padding:10px 18px;
+      box-shadow:0 0 30px rgba(201,168,76,0.4), inset 0 0 20px rgba(0,0,0,0.5);
+      max-width:90%;
+    }
+    .announcer-portrait{
+      width:56px;height:66px;image-rendering:pixelated;
+      border:2px solid #5c4409;border-radius:4px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.6);
+      flex-shrink:0;
+    }
+    .announcer-content{
+      display:flex;flex-direction:column;gap:4px;
+      min-width:0;
+    }
+    .announcer-call{
+      font-size:0.4rem;color:#ffe96a;
+      text-shadow:0 0 10px rgba(255,233,106,0.6), 2px 2px 4px rgba(0,0,0,0.9);
+      line-height:1.4;
+    }
+    .announcer-sub{
+      font-size:0.22rem;color:#f5e6c8;
+      line-height:1.3;opacity:0.85;
+    }
+    .announcer-dice{
+      display:flex;gap:6px;align-items:center;
+    }
+    .announcer-die{
+      width:36px;height:36px;
+      background:#e8e8e8;
+      background-image:linear-gradient(145deg,#f8f8f8 0%,#d2d2d2 50%,#a2a2a2 100%);
+      border:2px solid #9a9a9a;border-radius:6px;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .announcer-die .die-face{
+      width:100%;height:100%;display:grid;
+      grid-template-rows:1fr 1fr 1fr;grid-template-columns:1fr 1fr 1fr;
+      padding:14%;gap:1px;
+    }
+    .announcer-die .dot{
+      width:100%;aspect-ratio:1;background:#111;border-radius:50%;
+      box-shadow:inset 1px 1px 2px rgba(0,0,0,0.9);
+      visibility:hidden;
+    }
+    @media(max-width:600px){
+      .announcer-inner{padding:6px 10px;gap:6px}
+      .announcer-portrait{width:40px;height:48px}
+      .announcer-call{font-size:0.3rem}
+      .announcer-sub{font-size:0.18rem}
+      .announcer-die{width:28px;height:28px}
+    }
 
     /* ── Press Button (appears on winning bets) ── */
     .press-btn{
@@ -548,7 +587,6 @@
     /* ── Responsive ── */
     @media(max-width:600px){
       .dealer-row{flex-wrap:wrap;gap:4px}
-      .dealer-speech{max-width:140px;font-size:0.18rem}
       .remote-slot .slot-portrait{width:24px;height:28px}
       .remote-slot .slot-name{font-size:0.14rem;max-width:40px}
       .bet-zone:hover .zone-label{font-size:0.2rem}
@@ -606,13 +644,8 @@
   <!-- FELT TABLE -->
   <div class="table-area">
 
-    <!-- Dealer + Remote Players Row (above the felt image) -->
+    <!-- Remote Players Row (above the felt image) -->
     <div class="dealer-row">
-      <div class="dealer-slot">
-        <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
-        <div class="dealer-speech" id="dealerSpeech">Place your bets!</div>
-      </div>
-      <div class="dealer-row-spacer"></div>
       <div class="remote-slot empty" id="slot-1" data-seat="1">
         <div class="slot-name" id="name-1">Waiting</div>
       </div>
@@ -624,6 +657,18 @@
     <div class="felt-container" id="feltTable">
       <div class="table-image-wrap">
       <img class="table-bg" src="assets/Oldjipt/Craps/crapstable.jpg" alt="Craps Table" />
+
+      <!-- Announcer Overlay -->
+      <div class="announcer-overlay" id="announcerOverlay">
+        <div class="announcer-inner">
+          <img class="announcer-portrait" id="announcerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Oldjipt" />
+          <div class="announcer-content">
+            <div class="announcer-dice" id="announcerDice"></div>
+            <div class="announcer-call" id="announcerCall"></div>
+            <div class="announcer-sub" id="announcerSub"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- Puck -->
       <div class="puck" id="puck">
@@ -1219,9 +1264,17 @@ async function rollDice() {
       addChatMsg('lose', total === 2 ? 'SNAKE EYES! CRAPS!' : total === 3 ? 'THREE! CRAPS!' : 'TWELVE! CRAPS!');
     }
 
-    if (r.message) {
-      dealerSay(r.message, r.wins.length > 0 ? 'happy' : r.losses.length > 0 ? 'sad' : 'neutral');
+    // Announcer call with dice and context
+    const announcerPhase = prevPhase; // phase before this roll resolved
+    let announcerSub = '';
+    if (!prevPoint && STATE.point) {
+      announcerSub = 'Point is ' + STATE.point;
+    } else if (prevPoint && total === prevPoint) {
+      announcerSub = 'Point ' + prevPoint + ' made!';
+    } else if (r.message) {
+      announcerSub = r.message;
     }
+    showAnnouncer(d1, d2, announcerPhase, announcerSub);
 
     await new Promise(r2 => setTimeout(r2, 200));
     for (const key of r.wins) {
@@ -1276,12 +1329,110 @@ async function rollDice() {
   setTimeout(() => startBetPhase(), 2000);
 }
 
-// ── Dealer ──
-function dealerSay(text, mood) {
-  document.getElementById('dealerSpeech').textContent = text;
-  const m = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
-  document.getElementById('dealerImg').src = 'assets/Oldjipt/Craps/' + (m[mood]||m.neutral);
+// ── Announcer Overlay ──
+const DICE_CALLS = {
+  '1,1': { call: 'Snake Eyes!', mood: 'sad' },
+  '1,2': { call: 'Craps 3', mood: 'sad' },
+  '1,3': { call: 'Easy 4', mood: 'neutral' },
+  '1,4': { call: 'No Field 5', mood: 'neutral' },
+  '1,5': { call: 'Easy 6', mood: 'neutral' },
+  '1,6': { call: '7', mood: 'neutral', comeout: '7 Winner!', point: '7 Out' },
+  '2,2': { call: 'Hard 4', mood: 'neutral' },
+  '2,3': { call: 'No Field 5', mood: 'neutral' },
+  '2,4': { call: 'Easy 6', mood: 'neutral' },
+  '2,5': { call: '7', mood: 'neutral', comeout: '7 Winner!', point: '7 Out' },
+  '2,6': { call: 'Easy 8', mood: 'neutral' },
+  '3,3': { call: 'Hard 6', mood: 'neutral' },
+  '3,4': { call: '7', mood: 'neutral', comeout: '7 Winner!', point: '7 Out' },
+  '3,5': { call: 'Easy 8', mood: 'neutral' },
+  '3,6': { call: 'Nina 9', mood: 'neutral' },
+  '4,4': { call: 'Hard 8', mood: 'neutral' },
+  '4,5': { call: 'Nina Nine', mood: 'neutral' },
+  '4,6': { call: 'Easy 10', mood: 'neutral' },
+  '5,5': { call: '10 Hard', mood: 'neutral' },
+  '5,6': { call: 'Yo, 11 Yo', mood: 'happy' },
+  '6,6': { call: 'Boxcars 12', mood: 'sad' },
+};
+
+function getDiceCallKey(d1, d2) {
+  return [Math.min(d1,d2), Math.max(d1,d2)].join(',');
 }
+
+let announcerTimeout = null;
+
+function showAnnouncer(d1, d2, phase, sub) {
+  const key = getDiceCallKey(d1, d2);
+  const entry = DICE_CALLS[key];
+  if (!entry) return;
+
+  let callText = entry.call;
+  if (entry.comeout && phase === 'comeout') callText = entry.comeout;
+  else if (entry.point && phase === 'point') callText = entry.point;
+
+  const mood = (callText.includes('Winner') || callText === 'Yo, 11 Yo') ? 'happy'
+    : (callText.includes('Out') || callText.includes('Snake') || callText === 'Boxcars 12' || callText === 'Craps 3') ? 'sad'
+    : entry.mood || 'neutral';
+  const moodMap = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+
+  const overlay = document.getElementById('announcerOverlay');
+  const img = document.getElementById('announcerImg');
+  const call = document.getElementById('announcerCall');
+  const subEl = document.getElementById('announcerSub');
+  const diceContainer = document.getElementById('announcerDice');
+
+  img.src = 'assets/Oldjipt/Craps/' + (moodMap[mood] || moodMap.neutral);
+  call.textContent = callText;
+  subEl.textContent = sub || '';
+
+  // Render mini dice
+  diceContainer.innerHTML = '';
+  for (const val of [d1, d2]) {
+    const dieEl = document.createElement('div');
+    dieEl.className = 'announcer-die';
+    const faceEl = document.createElement('div');
+    faceEl.className = 'die-face';
+    const layout = dotLayouts[val];
+    for (let i = 0; i < 9; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      if (layout[i]) dot.style.visibility = 'visible';
+      faceEl.appendChild(dot);
+    }
+    dieEl.appendChild(faceEl);
+    diceContainer.appendChild(dieEl);
+  }
+
+  overlay.classList.add('visible');
+
+  if (announcerTimeout) clearTimeout(announcerTimeout);
+  announcerTimeout = setTimeout(() => {
+    overlay.classList.remove('visible');
+    announcerTimeout = null;
+  }, 3000);
+}
+
+function dealerSay(text, mood) {
+  // Show via announcer overlay (no dice, just text)
+  const moodMap = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+  const overlay = document.getElementById('announcerOverlay');
+  const img = document.getElementById('announcerImg');
+  const call = document.getElementById('announcerCall');
+  const subEl = document.getElementById('announcerSub');
+  const diceContainer = document.getElementById('announcerDice');
+
+  img.src = 'assets/Oldjipt/Craps/' + (moodMap[mood] || moodMap.neutral);
+  call.textContent = text;
+  subEl.textContent = '';
+  diceContainer.innerHTML = '';
+
+  overlay.classList.add('visible');
+  if (announcerTimeout) clearTimeout(announcerTimeout);
+  announcerTimeout = setTimeout(() => {
+    overlay.classList.remove('visible');
+    announcerTimeout = null;
+  }, 3000);
+}
+
 function getWinQuip() {
   return ["Winner winner!","Hot dice!","Pay the man!","Keep 'em coming!","Lucky roll!"][Math.floor(Math.random()*5)];
 }
