@@ -102,15 +102,18 @@
     }
     .remote-card{
       flex:1;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:6px;padding:8px;
+      display:flex;flex-direction:column;align-items:center;justify-content:stretch;
+      gap:4px;padding:6px 4px;
       border-right:1px solid #1a2a0a;
+      min-width:0;
     }
     .remote-card[data-seat="1"]{--slot-color:var(--p2-color)}
     .remote-card[data-seat="2"]{--slot-color:var(--p3-color)}
     .remote-card[data-seat="3"]{--slot-color:var(--p4-color)}
     .remote-avatar{
-      width:52px;height:69px;
+      flex:1;
+      width:100%;
+      aspect-ratio:3/4;
       border:3px solid var(--slot-color,#333);
       border-radius:6px;
       background:rgba(0,0,0,0.4);
@@ -118,7 +121,7 @@
       overflow:hidden;
       image-rendering:pixelated;
     }
-    .remote-avatar img{width:100%;height:100%;object-fit:contain;display:none}
+    .remote-avatar img{width:100%;height:100%;object-fit:cover;display:none}
     .remote-avatar img.visible{display:block}
     .remote-name{
       font-size:0.22rem;color:var(--slot-color,#555);
@@ -610,7 +613,6 @@
       .dealer-row{flex-wrap:wrap;gap:4px}
       .bet-zone:hover .zone-label{font-size:0.2rem}
       .bet-zone:hover .zone-payout{font-size:0.12rem}
-      .remote-avatar{width:38px;height:50px}
       .remote-name{font-size:0.16rem}
       .table-stack-value{font-size:0.9rem}
       .table-stack-label{font-size:0.35rem}
