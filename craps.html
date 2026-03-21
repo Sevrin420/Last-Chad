@@ -1120,7 +1120,6 @@ async function rollDice() {
     STATE._pendingBets = {};
     let data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Roll failed');
-    {
 
     await new Promise(r => setTimeout(r, 1200));
     clearInterval(cycleInterval);
