@@ -1209,10 +1209,14 @@ function onFirstBet() {
   betTimerStarted = true;
   const multi = getRemotePlayerCount() > 0;
   if (!multi) {
-    // Solo — skip bet timer, go straight to roll phase
-    turnPhase = 'no-more-bets';
-    betsLocked = true;
-    startRollPhase();
+    // Solo — don't lock bets; just enable dice so player can keep
+    // placing bets and roll whenever they're ready.
+    const diceEl = document.getElementById('tableDice');
+    if (isLocalShooter()) {
+      diceEl.classList.add('can-roll');
+      diceEl.classList.remove('locked');
+      document.getElementById('rollPrompt').style.display = '';
+    }
     return;
   }
   startTimer(20, 'PLACE BETS', () => {
