@@ -35,7 +35,22 @@
       backdrop-filter:blur(8px);height:40px;
     }
     .header-left{display:flex;align-items:center;gap:10px}
-    .header-title{font-size:0.5rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4)}
+    .header-title{font-size:0.5rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4);display:none}
+    .header-action-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.35rem;
+      padding:6px 12px;border-radius:5px;cursor:pointer;
+      border:2px solid #2e7d32;color:#fff;
+      background:linear-gradient(180deg,#4caf50 0%,#2e7d32 100%);
+      box-shadow:inset 0 1px 0 rgba(150,255,150,0.2),0 2px 6px rgba(0,0,0,0.5);
+      white-space:nowrap;
+    }
+    .header-action-btn:hover{background:linear-gradient(180deg,#66bb6a 0%,#388e3c 100%)}
+    .header-action-btn.cashout-mode{
+      border-color:#e53935;
+      background:linear-gradient(180deg,#e53935 0%,#b71c1c 100%);
+      color:#fff;
+    }
+    .header-action-btn.cashout-mode:hover{background:linear-gradient(180deg,#ef5350 0%,#c62828 100%)}
     .wallet-btn{
       font-family:'Press Start 2P',monospace;font-size:0.35rem;
       padding:6px 12px;border-radius:5px;cursor:pointer;
@@ -55,9 +70,8 @@
 
     /* ── Felt Table Area ── */
     .table-area{
-      flex:1;position:relative;overflow:hidden;
+      flex:0 0 auto;position:relative;
       display:flex;flex-direction:column;
-      min-height:0;
     }
     .felt-container{
       flex:0 0 auto;position:relative;
@@ -79,55 +93,116 @@
       display:block; width:100%; height:auto;
     }
 
-    /* ── Dealer + Remote Players Row ── */
-    .dealer-row{
-      position:relative;z-index:15;
-      display:flex;align-items:center;
-      padding:4px 8px;gap:6px;
+    /* ── Player Bar (below chat) ── */
+    .player-bar{
+      flex:1;
+      display:flex;align-items:stretch;
       background:rgba(10,10,15,0.9);
-      border-bottom:2px solid #2a5a1a;
-      flex-shrink:0;
+      border-top:2px solid #2a3a1a;
+      min-height:0;
     }
-    /* Dealer */
-    .dealer-slot{
-      display:flex;align-items:center;gap:6px;
-      flex-shrink:0;min-width:0;
+    .remote-card{
+      flex:1;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:6px;padding:8px;
+      border-right:1px solid #1a2a0a;
     }
-    .dealer-portrait{
-      width:40px;height:48px;image-rendering:pixelated;
+    .remote-card[data-seat="1"]{--slot-color:var(--p2-color)}
+    .remote-card[data-seat="2"]{--slot-color:var(--p3-color)}
+    .remote-avatar{
+      width:60px;height:60px;
+      border:3px solid var(--slot-color,#333);
+      border-radius:6px;
+      background:rgba(0,0,0,0.4);
+      display:flex;align-items:center;justify-content:center;
+      overflow:hidden;
+      image-rendering:pixelated;
+    }
+    .remote-avatar img{width:100%;height:100%;object-fit:cover;display:none}
+    .remote-avatar img.visible{display:block}
+    .remote-name{
+      font-size:0.22rem;color:var(--slot-color,#555);
+      text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      max-width:100%;
+    }
+    .ptt-card{
+      flex:1;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:6px;padding:8px;
+    }
+    .ptt-card-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.22rem;
+      width:100%;height:100%;min-height:60px;
+      border:3px solid #e67e22;border-radius:6px;
+      background:rgba(90,58,10,0.4);color:#e67e22;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      text-align:center;line-height:1.5;padding:6px;
+    }
+    .ptt-card-btn:hover{background:rgba(90,58,10,0.7)}
+    .ptt-card-btn.talking{background:rgba(90,58,10,0.9);border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
+
+    /* ── Announcer Overlay (over craps table) ── */
+    .announcer-overlay{
+      position:absolute;top:0;left:0;right:0;bottom:0;
+      z-index:30;pointer-events:none;
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;transition:opacity 0.3s ease;
+    }
+    .announcer-overlay.visible{opacity:1}
+    .announcer-inner{
+      display:flex;align-items:center;gap:10px;
+      background:rgba(0,0,0,0.85);
+      border:3px solid #c9a84c;border-radius:10px;
+      padding:10px 18px;
+      box-shadow:0 0 30px rgba(201,168,76,0.4), inset 0 0 20px rgba(0,0,0,0.5);
+      max-width:90%;
+    }
+    .announcer-portrait{
+      width:112px;height:132px;image-rendering:pixelated;
       border:2px solid #5c4409;border-radius:4px;
       box-shadow:0 2px 8px rgba(0,0,0,0.6);
       flex-shrink:0;
     }
-    .dealer-speech{
-      max-width:180px;min-width:80px;
-      background:rgba(0,0,0,0.8);
-      border:2px solid #5c4409;border-radius:6px;
-      padding:4px 6px;font-size:0.2rem;color:#f5e6c8;line-height:1.4;
-      position:relative;flex-shrink:1;
+    .announcer-content{
+      display:flex;flex-direction:column;gap:6px;
+      min-width:0;
     }
-    .dealer-speech::before{
-      content:'';position:absolute;left:-7px;top:14px;
-      border:5px solid transparent;border-right-color:#5c4409;
+    .announcer-call{
+      font-size:0.8rem;color:#ffe96a;
+      text-shadow:0 0 10px rgba(255,233,106,0.6), 2px 2px 4px rgba(0,0,0,0.9);
+      line-height:1.4;
     }
-    /* Spacer pushes remote players to the right */
-    .dealer-row-spacer{flex:1}
-    /* Remote player slots */
-    .remote-slot{
-      display:flex;align-items:center;gap:4px;
-      padding:3px 6px;border-radius:4px;
-      background:rgba(0,0,0,0.25);
-      border:2px solid #333;
-      flex-shrink:0;
+    .announcer-sub{
+      font-size:0.4rem;color:#f5e6c8;
+      line-height:1.3;opacity:0.85;
     }
-    .remote-slot.occupied{border-color:var(--slot-color,#555)}
-    .remote-slot .slot-name{
-      font-size:0.22rem;color:var(--slot-color,#555);
-      max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    .announcer-dice{
+      display:flex;gap:10px;align-items:center;
     }
-    .remote-slot.empty .slot-name{color:#555;font-style:italic}
-    .remote-slot[data-seat="1"]{--slot-color:var(--p2-color);--slot-glow:var(--p2-glow)}
-    .remote-slot[data-seat="2"]{--slot-color:var(--p3-color);--slot-glow:var(--p3-glow)}
+    .announcer-die{
+      width:56px;height:56px;
+      background:#e8e8e8;
+      background-image:linear-gradient(145deg,#f8f8f8 0%,#d2d2d2 50%,#a2a2a2 100%);
+      border:2px solid #9a9a9a;border-radius:6px;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .announcer-die .die-face{
+      width:100%;height:100%;display:grid;
+      grid-template-rows:1fr 1fr 1fr;grid-template-columns:1fr 1fr 1fr;
+      padding:14%;gap:1px;
+    }
+    .announcer-die .dot{
+      width:100%;aspect-ratio:1;background:#111;border-radius:50%;
+      box-shadow:inset 1px 1px 2px rgba(0,0,0,0.9);
+      visibility:hidden;
+    }
+    @media(max-width:600px){
+      .announcer-inner{padding:8px 12px;gap:8px}
+      .announcer-portrait{width:80px;height:96px}
+      .announcer-call{font-size:0.55rem}
+      .announcer-sub{font-size:0.3rem}
+      .announcer-die{width:40px;height:40px}
+    }
 
     /* ── Press Button (appears on winning bets) ── */
     .press-btn{
@@ -144,7 +219,7 @@
     @keyframes press-pulse{0%,100%{box-shadow:0 0 6px rgba(76,175,80,0.4)}50%{box-shadow:0 0 14px rgba(76,175,80,0.8)}}
 
     /* ── Puck ── */
-    .puck{position:absolute;width:28px;height:28px;top:1%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
+    .puck{position:absolute;width:42px;height:42px;top:1%;right:10px;z-index:20;transition:left 0.3s ease, top 0.3s ease}
     .puck img{width:100%;height:100%;object-fit:contain}
     .puck.on-glow{
       filter:drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 0 20px rgba(255,180,0,0.6));
@@ -234,6 +309,7 @@
     .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
     .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
     .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
+    .bet-chip-token.off{opacity:0.35;filter:grayscale(0.6)}
     /* ── Place Bets chip positions — inside boxes ──
        p0 (local): top-left, p1 (remote1): top-right, p2 (remote2): bottom-left */
     .bet-chip-token.pos-0{top:8%;left:2%}
@@ -247,23 +323,36 @@
     .bet-place4 .bet-chip-token.pos-1{right:-8%;left:auto}
     .bet-place5 .bet-chip-token.pos-1{right:-8%;left:auto}
     .bet-place6 .bet-chip-token.pos-1{right:-8%;left:auto}
-    .bet-place4 .bet-chip-token.pos-2{left:-8%}
-    .bet-place5 .bet-chip-token.pos-2{left:-8%}
-    .bet-place6 .bet-chip-token.pos-2{left:-8%}
+    .bet-place4 .bet-chip-token.pos-2{left:-8%;bottom:-8%;top:auto}
+    .bet-place5 .bet-chip-token.pos-2{left:-8%;bottom:-8%;top:auto}
+    .bet-place6 .bet-chip-token.pos-2{left:-8%;bottom:-8%;top:auto}
+    /* Nudge 8,9,10 — green left, blue right, purple down-left */
+    .bet-place8  .bet-chip-token.pos-0{left:-8%}
+    .bet-place9  .bet-chip-token.pos-0{left:-8%}
+    .bet-place10 .bet-chip-token.pos-0{left:-8%}
+    .bet-place8  .bet-chip-token.pos-1{right:-8%;left:auto}
+    .bet-place9  .bet-chip-token.pos-1{right:-8%;left:auto}
+    .bet-place10 .bet-chip-token.pos-1{right:-8%;left:auto}
+    .bet-place8  .bet-chip-token.pos-2{left:-8%;bottom:-8%;top:auto}
+    .bet-place9  .bet-chip-token.pos-2{left:-8%;bottom:-8%;top:auto}
+    .bet-place10 .bet-chip-token.pos-2{left:-8%;bottom:-8%;top:auto}
 
-    /* ── Hardways — chips inside box, top-left near number ── */
+    /* ── Hardways — chips inside box, spread by player ── */
+    /* p0 green: up-left (nudged up) */
     .bet-hard4  .bet-chip-token.pos-0,
     .bet-hard6  .bet-chip-token.pos-0,
     .bet-hard8  .bet-chip-token.pos-0,
-    .bet-hard10 .bet-chip-token.pos-0{top:35%;left:35%;transform:translate(-50%,-50%);z-index:13}
+    .bet-hard10 .bet-chip-token.pos-0{top:5%;left:20%;transform:translate(-50%,-50%);z-index:13}
+    /* p1 blue: up-right (nudged up) */
     .bet-hard4  .bet-chip-token.pos-1,
     .bet-hard6  .bet-chip-token.pos-1,
     .bet-hard8  .bet-chip-token.pos-1,
-    .bet-hard10 .bet-chip-token.pos-1{top:35%;left:35%;transform:translate(-50%,-50%) translateX(75%);z-index:12}
+    .bet-hard10 .bet-chip-token.pos-1{top:5%;left:65%;transform:translate(-50%,-50%);z-index:12}
+    /* p2 purple: down-left (nudged down) */
     .bet-hard4  .bet-chip-token.pos-2,
     .bet-hard6  .bet-chip-token.pos-2,
     .bet-hard8  .bet-chip-token.pos-2,
-    .bet-hard10 .bet-chip-token.pos-2{top:35%;left:35%;transform:translate(-50%,-50%) translateY(75%);z-index:11}
+    .bet-hard10 .bet-chip-token.pos-2{top:75%;left:20%;transform:translate(-50%,-50%);z-index:11}
 
     /* ── Field — stack chips vertically in the tall left column ── */
     .bet-field .bet-chip-token.pos-0{top:30%;left:50%;transform:translate(-50%,-50%)}
@@ -383,8 +472,9 @@
 
 
     /* ── Chat Box ── */
+    /* ── Chat Box ── */
     .chat-box{
-      flex:1;min-height:144px;max-height:360px;
+      flex:0 0 180px;height:180px;
       display:flex;flex-direction:column;
       background:rgba(10,10,15,0.95);
       border-top:2px solid #2a3a1a;
@@ -392,7 +482,7 @@
     }
     .chat-header{padding:4px 8px;font-size:0.28rem;color:#4caf50;border-bottom:1px solid #1a2a0a;flex-shrink:0}
     .chat-messages{flex:1;overflow-y:auto;padding:4px 8px;display:flex;flex-direction:column;gap:3px}
-    .chat-msg{font-size:0.22rem;line-height:1.4;padding:3px 6px;border-radius:3px;background:rgba(0,0,0,0.3)}
+    .chat-msg{font-size:0.33rem;line-height:1.4;padding:3px 6px;border-radius:3px;background:rgba(0,0,0,0.3)}
     .chat-msg .msg-name{font-weight:bold}
     .chat-msg .msg-text{color:#ccc}
     .chat-msg.system-msg{color:#8a7a5a;font-style:italic;background:none}
@@ -405,46 +495,14 @@
     .chat-msg .msg-name.p3{color:var(--p4-color)}
     .chat-input-area{display:flex;gap:6px;padding:6px 8px;border-top:1px solid #1a2a0a;flex-shrink:0}
     .chat-input{
-      flex:1;font-family:'Press Start 2P',monospace;font-size:0.2rem;
+      flex:1;font-family:'Press Start 2P',monospace;font-size:0.3rem;
       padding:9px;background:#111;border:1px solid #333;border-radius:3px;color:#ccc;outline:none;
     }
     .chat-input:focus{border-color:#4caf50}
     .chat-send{
-      font-family:'Press Start 2P',monospace;font-size:0.6rem;
+      font-family:'Press Start 2P',monospace;font-size:0.9rem;
       padding:9px 18px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
     }
-
-    /* ── Bottom Controls Row ── */
-    .bottom-row{
-      display:flex;align-items:center;
-      background:rgba(10,10,15,0.95);
-      padding:5px 10px;gap:6px;
-      flex-shrink:0;
-    }
-    .local-player{
-      display:flex;align-items:center;gap:5px;
-      padding:3px 6px;border-right:1px solid #2a3a1a;flex-shrink:0;
-    }
-    .local-player .player-info{display:flex;flex-direction:column;gap:2px}
-    .local-player .nft-name{font-size:0.22rem;color:var(--p1-color);white-space:nowrap}
-    .local-player .player-stack-lbl{font-size:0.2rem;color:var(--p1-color)}
-
-    .chip-tray{display:flex;gap:4px;align-items:center;padding:0 4px}
-    .chip{
-      width:34px;height:34px;border-radius:50%;cursor:pointer;
-      border:3px solid transparent;transition:all 0.15s;
-      position:relative;overflow:hidden;
-      background-image:url('assets/Oldjipt/Craps/jiptchips.png');
-      background-size:300% 300%;
-    }
-    .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
-    .chip.selected{border-color:var(--p1-color);box-shadow:0 0 14px var(--p1-glow);transform:scale(1.15)}
-    .chip-1-sprite{background-position:0% 0%}
-    .chip-5-sprite{background-position:50% 0%}
-    .chip-10-sprite{background-position:100% 0%}
-    .chip-25-sprite{background-position:0% 50%}
-
-    .point-display{font-size:0.28rem;color:#ffe96a;padding:0 4px}
 
     .controls{display:flex;gap:4px;margin-left:auto;align-items:center}
     .ctrl-btn{
@@ -452,27 +510,7 @@
       padding:7px 10px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
-    .btn-clear{background:linear-gradient(180deg,#e53935,#b71c1c);border-color:#ef5350;color:#fff}
-    .btn-clear:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
-    .btn-cashout{background:linear-gradient(180deg,#c9a84c,#8b6914);border-color:#d4a017;color:#1a1005}
-    .btn-cashout:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
-
-    .audio-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.22rem;
-      padding:5px 7px;border:2px solid #555;border-radius:4px;
-      background:#1a1a2e;color:#ccc;cursor:pointer;white-space:nowrap;
-    }
-    .audio-btn:hover{border-color:#4caf50;color:#4caf50}
-    .audio-btn.active{border-color:#4caf50;background:#1a3a1a;color:#4caf50}
-    .audio-btn.ptt{border-color:#e67e22;color:#e67e22}
-    .audio-btn.ptt.talking{background:#5a3a0a;border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
     @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
-    .btn-exit{
-      font-family:'Press Start 2P',monospace;font-size:0.22rem;
-      padding:5px 8px;border:2px solid #e53935;border-radius:4px;
-      background:rgba(229,57,53,0.15);color:#e53935;cursor:pointer;
-    }
-    .btn-exit:hover{background:rgba(229,57,53,0.3)}
 
     /* ── Result Toast ── */
     .result-toast{
@@ -548,14 +586,10 @@
     /* ── Responsive ── */
     @media(max-width:600px){
       .dealer-row{flex-wrap:wrap;gap:4px}
-      .dealer-speech{max-width:140px;font-size:0.18rem}
-      .remote-slot .slot-portrait{width:24px;height:28px}
-      .remote-slot .slot-name{font-size:0.14rem;max-width:40px}
       .bet-zone:hover .zone-label{font-size:0.2rem}
       .bet-zone:hover .zone-payout{font-size:0.12rem}
-      .bottom-row{flex-wrap:wrap;justify-content:center;gap:4px;padding:4px 6px}
-      .ctrl-btn{font-size:0.25rem;padding:5px 7px}
-      .chat-box{min-height:84px;max-height:168px}
+      .remote-avatar{width:44px;height:44px}
+      .remote-name{font-size:0.16rem}
       .table-stack-value{font-size:0.9rem}
       .table-stack-label{font-size:0.35rem}
       .table-chip-tray .chip{width:34px;height:34px}
@@ -570,7 +604,7 @@
 <div class="game-header">
   <div class="header-left">
     <div id="nav-placeholder"></div>
-    <span class="header-title">CRAPS TABLE</span>
+    <button class="header-action-btn" id="headerActionBtn" onclick="headerAction()">CLEAR / CASH OUT</button>
   </div>
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
 </div>
@@ -606,24 +640,21 @@
   <!-- FELT TABLE -->
   <div class="table-area">
 
-    <!-- Dealer + Remote Players Row (above the felt image) -->
-    <div class="dealer-row">
-      <div class="dealer-slot">
-        <img class="dealer-portrait" id="dealerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Dealer" />
-        <div class="dealer-speech" id="dealerSpeech">Place your bets!</div>
-      </div>
-      <div class="dealer-row-spacer"></div>
-      <div class="remote-slot empty" id="slot-1" data-seat="1">
-        <div class="slot-name" id="name-1">Waiting</div>
-      </div>
-      <div class="remote-slot empty" id="slot-2" data-seat="2">
-        <div class="slot-name" id="name-2">Waiting</div>
-      </div>
-    </div>
-
     <div class="felt-container" id="feltTable">
       <div class="table-image-wrap">
       <img class="table-bg" src="assets/Oldjipt/Craps/crapstable.jpg" alt="Craps Table" />
+
+      <!-- Announcer Overlay -->
+      <div class="announcer-overlay" id="announcerOverlay">
+        <div class="announcer-inner">
+          <img class="announcer-portrait" id="announcerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Oldjipt" />
+          <div class="announcer-content">
+            <div class="announcer-dice" id="announcerDice"></div>
+            <div class="announcer-call" id="announcerCall"></div>
+            <div class="announcer-sub" id="announcerSub"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- Puck -->
       <div class="puck" id="puck">
@@ -731,6 +762,7 @@
 
       </div><!-- /table-image-wrap -->
     </div><!-- /felt-container -->
+
   </div><!-- /table-area -->
 
   <!-- CHAT BOX -->
@@ -745,15 +777,28 @@
     </div>
   </div>
 
-  <!-- BOTTOM ROW -->
-  <div class="bottom-row">
-    <div id="pointDisplay" style="display:none"></div>
-    <button class="audio-btn ptt" id="pttBtn">HOLD TO TALK</button>
-    <div class="controls">
-      <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
-      <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
-      <button class="btn-exit" onclick="exitTable()">EXIT</button>
+  <!-- Player Bar (below chat) -->
+  <div class="player-bar">
+    <div class="ptt-card">
+      <button class="ptt-card-btn" id="pttBtn">PUSH TO TALK</button>
     </div>
+    <div class="remote-card" id="slot-1" data-seat="1">
+      <div class="remote-avatar" id="avatar-1">
+        <img id="avatarImg-1" src="" alt="" />
+      </div>
+      <div class="remote-name" id="name-1">Waiting</div>
+    </div>
+    <div class="remote-card" id="slot-2" data-seat="2">
+      <div class="remote-avatar" id="avatar-2">
+        <img id="avatarImg-2" src="" alt="" />
+      </div>
+      <div class="remote-name" id="name-2">Waiting</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW (test button only) -->
+  <div style="display:none" id="bottomRow">
+    <div id="pointDisplay"></div>
   </div>
 
 </div><!-- /table-wrapper -->
@@ -862,6 +907,12 @@ async function placeBet(zone) {
   if (zone === 'pass' && STATE.phase === 'point') {
     dealerSay("Pass line only on come-out roll.", 'neutral'); return;
   }
+  if (zone === 'passOdds' && STATE.phase === 'comeout') {
+    dealerSay("Pass odds only after point is set.", 'neutral'); return;
+  }
+  if (zone === 'come' && STATE.phase === 'comeout') {
+    dealerSay("Come bets only after point is set.", 'neutral'); return;
+  }
   STATE.stack -= amount;
   STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
   if (!STATE._pendingBets) STATE._pendingBets = {};
@@ -908,14 +959,17 @@ function resetPuckPosition() {
 
 function renderAllBetChips() {
   const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
+  const offZones = new Set(['place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10']);
+  const isComeout = STATE.phase === 'comeout';
   for (const zone of zones) {
     const container = document.getElementById('chips-' + zone);
     if (!container) continue;
     container.innerHTML = '';
     const betKey = zone;
+    const isOff = isComeout && offZones.has(zone);
     if (STATE.bets[betKey] && STATE.bets[betKey] > 0) {
       const chip = document.createElement('div');
-      chip.className = 'bet-chip-token p0 pos-0';
+      chip.className = 'bet-chip-token p0 pos-0' + (isOff ? ' off' : '');
       chip.textContent = STATE.bets[betKey];
       container.appendChild(chip);
     }
@@ -923,7 +977,7 @@ function renderAllBetChips() {
       const rb = STATE.remoteBets[s];
       if (rb && rb[betKey] && rb[betKey] > 0) {
         const chip = document.createElement('div');
-        chip.className = 'bet-chip-token p' + s + ' pos-' + s;
+        chip.className = 'bet-chip-token p' + s + ' pos-' + s + (isOff ? ' off' : '');
         chip.textContent = rb[betKey];
         container.appendChild(chip);
       }
@@ -977,7 +1031,6 @@ function clearPressButtons() {
   document.querySelectorAll('.press-btn').forEach(el => el.remove());
 }
 
-
 function clearBets() {
   if (STATE.isRolling || betsLocked) return;
   for (const zone of Object.keys(STATE.bets)) {
@@ -994,6 +1047,32 @@ function clearBets() {
 function updateLocalPlayerUI() {
   const tableStack = document.getElementById('tableStackDisplay');
   if (tableStack) tableStack.textContent = STATE.stack;
+  updateHeaderButton();
+}
+
+function hasNonPassBets() {
+  for (const zone of Object.keys(STATE.bets)) {
+    if (zone !== 'pass' && STATE.bets[zone] > 0) return true;
+  }
+  return false;
+}
+
+function updateHeaderButton() {
+  const btn = document.getElementById('headerActionBtn');
+  if (!btn) return;
+  if (hasNonPassBets()) {
+    btn.classList.remove('cashout-mode');
+  } else {
+    btn.classList.add('cashout-mode');
+  }
+}
+
+function headerAction() {
+  if (hasNonPassBets()) {
+    clearBets();
+  } else {
+    cashOut();
+  }
 }
 
 // ── Turn Phase System ──
@@ -1013,7 +1092,19 @@ function startBetPhase() {
   diceEl.classList.add('locked');
   document.getElementById('rollPrompt').style.display = 'none';
   hideTimer();
-  dealerSay("Place your bets!", 'happy');
+  if (STATE.phase === 'comeout') {
+    // Check if any place/hardway bets are still on table
+    const offKeys = ['place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
+    const hasOffBets = offKeys.some(k => STATE.bets[k] > 0);
+    if (hasOffBets) {
+      dealerSay("Come-out roll — all bets OFF except Pass Line and Field.", 'neutral');
+    } else {
+      dealerSay("Come-out roll — place your bets!", 'happy');
+    }
+  } else {
+    dealerSay("Place your bets!", 'happy');
+  }
+  renderAllBetChips();
   // No timer yet — waits for first bet via onFirstBet()
 }
 
@@ -1102,9 +1193,12 @@ async function rollDice() {
   die1El.classList.add('rolling');
   die2El.classList.add('rolling');
 
-  const cycleInterval = setInterval(() => {
+  let die2cycling = true;
+  const cycleInterval1 = setInterval(() => {
     renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
-    renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
+  }, 60);
+  const cycleInterval2 = setInterval(() => {
+    if (die2cycling) renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
   }, 60);
 
   try {
@@ -1121,16 +1215,23 @@ async function rollDice() {
     let data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Roll failed');
 
-    await new Promise(r => setTimeout(r, 1200));
-    clearInterval(cycleInterval);
+    // Spin for 2.5s total, then settle die1 first
+    await new Promise(r => setTimeout(r, 2500));
+    clearInterval(cycleInterval1);
 
     const [d1, d2] = data.dice;
     STATE.dice = [d1, d2];
     renderDie(document.getElementById('face1'), d1);
-    renderDie(document.getElementById('face2'), d2);
     die1El.classList.remove('rolling');
-    die2El.classList.remove('rolling');
     die1El.classList.add('settled');
+
+    // Die2 keeps spinning for 2.4 more seconds
+    await new Promise(r => setTimeout(r, 2400));
+    die2cycling = false;
+    clearInterval(cycleInterval2);
+
+    renderDie(document.getElementById('face2'), d2);
+    die2El.classList.remove('rolling');
     die2El.classList.add('settled');
 
     const prevPoint = STATE.point;
@@ -1159,22 +1260,18 @@ async function rollDice() {
       resetPuckPosition();
     }
 
-    // Chat messages for point lifecycle
-    if (!prevPoint && STATE.point) {
-      addChatMsg('system', 'POINT IS ' + STATE.point);
-    } else if (prevPoint && !STATE.point && prevPhase === 'point' && total === prevPoint) {
-      addChatMsg('win', 'WINNER! POINT ' + prevPoint + ' MADE!');
-    } else if (prevPoint && !STATE.point && prevPhase === 'point' && total === 7) {
-      addChatMsg('lose', 'SEVEN OUT!');
-    } else if (prevPhase === 'comeout' && (total === 7 || total === 11)) {
-      addChatMsg('win', (total === 7 ? 'SEVEN' : 'YO ELEVEN') + '! WINNER!');
-    } else if (prevPhase === 'comeout' && (total === 2 || total === 3 || total === 12)) {
-      addChatMsg('lose', total === 2 ? 'SNAKE EYES! CRAPS!' : total === 3 ? 'THREE! CRAPS!' : 'TWELVE! CRAPS!');
+    // Announcer call with dice and context
+    const announcerPhase = prevPhase; // phase before this roll resolved
+    let announcerSub = '';
+    if (prevPhase === 'comeout' && !prevPoint && !!STATE.point) {
+      announcerSub = 'Point is ' + STATE.point;
+    } else if (prevPhase === 'point' && prevPoint && total === prevPoint) {
+      announcerSub = 'Point ' + prevPoint + ' made!';
+    } else if (r.message) {
+      announcerSub = r.message;
     }
-
-    if (r.message) {
-      dealerSay(r.message, r.wins.length > 0 ? 'happy' : r.losses.length > 0 ? 'sad' : 'neutral');
-    }
+    const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
+    showAnnouncer(d1, d2, announcerPhase, announcerSub, isNewPoint);
 
     await new Promise(r2 => setTimeout(r2, 200));
     for (const key of r.wins) {
@@ -1219,7 +1316,8 @@ async function rollDice() {
     return;
 
   } catch (err) {
-    clearInterval(cycleInterval);
+    clearInterval(cycleInterval1);
+    clearInterval(cycleInterval2);
     die1El.classList.remove('rolling');
     die2El.classList.remove('rolling');
     dealerSay('Roll failed: ' + (err.message || 'Network error'), 'sad');
@@ -1230,12 +1328,122 @@ async function rollDice() {
   setTimeout(() => startBetPhase(), 2000);
 }
 
-// ── Dealer ──
-function dealerSay(text, mood) {
-  document.getElementById('dealerSpeech').textContent = text;
-  const m = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
-  document.getElementById('dealerImg').src = 'assets/Oldjipt/Craps/' + (m[mood]||m.neutral);
+// ── Announcer Overlay ──
+const DICE_CALLS = {
+  '1,1': { call: 'Snake Eyes!', mood: 'sad' },
+  '1,2': { call: 'Craps 3', mood: 'sad' },
+  '1,3': { call: 'Easy 4', mood: 'neutral' },
+  '1,4': { call: 'No Field 5', mood: 'neutral' },
+  '1,5': { call: 'Easy 6', mood: 'neutral' },
+  '1,6': { call: '7', mood: 'neutral', comeout: '7 Winner!', point: '7 Out' },
+  '2,2': { call: 'Hard 4', mood: 'neutral' },
+  '2,3': { call: 'No Field 5', mood: 'neutral' },
+  '2,4': { call: 'Easy 6', mood: 'neutral' },
+  '2,5': { call: '7', mood: 'neutral', comeout: '7 Winner!', point: '7 Out' },
+  '2,6': { call: 'Easy 8', mood: 'neutral' },
+  '3,3': { call: 'Hard 6', mood: 'neutral' },
+  '3,4': { call: '7', mood: 'neutral', comeout: '7 Winner!', point: '7 Out' },
+  '3,5': { call: 'Easy 8', mood: 'neutral' },
+  '3,6': { call: 'Nina 9', mood: 'neutral' },
+  '4,4': { call: 'Hard 8', mood: 'neutral' },
+  '4,5': { call: 'Nina Nine', mood: 'neutral' },
+  '4,6': { call: 'Easy 10', mood: 'neutral' },
+  '5,5': { call: '10 Hard', mood: 'neutral' },
+  '5,6': { call: 'Yo, 11 Yo', mood: 'happy' },
+  '6,6': { call: 'Boxcars 12', mood: 'sad' },
+};
+
+function getDiceCallKey(d1, d2) {
+  return [Math.min(d1,d2), Math.max(d1,d2)].join(',');
 }
+
+let announcerTimeout = null;
+
+function showAnnouncer(d1, d2, phase, sub, isNewPoint) {
+  const key = getDiceCallKey(d1, d2);
+  const entry = DICE_CALLS[key];
+  if (!entry) return;
+
+  let callText, mood;
+
+  if (isNewPoint) {
+    const total = d1 + d2;
+    const isHard = d1 === d2;
+    const hardWayNums = [4, 6, 8, 10];
+    callText = 'New Point. Point of ' + total + '.';
+    if (hardWayNums.includes(total)) {
+      callText += ' ' + (isHard ? 'Hard ' : 'Easy ') + total;
+    }
+    mood = 'neutral';
+  } else {
+    callText = entry.call;
+    if (entry.comeout && phase === 'comeout') callText = entry.comeout;
+    else if (entry.point && phase === 'point') callText = entry.point;
+    mood = (callText.includes('Winner') || callText === 'Yo, 11 Yo') ? 'happy'
+      : (callText.includes('Out') || callText.includes('Snake') || callText === 'Boxcars 12' || callText === 'Craps 3') ? 'sad'
+      : entry.mood || 'neutral';
+  }
+  const moodMap = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+
+  const overlay = document.getElementById('announcerOverlay');
+  const img = document.getElementById('announcerImg');
+  const call = document.getElementById('announcerCall');
+  const subEl = document.getElementById('announcerSub');
+  const diceContainer = document.getElementById('announcerDice');
+
+  img.src = 'assets/Oldjipt/Craps/' + (moodMap[mood] || moodMap.neutral);
+  call.textContent = callText;
+  subEl.textContent = sub || '';
+
+  // Render mini dice
+  diceContainer.innerHTML = '';
+  for (const val of [d1, d2]) {
+    const dieEl = document.createElement('div');
+    dieEl.className = 'announcer-die';
+    const faceEl = document.createElement('div');
+    faceEl.className = 'die-face';
+    const layout = dotLayouts[val];
+    for (let i = 0; i < 9; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      if (layout[i]) dot.style.visibility = 'visible';
+      faceEl.appendChild(dot);
+    }
+    dieEl.appendChild(faceEl);
+    diceContainer.appendChild(dieEl);
+  }
+
+  overlay.classList.add('visible');
+
+  if (announcerTimeout) clearTimeout(announcerTimeout);
+  announcerTimeout = setTimeout(() => {
+    overlay.classList.remove('visible');
+    announcerTimeout = null;
+  }, 6000);
+}
+
+function dealerSay(text, mood) {
+  // Show via announcer overlay (no dice, just text)
+  const moodMap = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+  const overlay = document.getElementById('announcerOverlay');
+  const img = document.getElementById('announcerImg');
+  const call = document.getElementById('announcerCall');
+  const subEl = document.getElementById('announcerSub');
+  const diceContainer = document.getElementById('announcerDice');
+
+  img.src = 'assets/Oldjipt/Craps/' + (moodMap[mood] || moodMap.neutral);
+  call.textContent = text;
+  subEl.textContent = '';
+  diceContainer.innerHTML = '';
+
+  overlay.classList.add('visible');
+  if (announcerTimeout) clearTimeout(announcerTimeout);
+  announcerTimeout = setTimeout(() => {
+    overlay.classList.remove('visible');
+    announcerTimeout = null;
+  }, 6000);
+}
+
 function getWinQuip() {
   return ["Winner winner!","Hot dice!","Pay the man!","Keep 'em coming!","Lucky roll!"][Math.floor(Math.random()*5)];
 }
@@ -1482,7 +1690,7 @@ async function joinRoom() {
       if (data.error) {
         console.error('Agora token error:', data.error);
         addChatMsg('system', 'Voice unavailable: ' + data.error);
-        return; // Don't join without a valid token
+        return;
       }
       if (data.token) token = data.token;
     } catch (e) {
@@ -1503,11 +1711,10 @@ async function joinRoom() {
   }
 }
 
-// Push-to-Talk — create mic track once, toggle enabled on press/release
+// Push-to-Talk
 (function initPTT() {
   const pttBtn = document.getElementById('pttBtn');
   let micDenied = false;
-  let micPublished = false;
   async function startTalking() {
     if (pttActive || micDenied) return;
     if (!agoraClient) {
@@ -1520,7 +1727,6 @@ async function joinRoom() {
         localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
         localAudioTrack.setEnabled(false);
         await agoraClient.publish([localAudioTrack]);
-        micPublished = true;
       }
       localAudioTrack.setEnabled(true);
       pttActive = true; pttBtn.classList.add('talking'); pttBtn.textContent = 'TALKING...';
@@ -1537,7 +1743,7 @@ async function joinRoom() {
   async function stopTalking() {
     if (!pttActive) return;
     if (localAudioTrack) localAudioTrack.setEnabled(false);
-    pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'HOLD TO TALK';
+    pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'PUSH TO TALK';
   }
   pttBtn.addEventListener('mousedown', startTalking);
   pttBtn.addEventListener('mouseup', stopTalking);
@@ -1548,7 +1754,6 @@ async function joinRoom() {
 })();
 
 // ── Multiplayer State Sync ──
-// Push local player's visible state to the worker so other players can see bets/dice.
 function broadcastState(extra) {
   if (!currentTableCode) return;
   const payload = {
@@ -1566,7 +1771,6 @@ function broadcastState(extra) {
       lastMsg:  extra || '',
     },
   };
-  // Fire-and-forget — don't block gameplay on sync
   fetchWithTimeout(WORKER_URL + '/tables/state', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1574,7 +1778,6 @@ function broadcastState(extra) {
   }).catch(() => {});
 }
 
-// Poll other players' states and update remote panels/bets.
 let _syncInterval = null;
 function startStateSync() {
   if (_syncInterval) clearInterval(_syncInterval);
@@ -1597,7 +1800,6 @@ async function pollTableState() {
     const seenIds = new Set();
     for (const p of data.players || []) {
       seenIds.add(p.playerId);
-      // Find or assign a seat
       let seat = null;
       for (let s = 1; s <= 2; s++) {
         if (remotePlayers[s].uid === p.playerId) { seat = s; break; }
@@ -1612,9 +1814,8 @@ async function pollTableState() {
           }
         }
       }
-      if (!seat) continue; // table full
+      if (!seat) continue;
 
-      // Update remote player panel
       remotePlayers[seat].nftName = p.name;
       remotePlayers[seat].chadId = p.chadId;
       remotePlayers[seat].stack = p.stack;
@@ -1622,20 +1823,17 @@ async function pollTableState() {
       setPlayerName(seat, p.name);
       setPlayerStack(seat, p.stack);
 
-      // Update remote bets for chip rendering
       const remoteBetMap = {};
       if (p.bets) Object.assign(remoteBetMap, p.bets);
-      // Merge come bets as visible chips on their number zones
       if (p.comeBets) {
         for (const [num, amt] of Object.entries(p.comeBets)) {
-          const key = 'place' + num; // show come bets on place zones visually
+          const key = 'place' + num;
           remoteBetMap[key] = (remoteBetMap[key] || 0) + amt;
         }
       }
       STATE.remoteBets[seat] = remoteBetMap;
     }
 
-    // Clear seats for players who left
     for (let s = 1; s <= 2; s++) {
       if (remotePlayers[s].uid && !seenIds.has(remotePlayers[s].uid)) {
         const name = remotePlayers[s].nftName || 'A player';
@@ -1651,10 +1849,9 @@ async function pollTableState() {
     }
 
     renderAllBetChips();
-  } catch (_) { /* silent — will retry next interval */ }
+  } catch (_) {}
 }
 
-// Legacy stub kept for chat broadcasts
 function broadcastMessage(msg) { console.log('broadcast:', msg); }
 
 // ===================================================================
@@ -1813,6 +2010,7 @@ window.connectWallet = connectWallet;
 window.placeBet = placeBet;
 window.selectChip = selectChip;
 window.clearBets = clearBets;
+window.headerAction = headerAction;
 window.sendChat = sendChat;
 window.joinRoom = joinRoom;
 window.joinPublicTable = joinPublicTable;
@@ -1826,7 +2024,6 @@ window.pressBet = pressBet;
 console.log('[craps] module loaded OK — all window exports set');
 </script>
 <script>
-// Fallback: if the module above failed to load, show a visible error
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     if (typeof window.joinPublicTable !== 'function') {
@@ -1837,7 +2034,6 @@ window.addEventListener('DOMContentLoaded', () => {
         err.textContent = 'Error: Game script failed to load. Check browser console (F12).';
         lobby.querySelector('.lobby-box').appendChild(err);
       }
-      console.error('[craps] Module failed — window.joinPublicTable is not defined. Check console for import/runtime errors above.');
     }
   }, 2000);
 });
