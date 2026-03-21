@@ -1785,7 +1785,9 @@ window.addEventListener('beforeunload', () => {
 // ── Init ──
 renderDie(document.getElementById('face1'), 5);
 renderDie(document.getElementById('face2'), 5);
-if (AGORA_APP_ID) initAgora();
+if (AGORA_APP_ID && typeof AgoraRTC !== 'undefined') {
+  try { initAgora(); } catch (e) { console.warn('Agora init failed:', e.message); }
+}
 
 if (crapsSession) {
   let playerInitDone = false;
