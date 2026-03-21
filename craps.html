@@ -1611,7 +1611,7 @@ function setChadPortrait(seat, chadId) {
   if (slot) { slot.classList.remove('empty'); slot.classList.add('occupied'); }
   const img = document.getElementById('avatarImg-' + seat);
   if (img && chadId) {
-    img.src = 'chads/' + chadId + '.png';
+    img.src = 'assets/chads/framed/' + chadId + '.png';
     img.alt = 'Chad #' + chadId;
     img.classList.add('visible');
   }

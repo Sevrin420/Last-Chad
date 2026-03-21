@@ -1133,7 +1133,7 @@
       await delay(900);
       dialogueBox.classList.add('visible');
       await delay(400);
-      showIntro();
+      if (!introShown) showIntro();
     })();
 
     function duckMusic(targetVol = 0.05, ms = 400) {
@@ -1171,12 +1171,13 @@
 
     let userAddress = null;
 
+    let introShown = false;
     function onConnected(addr) {
       userAddress = addr;
       walletBtn.textContent = truncateAddress(addr);
       walletBtn.classList.add('connected');
       closeWalletModal();
-      if (hasEntered) showIntro();
+      if (hasEntered && !introShown) showIntro();
     }
 
     function onDisconnected() {
@@ -1246,6 +1247,7 @@
 
     // ── Flow: Intro ──
     async function showIntro() {
+      introShown = true;
       await showNpcText([
         "So you've come to see ol' Jipt eh?",
         "How's about we play a game o' chance?"
