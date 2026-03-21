@@ -125,6 +125,15 @@
       max-width:100%;
     }
     .local-card{--slot-color:var(--p1-color)}
+    .remote-card.shooter .remote-avatar{
+      border-color:#c9a84c;
+      box-shadow:0 0 12px rgba(201,168,76,0.7),0 0 24px rgba(201,168,76,0.35);
+      animation:shooterGlow 1.8s ease-in-out infinite alternate;
+    }
+    @keyframes shooterGlow{
+      from{box-shadow:0 0 10px rgba(201,168,76,0.5),0 0 20px rgba(201,168,76,0.25)}
+      to{box-shadow:0 0 16px rgba(201,168,76,0.9),0 0 32px rgba(201,168,76,0.45)}
+    }
 
     /* ── Announcer Overlay (over craps table) ── */
     .announcer-overlay{
@@ -1119,10 +1128,24 @@ function startBetPhase() {
   // No timer yet — waits for first bet via onFirstBet()
 }
 
+function getRemotePlayerCount() {
+  let n = 0;
+  for (const s of [1, 2]) { if (remotePlayers[s].uid) n++; }
+  return n;
+}
+
 function onFirstBet() {
   if (betTimerStarted || turnPhase !== 'betting') return;
   betTimerStarted = true;
-  startTimer(30, 'PLACE BETS', () => {
+  const multi = getRemotePlayerCount() > 0;
+  if (!multi) {
+    // Solo — skip bet timer, go straight to roll phase
+    turnPhase = 'no-more-bets';
+    betsLocked = true;
+    startRollPhase();
+    return;
+  }
+  startTimer(20, 'PLACE BETS', () => {
     turnPhase = 'no-more-bets';
     betsLocked = true;
     showNoMoreBets();
@@ -1595,6 +1618,9 @@ function initPlayerFromSession() {
   if (STATE.chadId) {
     setChadPortrait(0, STATE.chadId);
     setPlayerName(0, STATE.nftName || 'Chad #' + STATE.chadId);
+    // Local player is always the shooter — mark with gold glow
+    const localSlot = document.getElementById('slot-0');
+    if (localSlot) localSlot.classList.add('shooter');
   }
   updateLocalPlayerUI();
   const welcomeEl = document.getElementById('welcomeMsg');
