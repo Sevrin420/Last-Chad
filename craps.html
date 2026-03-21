@@ -108,6 +108,7 @@
     }
     .remote-card[data-seat="1"]{--slot-color:var(--p2-color)}
     .remote-card[data-seat="2"]{--slot-color:var(--p3-color)}
+    .remote-card[data-seat="3"]{--slot-color:var(--p4-color)}
     .remote-avatar{
       width:52px;height:69px;
       border:3px solid var(--slot-color,#333);
@@ -818,6 +819,12 @@
       </div>
       <div class="remote-name" id="name-2">Waiting</div>
     </div>
+    <div class="remote-card" id="slot-3" data-seat="3">
+      <div class="remote-avatar" id="avatar-3">
+        <img id="avatarImg-3" src="" alt="" />
+      </div>
+      <div class="remote-name" id="name-3">Waiting</div>
+    </div>
   </div>
 
   <!-- BOTTOM ROW (test button only) -->
@@ -882,6 +889,7 @@ const STATE = {
 const remotePlayers = {
   1: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
   2: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
+  3: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
 };
 
 
@@ -1095,8 +1103,34 @@ function headerAction() {
   }
 }
 
+// ── Shooter Rotation ──
+let currentShooter = 0; // seat index: 0 = local, 1-3 = remote
+
+function isSeatOccupied(seat) {
+  if (seat === 0) return !!STATE.chadId;
+  return !!remotePlayers[seat].uid;
+}
+
+function advanceShooter() {
+  // Rotate to next occupied seat: 0 → 1 → 2 → 3 → 0 ...
+  for (let i = 1; i <= 4; i++) {
+    const next = (currentShooter + i) % 4;
+    if (isSeatOccupied(next)) { setShooter(next); return; }
+  }
+  setShooter(0); // fallback to local
+}
+
+function setShooter(seat) {
+  currentShooter = seat;
+  // Update gold glow
+  for (let s = 0; s <= 3; s++) {
+    const slot = document.getElementById('slot-' + s);
+    if (slot) slot.classList.toggle('shooter', s === seat);
+  }
+}
+
 // ── Turn Phase System ──
-// 30s bet window (starts on first bet), 10s roll window, auto-roll after 10s
+// Solo: no bet timer, no auto-roll. Multi: 20s bets, 10s auto-roll.
 let turnTimer = null;
 let turnPhase = 'betting';
 let betsLocked = false;
@@ -1130,7 +1164,7 @@ function startBetPhase() {
 
 function getRemotePlayerCount() {
   let n = 0;
-  for (const s of [1, 2]) { if (remotePlayers[s].uid) n++; }
+  for (const s of [1, 2, 3]) { if (remotePlayers[s].uid) n++; }
   return n;
 }
 
@@ -1167,7 +1201,13 @@ function startRollPhase() {
   diceEl.classList.add('can-roll');
   diceEl.classList.remove('locked');
   document.getElementById('rollPrompt').style.display = '';
-  startTimer(10, 'ROLL', () => { rollDice(); });
+  const multi = getRemotePlayerCount() > 0;
+  if (multi) {
+    startTimer(10, 'ROLL', () => { rollDice(); });
+  } else {
+    // Solo — no auto-roll timer, player clicks when ready
+    hideTimer();
+  }
 }
 
 function startTimer(seconds, label, onComplete) {
@@ -1345,8 +1385,13 @@ async function rollDice() {
 
     STATE.isRolling = false;
     diceEl.classList.remove('locked');
+    // 7-out: shooter loses dice, advance to next player
+    const sevenOut = prevPhase === 'point' && STATE.phase === 'comeout' && total === 7;
     const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
-    setTimeout(() => startBetPhase(), hasPress ? 5000 : 2000);
+    setTimeout(() => {
+      if (sevenOut) advanceShooter();
+      startBetPhase();
+    }, hasPress ? 5000 : 2000);
     return;
 
   } catch (err) {
@@ -1618,9 +1663,7 @@ function initPlayerFromSession() {
   if (STATE.chadId) {
     setChadPortrait(0, STATE.chadId);
     setPlayerName(0, STATE.nftName || 'Chad #' + STATE.chadId);
-    // Local player is always the shooter — mark with gold glow
-    const localSlot = document.getElementById('slot-0');
-    if (localSlot) localSlot.classList.add('shooter');
+    setShooter(currentShooter); // apply gold glow to current shooter
   }
   updateLocalPlayerUI();
   const welcomeEl = document.getElementById('welcomeMsg');
@@ -1712,11 +1755,11 @@ async function pollTableState() {
     for (const p of data.players || []) {
       seenIds.add(p.playerId);
       let seat = null;
-      for (let s = 1; s <= 2; s++) {
+      for (let s = 1; s <= 3; s++) {
         if (remotePlayers[s].uid === p.playerId) { seat = s; break; }
       }
       if (!seat) {
-        for (let s = 1; s <= 2; s++) {
+        for (let s = 1; s <= 3; s++) {
           if (!remotePlayers[s].uid) {
             seat = s;
             remotePlayers[s].uid = p.playerId;
@@ -1745,7 +1788,7 @@ async function pollTableState() {
       STATE.remoteBets[seat] = remoteBetMap;
     }
 
-    for (let s = 1; s <= 2; s++) {
+    for (let s = 1; s <= 3; s++) {
       if (remotePlayers[s].uid && !seenIds.has(remotePlayers[s].uid)) {
         const name = remotePlayers[s].nftName || 'A player';
         clearPlayerPanel(s);
@@ -1756,6 +1799,8 @@ async function pollTableState() {
         remotePlayers[s].stack = 0;
         delete STATE.remoteBets[s];
         addChatMsg('system', name + ' left the table.');
+        // If the shooter left, advance to next occupied seat
+        if (currentShooter === s) advanceShooter();
       }
     }
 
