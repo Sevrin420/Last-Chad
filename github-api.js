@@ -1770,7 +1770,7 @@ function showPanel(id) {
         if (lastTime.toNumber() > 0 && now < lastTime.toNumber() + cooldown.toNumber()) {
           var remaining = (lastTime.toNumber() + cooldown.toNumber()) - now;
           var days = Math.ceil(remaining / 86400);
-          statusEl.textContent = '⏳ Quest on cooldown — ' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
+          statusEl.textContent = 'This Chad has already attempted the quest';
           if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(false);
           return;
