@@ -687,6 +687,15 @@ async function handleCrapsBet(request, env) {
   if (zone.startsWith('place') && session.phase === 'comeout') {
     return json({ error: 'Place bets open after point' }, 400);
   }
+  if (zone === 'pass' && session.phase === 'point') {
+    return json({ error: 'Pass line only on come-out roll' }, 400);
+  }
+  if (zone === 'passOdds' && session.phase === 'comeout') {
+    return json({ error: 'Pass odds only after point is set' }, 400);
+  }
+  if (zone === 'come' && session.phase === 'comeout') {
+    return json({ error: 'Come bets only after point is set' }, 400);
+  }
 
   const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
   if (amt <= 0) return json({ error: 'Invalid amount or insufficient stack' }, 400);
@@ -712,6 +721,14 @@ async function handleCrapsRoll(request, env) {
     return json({ error: 'Invalid session token' }, 403);
   }
 
+  // Guard against concurrent roll requests for the same session.
+  // Two simultaneous rolls could both read the same KV state and double bets.
+  if (session.rolling) {
+    return json({ error: 'Roll already in progress' }, 409);
+  }
+  session.rolling = true;
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+
   // ── Server-side bet placement: validate each new bet against stack ──
   const validBetZones = new Set([
     'pass','field','come','passOdds',
@@ -723,8 +740,11 @@ async function handleCrapsRoll(request, env) {
       if (!validBetZones.has(zone)) continue;
       const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
       if (amt <= 0) continue;
-      // Place bets only valid during point phase
+      // Phase rules — same as handleCrapsBet
       if (zone.startsWith('place') && session.phase === 'comeout') continue;
+      if (zone === 'pass' && session.phase === 'point') continue;
+      if (zone === 'passOdds' && session.phase === 'comeout') continue;
+      if (zone === 'come' && session.phase === 'comeout') continue;
       session.stack -= amt;
       session.bets[zone] = (session.bets[zone] || 0) + amt;
     }
@@ -749,6 +769,7 @@ async function handleCrapsRoll(request, env) {
   // Resolve all bets (server-side authoritative)
   const resolution = crapsResolveBets(session, d1, d2, total, isHard);
 
+  session.rolling = false;
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
 
   return json({
@@ -789,12 +810,15 @@ async function handleCrapsCashout(request, env) {
   for (const val of Object.values(session.comeOdds || {})) betsOnTable += val;
   const payout = session.stack + betsOnTable;
 
-  // Mark nonce as done to prevent reuse (persists 24h after session deletion)
+  // Mark nonce as done and delete session BEFORE signing to prevent double-cashout races.
+  // Even if two concurrent requests both pass the initial craps_done check, only one will
+  // reach claimWinnings on-chain (usedNonces prevents replay). But we minimise the window
+  // by committing the done marker and removing the session first.
   const cashoutKey = `craps_done:${nonce}`;
+  await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
+  await env.RUNNER_KV.delete(key);
 
   if (payout === 0) {
-    await env.RUNNER_KV.delete(key);
-    await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
     return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
   }
 
@@ -805,9 +829,6 @@ async function handleCrapsCashout(request, env) {
   );
   const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
 
-  // Delete session and mark nonce as used
-  await env.RUNNER_KV.delete(key);
-  await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
   return json({ ok: true, payout, nonce: Number(nonce), signature });
 }
 
