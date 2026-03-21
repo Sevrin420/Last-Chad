@@ -2082,7 +2082,7 @@ function showPanel(id) {
             tw.appendChild(cur);
             await wait(60);
           }
-          await wait(1800);
+          await wait(2300);
           if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
           if (li < lines.length - 1) {
             tw.textContent = '';

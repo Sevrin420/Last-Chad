@@ -772,7 +772,7 @@
       <div id="introText" class="intro-text" style="opacity:0;"></div>
 <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
       <div id="escrowBox" style="margin:18px 0 10px;font-size:0.48rem;color:#c9a84c;text-align:center;line-height:1.8;">
-        <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking escrow status…</div>
+        <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking quest status…</div>
         <a href="../../adventure.html" id="goAdventureBtn" style="display:none;font-family:'Press Start 2P',monospace;font-size:0.48rem;color:#c9a84c;text-decoration:underline;cursor:pointer;">← Start quest from the Adventure page</a>
       </div>
       <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()" disabled style="opacity:0;pointer-events:none;">START</button>
@@ -1303,7 +1303,7 @@ function showPanel(id) {
         return;
       }
 
-      statusEl.textContent = '⏳ Checking escrow status…';
+      statusEl.textContent = '⏳ Checking quest status…';
       try {
         var rp = _getReadProvider();
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
@@ -1312,7 +1312,7 @@ function showPanel(id) {
         var lockerMatchesUser = userAddress && locker.toLowerCase() === userAddress.toLowerCase();
         if (lockerIsSet && (!userAddress || lockerMatchesUser)) {
           // Locked by this user (or wallet not yet connected — trust on-chain state)
-          statusEl.textContent = '✅ CHAD #' + chadId + ' is locked in escrow';
+          statusEl.textContent = '✅ CHAD #' + chadId + ' is ready';
           if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(true);
         } else if (lockerIsSet && !lockerMatchesUser) {
@@ -1328,7 +1328,7 @@ function showPanel(id) {
         }
       } catch(e) {
         // RPC error — don't block the player
-        statusEl.textContent = '⚠️ Could not verify escrow (network error)';
+        statusEl.textContent = '⚠️ Could not verify quest status (network error)';
         if (advBtn) advBtn.style.display = 'none';
         _setStartEnabled(true);
       }
@@ -1611,7 +1611,7 @@ function showPanel(id) {
             tw.appendChild(cur);
             await wait(60);
           }
-          await wait(1800);
+          await wait(2300);
           if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
           if (li < lines.length - 1) {
             tw.textContent = '';
@@ -2341,10 +2341,10 @@ function showPanel(id) {
               try { wasStarted = await qrRead.questStarted(chadId, QUEST_ID); } catch(e) {}
               if (wasStarted) {
                 // Quest was started but session expired and NFT was released — unrecoverable
-                _setText(statusEl, 'Quest session expired. Your NFT was returned — cells for this attempt cannot be claimed.');
+                _setText(statusEl, 'Quest session expired. Your character was returned — cells for this attempt cannot be claimed.');
               } else {
                 // Quest was never started on-chain — player skipped adventure.html
-                _setText(statusEl, 'Quest not started on-chain. Begin from the Adventure page to lock your Chad and earn cells.');
+                _setText(statusEl, 'Quest not started. Begin from the Adventure page.');
               }
               btn.disabled = true;
               _setText(btn, 'SESSION INACTIVE');
