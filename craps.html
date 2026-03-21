@@ -1104,46 +1104,63 @@ function headerAction() {
 }
 
 // ── Shooter Rotation ──
-let currentShooter = 0; // seat index: 0 = local, 1-3 = remote
+// Shooter is tracked server-side by playerId. Each client resolves it to a local seat.
+let shooterPlayerId = null;
 
-function isSeatOccupied(seat) {
-  if (seat === 0) return !!STATE.chadId;
-  return !!remotePlayers[seat].uid;
+function isLocalShooter() {
+  return shooterPlayerId === STATE.playerId;
 }
 
-function advanceShooter() {
-  const prev = currentShooter;
-  for (let i = 1; i <= 4; i++) {
-    const next = (currentShooter + i) % 4;
-    if (isSeatOccupied(next)) { setShooter(next); break; }
-    if (i === 4) setShooter(0); // fallback to local
+function shooterSeat() {
+  if (shooterPlayerId === STATE.playerId) return 0;
+  for (let s = 1; s <= 3; s++) {
+    if (remotePlayers[s].uid === shooterPlayerId) return s;
   }
-  if (currentShooter !== prev) {
-    const name = getShooterName(currentShooter);
-    dealerSay(`New shooter coming out! Let's see what ya got ${name}`, 'happy');
-  }
+  return -1; // shooter not visible (hasn't synced yet)
 }
 
-function getShooterName(seat) {
+function getShooterName() {
+  const seat = shooterSeat();
   if (seat === 0) return STATE.nftName || STATE.playerName || 'Chad';
-  return remotePlayers[seat].nftName || 'Player ' + (seat + 1);
+  if (seat > 0) return remotePlayers[seat].nftName || 'Player ' + (seat + 1);
+  return 'Unknown';
 }
 
-function setShooter(seat) {
-  currentShooter = seat;
-  const isLocal = seat === 0;
+function applyShooterUI() {
+  const seat = shooterSeat();
+  const isLocal = isLocalShooter();
   const diceEl = document.getElementById('tableDice');
   // Only the shooter can click the dice
-  if (isLocal) {
-    diceEl.style.pointerEvents = '';
-  } else {
-    diceEl.style.pointerEvents = 'none';
-  }
-  // Update gold glow
+  diceEl.style.pointerEvents = isLocal ? '' : 'none';
+  // Update gold glow on all seats
   for (let s = 0; s <= 3; s++) {
     const slot = document.getElementById('slot-' + s);
     if (slot) slot.classList.toggle('shooter', s === seat);
   }
+}
+
+function updateShooter(newShooterPlayerId) {
+  if (!newShooterPlayerId || newShooterPlayerId === shooterPlayerId) return;
+  const prev = shooterPlayerId;
+  shooterPlayerId = newShooterPlayerId;
+  applyShooterUI();
+  if (prev && prev !== newShooterPlayerId) {
+    const name = getShooterName();
+    dealerSay(`New shooter coming out! Let's see what ya got ${name}`, 'happy');
+  }
+}
+
+async function advanceShooterOnServer() {
+  if (!currentTableCode || !isLocalShooter()) return;
+  try {
+    const res = await fetchWithTimeout(WORKER_URL + '/tables/shooter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: currentTableCode, playerId: STATE.playerId }),
+    });
+    const data = await res.json();
+    if (data.shooter) updateShooter(data.shooter);
+  } catch (_) {}
 }
 
 // ── Turn Phase System ──
@@ -1215,10 +1232,10 @@ function showNoMoreBets() {
 function startRollPhase() {
   turnPhase = 'rolling';
   const diceEl = document.getElementById('tableDice');
-  const isShooter = currentShooter === 0;
+  const shooter = isLocalShooter();
   const multi = getRemotePlayerCount() > 0;
 
-  if (isShooter) {
+  if (shooter) {
     diceEl.classList.add('can-roll');
     diceEl.classList.remove('locked');
     document.getElementById('rollPrompt').style.display = '';
@@ -1232,9 +1249,8 @@ function startRollPhase() {
     diceEl.classList.remove('can-roll');
     diceEl.classList.add('locked');
     document.getElementById('rollPrompt').style.display = 'none';
-    const shooterName = getShooterName(currentShooter);
-    startTimer(10, shooterName + ' ROLLING', () => {
-      // Auto-roll triggers for the shooter's client; we just wait
+    startTimer(10, getShooterName() + ' ROLLING', () => {
+      // Auto-roll triggers on the shooter's client; we just wait
     });
   }
 }
@@ -1277,7 +1293,7 @@ function hideTimer() {
 // ── Dice Roll ──
 async function rollDice() {
   if (STATE.isRolling) return;
-  if (currentShooter !== 0) return; // only the shooter can roll
+  if (!isLocalShooter()) return; // only the shooter can roll
   if (!STATE.bets.pass) {
     dealerSay("Pass line bet required to roll!", 'neutral'); return;
   }
@@ -1415,11 +1431,11 @@ async function rollDice() {
 
     STATE.isRolling = false;
     diceEl.classList.remove('locked');
-    // 7-out: shooter loses dice, advance to next player
+    // 7-out: shooter loses dice, advance to next player on server
     const sevenOut = prevPhase === 'point' && STATE.phase === 'comeout' && total === 7;
     const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
-    setTimeout(() => {
-      if (sevenOut) advanceShooter();
+    setTimeout(async () => {
+      if (sevenOut) await advanceShooterOnServer();
       startBetPhase();
     }, hasPress ? 5000 : 2000);
     return;
@@ -1693,7 +1709,9 @@ function initPlayerFromSession() {
   if (STATE.chadId) {
     setChadPortrait(0, STATE.chadId);
     setPlayerName(0, STATE.nftName || 'Chad #' + STATE.chadId);
-    setShooter(currentShooter); // apply gold glow to current shooter
+    // Default to self as shooter until server responds
+    if (!shooterPlayerId) shooterPlayerId = STATE.playerId;
+    applyShooterUI();
   }
   updateLocalPlayerUI();
   const welcomeEl = document.getElementById('welcomeMsg');
@@ -1829,10 +1847,11 @@ async function pollTableState() {
         remotePlayers[s].stack = 0;
         delete STATE.remoteBets[s];
         addChatMsg('system', name + ' left the table.');
-        // If the shooter left, advance to next occupied seat
-        if (currentShooter === s) advanceShooter();
       }
     }
+
+    // Sync shooter from server
+    if (data.shooter) updateShooter(data.shooter);
 
     renderAllBetChips();
   } catch (_) {}
@@ -1863,6 +1882,7 @@ async function joinPublicTable(tableName) {
     });
     const data = await res.json();
     if (data.error) { alert(data.error); return; }
+    if (data.shooter) updateShooter(data.shooter);
   } catch (_) {}
   enterTable();
 }
@@ -1932,6 +1952,8 @@ function enterTable() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ table: hash, playerId: STATE.playerId }),
+  }).then(r => r.json()).then(data => {
+    if (data.shooter) updateShooter(data.shooter);
   }).catch(() => {});
 })();
 

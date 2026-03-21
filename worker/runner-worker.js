@@ -155,6 +155,9 @@ export default {
       if (request.method === 'GET' && url.pathname === '/tables/state') {
         return await handleTableStateGet(url, env);
       }
+      if (request.method === 'POST' && url.pathname === '/tables/shooter') {
+        return await handleShooterAdvance(request, env);
+      }
 
       // Agora RTC token
       if (request.method === 'POST' && url.pathname === '/agora/token') {
@@ -1217,7 +1220,9 @@ async function handleTableJoin(request, env) {
   await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
 
   const count = Object.values(existing).filter(ts => now - ts < TABLE_STALE_MS).length;
-  return json({ ok: true, count });
+  // Ensure a shooter is assigned (first player becomes shooter)
+  const shooter = await ensureShooter(table, env);
+  return json({ ok: true, count, shooter });
 }
 
 async function countPrivateTables(env) {
@@ -1244,8 +1249,10 @@ async function handleTableLeave(request, env) {
 
   if (Object.keys(existing).length === 0) {
     await env.RUNNER_KV.delete(key);
+    await env.RUNNER_KV.delete(`table_shooter:${table}`);
   } else {
     await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
+    await ensureShooter(table, env);
   }
   return json({ ok: true });
 }
@@ -1342,7 +1349,63 @@ async function handleTableStateGet(url, env) {
       others.push(st);
     }
   }
-  return json({ ok: true, players: others });
+  // Include shooter info
+  const shooterKey = `table_shooter:${table}`;
+  const shooter = await env.RUNNER_KV.get(shooterKey, { type: 'json' });
+  return json({ ok: true, players: others, shooter: shooter ? shooter.playerId : null });
+}
+
+// ── Shooter rotation ──
+
+async function getActivePlayers(table, env) {
+  const playersKey = `table_players:${table}`;
+  const players = await env.RUNNER_KV.get(playersKey, { type: 'json' }) || {};
+  const now = Date.now();
+  // Return active playerIds sorted by join time (oldest first = stable order)
+  return Object.entries(players)
+    .filter(([, ts]) => now - ts < TABLE_STALE_MS)
+    .sort((a, b) => a[1] - b[1])
+    .map(([pid]) => pid);
+}
+
+async function ensureShooter(table, env) {
+  const shooterKey = `table_shooter:${table}`;
+  const existing = await env.RUNNER_KV.get(shooterKey, { type: 'json' });
+  const active = await getActivePlayers(table, env);
+  if (active.length === 0) {
+    await env.RUNNER_KV.delete(shooterKey);
+    return null;
+  }
+  // If current shooter is still active, keep them
+  if (existing && active.includes(existing.playerId)) return existing.playerId;
+  // Otherwise assign first active player
+  const newShooter = { playerId: active[0] };
+  await env.RUNNER_KV.put(shooterKey, JSON.stringify(newShooter), { expirationTtl: TABLE_PRESENCE_TTL });
+  return active[0];
+}
+
+// POST /tables/shooter  { table, playerId }
+// Called by the current shooter's client after a 7-out to pass the dice.
+async function handleShooterAdvance(request, env) {
+  const { table, playerId } = await parseBody(request);
+  if (!table || !playerId) return json({ error: 'Missing fields' }, 400);
+
+  const shooterKey = `table_shooter:${table}`;
+  const current = await env.RUNNER_KV.get(shooterKey, { type: 'json' });
+
+  // Only the current shooter can advance
+  if (!current || current.playerId !== playerId) {
+    return json({ error: 'Not the shooter' }, 403);
+  }
+
+  const active = await getActivePlayers(table, env);
+  if (active.length === 0) return json({ ok: true, shooter: null });
+
+  const idx = active.indexOf(playerId);
+  const nextIdx = (idx + 1) % active.length;
+  const nextShooter = { playerId: active[nextIdx] };
+  await env.RUNNER_KV.put(shooterKey, JSON.stringify(nextShooter), { expirationTtl: TABLE_PRESENCE_TTL });
+  return json({ ok: true, shooter: active[nextIdx] });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
