@@ -30,6 +30,7 @@ contract Gamble {
 
     uint256 public minWager = 1;
     uint256 public maxWager = 50;
+    uint256 public maxPayoutMultiplier = 20; // payout cap: wager * multiplier
 
     // Prevent oracle signature replay
     mapping(uint256 => bool) public usedNonces;
@@ -93,6 +94,11 @@ contract Gamble {
         require(min > 0 && max >= min, "Invalid limits");
         minWager = min;
         maxWager = max;
+    }
+
+    function setMaxPayoutMultiplier(uint256 mult) external onlyGameOwner {
+        require(mult > 0, "Multiplier must be > 0");
+        maxPayoutMultiplier = mult;
     }
 
     // ── Path 1: on-chain coin flip ───────────────────────────────────────────
@@ -186,6 +192,7 @@ contract Gamble {
         require(wagerAmounts[nonce] > 0, "No active wager");
         require(wagerPlayers[nonce] == msg.sender, "Not wager owner");
         require(!usedNonces[nonce], "Already claimed");
+        require(payout <= wagerAmounts[nonce] * maxPayoutMultiplier, "Payout exceeds cap");
 
         bytes32 message = keccak256(abi.encodePacked(
             tokenId, payout, nonce, msg.sender

@@ -752,7 +752,6 @@
     <div class="controls">
       <button class="ctrl-btn btn-clear" onclick="clearBets()">CLEAR</button>
       <button class="ctrl-btn btn-cashout" onclick="cashOut()">CASH OUT</button>
-      <button class="ctrl-btn" style="background:#555;color:#fff" onclick="testRemoteChips()">TEST CHIPS</button>
       <button class="btn-exit" onclick="exitTable()">EXIT</button>
     </div>
   </div>
@@ -961,6 +960,9 @@ function pressBet(zone) {
   }
   STATE.stack -= pressAmount;
   STATE.bets[zone] = currentBet + pressAmount;
+  // Notify server about the pressed bet so it's tracked server-side
+  if (!STATE._pendingBets) STATE._pendingBets = {};
+  STATE._pendingBets[zone] = (STATE._pendingBets[zone] || 0) + pressAmount;
   // any extra winnings beyond the press cost stay in stack
   delete STATE.pressOptions[zone];
   renderAllBetChips();
@@ -1659,13 +1661,8 @@ if (crapsSession) {
     if (STATE.chadId && !playerInitDone) { playerInitDone = true; initPlayerFromSession(); }
   });
 } else {
-  // Test mode — 100 free chips, no wallet or worker needed
-  STATE._testMode = true;
-  STATE.stack = 100;
-  STATE.nftName = 'Test Player';
-  STATE.playerName = 'Test Player';
-  STATE.nonce = 'test-' + Date.now();
-  initPlayerFromSession();
+  // No session — redirect to gamble page to buy in
+  dealerSay("No active session. Buy in first!", 'sad');
 }
 
 window.rollDice = rollDice;
@@ -1683,7 +1680,6 @@ window.joinPrivateTable = joinPrivateTable;
 window.copyInviteLink = copyInviteLink;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
-window.testRemoteChips = testRemoteChips;
 window.pressBet = pressBet;
 </script>
 </body>

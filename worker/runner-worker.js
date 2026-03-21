@@ -682,6 +682,7 @@ async function handleCrapsBet(request, env) {
     'pass','field','come','passOdds',
     'place4','place5','place6','place8','place9','place10',
     'hard4','hard6','hard8','hard10',
+    'comeOdds4','comeOdds5','comeOdds6','comeOdds8','comeOdds9','comeOdds10',
   ]);
   if (!validBetZones.has(zone)) return json({ error: 'Invalid bet zone' }, 400);
   if (zone.startsWith('place') && session.phase === 'comeout') {
@@ -696,15 +697,30 @@ async function handleCrapsBet(request, env) {
   if (zone === 'come' && session.phase === 'comeout') {
     return json({ error: 'Come bets only after point is set' }, 400);
   }
+  // Come odds require an existing come bet on that number
+  if (zone.startsWith('comeOdds')) {
+    const num = zone.replace('comeOdds', '');
+    if (!session.comeBets || !session.comeBets[num]) {
+      return json({ error: 'No come bet on ' + num + ' to back with odds' }, 400);
+    }
+  }
 
   const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
   if (amt <= 0) return json({ error: 'Invalid amount or insufficient stack' }, 400);
 
-  session.stack -= amt;
-  session.bets[zone] = (session.bets[zone] || 0) + amt;
+  // Come odds go into the comeOdds object, not bets
+  if (zone.startsWith('comeOdds')) {
+    const num = zone.replace('comeOdds', '');
+    session.stack -= amt;
+    if (!session.comeOdds) session.comeOdds = {};
+    session.comeOdds[num] = (session.comeOdds[num] || 0) + amt;
+  } else {
+    session.stack -= amt;
+    session.bets[zone] = (session.bets[zone] || 0) + amt;
+  }
 
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
-  return json({ ok: true, stack: session.stack, bets: session.bets });
+  return json({ ok: true, stack: session.stack, bets: session.bets, comeOdds: session.comeOdds || {} });
 }
 
 // POST /craps/roll  { nonce, newBets: { zone: amount } }
@@ -734,6 +750,7 @@ async function handleCrapsRoll(request, env) {
     'pass','field','come','passOdds',
     'place4','place5','place6','place8','place9','place10',
     'hard4','hard6','hard8','hard10',
+    'comeOdds4','comeOdds5','comeOdds6','comeOdds8','comeOdds9','comeOdds10',
   ]);
   if (newBets && typeof newBets === 'object') {
     for (const [zone, amount] of Object.entries(newBets)) {
@@ -745,8 +762,17 @@ async function handleCrapsRoll(request, env) {
       if (zone === 'pass' && session.phase === 'point') continue;
       if (zone === 'passOdds' && session.phase === 'comeout') continue;
       if (zone === 'come' && session.phase === 'comeout') continue;
-      session.stack -= amt;
-      session.bets[zone] = (session.bets[zone] || 0) + amt;
+      // Come odds require an existing come bet on that number
+      if (zone.startsWith('comeOdds')) {
+        const num = zone.replace('comeOdds', '');
+        if (!session.comeBets || !session.comeBets[num]) continue;
+        session.stack -= amt;
+        if (!session.comeOdds) session.comeOdds = {};
+        session.comeOdds[num] = (session.comeOdds[num] || 0) + amt;
+      } else {
+        session.stack -= amt;
+        session.bets[zone] = (session.bets[zone] || 0) + amt;
+      }
     }
   }
 
@@ -754,20 +780,28 @@ async function handleCrapsRoll(request, env) {
   const totalBets = Object.values(session.bets).reduce((s, v) => s + v, 0)
     + Object.values(session.comeBets || {}).reduce((s, v) => s + v, 0);
   if (totalBets === 0) {
+    session.rolling = false;
     await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
     return json({ error: 'No bets on table' }, 400);
   }
 
   // Generate dice server-side — crypto.getRandomValues, not Math.random
-  const arr = new Uint32Array(2);
-  crypto.getRandomValues(arr);
-  const d1 = (arr[0] % 6) + 1;
-  const d2 = (arr[1] % 6) + 1;
-  const total = d1 + d2;
-  const isHard = (d1 === d2);
+  let d1, d2, total, isHard, resolution;
+  try {
+    const arr = new Uint32Array(2);
+    crypto.getRandomValues(arr);
+    d1 = (arr[0] % 6) + 1;
+    d2 = (arr[1] % 6) + 1;
+    total = d1 + d2;
+    isHard = (d1 === d2);
 
-  // Resolve all bets (server-side authoritative)
-  const resolution = crapsResolveBets(session, d1, d2, total, isHard);
+    // Resolve all bets (server-side authoritative)
+    resolution = crapsResolveBets(session, d1, d2, total, isHard);
+  } catch (err) {
+    session.rolling = false;
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+    return json({ error: 'Roll resolution failed' }, 500);
+  }
 
   session.rolling = false;
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
@@ -915,7 +949,7 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
     }
   }
 
-  // PLACE BETS
+  // PLACE BETS — standing bets: on hit, pay profit but bet stays active
   const placePay = { 4: [9,5], 5: [7,5], 6: [7,6], 8: [7,6], 9: [7,5], 10: [9,5] };
   for (const num of [4,5,6,8,9,10]) {
     const key = 'place' + num;
@@ -924,10 +958,10 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
       const [payNum, payDen] = placePay[num];
       const payout = Math.floor(bets[key] * payNum / payDen);
       netWin += payout;
-      session.stack += bets[key] + payout;
+      session.stack += payout; // profit only — bet stays on the table
       wins.push(key);
       message = 'PLACE ' + num + ' hits! +' + payout;
-      bets[key] = 0;
+      // bets[key] stays — place bets are standing bets in standard craps
     } else if (total === 7) {
       losses.push(key);
       bets[key] = 0;
