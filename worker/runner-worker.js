@@ -54,6 +54,13 @@ const POKER_SESSION_TTL = 600;    // 10 minutes per session (reset on every inte
 const CRAPS_SESSION_TTL = 1200;   // 20 minutes per craps session (longer game)
 const TABLE_PRESENCE_TTL = 120;   // 2 minutes — heartbeat refreshes this
 const TABLE_STALE_MS = 90_000;    // 90s — entries older than this are filtered out
+const MAX_PUBLIC_TABLES  = 6;
+const MAX_PRIVATE_TABLES = 10;
+const MAX_PLAYERS_PER_TABLE = 4;
+const PUBLIC_TABLES = Array.from({ length: MAX_PUBLIC_TABLES }, (_, i) => ({
+  name: `public-${i + 1}`,
+  label: `PUBLIC TABLE ${i + 1}`,
+}));
 const POKER_PAYOUTS = {
   'ROYAL FLUSH':      250,
   'STRAIGHT FLUSH':    50,
@@ -1182,14 +1189,48 @@ async function handleTableJoin(request, env) {
   const { table, playerId } = await parseBody(request);
   if (!table || !playerId) return json({ error: 'Missing table or playerId' }, 400);
 
+  const isPublic  = PUBLIC_TABLES.some(t => t.name === table);
+  const isPrivate = table.startsWith('priv-');
+  if (!isPublic && !isPrivate) return json({ error: 'Invalid table name' }, 400);
+
+  // Enforce private table cap
+  if (isPrivate) {
+    const privCount = await countPrivateTables(env);
+    // Allow if player is already in this table, otherwise check cap
+    const existingCheck = await env.RUNNER_KV.get(`table_players:${table}`, { type: 'json' }) || {};
+    if (!existingCheck[playerId] && privCount >= MAX_PRIVATE_TABLES) {
+      return json({ error: 'Private table limit reached', max: MAX_PRIVATE_TABLES }, 429);
+    }
+  }
+
   const key = `table_players:${table}`;
   const existing = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
+
+  // Enforce per-table player cap (allow rejoin if already seated)
+  const now = Date.now();
+  const activePlayers = Object.entries(existing).filter(([, ts]) => now - ts < TABLE_STALE_MS);
+  if (!existing[playerId] && activePlayers.length >= MAX_PLAYERS_PER_TABLE) {
+    return json({ error: 'Table is full', max: MAX_PLAYERS_PER_TABLE }, 429);
+  }
+
   existing[playerId] = Date.now();
   await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
 
-  const now = Date.now();
   const count = Object.values(existing).filter(ts => now - ts < TABLE_STALE_MS).length;
   return json({ ok: true, count });
+}
+
+async function countPrivateTables(env) {
+  // List all private table KV keys with active players
+  const list = await env.RUNNER_KV.list({ prefix: 'table_players:priv-' });
+  let count = 0;
+  const now = Date.now();
+  for (const key of list.keys) {
+    const players = await env.RUNNER_KV.get(key.name, { type: 'json' }) || {};
+    const active = Object.values(players).filter(ts => now - ts < TABLE_STALE_MS);
+    if (active.length > 0) count++;
+  }
+  return count;
 }
 
 // POST /tables/leave  { table, playerId }
@@ -1211,17 +1252,23 @@ async function handleTableLeave(request, env) {
 
 // GET /tables/list
 async function handleTableList(env) {
-  const key = `table_players:public-main`;
-  const players = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
   const now = Date.now();
-  const active = Object.entries(players).filter(([, ts]) => now - ts < TABLE_STALE_MS);
+  const tables = [];
+
+  for (const t of PUBLIC_TABLES) {
+    const players = await env.RUNNER_KV.get(`table_players:${t.name}`, { type: 'json' }) || {};
+    const active = Object.values(players).filter(ts => now - ts < TABLE_STALE_MS);
+    tables.push({
+      name: t.name,
+      label: t.label,
+      players: active.length,
+      maxPlayers: MAX_PLAYERS_PER_TABLE,
+    });
+  }
 
   return json({
-    tables: [{
-      name: 'public-main',
-      label: 'PUBLIC TABLE',
-      players: active.length,
-    }],
+    tables,
+    limits: { maxPublic: MAX_PUBLIC_TABLES, maxPrivate: MAX_PRIVATE_TABLES, maxPerTable: MAX_PLAYERS_PER_TABLE },
   });
 }
 
