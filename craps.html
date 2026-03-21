@@ -8,7 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{
@@ -125,21 +124,7 @@
       text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       max-width:100%;
     }
-    .ptt-card{
-      flex:1;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:6px;padding:8px;
-    }
-    .ptt-card-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.22rem;
-      width:100%;height:100%;min-height:60px;
-      border:3px solid #e67e22;border-radius:6px;
-      background:rgba(90,58,10,0.4);color:#e67e22;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-      text-align:center;line-height:1.5;padding:6px;
-    }
-    .ptt-card-btn:hover{background:rgba(90,58,10,0.7)}
-    .ptt-card-btn.talking{background:rgba(90,58,10,0.9);border-color:#f39c12;color:#f39c12;animation:pulse-ptt 0.8s infinite}
+    .local-card{--slot-color:var(--p1-color)}
 
     /* ── Announcer Overlay (over craps table) ── */
     .announcer-overlay{
@@ -516,7 +501,6 @@
       padding:7px 10px;border-radius:5px;cursor:pointer;
       border:2px solid;transition:all 0.2s;
     }
-    @keyframes pulse-ptt{0%,100%{box-shadow:0 0 4px #f39c12}50%{box-shadow:0 0 16px #f39c12}}
 
     /* ── Result Toast ── */
     .result-toast{
@@ -785,8 +769,11 @@
 
   <!-- Player Bar (below chat) -->
   <div class="player-bar">
-    <div class="ptt-card">
-      <button class="ptt-card-btn" id="pttBtn">PUSH TO TALK</button>
+    <div class="remote-card local-card" id="slot-0" data-seat="0">
+      <div class="remote-avatar" id="avatar-0">
+        <img id="avatarImg-0" src="" alt="" />
+      </div>
+      <div class="remote-name" id="name-0">You</div>
     </div>
     <div class="remote-card" id="slot-1" data-seat="1">
       <div class="remote-avatar" id="avatar-1">
@@ -823,7 +810,7 @@ import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
 
 /* ===================================================================
    CRAPS TABLE — Last Chad
-   4-player multiplayer with Agora audio (PTT) + optional shooter video
+   Multiplayer craps with text chat
    Server-side dice via Cloudflare Worker — no client-side RNG
    =================================================================== */
 
@@ -866,11 +853,6 @@ const remotePlayers = {
   2: { name: '', nftName: '', chadId: null, stack: 0, uid: null },
 };
 
-const AGORA_APP_ID = '7917341a0c9c46a08328cc9a33989d75';
-let agoraClient = null;
-let localAudioTrack = null;
-let pttActive = false;
-let agoraFailed = false;
 
 const dotLayouts = {
   1: [0,0,0, 0,1,0, 0,0,0],
@@ -1601,9 +1583,13 @@ function initPlayerFromSession() {
 
 // ── Player Panel Helpers ──
 function setChadPortrait(seat, chadId) {
-  if (seat > 0) {
-    const slot = document.getElementById('slot-' + seat);
-    if (slot) { slot.classList.remove('empty'); slot.classList.add('occupied'); }
+  const slot = document.getElementById('slot-' + seat);
+  if (slot) { slot.classList.remove('empty'); slot.classList.add('occupied'); }
+  const img = document.getElementById('avatarImg-' + seat);
+  if (img && chadId) {
+    img.src = 'chads/' + chadId + '.png';
+    img.alt = 'Chad #' + chadId;
+    img.classList.add('visible');
   }
 }
 
@@ -1627,146 +1613,6 @@ function clearPlayerPanel(seat) {
   if (stack) stack.textContent = '';
 }
 
-// ===================================================================
-//  AGORA — Audio (PTT) + Optional Shooter Video
-// ===================================================================
-
-async function initAgora() {
-  if (!AGORA_APP_ID) return;
-  agoraClient = AgoraRTC.createClient({ mode:'rtc', codec:'vp8' });
-
-  agoraClient.on('user-published', async (user, mediaType) => {
-    await agoraClient.subscribe(user, mediaType);
-    if (mediaType === 'audio') user.audioTrack.play();
-  });
-
-  agoraClient.on('user-left', (user) => {
-    const seat = findSeatByUid(user.uid);
-    if (seat !== null) {
-      clearPlayerPanel(seat);
-      remotePlayers[seat].uid = null;
-      remotePlayers[seat].name = '';
-      remotePlayers[seat].nftName = '';
-      remotePlayers[seat].chadId = null;
-      delete STATE.remoteBets[seat];
-      renderAllBetChips();
-    }
-    addChatMsg('system', 'A player left the table.');
-  });
-}
-
-function getRemoteSeat(uid) {
-  for (let s = 1; s <= 2; s++) {
-    if (remotePlayers[s].uid === String(uid)) return s;
-  }
-  for (let s = 1; s <= 2; s++) {
-    if (!remotePlayers[s].uid) {
-      remotePlayers[s].uid = String(uid);
-      const cid = (parseInt(String(uid).slice(-2),36) % 20) + 1;
-      remotePlayers[s].chadId = cid;
-      remotePlayers[s].nftName = 'Chad #' + cid;
-      remotePlayers[s].stack = 1000;
-      setChadPortrait(s, cid);
-      setPlayerName(s, remotePlayers[s].nftName);
-      setPlayerStack(s, remotePlayers[s].stack);
-      addChatMsg('system', `${remotePlayers[s].nftName} joined (Seat ${s+1}).`);
-      return s;
-    }
-  }
-  return null;
-}
-
-function findSeatByUid(uid) {
-  for (let s = 1; s <= 2; s++) {
-    if (remotePlayers[s].uid === String(uid)) return s;
-  }
-  return null;
-}
-
-async function joinRoom() {
-  if (!AGORA_APP_ID || agoraFailed) return;
-  if (typeof AgoraRTC === 'undefined') {
-    agoraFailed = true;
-    addChatMsg('system', 'Voice unavailable: SDK failed to load');
-    return;
-  }
-  try {
-    if (!agoraClient) await initAgora();
-    const channel = 'lastchad-craps-' + (window.location.hash.slice(1) || 'main');
-    let token = null;
-    try {
-      const res = await fetchWithTimeout(WORKER_URL + '/agora/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelName: channel, uid: STATE.playerId }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        console.error('Agora token error:', data.error);
-        addChatMsg('system', 'Voice unavailable: ' + data.error);
-        return;
-      }
-      if (data.token) token = data.token;
-    } catch (e) {
-      console.error('Agora token fetch failed:', e.message);
-      addChatMsg('system', 'Voice unavailable: token fetch failed');
-      return;
-    }
-    if (!token) {
-      addChatMsg('system', 'Voice unavailable: no token received');
-      return;
-    }
-    const uid = await agoraClient.join(AGORA_APP_ID, channel, token, STATE.playerId);
-    console.log('Agora joined:', channel, 'uid:', uid);
-    addChatMsg('system', 'Voice connected.');
-  } catch (err) {
-    console.error('Agora join failed:', err.message);
-    agoraFailed = true;
-    addChatMsg('system', 'Voice failed: ' + err.message);
-  }
-}
-
-// Push-to-Talk
-(function initPTT() {
-  const pttBtn = document.getElementById('pttBtn');
-  let micDenied = false;
-  async function startTalking() {
-    if (pttActive || micDenied || agoraFailed) return;
-    if (!agoraClient) {
-      await joinRoom();
-      if (!agoraClient) return;
-    }
-    try {
-      // Create and publish the mic track once; thereafter just enable/disable
-      if (!localAudioTrack) {
-        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-        localAudioTrack.setEnabled(false);
-        await agoraClient.publish([localAudioTrack]);
-      }
-      localAudioTrack.setEnabled(true);
-      pttActive = true; pttBtn.classList.add('talking'); pttBtn.textContent = 'TALKING...';
-    } catch (err) {
-      if (err.name === 'NotAllowedError') {
-        micDenied = true;
-        addChatMsg('system', 'Microphone permission denied.');
-      } else {
-        console.warn('Mic error:', err.message);
-        addChatMsg('system', 'Mic error: ' + err.message);
-      }
-    }
-  }
-  async function stopTalking() {
-    if (!pttActive) return;
-    if (localAudioTrack) localAudioTrack.setEnabled(false);
-    pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'PUSH TO TALK';
-  }
-  pttBtn.addEventListener('mousedown', startTalking);
-  pttBtn.addEventListener('mouseup', stopTalking);
-  pttBtn.addEventListener('mouseleave', stopTalking);
-  pttBtn.addEventListener('touchstart', (e)=>{e.preventDefault();startTalking()});
-  pttBtn.addEventListener('touchend', (e)=>{e.preventDefault();stopTalking()});
-  pttBtn.addEventListener('touchcancel', stopTalking);
-})();
 
 // ── Multiplayer State Sync ──
 function broadcastState(extra) {
@@ -1936,7 +1782,6 @@ function enterTable() {
   document.getElementById('tableWrapper').style.display = '';
   startPresenceHeartbeat();
   startStateSync();
-  joinRoom();
 }
 
 (function checkHashJoin() {
@@ -1997,10 +1842,6 @@ window.addEventListener('beforeunload', () => {
 // ── Init ──
 renderDie(document.getElementById('face1'), 5);
 renderDie(document.getElementById('face2'), 5);
-if (AGORA_APP_ID && typeof AgoraRTC !== 'undefined') {
-  try { initAgora(); } catch (e) { console.warn('Agora init failed:', e.message); }
-}
-
 if (crapsSession) {
   let playerInitDone = false;
   autoReconnect({
@@ -2027,7 +1868,6 @@ window.selectChip = selectChip;
 window.clearBets = clearBets;
 window.headerAction = headerAction;
 window.sendChat = sendChat;
-window.joinRoom = joinRoom;
 window.joinPublicTable = joinPublicTable;
 window.createPrivateTable = createPrivateTable;
 window.showJoinPrivate = showJoinPrivate;
