@@ -1529,6 +1529,7 @@ async function cashOut() {
       dealerSay("Better luck next time.", 'sad');
       sessionStorage.removeItem('craps_session');
       STATE.nonce = null;
+      setTimeout(() => { window.location.href = 'chadbase.html'; }, 2000);
       return;
     }
 
@@ -1554,6 +1555,7 @@ async function cashOut() {
     STATE.stack = 0;
     renderAllBetChips();
     broadcastState('cashed out');
+    setTimeout(() => { window.location.href = 'chadbase.html'; }, 2000);
 
   } catch (err) {
     dealerSay('Cashout failed: ' + (err.reason || err.message || 'Unknown error'), 'sad');
