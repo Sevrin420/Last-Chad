@@ -658,7 +658,7 @@
         <div id="successUI" style="display:none;">
           <div class="success-view">
             <p id="successText">Stats assigned!</p>
-            <a class="back-btn" id="backLink" href="recharge.html">BACK TO RECHARGE</a>
+            <a class="back-btn" id="backLink" href="charge.html">BACK TO CHARGE</a>
           </div>
         </div>
       </div>
@@ -691,7 +691,7 @@
     const tokenId = Number(params.get('chad'));
 
     if (!tokenId || tokenId <= 0) {
-      document.getElementById('loadingMsg').textContent = 'No Chad specified. Return to Recharge.';
+      document.getElementById('loadingMsg').textContent = 'No Chad specified. Return to Charge.';
       document.getElementById('loadingMsg').style.animation = 'none';
     }
 
