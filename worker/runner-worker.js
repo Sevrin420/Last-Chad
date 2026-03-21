@@ -1312,7 +1312,7 @@ async function handleAgoraToken(request, env) {
   if (!appId || !appCert) return json({ error: 'Agora not configured' }, 500);
 
   const uidStr = String(uid || 0);
-  const expireTs = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+  const expireTs = Math.floor(Date.now() / 1000) + 21600; // 6 hours (covers 5h max session)
 
   // Privileges: joinChannel(1), publishAudio(2), publishVideo(3), publishData(4)
   const privileges = { 1: expireTs, 2: expireTs, 3: expireTs, 4: expireTs };

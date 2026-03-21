@@ -1480,19 +1480,35 @@ async function joinRoom() {
         body: JSON.stringify({ channelName: channel, uid: STATE.playerId }),
       });
       const data = await res.json();
+      if (data.error) {
+        console.error('Agora token error:', data.error);
+        addChatMsg('system', 'Voice unavailable: ' + data.error);
+        return; // Don't join without a valid token
+      }
       if (data.token) token = data.token;
-    } catch (e) { console.warn('Agora token fetch failed:', e.message); }
+    } catch (e) {
+      console.error('Agora token fetch failed:', e.message);
+      addChatMsg('system', 'Voice unavailable: token fetch failed');
+      return;
+    }
+    if (!token) {
+      addChatMsg('system', 'Voice unavailable: no token received');
+      return;
+    }
     const uid = await agoraClient.join(AGORA_APP_ID, channel, token, STATE.playerId);
     console.log('Agora joined:', channel, 'uid:', uid);
+    addChatMsg('system', 'Voice connected.');
   } catch (err) {
-    console.warn('Agora join failed:', err.message);
+    console.error('Agora join failed:', err.message);
+    addChatMsg('system', 'Voice failed: ' + err.message);
   }
 }
 
-// Push-to-Talk
+// Push-to-Talk — create mic track once, toggle enabled on press/release
 (function initPTT() {
   const pttBtn = document.getElementById('pttBtn');
   let micDenied = false;
+  let micPublished = false;
   async function startTalking() {
     if (pttActive || micDenied) return;
     if (!agoraClient) {
@@ -1500,19 +1516,28 @@ async function joinRoom() {
       if (!agoraClient) return;
     }
     try {
-      localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-      await agoraClient.publish([localAudioTrack]);
+      // Create and publish the mic track once; thereafter just enable/disable
+      if (!localAudioTrack) {
+        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+        localAudioTrack.setEnabled(false);
+        await agoraClient.publish([localAudioTrack]);
+        micPublished = true;
+      }
+      localAudioTrack.setEnabled(true);
       pttActive = true; pttBtn.classList.add('talking'); pttBtn.textContent = 'TALKING...';
     } catch (err) {
       if (err.name === 'NotAllowedError') {
         micDenied = true;
-        console.warn('Mic permission denied.');
-      } else { console.warn('Mic error:', err.message); }
+        addChatMsg('system', 'Microphone permission denied.');
+      } else {
+        console.warn('Mic error:', err.message);
+        addChatMsg('system', 'Mic error: ' + err.message);
+      }
     }
   }
   async function stopTalking() {
     if (!pttActive) return;
-    if (localAudioTrack) { await agoraClient.unpublish([localAudioTrack]); localAudioTrack.close(); localAudioTrack=null; }
+    if (localAudioTrack) localAudioTrack.setEnabled(false);
     pttActive = false; pttBtn.classList.remove('talking'); pttBtn.textContent = 'HOLD TO TALK';
   }
   pttBtn.addEventListener('mousedown', startTalking);
