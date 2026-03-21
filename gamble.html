@@ -35,36 +35,6 @@
     }
     #jipt-image.visible { opacity: 1; }
 
-    /* ── Enter The Den overlay ── */
-    #enter-overlay {
-      position: fixed; inset: 0; z-index: 500;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0, 0, 0, 0.55);
-      transition: opacity 0.8s ease;
-    }
-    #enter-overlay.hidden { opacity: 0; pointer-events: none; }
-
-    #enter-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.8rem, 2.5vw, 1.2rem);
-      color: #ffaa40;
-      background: rgba(10, 10, 15, 0.75);
-      border: 2px solid #ffaa40;
-      padding: 1.2em 2em; cursor: pointer;
-      letter-spacing: 0.08em;
-      text-shadow: 0 0 12px #ffaa40, 0 0 24px rgba(255,150,30,0.5);
-      box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05);
-      animation: den-pulse 2s ease-in-out infinite;
-      transition: transform 0.15s ease;
-      outline: none;
-      text-decoration: none;
-    }
-    #enter-btn:hover { transform: scale(1.06); }
-    @keyframes den-pulse {
-      0%, 100% { box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05); }
-      50%       { box-shadow: 0 0 40px rgba(255,150,30,0.6), inset 0 0 30px rgba(255,150,30,0.12); }
-    }
-
     /* ── Header ── */
     .game-header {
       position: fixed; top: 0; left: 0; right: 0; z-index: 300;
@@ -934,11 +904,6 @@
 
   <img id="jipt-image" src="assets/Oldjipt/oldjiptcoin.jpg" alt="" />
 
-  <!-- Enter The Den overlay -->
-  <div id="enter-overlay">
-    <button id="enter-btn">ENTER THE DEN</button>
-  </div>
-
   <!-- Background music -->
   <audio id="bg-music" src="music/moody.mp3" loop></audio>
 
@@ -1151,10 +1116,9 @@
     // ── Music & Enter ──
     const jiptImage  = document.getElementById('jipt-image');
     const bgMusic    = document.getElementById('bg-music');
-    const enterOverlay = document.getElementById('enter-overlay');
     const dialogueBox = document.getElementById('dialogue-box');
     bgMusic.volume = 0.27;
-    let hasEntered = false;
+    let hasEntered = true;
 
     const muteBtn = document.getElementById('mute-btn');
     muteBtn.addEventListener('click', () => {
@@ -1162,20 +1126,15 @@
       muteBtn.textContent = bgMusic.muted ? '🔇' : '🔊';
     });
 
-    document.getElementById('enter-btn').addEventListener('click', async () => {
-      enterOverlay.classList.add('hidden');
-      bgMusic.play().catch(() => {});
-      hasEntered = true;
-
-      // Fade in jipt image immediately
-      jiptImage.classList.add('visible');
-
-      // Show dialogue
+    // Auto-enter
+    bgMusic.play().catch(() => {});
+    jiptImage.classList.add('visible');
+    (async () => {
       await delay(900);
       dialogueBox.classList.add('visible');
       await delay(400);
       showIntro();
-    });
+    })();
 
     function duckMusic(targetVol = 0.05, ms = 400) {
       const step = (bgMusic.volume - targetVol) / (ms / 30);
