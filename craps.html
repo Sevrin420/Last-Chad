@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/agora-rtc-sdk-ng@4.24.3/AgoraRTC_N-production.js"></script>
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{
@@ -864,6 +864,7 @@ const AGORA_APP_ID = '7917341a0c9c46a08328cc9a33989d75';
 let agoraClient = null;
 let localAudioTrack = null;
 let pttActive = false;
+let agoraFailed = false;
 
 const dotLayouts = {
   1: [0,0,0, 0,1,0, 0,0,0],
@@ -1675,7 +1676,12 @@ function findSeatByUid(uid) {
 }
 
 async function joinRoom() {
-  if (!AGORA_APP_ID) return;
+  if (!AGORA_APP_ID || agoraFailed) return;
+  if (typeof AgoraRTC === 'undefined') {
+    agoraFailed = true;
+    addChatMsg('system', 'Voice unavailable: SDK failed to load');
+    return;
+  }
   try {
     if (!agoraClient) await initAgora();
     const channel = 'lastchad-craps-' + (window.location.hash.slice(1) || 'main');
@@ -1707,6 +1713,7 @@ async function joinRoom() {
     addChatMsg('system', 'Voice connected.');
   } catch (err) {
     console.error('Agora join failed:', err.message);
+    agoraFailed = true;
     addChatMsg('system', 'Voice failed: ' + err.message);
   }
 }
@@ -1716,7 +1723,7 @@ async function joinRoom() {
   const pttBtn = document.getElementById('pttBtn');
   let micDenied = false;
   async function startTalking() {
-    if (pttActive || micDenied) return;
+    if (pttActive || micDenied || agoraFailed) return;
     if (!agoraClient) {
       await joinRoom();
       if (!agoraClient) return;
