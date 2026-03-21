@@ -1823,6 +1823,24 @@ window.copyInviteLink = copyInviteLink;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
 window.pressBet = pressBet;
+console.log('[craps] module loaded OK — all window exports set');
+</script>
+<script>
+// Fallback: if the module above failed to load, show a visible error
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    if (typeof window.joinPublicTable !== 'function') {
+      const lobby = document.getElementById('tableLobby');
+      if (lobby) {
+        const err = document.createElement('div');
+        err.style.cssText = 'color:#ff5252;font-size:11px;margin-top:12px;font-family:monospace';
+        err.textContent = 'Error: Game script failed to load. Check browser console (F12).';
+        lobby.querySelector('.lobby-box').appendChild(err);
+      }
+      console.error('[craps] Module failed — window.joinPublicTable is not defined. Check console for import/runtime errors above.');
+    }
+  }, 2000);
+});
 </script>
 </body>
 </html>
