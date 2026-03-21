@@ -1395,10 +1395,14 @@ async function buildAgoraToken006(appId, appCert, channelName, uidStr, privilege
   signing = await hmacSha256(signing, uint32LEBytes(salt));
   signing = await hmacSha256(signing, uint32LEBytes(ts));
 
-  // Build message content: salt + ts + privileges
+  // Build message content: salt + ts + services
+  // AccessToken2 (006) requires privileges wrapped in a service map
   const content = [];
   putUint32LE(content, salt);
   putUint32LE(content, ts);
+  // Services map: count=1, then service type 1 (kRtc) with its privileges
+  putUint16LE(content, 1);       // 1 service
+  putUint16LE(content, 1);       // service type = kRtc
   putTreeMapUInt32(content, privileges);
   const contentBytes = new Uint8Array(content);
 
