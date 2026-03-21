@@ -759,7 +759,7 @@
   <div class="chat-box">
     <div class="chat-header">TABLE CHAT</div>
     <div class="chat-messages" id="chatMessages">
-      <div class="chat-msg system-msg">Welcome! Up to 3 players.</div>
+      <div class="chat-msg system-msg" id="welcomeMsg">Welcome!</div>
     </div>
     <div class="chat-input-area">
       <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
@@ -837,7 +837,7 @@ const STATE = {
   dice: [5, 5],
   isRolling: false,
   playerName: 'Player',
-  nftName: crapsSession ? ('Chad #' + crapsSession.tokenId) : '',
+  nftName: crapsSession ? (crapsSession.chadName || 'Chad #' + crapsSession.tokenId) : '',
   playerId: Math.floor(Math.random() * 100000) + 1,
   chadId: crapsSession ? crapsSession.tokenId : null,
   seat: 0,
@@ -1575,6 +1575,8 @@ function initPlayerFromSession() {
     setPlayerName(0, STATE.nftName || 'Chad #' + STATE.chadId);
   }
   updateLocalPlayerUI();
+  const welcomeEl = document.getElementById('welcomeMsg');
+  if (welcomeEl) welcomeEl.textContent = 'Welcome, ' + (STATE.nftName || STATE.playerName) + '!';
   addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} cells.`);
   dealerSay("Welcome! Place your bets.", 'happy');
   broadcastState('joined');

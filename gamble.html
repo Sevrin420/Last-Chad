@@ -1196,6 +1196,7 @@
     // ── State ──
     let selectedTokenId = null;
     let selectedCells   = 0;
+    let selectedChadName = '';
     let wagerAmount     = 0;
     let currentGame     = 'craps'; // 'craps' or 'poker'
 
@@ -1360,7 +1361,8 @@
         try {
           const id = (await contract.tokenOfOwnerByIndex(addr, idx)).toNumber();
           const cells = (await contract.getCells(id)).toNumber();
-          ownedTokens.push({ id, cells });
+          const chadName = await contract.tokenName(id) || ('Chad #' + id);
+          ownedTokens.push({ id, cells, chadName });
         } catch (e) { /* error */ }
       }
 
@@ -1405,6 +1407,7 @@
     async function selectChad(token, allTokens) {
       selectedTokenId = token.id;
       selectedCells = token.cells;
+      selectedChadName = token.chadName || ('Chad #' + token.id);
 
       // Highlight selected card
       document.querySelectorAll('.nft-card').forEach((c, i) => {
@@ -1572,6 +1575,7 @@
         sessionStorage.setItem('craps_session', JSON.stringify({
           nonce: crapsNonce,
           tokenId: selectedTokenId,
+          chadName: selectedChadName,
           stack: crapsStack,
           sessionToken: crapsSessionToken,
           player: userAddress,
