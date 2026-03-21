@@ -142,6 +142,12 @@ export default {
       if (request.method === 'GET' && url.pathname === '/tables/list') {
         return await handleTableList(env);
       }
+      if (request.method === 'POST' && url.pathname === '/tables/state') {
+        return await handleTableStatePost(request, env);
+      }
+      if (request.method === 'GET' && url.pathname === '/tables/state') {
+        return await handleTableStateGet(url, env);
+      }
 
       // Agora RTC token
       if (request.method === 'POST' && url.pathname === '/agora/token') {
@@ -1217,6 +1223,79 @@ async function handleTableList(env) {
       players: active.length,
     }],
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TABLE STATE SYNC (multiplayer bet/dice visibility)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TABLE_STATE_TTL = 120; // 2 min KV expiry — stale players auto-expire
+
+// POST /tables/state  { table, playerId, state }
+// Player pushes their current visible game state after each bet/roll/cashout.
+async function handleTableStatePost(request, env) {
+  const { table, playerId, state } = await parseBody(request);
+  if (!table || !playerId || !state) return json({ error: 'Missing fields' }, 400);
+
+  // Sanitize: only store the fields other players need to see
+  const sanitized = {
+    name:     String(state.name || '').slice(0, 20),
+    chadId:   Number(state.chadId) || 0,
+    stack:    Number(state.stack) || 0,
+    bets:     {},
+    comeBets: {},
+    phase:    state.phase === 'point' ? 'point' : 'comeout',
+    point:    Number(state.point) || 0,
+    lastDice: Array.isArray(state.lastDice) ? state.lastDice.slice(0, 2).map(Number) : null,
+    lastMsg:  String(state.lastMsg || '').slice(0, 80),
+    ts:       Date.now(),
+  };
+  // Whitelist bet zones
+  const allowedBets = new Set([
+    'pass','field','come','passOdds',
+    'place4','place5','place6','place8','place9','place10',
+    'hard4','hard6','hard8','hard10',
+  ]);
+  if (state.bets && typeof state.bets === 'object') {
+    for (const [k, v] of Object.entries(state.bets)) {
+      if (allowedBets.has(k) && Number(v) > 0) sanitized.bets[k] = Number(v);
+    }
+  }
+  if (state.comeBets && typeof state.comeBets === 'object') {
+    for (const [k, v] of Object.entries(state.comeBets)) {
+      if (Number(v) > 0) sanitized.comeBets[k] = Number(v);
+    }
+  }
+
+  const key = `table_state:${table}:${playerId}`;
+  await env.RUNNER_KV.put(key, JSON.stringify(sanitized), { expirationTtl: TABLE_STATE_TTL });
+  return json({ ok: true });
+}
+
+// GET /tables/state?table=X&playerId=Y
+// Returns all other players' states at the table (excludes the requester).
+async function handleTableStateGet(url, env) {
+  const table    = url.searchParams.get('table');
+  const myId     = url.searchParams.get('playerId');
+  if (!table) return json({ error: 'Missing table' }, 400);
+
+  // Get player list for this table to know who to look up
+  const playersKey = `table_players:${table}`;
+  const players = await env.RUNNER_KV.get(playersKey, { type: 'json' }) || {};
+  const now = Date.now();
+
+  const others = [];
+  for (const [pid, ts] of Object.entries(players)) {
+    if (pid === String(myId)) continue; // skip self
+    if (now - ts > TABLE_STALE_MS) continue; // skip stale
+    const stateKey = `table_state:${table}:${pid}`;
+    const st = await env.RUNNER_KV.get(stateKey, { type: 'json' });
+    if (st) {
+      st.playerId = pid;
+      others.push(st);
+    }
+  }
+  return json({ ok: true, players: others });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

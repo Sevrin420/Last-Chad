@@ -868,6 +868,7 @@ async function placeBet(zone) {
   STATE._pendingBets[zone] = (STATE._pendingBets[zone] || 0) + amount;
   renderAllBetChips();
   updateLocalPlayerUI();
+  broadcastState();
   onFirstBet();
 }
 
@@ -987,6 +988,7 @@ function clearBets() {
   STATE._pendingBets = {};
   renderAllBetChips();
   updateLocalPlayerUI();
+  broadcastState();
 }
 
 function updateLocalPlayerUI() {
@@ -1185,6 +1187,7 @@ async function rollDice() {
 
     renderAllBetChips();
     updateLocalPlayerUI();
+    broadcastState(r.message || '');
 
     // Show press buttons for winning bets (auto-clear after 5s)
     if (data.pressOptions && Object.keys(data.pressOptions).length > 0) {
@@ -1334,7 +1337,9 @@ async function cashOut() {
     sessionStorage.removeItem('craps_session');
     STATE.nonce = null;
     STATE.bets = {};
+    STATE.stack = 0;
     renderAllBetChips();
+    broadcastState('cashed out');
 
   } catch (err) {
     dealerSay('Cashout failed: ' + (err.reason || err.message || 'Unknown error'), 'sad');
@@ -1347,6 +1352,7 @@ function exitTable() {
   if (STATE.nonce && Object.keys(STATE.bets).length > 0) {
     if (!confirm('You have active bets. Cash out first or lose them. Exit anyway?')) return;
   }
+  stopStateSync();
   window.location.href = 'gamble.html';
 }
 
@@ -1373,6 +1379,7 @@ function initPlayerFromSession() {
   updateLocalPlayerUI();
   addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} cells.`);
   dealerSay("Welcome! Place your bets.", 'happy');
+  broadcastState('joined');
   startBetPhase();
 }
 
@@ -1516,6 +1523,114 @@ async function joinRoom() {
   pttBtn.addEventListener('touchcancel', stopTalking);
 })();
 
+// ── Multiplayer State Sync ──
+// Push local player's visible state to the worker so other players can see bets/dice.
+function broadcastState(extra) {
+  if (!currentTableCode) return;
+  const payload = {
+    table: currentTableCode,
+    playerId: STATE.playerId,
+    state: {
+      name:     STATE.nftName || STATE.playerName || 'Unknown',
+      chadId:   STATE.chadId || 0,
+      stack:    STATE.stack || 0,
+      bets:     STATE.bets || {},
+      comeBets: STATE.comeBets || {},
+      phase:    STATE.phase,
+      point:    STATE.point || 0,
+      lastDice: STATE.dice || null,
+      lastMsg:  extra || '',
+    },
+  };
+  // Fire-and-forget — don't block gameplay on sync
+  fetchWithTimeout(WORKER_URL + '/tables/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
+// Poll other players' states and update remote panels/bets.
+let _syncInterval = null;
+function startStateSync() {
+  if (_syncInterval) clearInterval(_syncInterval);
+  _syncInterval = setInterval(pollTableState, 1500);
+}
+function stopStateSync() {
+  if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
+}
+
+async function pollTableState() {
+  if (!currentTableCode) return;
+  try {
+    const res = await fetchWithTimeout(
+      WORKER_URL + '/tables/state?table=' + encodeURIComponent(currentTableCode) +
+      '&playerId=' + encodeURIComponent(STATE.playerId)
+    );
+    const data = await res.json();
+    if (!data.ok) return;
+
+    const seenIds = new Set();
+    for (const p of data.players || []) {
+      seenIds.add(p.playerId);
+      // Find or assign a seat
+      let seat = null;
+      for (let s = 1; s <= 2; s++) {
+        if (remotePlayers[s].uid === p.playerId) { seat = s; break; }
+      }
+      if (!seat) {
+        for (let s = 1; s <= 2; s++) {
+          if (!remotePlayers[s].uid) {
+            seat = s;
+            remotePlayers[s].uid = p.playerId;
+            addChatMsg('system', `${p.name} joined (Seat ${s + 1}).`);
+            break;
+          }
+        }
+      }
+      if (!seat) continue; // table full
+
+      // Update remote player panel
+      remotePlayers[seat].nftName = p.name;
+      remotePlayers[seat].chadId = p.chadId;
+      remotePlayers[seat].stack = p.stack;
+      setChadPortrait(seat, p.chadId);
+      setPlayerName(seat, p.name);
+      setPlayerStack(seat, p.stack);
+
+      // Update remote bets for chip rendering
+      const remoteBetMap = {};
+      if (p.bets) Object.assign(remoteBetMap, p.bets);
+      // Merge come bets as visible chips on their number zones
+      if (p.comeBets) {
+        for (const [num, amt] of Object.entries(p.comeBets)) {
+          const key = 'place' + num; // show come bets on place zones visually
+          remoteBetMap[key] = (remoteBetMap[key] || 0) + amt;
+        }
+      }
+      STATE.remoteBets[seat] = remoteBetMap;
+    }
+
+    // Clear seats for players who left
+    for (let s = 1; s <= 2; s++) {
+      if (remotePlayers[s].uid && !seenIds.has(remotePlayers[s].uid)) {
+        const name = remotePlayers[s].nftName || 'A player';
+        clearPlayerPanel(s);
+        remotePlayers[s].uid = null;
+        remotePlayers[s].name = '';
+        remotePlayers[s].nftName = '';
+        remotePlayers[s].chadId = null;
+        remotePlayers[s].stack = 0;
+        delete STATE.remoteBets[s];
+        addChatMsg('system', name + ' left the table.');
+      }
+    }
+
+    renderAllBetChips();
+  } catch (_) { /* silent — will retry next interval */ }
+}
+
+// Legacy stub kept for chat broadcasts
 function broadcastMessage(msg) { console.log('broadcast:', msg); }
 
 // ===================================================================
@@ -1584,6 +1699,7 @@ function enterTable() {
   document.getElementById('tableLobby').classList.add('hidden');
   document.getElementById('tableWrapper').style.display = '';
   startPresenceHeartbeat();
+  startStateSync();
   joinRoom();
 }
 
