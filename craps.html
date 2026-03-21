@@ -876,7 +876,7 @@ const STATE = {
   isRolling: false,
   playerName: 'Player',
   nftName: crapsSession ? (crapsSession.chadName || 'Chad #' + crapsSession.tokenId) : '',
-  playerId: Math.floor(Math.random() * 100000) + 1,
+  playerId: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36),
   chadId: crapsSession ? crapsSession.tokenId : null,
   seat: 0,
   nonce: crapsSession ? crapsSession.nonce : null,
@@ -1426,6 +1426,18 @@ async function rollDice() {
     if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
       dealerSay("You're busted! Better luck next time.", 'sad');
       STATE.isRolling = false;
+      // Auto-cashout at zero so the session is cleanly closed
+      try {
+        await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId: STATE.tokenId, nonce: STATE.nonce, sessionToken: STATE.sessionToken }),
+        });
+      } catch (_) {}
+      sessionStorage.removeItem('craps_session');
+      STATE.nonce = null;
+      broadcastState('busted');
+      setTimeout(() => { window.location.href = 'chadbase.html'; }, 3000);
       return;
     }
 
@@ -1781,6 +1793,8 @@ function broadcastState(extra) {
 }
 
 let _syncInterval = null;
+let _lastChatTs = 0;
+let _seenChatIds = new Set();
 function startStateSync() {
   if (_syncInterval) clearInterval(_syncInterval);
   _syncInterval = setInterval(pollTableState, 1500);
@@ -1794,7 +1808,8 @@ async function pollTableState() {
   try {
     const res = await fetchWithTimeout(
       WORKER_URL + '/tables/state?table=' + encodeURIComponent(currentTableCode) +
-      '&playerId=' + encodeURIComponent(STATE.playerId)
+      '&playerId=' + encodeURIComponent(STATE.playerId) +
+      '&chatSince=' + _lastChatTs
     );
     const data = await res.json();
     if (!data.ok) return;
@@ -1853,11 +1868,44 @@ async function pollTableState() {
     // Sync shooter from server
     if (data.shooter) updateShooter(data.shooter);
 
+    // Process incoming chat messages from other players
+    if (data.chat && Array.isArray(data.chat)) {
+      for (const msg of data.chat) {
+        if (String(msg.playerId) === String(STATE.playerId)) continue; // skip own
+        if (_seenChatIds.has(msg.id)) continue; // skip duplicates
+        _seenChatIds.add(msg.id);
+        // Find the seat index for color coding
+        let seatIdx = -1;
+        for (let s = 1; s <= 3; s++) {
+          if (String(remotePlayers[s].uid) === String(msg.playerId)) { seatIdx = s; break; }
+        }
+        addChatMsg('chat', msg.text, msg.name, seatIdx >= 0 ? seatIdx : 1);
+        if (msg.ts > _lastChatTs) _lastChatTs = msg.ts;
+      }
+      // Prune seen IDs set if it gets too large
+      if (_seenChatIds.size > 200) {
+        const arr = [..._seenChatIds];
+        _seenChatIds = new Set(arr.slice(-100));
+      }
+    }
+
     renderAllBetChips();
   } catch (_) {}
 }
 
-function broadcastMessage(msg) { console.log('broadcast:', msg); }
+function broadcastMessage(msg) {
+  if (!currentTableCode || !msg) return;
+  fetchWithTimeout(WORKER_URL + '/tables/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      table: currentTableCode,
+      playerId: STATE.playerId,
+      name: msg.name || STATE.nftName || STATE.playerName,
+      text: msg.text || '',
+    }),
+  }).catch(() => {});
+}
 
 // ===================================================================
 //  TABLE LOBBY

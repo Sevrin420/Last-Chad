@@ -158,6 +158,9 @@ export default {
       if (request.method === 'POST' && url.pathname === '/tables/shooter') {
         return await handleShooterAdvance(request, env);
       }
+      if (request.method === 'POST' && url.pathname === '/tables/chat') {
+        return await handleTableChat(request, env);
+      }
 
       // Agora RTC token
       if (request.method === 'POST' && url.pathname === '/agora/token') {
@@ -694,35 +697,52 @@ async function handleCrapsBet(request, env) {
     return json({ error: 'Invalid session token' }, 403);
   }
 
+  // Guard against concurrent bet/roll requests (same pattern as rolling lock)
+  if (session.rolling || session.betting) {
+    return json({ error: 'Another operation in progress' }, 409);
+  }
+  session.betting = true;
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+
   const validBetZones = new Set([
     'pass','field','come','passOdds',
     'place4','place5','place6','place8','place9','place10',
     'hard4','hard6','hard8','hard10',
     'comeOdds4','comeOdds5','comeOdds6','comeOdds8','comeOdds9','comeOdds10',
   ]);
-  if (!validBetZones.has(zone)) return json({ error: 'Invalid bet zone' }, 400);
+  if (!validBetZones.has(zone)) {
+    session.betting = false;
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+    return json({ error: 'Invalid bet zone' }, 400);
+  }
+
+  let phaseError = null;
   if (zone.startsWith('place') && session.phase === 'comeout') {
-    return json({ error: 'Place bets open after point' }, 400);
-  }
-  if (zone === 'pass' && session.phase === 'point') {
-    return json({ error: 'Pass line only on come-out roll' }, 400);
-  }
-  if (zone === 'passOdds' && session.phase === 'comeout') {
-    return json({ error: 'Pass odds only after point is set' }, 400);
-  }
-  if (zone === 'come' && session.phase === 'comeout') {
-    return json({ error: 'Come bets only after point is set' }, 400);
-  }
-  // Come odds require an existing come bet on that number
-  if (zone.startsWith('comeOdds')) {
+    phaseError = 'Place bets open after point';
+  } else if (zone === 'pass' && session.phase === 'point') {
+    phaseError = 'Pass line only on come-out roll';
+  } else if (zone === 'passOdds' && session.phase === 'comeout') {
+    phaseError = 'Pass odds only after point is set';
+  } else if (zone === 'come' && session.phase === 'comeout') {
+    phaseError = 'Come bets only after point is set';
+  } else if (zone.startsWith('comeOdds')) {
     const num = zone.replace('comeOdds', '');
     if (!session.comeBets || !session.comeBets[num]) {
-      return json({ error: 'No come bet on ' + num + ' to back with odds' }, 400);
+      phaseError = 'No come bet on ' + num + ' to back with odds';
     }
+  }
+  if (phaseError) {
+    session.betting = false;
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+    return json({ error: phaseError }, 400);
   }
 
   const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
-  if (amt <= 0) return json({ error: 'Invalid amount or insufficient stack' }, 400);
+  if (amt <= 0) {
+    session.betting = false;
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+    return json({ error: 'Invalid amount or insufficient stack' }, 400);
+  }
 
   // Come odds go into the comeOdds object, not bets
   if (zone.startsWith('comeOdds')) {
@@ -735,6 +755,7 @@ async function handleCrapsBet(request, env) {
     session.bets[zone] = (session.bets[zone] || 0) + amt;
   }
 
+  session.betting = false;
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
   return json({ ok: true, stack: session.stack, bets: session.bets, comeOdds: session.comeOdds || {} });
 }
@@ -755,7 +776,7 @@ async function handleCrapsRoll(request, env) {
 
   // Guard against concurrent roll requests for the same session.
   // Two simultaneous rolls could both read the same KV state and double bets.
-  if (session.rolling) {
+  if (session.rolling || session.betting) {
     return json({ error: 'Roll already in progress' }, 409);
   }
   session.rolling = true;
@@ -1352,7 +1373,14 @@ async function handleTableStateGet(url, env) {
   // Include shooter info
   const shooterKey = `table_shooter:${table}`;
   const shooter = await env.RUNNER_KV.get(shooterKey, { type: 'json' });
-  return json({ ok: true, players: others, shooter: shooter ? shooter.playerId : null });
+
+  // Include chat messages (client sends lastChatTs to get only new ones)
+  const sinceTs = Number(url.searchParams.get('chatSince')) || 0;
+  const chatKey = `table_chat:${table}`;
+  const allChat = await env.RUNNER_KV.get(chatKey, { type: 'json' }) || [];
+  const newChat = sinceTs ? allChat.filter(m => m.ts > sinceTs) : allChat.slice(-20);
+
+  return json({ ok: true, players: others, shooter: shooter ? shooter.playerId : null, chat: newChat });
 }
 
 // ── Shooter rotation ──
@@ -1406,6 +1434,34 @@ async function handleShooterAdvance(request, env) {
   const nextShooter = { playerId: active[nextIdx] };
   await env.RUNNER_KV.put(shooterKey, JSON.stringify(nextShooter), { expirationTtl: TABLE_PRESENCE_TTL });
   return json({ ok: true, shooter: active[nextIdx] });
+}
+
+// POST /tables/chat  { table, playerId, name, text }
+// Appends a chat message to the table's chat log (capped ring buffer).
+const CHAT_MAX_MESSAGES = 50;
+async function handleTableChat(request, env) {
+  const { table, playerId, name, text } = await parseBody(request);
+  if (!table || !playerId || !text) return json({ error: 'Missing fields' }, 400);
+
+  const sanitizedText = String(text).slice(0, 120);
+  const sanitizedName = String(name || 'Anon').slice(0, 20);
+
+  const chatKey = `table_chat:${table}`;
+  const messages = await env.RUNNER_KV.get(chatKey, { type: 'json' }) || [];
+
+  messages.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    playerId: String(playerId),
+    name: sanitizedName,
+    text: sanitizedText,
+    ts: Date.now(),
+  });
+
+  // Keep only the last N messages
+  while (messages.length > CHAT_MAX_MESSAGES) messages.shift();
+
+  await env.RUNNER_KV.put(chatKey, JSON.stringify(messages), { expirationTtl: TABLE_PRESENCE_TTL });
+  return json({ ok: true });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
