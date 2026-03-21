@@ -158,7 +158,7 @@ jobs:
           CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           ORACLE_PRIVATE_KEY:    ${{ secrets.ORACLE_PRIVATE_KEY }}
-        run: echo "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
+        run: printf '%s' "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
 
       - name: Push AGORA_APP_CERT secret to Worker
         working-directory: worker
@@ -168,7 +168,7 @@ jobs:
           AGORA_APP_CERT:        ${{ secrets.AGORA_APP_CERT }}
         run: |
           if [ -n "$AGORA_APP_CERT" ]; then
-            echo "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
+            printf '%s' "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
           else
             echo "AGORA_APP_CERT not set — skipping"
           fi
@@ -405,7 +405,7 @@ jobs:
           CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           ORACLE_PRIVATE_KEY:    ${{ secrets.ORACLE_PRIVATE_KEY }}
-        run: echo "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
+        run: printf '%s' "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
 
       - name: Push AGORA_APP_CERT secret to Worker
         working-directory: worker
@@ -415,7 +415,7 @@ jobs:
           AGORA_APP_CERT:        ${{ secrets.AGORA_APP_CERT }}
         run: |
           if [ -n "$AGORA_APP_CERT" ]; then
-            echo "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
+            printf '%s' "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
           else
             echo "AGORA_APP_CERT not set — skipping"
           fi

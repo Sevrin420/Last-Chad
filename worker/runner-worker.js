@@ -1307,8 +1307,8 @@ async function handleAgoraToken(request, env) {
   const { channelName, uid } = await parseBody(request);
   if (!channelName) return json({ error: 'Missing channelName' }, 400);
 
-  const appId = env.AGORA_APP_ID;
-  const appCert = env.AGORA_APP_CERT;
+  const appId = (env.AGORA_APP_ID || '').trim();
+  const appCert = (env.AGORA_APP_CERT || '').trim();
   if (!appId || !appCert) return json({ error: 'Agora not configured' }, 500);
 
   const uidStr = String(uid || 0);
