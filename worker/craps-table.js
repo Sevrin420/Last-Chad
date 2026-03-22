@@ -83,8 +83,10 @@ export class CrapsTable {
       return new Response(null, { status: 101, webSocket: client });
     }
 
-    // Close old connection if reconnecting
+    // Preserve state from old connection if reconnecting
+    let prevState = null;
     if (existingSocket) {
+      try { prevState = existingSocket.deserializeAttachment(); } catch (_) {}
       try { existingSocket.close(1000, 'Reconnecting'); } catch (_) {}
     }
 
@@ -97,9 +99,9 @@ export class CrapsTable {
       playerId,
       name: String(name).slice(0, 20),
       chadId,
-      stack: 0,
-      bets: {},
-      comeBets: {},
+      stack:    prevState ? prevState.stack    : 0,
+      bets:     prevState ? prevState.bets     : {},
+      comeBets: prevState ? prevState.comeBets : {},
     });
 
     // Ensure a shooter exists
@@ -150,20 +152,31 @@ export class CrapsTable {
       }
 
       case 'rolling': {
+        // Only the shooter can broadcast rolling
+        const shooterRolling = await this.state.storage.get('shooter');
+        if (playerId !== shooterRolling) break;
         this._broadcast({ type: 'rolling', playerId, name }, null);
         break;
       }
 
       case 'roll-result': {
+        // Only the shooter can broadcast roll results
+        const shooterResult = await this.state.storage.get('shooter');
+        if (playerId !== shooterResult) break;
+        // Validate dice are two integers 1-6
+        if (!Array.isArray(data.dice) || data.dice.length !== 2) break;
+        const d1 = Number(data.dice[0]);
+        const d2 = Number(data.dice[1]);
+        if (d1 < 1 || d1 > 6 || d2 < 1 || d2 > 6 || !Number.isInteger(d1) || !Number.isInteger(d2)) break;
         this._broadcast({
           type: 'roll-result', playerId, name,
-          dice:       data.dice,
-          phase:      data.phase,
-          point:      data.point,
-          total:      data.total,
+          dice:    [d1, d2],
+          phase:   data.phase === 'point' ? 'point' : 'comeout',
+          point:   Number(data.point) || 0,
+          total:   d1 + d2,
           resolution: data.resolution,
-          message:    data.message,
-        }, null); // send to everyone so shooter gets confirmation too
+          message: String(data.message || '').slice(0, 80),
+        }, null);
         break;
       }
 
@@ -174,6 +187,9 @@ export class CrapsTable {
       }
 
       case 'pass-dice': {
+        // Only the current shooter can pass dice
+        const shooterPass = await this.state.storage.get('shooter');
+        if (playerId !== shooterPass) break;
         await this._advanceShooter(playerId);
         break;
       }
