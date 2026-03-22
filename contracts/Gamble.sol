@@ -29,7 +29,7 @@ contract Gamble {
     address   public oracle;
 
     uint256 public minWager = 1;
-    uint256 public maxWager = 50;
+    uint256 public maxWager = 500;
     uint256 public maxPayoutMultiplier = 20; // payout cap: wager * multiplier
 
     // Prevent oracle signature replay
