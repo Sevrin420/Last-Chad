@@ -660,6 +660,23 @@
       }
     }
 
+    /* ── Portrait frame override: revert 601px horizontal layout ── */
+    @media(min-width:900px){
+      .table-wrapper{flex-direction:column;overflow:auto}
+      .table-area{max-height:none;overflow:visible}
+      .felt-container{max-height:none}
+      .table-image-wrap > .table-bg{max-height:none}
+      .chat-box{
+        flex:initial;width:100%;height:auto;max-height:none;
+        border-left:none;border-top:2px solid #2a3a1a;border-bottom:2px solid #2a3a1a;
+      }
+      .player-bar{
+        flex:initial;width:100%;height:auto;flex-direction:row;
+        border-left:none;border-top:2px solid #2a3a1a;
+      }
+      .remote-card{border-bottom:none;border-right:1px solid #1a2a0a}
+    }
+
     /* ── Responsive (mobile) ── */
     @media(max-width:600px){
       .dealer-row{flex-wrap:wrap;gap:4px}

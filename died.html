@@ -45,6 +45,17 @@
       transition: opacity 0.8s ease 1.8s;
     }
     #redirect-msg.show { opacity: 1; }
+    @media (min-width: 900px) {
+      html { background: #050508; }
+      body {
+        max-width: min(56vh, 500px);
+        margin-left: auto;
+        margin-right: auto;
+        border-left: 1px solid rgba(92, 68, 9, 0.25);
+        border-right: 1px solid rgba(92, 68, 9, 0.25);
+        box-shadow: 0 0 80px rgba(0, 0, 0, 0.7);
+      }
+    }
   </style>
 </head>
 <body>

@@ -149,11 +149,11 @@ body {
 
 /* === Desktop === */
 @media (min-width: 900px) {
-  .main { max-width: clamp(700px, 65vw, 1200px); padding: 100px 3vw 80px; }
-  .doc-section { padding: 1.75rem 2rem; }
-  .doc-section h2 { font-size: 1rem; }
+  .main { max-width: 100%; padding: 90px 1.25rem 60px; }
+  .doc-section { padding: 1.25rem 1rem; }
+  .doc-section h2 { font-size: 0.9rem; }
   .doc-section p,
-  .doc-section li { font-size: 0.75rem; }
-  .page-title { font-size: 2rem; margin-bottom: 2.5rem; }
-  .header { padding: 1.1rem 2.5vw; }
+  .doc-section li { font-size: 0.675rem; }
+  .page-title { font-size: clamp(1.35rem, 4.5vw, 1.8rem); margin-bottom: 2rem; }
+  .header { padding: 0.75rem 1rem; }
 }
