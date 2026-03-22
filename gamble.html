@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ol' Jipt's Gamble — Last Chad</title>
+  <title>Gambling Den — Last Chad</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
@@ -20,7 +20,7 @@
       color: #ffe96a;
     }
 
-    /* ── Jipt portrait image ── */
+    /* ── Chazzy P portrait image ── */
     #jipt-image {
       position: fixed;
       bottom: 43vh;
@@ -902,7 +902,7 @@
 </head>
 <body>
 
-  <img id="jipt-image" src="assets/Oldjipt/oldjiptcoin.jpg" alt="" />
+  <img id="jipt-image" src="assets/chazzyp/chazzypgamble.jpg" alt="" />
 
   <!-- Background music -->
   <audio id="bg-music" src="music/moody.mp3" loop></audio>
@@ -1074,7 +1074,7 @@
       <div style="width:60px"></div>
     </div>
     <div class="poker-image-wrap" id="poker-image-placeholder">
-      <img src="assets/Oldjipt/Standing" alt="Ol' Jipt" />
+      <img src="assets/chazzyp/chazzypgamble.jpg" alt="Chazzy P" />
     </div>
     <div class="poker-payout poker-payout-wide" id="poker-payout-table">
       <div class="payout-title">— PAYOUTS —</div>
@@ -1249,11 +1249,11 @@
     async function showIntro() {
       introShown = true;
       await showNpcText([
-        "So you've come to see ol' Jipt eh?",
-        "How's about we play a game o' chance?"
+        "Ugg, I do hate being on set. The grime... The Smell!",
+        "Anyhow, let's play shall we?"
       ]);
       showChoices([
-        { label: "Roll the bones", action: startCrapsGame }
+        { label: "Hand me the bones Chazzy", action: startCrapsGame }
       ]);
     }
 
