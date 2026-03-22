@@ -549,10 +549,10 @@
       .craps-controls { flex-wrap: wrap; gap: 6px; }
     }
     @media (min-width: 900px) {
-      .craps-table { max-width: 860px; }
-      .craps-zone { min-height: 44px; }
+      .craps-table { max-width: clamp(660px, 62vw, 1040px); }
+      .craps-zone { min-height: clamp(36px, 3.2vw, 56px); }
       .craps-zone .zone-label { font-size: 0.32rem; }
-      .craps-die { width: 70px; height: 70px; }
+      .craps-die { width: clamp(54px, 5vw, 86px); height: clamp(54px, 5vw, 86px); }
     }
 
     @keyframes result-pulse {
@@ -895,8 +895,8 @@
 
     /* === Desktop === */
     @media (min-width: 900px) {
-      .dialogue-box { max-width: 520px; }
-      .nft-grid { max-width: 500px; }
+      .dialogue-box { max-width: clamp(420px, 38vw, 640px); }
+      .nft-grid { max-width: clamp(400px, 36vw, 620px); }
     }
   </style>
 </head>

@@ -693,6 +693,14 @@
       .gallery-item { width: 85px; height: 85px; }
       .quest-select { min-width: 200px; font-size: 0.5rem; }
     }
+
+    @media (min-width: 900px) {
+      .portrait-section { max-width: clamp(400px, 30vw, 520px); }
+      .gallery-section { max-width: clamp(480px, 44vw, 740px); }
+      .modal { max-width: clamp(380px, 30vw, 500px); }
+      .equip-modal { max-width: clamp(420px, 32vw, 540px); }
+      .quest-select { max-width: clamp(320px, 24vw, 420px); }
+    }
   </style>
 </head>
 <body>

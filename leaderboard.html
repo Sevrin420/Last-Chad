@@ -163,6 +163,10 @@
       .team-table th, .player-table th { font-size: 0.28rem; }
       .summary-grid { grid-template-columns: 1fr 1fr; }
     }
+
+    @media (min-width: 900px) {
+      main { max-width: clamp(700px, 65vw, 1100px); padding: 0 3vw; }
+    }
   </style>
 </head>
 <body>

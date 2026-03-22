@@ -679,13 +679,13 @@
 
     /* === Desktop === */
     @media (min-width: 900px) {
-      .character-card { max-width: 680px; }
-      .dice-section { max-width: 680px; }
-      .dice-box { width: 90px; height: 90px; }
-      .keep-btn { width: 90px; font-size: 0.45rem; }
-      .score-box { min-width: 360px; }
-      .modal-box { max-width: 420px; }
-      .roll-btn { padding: 16px 52px; }
+      .character-card { max-width: clamp(520px, 50vw, 820px); }
+      .dice-section { max-width: clamp(520px, 50vw, 820px); }
+      .dice-box { width: clamp(70px, 6.5vw, 110px); height: clamp(70px, 6.5vw, 110px); }
+      .keep-btn { width: clamp(70px, 6.5vw, 110px); font-size: 0.45rem; }
+      .score-box { min-width: clamp(280px, 26vw, 440px); }
+      .modal-box { max-width: clamp(360px, 30vw, 520px); }
+      .roll-btn { padding: 1rem 3.25vw; }
     }
 
     /* --- Mission briefing typewriter --- */

@@ -376,9 +376,9 @@
 
     /* === Desktop === */
     @media (min-width: 900px) {
-      #lobby-dice-section { max-width: 680px; }
-      .lobby-choice-btn { max-width: 420px; font-size: 0.7rem; }
-      #lobby1-img { max-width: 280px; }
+      #lobby-dice-section { max-width: clamp(520px, 50vw, 820px); }
+      .lobby-choice-btn { max-width: clamp(340px, 30vw, 520px); font-size: 0.7rem; }
+      #lobby1-img { max-width: clamp(220px, 20vw, 360px); }
     }
 
     /* === Collapsible Sections === */

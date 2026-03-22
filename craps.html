@@ -630,8 +630,8 @@
       }
       /* Right sidebar: chat + players stacked vertically */
       .chat-box{
-        flex:0 0 280px;
-        width:280px;
+        flex:0 0 clamp(200px, 20vw, 340px);
+        width:clamp(200px, 20vw, 340px);
         height:calc(100vh - 40px);
         max-height:calc(100vh - 40px);
         border-top:none;
@@ -640,9 +640,9 @@
         overflow:hidden;
       }
       .player-bar{
-        flex:0 0 80px;
+        flex:0 0 clamp(60px, 5.5vw, 100px);
         flex-direction:column;
-        width:80px;
+        width:clamp(60px, 5.5vw, 100px);
         height:calc(100vh - 40px);
         border-left:2px solid #2a3a1a;
         border-top:none;

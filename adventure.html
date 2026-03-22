@@ -638,8 +638,8 @@
 
     /* === Desktop === */
     @media (min-width: 900px) {
-      .main { max-width: 720px; }
-      .quest-card { max-width: 560px; }
+      .main { max-width: clamp(560px, 52vw, 880px); }
+      .quest-card { max-width: clamp(440px, 40vw, 680px); }
     }
   </style>
 </head>
