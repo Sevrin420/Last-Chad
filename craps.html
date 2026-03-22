@@ -1853,6 +1853,7 @@ function broadcastState(extra) {
 let _syncInterval = null;
 let _lastChatTs = 0;
 let _seenChatIds = new Set();
+let _lastSyncedDice = null;  // track last dice we rendered from shooter sync
 function startStateSync() {
   if (_syncInterval) clearInterval(_syncInterval);
   pollTableState();                                   // fire immediately
@@ -1926,6 +1927,53 @@ async function pollTableState() {
 
     // Sync shooter from server
     if (data.shooter) updateShooter(data.shooter);
+
+    // ── Sync dice, phase & point from the shooter's broadcast ──
+    if (!isLocalShooter()) {
+      // Find the shooter's player entry
+      let shooterState = null;
+      for (const p of data.players || []) {
+        if (String(p.playerId) === String(shooterPlayerId)) { shooterState = p; break; }
+      }
+      if (shooterState) {
+        // Sync phase & point
+        if (shooterState.phase) {
+          STATE.phase = shooterState.phase;
+          STATE.point = shooterState.point || null;
+          if (STATE.phase === 'point' && STATE.point) {
+            document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+            document.getElementById('puck').classList.add('on-glow');
+            document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+            movePuckToPoint(STATE.point);
+          } else {
+            document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+            document.getElementById('puck').classList.remove('on-glow');
+            document.getElementById('pointDisplay').textContent = '';
+            resetPuckPosition();
+          }
+        }
+        // Sync dice — only when they change
+        const diceKey = shooterState.lastDice ? shooterState.lastDice.join(',') : null;
+        if (diceKey && diceKey !== _lastSyncedDice) {
+          _lastSyncedDice = diceKey;
+          const [d1, d2] = shooterState.lastDice;
+          STATE.dice = [d1, d2];
+          renderDie(document.getElementById('face1'), d1);
+          renderDie(document.getElementById('face2'), d2);
+          const die1El = document.getElementById('die1');
+          const die2El = document.getElementById('die2');
+          die1El.classList.remove('rolling');
+          die2El.classList.remove('rolling');
+          die1El.classList.add('settled');
+          die2El.classList.add('settled');
+          // Show announcer for remote players
+          const total = d1 + d2;
+          const sub = shooterState.lastMsg || '';
+          showAnnouncer(d1, d2, STATE.phase, sub, false);
+          addChatMsg('roll', `rolled ${d1} + ${d2} = ${total}`, shooterState.name || 'Shooter', 0);
+        }
+      }
+    }
 
     // Process incoming chat messages from other players
     if (data.chat && Array.isArray(data.chat)) {
@@ -2043,6 +2091,7 @@ function enterTable() {
   window.location.hash = currentTableCode || 'public-1';
   document.getElementById('tableLobby').classList.add('hidden');
   document.getElementById('tableWrapper').style.display = '';
+  _lastSyncedDice = null;  // reset so we pick up the current dice on join
   startPresenceHeartbeat();
   startStateSync();
 }
