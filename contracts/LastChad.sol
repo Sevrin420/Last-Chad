@@ -9,8 +9,8 @@ interface IERC721Minimal {
 }
 
 contract LastChad is ERC721Enumerable, Ownable {
-    uint256 public constant MAX_SUPPLY = 10000;
-    uint256 public constant MINT_PRICE = 0.02 ether;      // 0.02 AVAX — standard mint
+    uint256 public constant MAX_SUPPLY = 333;
+    uint256 public constant MINT_PRICE = 2 ether;          // 2 AVAX — standard mint
     uint256 public constant TEAM_MINT_PRICE = 0.015 ether; // 0.015 AVAX — holds team NFT
     uint256 public constant TOTAL_STAT_POINTS = 2;
     uint256 public constant MAX_MINT_PER_WALLET = 5;
