@@ -1204,17 +1204,8 @@ function updateShooter(newShooterPlayerId) {
   }
 }
 
-async function advanceShooterOnServer() {
-  if (!currentTableCode || !isLocalShooter()) return;
-  try {
-    const res = await fetchWithTimeout(WORKER_URL + '/tables/shooter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: currentTableCode, playerId: STATE.playerId }),
-    });
-    const data = await res.json();
-    if (data.shooter) updateShooter(data.shooter);
-  } catch (_) {}
+function advanceShooterOnServer() {
+  wsSend({ type: 'pass-dice' });
 }
 
 // ── Turn Phase System ──
@@ -1464,7 +1455,17 @@ async function rollDice() {
 
     renderAllBetChips();
     updateLocalPlayerUI();
-    broadcastState(r.message || '');
+    broadcastState();
+    // Send roll result via WebSocket so remote players see the dice
+    wsSend({
+      type: 'roll-result',
+      dice: [d1, d2],
+      phase: STATE.phase,
+      point: STATE.point,
+      total: total,
+      resolution: r,
+      message: r.message || '',
+    });
 
     // Show press buttons for winning bets (auto-clear after 5s)
     if (data.pressOptions && Object.keys(data.pressOptions).length > 0) {
@@ -1759,7 +1760,7 @@ function exitTable() {
   if (STATE.nonce && Object.keys(STATE.bets).length > 0) {
     if (!confirm('You have active bets. Cash out first or lose them. Exit anyway?')) return;
   }
-  stopStateSync();
+  disconnectTable();
   window.location.href = 'gamble.html';
 }
 
@@ -1828,147 +1829,190 @@ function clearPlayerPanel(seat) {
 }
 
 
-// ── Multiplayer State Sync ──
+// ── Multiplayer State Sync (WebSocket) ──
+
+let _tableWs = null;        // WebSocket connection to Durable Object
+let _wsReconnectTimer = null;
+let _remoteCycleInterval = null;
+
+function wsUrl(table) {
+  // Convert REST worker URL to WebSocket URL
+  const base = WORKER_URL.replace(/^http/, 'ws');
+  return base + '/craps/ws?table=' + encodeURIComponent(table) +
+    '&playerId=' + encodeURIComponent(STATE.playerId) +
+    '&name=' + encodeURIComponent(STATE.nftName || STATE.playerName || 'Unknown') +
+    '&chadId=' + encodeURIComponent(STATE.chadId || 0);
+}
+
+function wsSend(data) {
+  if (_tableWs && _tableWs.readyState === WebSocket.OPEN) {
+    _tableWs.send(JSON.stringify(data));
+  }
+}
+
 function broadcastState(extra) {
-  if (!currentTableCode) return;
-  const payload = {
-    table: currentTableCode,
-    playerId: STATE.playerId,
-    state: {
-      name:     STATE.nftName || STATE.playerName || 'Unknown',
-      chadId:   STATE.chadId || 0,
-      stack:    STATE.stack || 0,
-      bets:     STATE.bets || {},
-      comeBets: STATE.comeBets || {},
-      phase:    STATE.phase,
-      point:    STATE.point || 0,
-      lastDice: STATE.dice || null,
-      lastMsg:  extra || '',
-    },
-  };
-  fetchWithTimeout(WORKER_URL + '/tables/state', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
+  wsSend({
+    type: 'state',
+    stack:    STATE.stack || 0,
+    bets:     STATE.bets || {},
+    comeBets: STATE.comeBets || {},
+  });
 }
 
 function broadcastRolling() {
-  if (!currentTableCode) return;
-  fetchWithTimeout(WORKER_URL + '/tables/state', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      table: currentTableCode,
-      playerId: STATE.playerId,
-      state: {
-        name:     STATE.nftName || STATE.playerName || 'Unknown',
-        chadId:   STATE.chadId || 0,
-        stack:    STATE.stack || 0,
-        bets:     STATE.bets || {},
-        comeBets: STATE.comeBets || {},
-        phase:    STATE.phase,
-        point:    STATE.point || 0,
-        lastDice: null,           // null signals "rolling in progress"
-        rolling:  true,
-        lastMsg:  '',
-      },
-    }),
-  }).catch(() => {});
+  wsSend({ type: 'rolling' });
 }
 
-let _syncInterval = null;
-let _lastChatTs = 0;
-let _seenChatIds = new Set();
-let _lastSyncedDice = null;   // track last dice we rendered from shooter sync
-let _remoteRolling = false;   // true while remote spin animation is active
-let _remoteCycleInterval = null;
-function startStateSync() {
-  if (_syncInterval) clearInterval(_syncInterval);
-  pollTableState();                                   // fire immediately
-  _syncInterval = setInterval(pollTableState, 800);   // then every 800ms
-}
-function stopStateSync() {
-  if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
-}
+function connectTable(tableCode) {
+  if (_tableWs) {
+    try { _tableWs.close(); } catch (_) {}
+    _tableWs = null;
+  }
+  if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
 
-async function pollTableState() {
-  if (!currentTableCode) return;
-  try {
-    const res = await fetchWithTimeout(
-      WORKER_URL + '/tables/state?table=' + encodeURIComponent(currentTableCode) +
-      '&playerId=' + encodeURIComponent(STATE.playerId) +
-      '&chatSince=' + _lastChatTs
-    );
-    const data = await res.json();
-    if (!data.ok) return;
+  const ws = new WebSocket(wsUrl(tableCode));
+  _tableWs = ws;
 
-    const seenIds = new Set();
-    for (const p of data.players || []) {
-      seenIds.add(p.playerId);
-      let seat = null;
-      for (let s = 1; s <= 3; s++) {
-        if (remotePlayers[s].uid === p.playerId) { seat = s; break; }
-      }
-      if (!seat) {
-        for (let s = 1; s <= 3; s++) {
-          if (!remotePlayers[s].uid) {
-            seat = s;
-            remotePlayers[s].uid = p.playerId;
-            addChatMsg('system', `${p.name} joined (Seat ${s + 1}).`);
-            break;
-          }
-        }
-      }
-      if (!seat) continue;
+  ws.onopen = () => {
+    // Send initial state once connected
+    broadcastState('joined');
+  };
 
-      remotePlayers[seat].nftName = p.name;
-      remotePlayers[seat].chadId = p.chadId;
-      remotePlayers[seat].stack = p.stack;
-      setChadPortrait(seat, p.chadId);
-      setPlayerName(seat, p.name);
-      setPlayerStack(seat, p.stack);
+  ws.onmessage = (e) => {
+    let data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+    handleWsMessage(data);
+  };
 
-      const remoteBetMap = {};
-      if (p.bets) Object.assign(remoteBetMap, p.bets);
-      if (p.comeBets) {
-        for (const [num, amt] of Object.entries(p.comeBets)) {
-          const key = 'place' + num;
-          remoteBetMap[key] = (remoteBetMap[key] || 0) + amt;
-        }
-      }
-      STATE.remoteBets[seat] = remoteBetMap;
+  ws.onclose = (e) => {
+    if (e.code === 4001) {
+      // Table is full
+      alert('Table is full!');
+      return;
     }
-
-    for (let s = 1; s <= 3; s++) {
-      if (remotePlayers[s].uid && !seenIds.has(remotePlayers[s].uid)) {
-        const name = remotePlayers[s].nftName || 'A player';
-        clearPlayerPanel(s);
-        remotePlayers[s].uid = null;
-        remotePlayers[s].name = '';
-        remotePlayers[s].nftName = '';
-        remotePlayers[s].chadId = null;
-        remotePlayers[s].stack = 0;
-        delete STATE.remoteBets[s];
-        addChatMsg('system', name + ' left the table.');
-      }
+    // Auto-reconnect after 2s if we're still on this table
+    if (currentTableCode === tableCode) {
+      _wsReconnectTimer = setTimeout(() => connectTable(tableCode), 2000);
     }
+  };
 
-    // Sync shooter from server
-    if (data.shooter) updateShooter(data.shooter);
+  ws.onerror = () => {
+    // onclose will fire after this — reconnect handled there
+  };
+}
 
-    // ── Sync dice, phase & point from the shooter's broadcast ──
-    if (!isLocalShooter()) {
-      // Find the shooter's player entry
-      let shooterState = null;
+function disconnectTable() {
+  if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
+  if (_tableWs) {
+    try { _tableWs.close(); } catch (_) {}
+    _tableWs = null;
+  }
+}
+
+function handleWsMessage(data) {
+  switch (data.type) {
+
+    case 'init': {
+      // Initial state: all current players + shooter
       for (const p of data.players || []) {
-        if (String(p.playerId) === String(shooterPlayerId)) { shooterState = p; break; }
+        if (String(p.playerId) === String(STATE.playerId)) continue;
+        _seatPlayer(p);
       }
-      if (shooterState) {
+      if (data.shooter) updateShooter(data.shooter);
+      renderAllBetChips();
+      break;
+    }
+
+    case 'join': {
+      if (String(data.playerId) === String(STATE.playerId)) break;
+      _seatPlayer(data);
+      addChatMsg('system', `${data.name} joined the table.`);
+      renderAllBetChips();
+      break;
+    }
+
+    case 'leave': {
+      if (String(data.playerId) === String(STATE.playerId)) break;
+      for (let s = 1; s <= 3; s++) {
+        if (remotePlayers[s].uid === data.playerId) {
+          const name = remotePlayers[s].nftName || 'A player';
+          clearPlayerPanel(s);
+          remotePlayers[s].uid = null;
+          remotePlayers[s].name = '';
+          remotePlayers[s].nftName = '';
+          remotePlayers[s].chadId = null;
+          remotePlayers[s].stack = 0;
+          delete STATE.remoteBets[s];
+          addChatMsg('system', name + ' left the table.');
+          break;
+        }
+      }
+      renderAllBetChips();
+      break;
+    }
+
+    case 'state': {
+      if (String(data.playerId) === String(STATE.playerId)) break;
+      // Update remote player's bets/stack
+      for (let s = 1; s <= 3; s++) {
+        if (remotePlayers[s].uid === data.playerId) {
+          if (data.stack !== undefined) {
+            remotePlayers[s].stack = data.stack;
+            setPlayerStack(s, data.stack);
+          }
+          const remoteBetMap = {};
+          if (data.bets) Object.assign(remoteBetMap, data.bets);
+          if (data.comeBets) {
+            for (const [num, amt] of Object.entries(data.comeBets)) {
+              const key = 'place' + num;
+              remoteBetMap[key] = (remoteBetMap[key] || 0) + amt;
+            }
+          }
+          STATE.remoteBets[s] = remoteBetMap;
+          break;
+        }
+      }
+      renderAllBetChips();
+      break;
+    }
+
+    case 'rolling': {
+      // Shooter started rolling — start spin animation for non-shooters
+      if (!isLocalShooter()) {
+        const die1El = document.getElementById('die1');
+        const die2El = document.getElementById('die2');
+        die1El.classList.remove('settled');
+        die2El.classList.remove('settled');
+        die1El.classList.add('rolling');
+        die2El.classList.add('rolling');
+        if (_remoteCycleInterval) clearInterval(_remoteCycleInterval);
+        _remoteCycleInterval = setInterval(() => {
+          renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
+          renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
+        }, 60);
+      }
+      break;
+    }
+
+    case 'roll-result': {
+      if (!isLocalShooter() && data.dice) {
+        // Stop spin animation
+        if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
+        const [d1, d2] = data.dice;
+        STATE.dice = [d1, d2];
+        renderDie(document.getElementById('face1'), d1);
+        renderDie(document.getElementById('face2'), d2);
+        const die1El = document.getElementById('die1');
+        const die2El = document.getElementById('die2');
+        die1El.classList.remove('rolling');
+        die2El.classList.remove('rolling');
+        die1El.classList.add('settled');
+        die2El.classList.add('settled');
+
         // Sync phase & point
-        if (shooterState.phase) {
-          STATE.phase = shooterState.phase;
-          STATE.point = shooterState.point || null;
+        if (data.phase) {
+          STATE.phase = data.phase;
+          STATE.point = data.point || null;
           if (STATE.phase === 'point' && STATE.point) {
             document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
             document.getElementById('puck').classList.add('on-glow');
@@ -1982,86 +2026,76 @@ async function pollTableState() {
           }
         }
 
-        // Start spin animation when shooter signals rolling
-        if (shooterState.rolling && !_remoteRolling) {
-          _remoteRolling = true;
-          _lastSyncedDice = null;  // clear so we pick up the result
-          const die1El = document.getElementById('die1');
-          const die2El = document.getElementById('die2');
-          die1El.classList.remove('settled');
-          die2El.classList.remove('settled');
-          die1El.classList.add('rolling');
-          die2El.classList.add('rolling');
-          // Cycle random faces while waiting for result
-          if (_remoteCycleInterval) clearInterval(_remoteCycleInterval);
-          _remoteCycleInterval = setInterval(() => {
-            renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
-            renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
-          }, 60);
-        }
-
-        // Settle dice when result arrives
-        const diceKey = shooterState.lastDice ? shooterState.lastDice.join(',') : null;
-        if (diceKey && diceKey !== _lastSyncedDice) {
-          _lastSyncedDice = diceKey;
-          _remoteRolling = false;
-          if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
-          const [d1, d2] = shooterState.lastDice;
-          STATE.dice = [d1, d2];
-          renderDie(document.getElementById('face1'), d1);
-          renderDie(document.getElementById('face2'), d2);
-          const die1El = document.getElementById('die1');
-          const die2El = document.getElementById('die2');
-          die1El.classList.remove('rolling');
-          die2El.classList.remove('rolling');
-          die1El.classList.add('settled');
-          die2El.classList.add('settled');
-          // Show announcer for remote players
-          const total = d1 + d2;
-          const sub = shooterState.lastMsg || '';
-          showAnnouncer(d1, d2, STATE.phase, sub, false);
-          addChatMsg('roll', `rolled ${d1} + ${d2} = ${total}`, shooterState.name || 'Shooter', 0);
-        }
+        // Show announcer
+        const total = d1 + d2;
+        const sub = data.message || '';
+        showAnnouncer(d1, d2, STATE.phase, sub, false);
+        addChatMsg('roll', `rolled ${d1} + ${d2} = ${total}`, data.name || 'Shooter', 0);
       }
+      break;
     }
 
-    // Process incoming chat messages from other players
-    if (data.chat && Array.isArray(data.chat)) {
-      for (const msg of data.chat) {
-        if (String(msg.playerId) === String(STATE.playerId)) continue; // skip own
-        if (_seenChatIds.has(msg.id)) continue; // skip duplicates
-        _seenChatIds.add(msg.id);
-        // Find the seat index for color coding
-        let seatIdx = -1;
-        for (let s = 1; s <= 3; s++) {
-          if (String(remotePlayers[s].uid) === String(msg.playerId)) { seatIdx = s; break; }
-        }
-        addChatMsg('chat', msg.text, msg.name, seatIdx >= 0 ? seatIdx : 1);
-        if (msg.ts > _lastChatTs) _lastChatTs = msg.ts;
+    case 'chat': {
+      if (String(data.playerId) === String(STATE.playerId)) break;
+      let seatIdx = 1;
+      for (let s = 1; s <= 3; s++) {
+        if (remotePlayers[s].uid === data.playerId) { seatIdx = s; break; }
       }
-      // Prune seen IDs set if it gets too large
-      if (_seenChatIds.size > 200) {
-        const arr = [..._seenChatIds];
-        _seenChatIds = new Set(arr.slice(-100));
-      }
+      addChatMsg('chat', data.text, data.name, seatIdx);
+      break;
     }
 
-    renderAllBetChips();
-  } catch (_) {}
+    case 'shooter': {
+      updateShooter(data.playerId);
+      break;
+    }
+
+    case 'full': {
+      alert('Table is full!');
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
+// Seat a remote player into the first available slot
+function _seatPlayer(p) {
+  if (String(p.playerId) === String(STATE.playerId)) return;
+  // Check if already seated
+  for (let s = 1; s <= 3; s++) {
+    if (remotePlayers[s].uid === p.playerId) {
+      // Update existing seat
+      remotePlayers[s].nftName = p.name;
+      remotePlayers[s].stack = p.stack || 0;
+      setPlayerName(s, p.name);
+      setPlayerStack(s, p.stack || 0);
+      if (p.chadId) { remotePlayers[s].chadId = p.chadId; setChadPortrait(s, p.chadId); }
+      return;
+    }
+  }
+  // Find empty seat
+  for (let s = 1; s <= 3; s++) {
+    if (!remotePlayers[s].uid) {
+      remotePlayers[s].uid = p.playerId;
+      remotePlayers[s].nftName = p.name;
+      remotePlayers[s].chadId = p.chadId;
+      remotePlayers[s].stack = p.stack || 0;
+      setChadPortrait(s, p.chadId);
+      setPlayerName(s, p.name);
+      setPlayerStack(s, p.stack || 0);
+      const remoteBetMap = {};
+      if (p.bets) Object.assign(remoteBetMap, p.bets);
+      STATE.remoteBets[s] = remoteBetMap;
+      return;
+    }
+  }
 }
 
 function broadcastMessage(msg) {
   if (!currentTableCode || !msg) return;
-  fetchWithTimeout(WORKER_URL + '/tables/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      table: currentTableCode,
-      playerId: STATE.playerId,
-      name: msg.name || STATE.nftName || STATE.playerName,
-      text: msg.text || '',
-    }),
-  }).catch(() => {});
+  wsSend({ type: 'chat', text: msg.text || '' });
 }
 
 // ===================================================================
@@ -2075,40 +2109,21 @@ function generateTableCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-async function joinPublicTable(tableName) {
+function joinPublicTable(tableName) {
   if (!tableName) tableName = 'public-1';
   currentTableCode = tableName;
   tableIsPrivate = false;
-  try {
-    const res = await fetchWithTimeout(WORKER_URL + '/tables/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: tableName, playerId: STATE.playerId }),
-    });
-    const data = await res.json();
-    if (data.error) { alert(data.error); return; }
-    if (data.shooter) updateShooter(data.shooter);
-  } catch (_) {}
   enterTable();
 }
 
-async function createPrivateTable() {
+function createPrivateTable() {
   currentTableCode = 'priv-' + generateTableCode();
   tableIsPrivate = true;
-  // Check if server accepts this private table
-  try {
-    const res = await fetchWithTimeout(WORKER_URL + '/tables/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: currentTableCode, playerId: STATE.playerId }),
-    });
-    const data = await res.json();
-    if (data.error) { alert(data.error); currentTableCode = null; return; }
-  } catch (_) {}
   const url = window.location.origin + window.location.pathname + '#' + currentTableCode;
   document.getElementById('inviteLink').textContent = url;
   document.getElementById('inviteArea').classList.add('show');
   document.getElementById('joinPrivateArea').classList.remove('show');
+  enterTable();
 }
 
 function showJoinPrivate() {
@@ -2141,26 +2156,16 @@ function enterTable() {
   window.location.hash = currentTableCode || 'public-1';
   document.getElementById('tableLobby').classList.add('hidden');
   document.getElementById('tableWrapper').style.display = '';
-  _lastSyncedDice = null;  // reset so we pick up the current dice on join
-  startPresenceHeartbeat();
-  startStateSync();
+  connectTable(currentTableCode);
 }
 
 (function checkHashJoin() {
   let hash = window.location.hash.slice(1);
   if (!hash) return;
-  // Backwards compat: old links with public-main → public-1
   if (hash === 'public-main') hash = 'public-1';
   currentTableCode = hash;
   tableIsPrivate = hash.startsWith('priv-');
   enterTable();
-  fetchWithTimeout(WORKER_URL + '/tables/join', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ table: hash, playerId: STATE.playerId }),
-  }).then(r => r.json()).then(data => {
-    if (data.shooter) updateShooter(data.shooter);
-  }).catch(() => {});
 })();
 
 async function refreshLobbyTables() {
@@ -2183,25 +2188,9 @@ async function refreshLobbyTables() {
 refreshLobbyTables();
 setInterval(refreshLobbyTables, 10_000);
 
-let presenceInterval = null;
-function sendPresencePing() {
-  if (!currentTableCode) return;
-  fetchWithTimeout(WORKER_URL + '/tables/join', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ table: currentTableCode, playerId: STATE.playerId }),
-  }).catch(() => {});
-}
-function startPresenceHeartbeat() {
-  if (presenceInterval) clearInterval(presenceInterval);
-  sendPresencePing();                       // fire immediately on join
-  presenceInterval = setInterval(sendPresencePing, 8_000);  // then every 8s
-}
+// WebSocket connection = presence. No heartbeat needed.
 window.addEventListener('beforeunload', () => {
-  if (currentTableCode) {
-    navigator.sendBeacon(WORKER_URL + '/tables/leave',
-      JSON.stringify({ table: currentTableCode, playerId: STATE.playerId }));
-  }
+  disconnectTable();
 });
 
 // ── Init ──

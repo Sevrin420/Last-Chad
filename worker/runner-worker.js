@@ -38,6 +38,7 @@
  */
 
 import { ethers } from 'ethers';
+export { CrapsTable } from './craps-table.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': 'https://lastchad.xyz',
@@ -139,27 +140,14 @@ export default {
         return await handleCrapsCashout(request, env);
       }
 
-      // Table presence endpoints
-      if (request.method === 'POST' && url.pathname === '/tables/join') {
-        return await handleTableJoin(request, env);
+      // ── WebSocket upgrade → Durable Object ──
+      if (url.pathname === '/craps/ws') {
+        return await handleCrapsWebSocket(request, url, env);
       }
-      if (request.method === 'POST' && url.pathname === '/tables/leave') {
-        return await handleTableLeave(request, env);
-      }
+
+      // Table list (queries Durable Objects for player counts)
       if (request.method === 'GET' && url.pathname === '/tables/list') {
         return await handleTableList(env);
-      }
-      if (request.method === 'POST' && url.pathname === '/tables/state') {
-        return await handleTableStatePost(request, env);
-      }
-      if (request.method === 'GET' && url.pathname === '/tables/state') {
-        return await handleTableStateGet(url, env);
-      }
-      if (request.method === 'POST' && url.pathname === '/tables/shooter') {
-        return await handleShooterAdvance(request, env);
-      }
-      if (request.method === 'POST' && url.pathname === '/tables/chat') {
-        return await handleTableChat(request, env);
       }
 
       // Agora RTC token
@@ -1220,263 +1208,68 @@ function json(data, status = 200) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  TABLE PRESENCE (lobby player counts)
+//  CRAPS TABLE — WebSocket routing via Durable Objects
 // ═══════════════════════════════════════════════════════════════════════════
 
-// POST /tables/join  { table, playerId }
-async function handleTableJoin(request, env) {
-  const { table, playerId } = await parseBody(request);
-  if (!table || !playerId) return json({ error: 'Missing table or playerId' }, 400);
-
-  const isPublic  = PUBLIC_TABLES.some(t => t.name === table);
-  const isPrivate = table.startsWith('priv-');
-  if (!isPublic && !isPrivate) return json({ error: 'Invalid table name' }, 400);
-
-  // Enforce private table cap
-  if (isPrivate) {
-    const privCount = await countPrivateTables(env);
-    // Allow if player is already in this table, otherwise check cap
-    const existingCheck = await env.RUNNER_KV.get(`table_players:${table}`, { type: 'json' }) || {};
-    if (!existingCheck[playerId] && privCount >= MAX_PRIVATE_TABLES) {
-      return json({ error: 'Private table limit reached', max: MAX_PRIVATE_TABLES }, 429);
-    }
-  }
-
-  const key = `table_players:${table}`;
-  const existing = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
-
-  // Enforce per-table player cap (allow rejoin if already seated)
-  const now = Date.now();
-  const activePlayers = Object.entries(existing).filter(([, ts]) => now - ts < TABLE_STALE_MS);
-  if (!existing[playerId] && activePlayers.length >= MAX_PLAYERS_PER_TABLE) {
-    return json({ error: 'Table is full', max: MAX_PLAYERS_PER_TABLE }, 429);
-  }
-
-  existing[playerId] = Date.now();
-  await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
-
-  const count = Object.values(existing).filter(ts => now - ts < TABLE_STALE_MS).length;
-  // Ensure a shooter is assigned (first player becomes shooter)
-  const shooter = await ensureShooter(table, env);
-  return json({ ok: true, count, shooter });
-}
-
-async function countPrivateTables(env) {
-  // List all private table KV keys with active players
-  const list = await env.RUNNER_KV.list({ prefix: 'table_players:priv-' });
-  let count = 0;
-  const now = Date.now();
-  for (const key of list.keys) {
-    const players = await env.RUNNER_KV.get(key.name, { type: 'json' }) || {};
-    const active = Object.values(players).filter(ts => now - ts < TABLE_STALE_MS);
-    if (active.length > 0) count++;
-  }
-  return count;
-}
-
-// POST /tables/leave  { table, playerId }
-async function handleTableLeave(request, env) {
-  const { table, playerId } = await parseBody(request);
-  if (!table || !playerId) return json({ error: 'Missing table or playerId' }, 400);
-
-  const key = `table_players:${table}`;
-  const existing = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
-  delete existing[playerId];
-
-  if (Object.keys(existing).length === 0) {
-    await env.RUNNER_KV.delete(key);
-    await env.RUNNER_KV.delete(`table_shooter:${table}`);
-  } else {
-    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
-    await ensureShooter(table, env);
-  }
-  return json({ ok: true });
-}
-
-// GET /tables/list
-async function handleTableList(env) {
-  const now = Date.now();
-  const tables = [];
-
-  for (const t of PUBLIC_TABLES) {
-    const players = await env.RUNNER_KV.get(`table_players:${t.name}`, { type: 'json' }) || {};
-    const active = Object.values(players).filter(ts => now - ts < TABLE_STALE_MS);
-    tables.push({
-      name: t.name,
-      label: t.label,
-      players: active.length,
-      maxPlayers: MAX_PLAYERS_PER_TABLE,
+// GET /craps/ws?table=X&playerId=Y&name=Z&chadId=N  (WebSocket upgrade)
+// Routes the connection to the CrapsTable Durable Object for that table.
+async function handleCrapsWebSocket(request, url, env) {
+  const table = url.searchParams.get('table');
+  if (!table) {
+    return new Response(JSON.stringify({ error: 'Missing table' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
     });
   }
 
+  // Validate table name
+  const isPublic  = PUBLIC_TABLES.some(t => t.name === table);
+  const isPrivate = table.startsWith('priv-');
+  if (!isPublic && !isPrivate) {
+    return new Response(JSON.stringify({ error: 'Invalid table name' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
+    });
+  }
+
+  // Route to the Durable Object (one DO per table)
+  const id = env.CRAPS_TABLE.idFromName(table);
+  const stub = env.CRAPS_TABLE.get(id);
+
+  // Forward the entire request (including Upgrade headers + query params)
+  return stub.fetch(request);
+}
+
+// GET /tables/list — returns player counts by querying each public table's DO
+async function handleTableList(env) {
+  const tables = [];
+
+  // Query all public table DOs in parallel
+  const queries = PUBLIC_TABLES.map(async (t) => {
+    try {
+      const id = env.CRAPS_TABLE.idFromName(t.name);
+      const stub = env.CRAPS_TABLE.get(id);
+      const res = await stub.fetch(new Request('https://do/info'));
+      const data = await res.json();
+      return {
+        name: t.name,
+        label: t.label,
+        players: data.count || 0,
+        maxPlayers: MAX_PLAYERS_PER_TABLE,
+      };
+    } catch (_) {
+      return {
+        name: t.name,
+        label: t.label,
+        players: 0,
+        maxPlayers: MAX_PLAYERS_PER_TABLE,
+      };
+    }
+  });
+
+  const results = await Promise.all(queries);
   return json({
-    tables,
+    tables: results,
     limits: { maxPublic: MAX_PUBLIC_TABLES, maxPrivate: MAX_PRIVATE_TABLES, maxPerTable: MAX_PLAYERS_PER_TABLE },
   });
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  TABLE STATE SYNC (multiplayer bet/dice visibility)
-// ═══════════════════════════════════════════════════════════════════════════
-
-const TABLE_STATE_TTL = 120; // 2 min KV expiry — stale players auto-expire
-
-// POST /tables/state  { table, playerId, state }
-// Player pushes their current visible game state after each bet/roll/cashout.
-async function handleTableStatePost(request, env) {
-  const { table, playerId, state } = await parseBody(request);
-  if (!table || !playerId || !state) return json({ error: 'Missing fields' }, 400);
-
-  // Sanitize: only store the fields other players need to see
-  const sanitized = {
-    name:     String(state.name || '').slice(0, 20),
-    chadId:   Number(state.chadId) || 0,
-    stack:    Number(state.stack) || 0,
-    bets:     {},
-    comeBets: {},
-    phase:    state.phase === 'point' ? 'point' : 'comeout',
-    point:    Number(state.point) || 0,
-    lastDice: Array.isArray(state.lastDice) ? state.lastDice.slice(0, 2).map(Number) : null,
-    lastMsg:  String(state.lastMsg || '').slice(0, 80),
-    ts:       Date.now(),
-  };
-  // Whitelist bet zones
-  const allowedBets = new Set([
-    'pass','field','come','passOdds',
-    'place4','place5','place6','place8','place9','place10',
-    'hard4','hard6','hard8','hard10',
-  ]);
-  if (state.bets && typeof state.bets === 'object') {
-    for (const [k, v] of Object.entries(state.bets)) {
-      if (allowedBets.has(k) && Number(v) > 0) sanitized.bets[k] = Number(v);
-    }
-  }
-  if (state.comeBets && typeof state.comeBets === 'object') {
-    for (const [k, v] of Object.entries(state.comeBets)) {
-      if (Number(v) > 0) sanitized.comeBets[k] = Number(v);
-    }
-  }
-
-  const key = `table_state:${table}:${playerId}`;
-  await env.RUNNER_KV.put(key, JSON.stringify(sanitized), { expirationTtl: TABLE_STATE_TTL });
-  return json({ ok: true });
-}
-
-// GET /tables/state?table=X&playerId=Y
-// Returns all other players' states at the table (excludes the requester).
-async function handleTableStateGet(url, env) {
-  const table    = url.searchParams.get('table');
-  const myId     = url.searchParams.get('playerId');
-  if (!table) return json({ error: 'Missing table' }, 400);
-
-  // Get player list for this table to know who to look up
-  const playersKey = `table_players:${table}`;
-  const players = await env.RUNNER_KV.get(playersKey, { type: 'json' }) || {};
-  const now = Date.now();
-
-  const others = [];
-  for (const [pid, ts] of Object.entries(players)) {
-    if (pid === String(myId)) continue; // skip self
-    if (now - ts > TABLE_STALE_MS) continue; // skip stale
-    const stateKey = `table_state:${table}:${pid}`;
-    const st = await env.RUNNER_KV.get(stateKey, { type: 'json' });
-    if (st) {
-      st.playerId = pid;
-      others.push(st);
-    }
-  }
-  // Include shooter info
-  const shooterKey = `table_shooter:${table}`;
-  const shooter = await env.RUNNER_KV.get(shooterKey, { type: 'json' });
-
-  // Include chat messages (client sends lastChatTs to get only new ones)
-  const sinceTs = Number(url.searchParams.get('chatSince')) || 0;
-  const chatKey = `table_chat:${table}`;
-  const allChat = await env.RUNNER_KV.get(chatKey, { type: 'json' }) || [];
-  const newChat = sinceTs ? allChat.filter(m => m.ts > sinceTs) : allChat.slice(-20);
-
-  return json({ ok: true, players: others, shooter: shooter ? shooter.playerId : null, chat: newChat });
-}
-
-// ── Shooter rotation ──
-
-async function getActivePlayers(table, env) {
-  const playersKey = `table_players:${table}`;
-  const players = await env.RUNNER_KV.get(playersKey, { type: 'json' }) || {};
-  const now = Date.now();
-  // Return active playerIds sorted by join time (oldest first = stable order)
-  return Object.entries(players)
-    .filter(([, ts]) => now - ts < TABLE_STALE_MS)
-    .sort((a, b) => a[1] - b[1])
-    .map(([pid]) => pid);
-}
-
-async function ensureShooter(table, env) {
-  const shooterKey = `table_shooter:${table}`;
-  const existing = await env.RUNNER_KV.get(shooterKey, { type: 'json' });
-  const active = await getActivePlayers(table, env);
-  if (active.length === 0) {
-    await env.RUNNER_KV.delete(shooterKey);
-    return null;
-  }
-  // If current shooter is still active, keep them
-  if (existing && active.includes(existing.playerId)) return existing.playerId;
-  // Otherwise assign first active player
-  const newShooter = { playerId: active[0] };
-  await env.RUNNER_KV.put(shooterKey, JSON.stringify(newShooter), { expirationTtl: TABLE_PRESENCE_TTL });
-  return active[0];
-}
-
-// POST /tables/shooter  { table, playerId }
-// Called by the current shooter's client after a 7-out to pass the dice.
-async function handleShooterAdvance(request, env) {
-  const { table, playerId } = await parseBody(request);
-  if (!table || !playerId) return json({ error: 'Missing fields' }, 400);
-
-  const shooterKey = `table_shooter:${table}`;
-  const current = await env.RUNNER_KV.get(shooterKey, { type: 'json' });
-
-  // Only the current shooter can advance
-  if (!current || current.playerId !== playerId) {
-    return json({ error: 'Not the shooter' }, 403);
-  }
-
-  const active = await getActivePlayers(table, env);
-  if (active.length === 0) return json({ ok: true, shooter: null });
-
-  const idx = active.indexOf(playerId);
-  const nextIdx = (idx + 1) % active.length;
-  const nextShooter = { playerId: active[nextIdx] };
-  await env.RUNNER_KV.put(shooterKey, JSON.stringify(nextShooter), { expirationTtl: TABLE_PRESENCE_TTL });
-  return json({ ok: true, shooter: active[nextIdx] });
-}
-
-// POST /tables/chat  { table, playerId, name, text }
-// Appends a chat message to the table's chat log (capped ring buffer).
-const CHAT_MAX_MESSAGES = 50;
-async function handleTableChat(request, env) {
-  const { table, playerId, name, text } = await parseBody(request);
-  if (!table || !playerId || !text) return json({ error: 'Missing fields' }, 400);
-
-  const sanitizedText = String(text).slice(0, 120);
-  const sanitizedName = String(name || 'Anon').slice(0, 20);
-
-  const chatKey = `table_chat:${table}`;
-  const messages = await env.RUNNER_KV.get(chatKey, { type: 'json' }) || [];
-
-  messages.push({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    playerId: String(playerId),
-    name: sanitizedName,
-    text: sanitizedText,
-    ts: Date.now(),
-  });
-
-  // Keep only the last N messages
-  while (messages.length > CHAT_MAX_MESSAGES) messages.shift();
-
-  await env.RUNNER_KV.put(chatKey, JSON.stringify(messages), { expirationTtl: TABLE_PRESENCE_TTL });
-  return json({ ok: true });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
