@@ -671,7 +671,7 @@
       <!-- Announcer Overlay -->
       <div class="announcer-overlay" id="announcerOverlay">
         <div class="announcer-inner">
-          <img class="announcer-portrait" id="announcerImg" src="assets/Oldjipt/Craps/jiptneutral.png" alt="Oldjipt" />
+          <img class="announcer-portrait" id="announcerImg" src="assets/chazzyp/chazzypneutral.jpg" alt="Chazzy P" />
           <div class="announcer-content">
             <div class="announcer-dice" id="announcerDice"></div>
             <div class="announcer-call" id="announcerCall"></div>
@@ -1526,7 +1526,7 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint) {
       : (callText.includes('Out') || callText.includes('Snake') || callText === 'Boxcars 12' || callText === 'Craps 3') ? 'sad'
       : entry.mood || 'neutral';
   }
-  const moodMap = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+  const moodMap = {neutral:'chazzypneutral.jpg',happy:'chazzyphappy.jpg',sad:'chazzypsad.jpg',concerned:'chazzypconcerned.jpg'};
 
   const overlay = document.getElementById('announcerOverlay');
   const img = document.getElementById('announcerImg');
@@ -1534,7 +1534,7 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint) {
   const subEl = document.getElementById('announcerSub');
   const diceContainer = document.getElementById('announcerDice');
 
-  img.src = 'assets/Oldjipt/Craps/' + (moodMap[mood] || moodMap.neutral);
+  img.src = 'assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
   call.textContent = callText;
   subEl.textContent = sub || '';
 
@@ -1567,14 +1567,14 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint) {
 
 function dealerSay(text, mood) {
   // Show via announcer overlay (no dice, just text)
-  const moodMap = {neutral:'jiptneutral.png',happy:'jipthappy.png',sad:'jiptsad.png'};
+  const moodMap = {neutral:'chazzypneutral.jpg',happy:'chazzyphappy.jpg',sad:'chazzypsad.jpg',concerned:'chazzypconcerned.jpg'};
   const overlay = document.getElementById('announcerOverlay');
   const img = document.getElementById('announcerImg');
   const call = document.getElementById('announcerCall');
   const subEl = document.getElementById('announcerSub');
   const diceContainer = document.getElementById('announcerDice');
 
-  img.src = 'assets/Oldjipt/Craps/' + (moodMap[mood] || moodMap.neutral);
+  img.src = 'assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
   call.textContent = text;
   subEl.textContent = '';
   diceContainer.innerHTML = '';
