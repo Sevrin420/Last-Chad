@@ -1364,6 +1364,9 @@ async function rollDice() {
   diceEl.classList.remove('can-roll');
   diceEl.classList.add('locked');
 
+  // Broadcast rolling state so remote players start spin animation
+  broadcastRolling();
+
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
   die1El.classList.remove('settled');
@@ -1850,10 +1853,36 @@ function broadcastState(extra) {
   }).catch(() => {});
 }
 
+function broadcastRolling() {
+  if (!currentTableCode) return;
+  fetchWithTimeout(WORKER_URL + '/tables/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      table: currentTableCode,
+      playerId: STATE.playerId,
+      state: {
+        name:     STATE.nftName || STATE.playerName || 'Unknown',
+        chadId:   STATE.chadId || 0,
+        stack:    STATE.stack || 0,
+        bets:     STATE.bets || {},
+        comeBets: STATE.comeBets || {},
+        phase:    STATE.phase,
+        point:    STATE.point || 0,
+        lastDice: null,           // null signals "rolling in progress"
+        rolling:  true,
+        lastMsg:  '',
+      },
+    }),
+  }).catch(() => {});
+}
+
 let _syncInterval = null;
 let _lastChatTs = 0;
 let _seenChatIds = new Set();
-let _lastSyncedDice = null;  // track last dice we rendered from shooter sync
+let _lastSyncedDice = null;   // track last dice we rendered from shooter sync
+let _remoteRolling = false;   // true while remote spin animation is active
+let _remoteCycleInterval = null;
 function startStateSync() {
   if (_syncInterval) clearInterval(_syncInterval);
   pollTableState();                                   // fire immediately
@@ -1952,10 +1981,31 @@ async function pollTableState() {
             resetPuckPosition();
           }
         }
-        // Sync dice — only when they change
+
+        // Start spin animation when shooter signals rolling
+        if (shooterState.rolling && !_remoteRolling) {
+          _remoteRolling = true;
+          _lastSyncedDice = null;  // clear so we pick up the result
+          const die1El = document.getElementById('die1');
+          const die2El = document.getElementById('die2');
+          die1El.classList.remove('settled');
+          die2El.classList.remove('settled');
+          die1El.classList.add('rolling');
+          die2El.classList.add('rolling');
+          // Cycle random faces while waiting for result
+          if (_remoteCycleInterval) clearInterval(_remoteCycleInterval);
+          _remoteCycleInterval = setInterval(() => {
+            renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
+            renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
+          }, 60);
+        }
+
+        // Settle dice when result arrives
         const diceKey = shooterState.lastDice ? shooterState.lastDice.join(',') : null;
         if (diceKey && diceKey !== _lastSyncedDice) {
           _lastSyncedDice = diceKey;
+          _remoteRolling = false;
+          if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
           const [d1, d2] = shooterState.lastDice;
           STATE.dice = [d1, d2];
           renderDie(document.getElementById('face1'), d1);
