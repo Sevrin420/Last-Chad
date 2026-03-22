@@ -1855,7 +1855,8 @@ let _lastChatTs = 0;
 let _seenChatIds = new Set();
 function startStateSync() {
   if (_syncInterval) clearInterval(_syncInterval);
-  _syncInterval = setInterval(pollTableState, 1500);
+  pollTableState();                                   // fire immediately
+  _syncInterval = setInterval(pollTableState, 800);   // then every 800ms
 }
 function stopStateSync() {
   if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
@@ -2084,16 +2085,18 @@ refreshLobbyTables();
 setInterval(refreshLobbyTables, 10_000);
 
 let presenceInterval = null;
+function sendPresencePing() {
+  if (!currentTableCode) return;
+  fetchWithTimeout(WORKER_URL + '/tables/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ table: currentTableCode, playerId: STATE.playerId }),
+  }).catch(() => {});
+}
 function startPresenceHeartbeat() {
   if (presenceInterval) clearInterval(presenceInterval);
-  presenceInterval = setInterval(() => {
-    if (!currentTableCode) return;
-    fetchWithTimeout(WORKER_URL + '/tables/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: currentTableCode, playerId: STATE.playerId }),
-    }).catch(() => {});
-  }, 30_000);
+  sendPresencePing();                       // fire immediately on join
+  presenceInterval = setInterval(sendPresencePing, 8_000);  // then every 8s
 }
 window.addEventListener('beforeunload', () => {
   if (currentTableCode) {
