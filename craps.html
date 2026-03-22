@@ -608,7 +608,56 @@
     .lobby-table-name{font-size:0.3rem;color:#ccc}
     .lobby-table-players{font-size:0.25rem;color:#4caf50}
 
-    /* ── Responsive ── */
+    /* ── Desktop: side-by-side layout ── */
+    @media(min-width:601px){
+      .table-wrapper{
+        flex-direction:row;
+        overflow:hidden;
+      }
+      .table-area{
+        flex:1;
+        min-width:0;
+        max-height:calc(100vh - 40px);
+        overflow:hidden;
+      }
+      .felt-container{
+        max-height:calc(100vh - 40px);
+      }
+      .table-image-wrap > .table-bg{
+        max-height:calc(100vh - 50px);
+        width:100%;
+        object-fit:contain;
+      }
+      /* Right sidebar: chat + players stacked vertically */
+      .chat-box{
+        flex:0 0 280px;
+        width:280px;
+        height:auto;
+        border-top:none;
+        border-left:2px solid #2a3a1a;
+        border-bottom:none;
+      }
+      .player-bar{
+        flex:0 0 auto;
+        flex-direction:column;
+        width:80px;
+        border-left:2px solid #2a3a1a;
+        border-top:none;
+      }
+      .remote-card{
+        border-right:none;
+        border-bottom:1px solid #1a2a0a;
+        padding:8px 4px;
+      }
+      .remote-avatar{
+        aspect-ratio:3/4;
+      }
+      .remote-name{
+        font-size:0.18rem;
+      }
+    }
+
+    /* ── Responsive (mobile) ── */
     @media(max-width:600px){
       .dealer-row{flex-wrap:wrap;gap:4px}
       .bet-zone:hover .zone-label{font-size:0.2rem}
