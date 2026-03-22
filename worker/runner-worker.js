@@ -854,6 +854,7 @@ async function handleCrapsRoll(request, env) {
     point: session.point,
     bets: session.bets,
     comeBets: session.comeBets || {},
+    pressOptions: resolution.pressOptions || {},
   });
 }
 
@@ -913,7 +914,7 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
   const losses = [];
   let message = '';
 
-  // FIELD (one-roll)
+  // FIELD (standing bet — win pays profit, bet stays on table)
   if (bets.field) {
     const fieldNums = [2,3,4,9,10,11,12];
     if (fieldNums.includes(total)) {
@@ -921,11 +922,13 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
       if (total === 2) payout = bets.field * 2;
       else if (total === 12) payout = bets.field * 3;
       netWin += payout;
-      session.stack += bets.field + payout;
+      session.stack += payout; // profit only — bet stays on table
       wins.push('field');
       message = 'FIELD ' + total + '! +' + payout;
-    } else { losses.push('field'); }
-    bets.field = 0;
+    } else {
+      losses.push('field');
+      bets.field = 0;
+    }
   }
 
   // HARDWAYS
@@ -936,10 +939,10 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
     if (total === num && isHard) {
       const payout = bets[key] * hardPay[key];
       netWin += payout;
-      session.stack += bets[key] + payout;
+      session.stack += payout; // profit only — bet stays on table
       wins.push(key);
       message = 'HARD ' + num + '! +' + payout;
-      bets[key] = 0;
+      // bets[key] stays — hardway bets are now standing bets
     } else if (total === 7 || (total === num && !isHard)) {
       losses.push(key);
       bets[key] = 0;
@@ -951,15 +954,16 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
     const num = parseInt(numStr);
     if (total === num) {
       netWin += amt;
-      session.stack += amt + amt;
+      session.stack += amt; // profit only — come bet stays on number
       message = 'COME ' + num + ' wins! +' + amt;
+      wins.push('come' + numStr);
       if (comeOdds[numStr]) {
         const oddsPay = crapsCalcOdds(num, comeOdds[numStr]);
         netWin += oddsPay;
-        session.stack += comeOdds[numStr] + oddsPay;
-        delete comeOdds[numStr];
+        session.stack += oddsPay; // profit only — odds bet stays
+        // comeOdds[numStr] stays on table
       }
-      delete comeBets[numStr];
+      // comeBets[numStr] stays on table
     } else if (total === 7) {
       delete comeBets[numStr];
       if (comeOdds[numStr]) delete comeOdds[numStr];
@@ -970,10 +974,10 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
   if (bets.come) {
     if (total === 7 || total === 11) {
       netWin += bets.come;
-      session.stack += bets.come + bets.come;
+      session.stack += bets.come; // profit only — bet stays on table
       wins.push('come');
       message = 'COME wins! +' + bets.come;
-      bets.come = 0;
+      // bets.come stays — standing bet
     } else if (total === 2 || total === 3 || total === 12) {
       losses.push('come');
       bets.come = 0;
@@ -1010,10 +1014,9 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
     if (bets.pass) {
       if (total === 7 || total === 11) {
         netWin += bets.pass;
-        session.stack += bets.pass + bets.pass;
+        session.stack += bets.pass; // profit only — pass bet stays on table
         wins.push('pass');
         message = total === 7 ? 'SEVEN! Winner!' : 'YO ELEVEN! Winner!';
-        bets.pass = 0;
       } else if (total === 2 || total === 3 || total === 12) {
         losses.push('pass');
         message = total === 12 ? 'TWELVE! Craps!' : total === 2 ? 'SNAKE EYES! Craps!' : 'THREE CRAPS!';
@@ -1028,16 +1031,16 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
     if (total === session.point) {
       if (bets.pass) {
         netWin += bets.pass;
-        session.stack += bets.pass + bets.pass;
+        session.stack += bets.pass; // profit only — pass bet stays on table
         wins.push('pass');
         message = 'WINNER! Point ' + session.point + '!';
         if (bets.passOdds) {
           const oddsPay = crapsCalcOdds(session.point, bets.passOdds);
           netWin += oddsPay;
-          session.stack += bets.passOdds + oddsPay;
-          bets.passOdds = 0;
+          session.stack += oddsPay; // profit only — odds bet stays
+          // bets.passOdds stays on table
         }
-        bets.pass = 0;
+        // bets.pass stays on table
       }
       session.phase = 'comeout';
       session.point = 0;
@@ -1054,7 +1057,17 @@ function crapsResolveBets(session, d1, d2, total, isHard) {
   session.comeBets = comeBets;
   session.comeOdds = comeOdds;
 
-  return { netWin, wins, losses, message };
+  // Build pressOptions for winning bets (exclude pass line)
+  const pressOptions = {};
+  for (const zone of wins) {
+    if (zone === 'pass') continue; // no press on pass line
+    // For bets still on the table, offer to press (double)
+    if (bets[zone] && bets[zone] > 0) {
+      pressOptions[zone] = bets[zone]; // current bet amount
+    }
+  }
+
+  return { netWin, wins, losses, message, pressOptions };
 }
 
 function crapsCalcOdds(pointNum, bet) {
