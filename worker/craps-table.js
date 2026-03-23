@@ -666,7 +666,7 @@ export class CrapsTable {
   async _isTableStale() {
     const lastActivity = await this.state.storage.get('lastActivity');
     if (!lastActivity) return true; // no activity ever recorded → stale
-    return (Date.now() - lastActivity) > 2 * 60 * 1000;
+    return (Date.now() - lastActivity) > 60 * 1000;
   }
 
   // Remove player:* entries that don't belong to any connected socket.
