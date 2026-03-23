@@ -1418,6 +1418,9 @@
       `;
       dialogueText.appendChild(wagerSec);
 
+      // Auto-scroll to wager area after chad selection
+      wagerSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
       const slider = document.getElementById('wager-slider');
       const amountDisplay = document.getElementById('wager-amount');
       slider.addEventListener('input', () => {
