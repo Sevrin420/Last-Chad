@@ -1,0 +1,38 @@
+name: Award Cells
+
+# One-click from GitHub Actions tab:
+# Repo → Actions → "Award Cells" → Run workflow → choose network
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'Target network'
+        required: true
+        default: 'fuji'
+        type: choice
+        options:
+          - fuji
+          - avalanche
+
+# Required GitHub secrets:
+#   PRIVATE_KEY — Owner wallet private key (must be contract owner)
+
+jobs:
+  award:
+    name: Award 100 cells to all Chads (${{ inputs.network }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Award cells
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        run: npx hardhat run scripts/awardAllCells.js --network ${{ inputs.network }}
