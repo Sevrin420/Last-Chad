@@ -68,6 +68,19 @@ export class CrapsTable {
       });
     }
 
+    // ── Reset (POST) — nuke all state, used before WS connect when table is empty ──
+    if (url.pathname === '/reset' && request.method === 'POST') {
+      // Close every WebSocket the Hibernation API retained
+      for (const ws of this.state.getWebSockets()) {
+        try { ws.close(1000, 'Table reset'); } catch (_) {}
+      }
+      // Wipe ALL storage — game state, player data, shooter, everything
+      await this.state.storage.deleteAll();
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // ── Register (POST) — Worker registers a verified player ──
     if (url.pathname === '/register' && request.method === 'POST') {
       const body = await request.json();
@@ -152,28 +165,9 @@ export class CrapsTable {
       await this.state.storage.put('shooter', shooter);
     }
 
-    // If this player is the ONLY socket after purge, the table is empty.
-    // Delete all orphaned player:* data from previous sessions and reset game.
-    const postPurgeSockets = this.state.getWebSockets();
-    const otherAuthed = postPurgeSockets.filter(w => {
-      try {
-        const a = w.deserializeAttachment();
-        return a && a.playerId !== playerId && a.authenticated;
-      } catch (_) { return false; }
-    }).length;
-
-    if (otherAuthed === 0) {
-      // No other authenticated players — wipe orphaned data, reset game
-      const allKeys = await this.state.storage.list({ prefix: 'player:' });
-      for (const [key] of allKeys) {
-        await this.state.storage.delete(key);
-      }
-      await this.state.storage.put('game', {
-        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
-      });
-    }
-
     // Send init with current game state
+    // (Worker calls /reset before WS upgrade when table is empty,
+    //  so game state is guaranteed clean for first player.)
     const game = await this._getGame();
     const players = await this._getPlayerListPublic();
     server.send(JSON.stringify({ type: 'init', players, shooter, game }));
@@ -654,14 +648,6 @@ export class CrapsTable {
       rolling: false,
       rollCount: 0,
     };
-  }
-
-  // Returns true if at least one player:* key exists in storage.
-  // This is the only reliable staleness signal — socket state and
-  // timestamps are unreliable with Hibernation API.
-  async _hasPlayerData() {
-    const keys = await this.state.storage.list({ prefix: 'player:', limit: 1 });
-    return keys.size > 0;
   }
 
   _validateBetPhase(zone, phase, playerData) {

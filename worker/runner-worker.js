@@ -897,6 +897,16 @@ async function handleCrapsWebSocket(request, url, env) {
   const id = env.CRAPS_TABLE.idFromName(table);
   const stub = env.CRAPS_TABLE.get(id);
 
+  // If table has 0 players, hard-reset all DO state before connecting.
+  // This nukes stale game state left by zombie Hibernation sockets.
+  try {
+    const infoRes = await stub.fetch(new Request('https://do/info'));
+    const info = await infoRes.json();
+    if ((info.count || 0) === 0) {
+      await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
+    }
+  } catch (_) { /* best-effort; proceed with WS upgrade either way */ }
+
   // Forward the entire request (including Upgrade headers + query params)
   return stub.fetch(request);
 }
