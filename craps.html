@@ -1236,6 +1236,10 @@ function updateShooter(newShooterPlayerId) {
   if (prev && prev !== newShooterPlayerId) {
     const name = getShooterName();
     dealerSay(`New shooter coming out! Let's see what ya got ${name}`, 'happy');
+    // Start fresh bet phase for the new shooter (if not mid-roll)
+    if (!STATE.isRolling) {
+      setTimeout(() => { startBetPhase(); }, 2000);
+    }
   }
 }
 
@@ -1287,12 +1291,28 @@ function getRemotePlayerCount() {
 }
 
 function onBetTimerExpired() {
-  // If no pass line bet, can't proceed — restart bet phase
+  const multi = getRemotePlayerCount() > 0;
+
   if (!STATE.bets.pass) {
-    dealerSay("Bet on the pass line to roll!", 'neutral');
-    startBetPhase();
+    if (multi && isLocalShooter()) {
+      // Multiplayer: shooter didn't bet — pass dice to next player
+      dealerSay("No pass line bet — passing the dice!", 'neutral');
+      advanceShooterOnServer();
+      // The 'shooter' WS message will trigger updateShooter → new bet phase
+      return;
+    }
+    if (!multi) {
+      // Solo: no pass bet — auto-roll anyway
+      turnPhase = 'no-more-bets';
+      betsLocked = true;
+      showNoMoreBets();
+      setTimeout(() => { startRollPhase(); }, 1500);
+      return;
+    }
+    // Not the shooter in multi — just wait for new bet phase
     return;
   }
+
   turnPhase = 'no-more-bets';
   betsLocked = true;
   showNoMoreBets();
@@ -1376,7 +1396,8 @@ function rollDice() {
   if (STATE.isRolling) return;
   if (!isLocalShooter()) return;
   if (turnPhase !== 'rolling') return; // Can only roll during roll phase
-  if (!STATE.bets.pass) {
+  const multi = getRemotePlayerCount() > 0;
+  if (!STATE.bets.pass && multi) {
     dealerSay("Pass line bet required to roll!", 'neutral'); return;
   }
   STATE.isRolling = true;
