@@ -94,16 +94,27 @@ export class CrapsTable {
       return new Response('Missing playerId', { status: 400 });
     }
 
-    // Enforce player cap
+    // ── Clean up stale sockets before anything else ──
+    // Hibernation API can retain dead sockets from unclean disconnects.
+    // Close any unauthenticated socket that isn't the current player.
     const currentSockets = this.state.getWebSockets();
     let existingSocket = null;
     for (const ws of currentSockets) {
       try {
         const att = ws.deserializeAttachment();
-        if (att && att.playerId === playerId) { existingSocket = ws; break; }
-      } catch (_) {}
+        if (!att) { try { ws.close(1011, 'Stale'); } catch (_) {} continue; }
+        if (att.playerId === playerId) { existingSocket = ws; continue; }
+        if (!att.authenticated) { try { ws.close(1011, 'Stale'); } catch (_) {} }
+      } catch (_) { try { ws.close(1011, 'Stale'); } catch (_e) {} }
     }
-    if (!existingSocket && currentSockets.length >= MAX_PLAYERS) {
+
+    // Enforce player cap (after cleanup)
+    const liveSockets = this.state.getWebSockets();
+    const otherCount = liveSockets.filter(w => {
+      try { const a = w.deserializeAttachment(); return a && a.playerId !== playerId; }
+      catch (_) { return false; }
+    }).length;
+    if (!existingSocket && otherCount >= MAX_PLAYERS) {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       server.accept();
@@ -137,15 +148,21 @@ export class CrapsTable {
       await this.state.storage.put('shooter', shooter);
     }
 
-    // If this is the only player (empty table), reset game to comeout
-    const otherSockets = this.state.getWebSockets().filter(w => {
-      try { const a = w.deserializeAttachment(); return a && a.playerId && a.playerId !== playerId; }
-      catch (_) { return false; }
+    // If no other authenticated players, reset game to comeout.
+    // This catches stale state from previous sessions where close didn't fire.
+    const hasOtherAuth = this.state.getWebSockets().some(w => {
+      try {
+        const a = w.deserializeAttachment();
+        return a && a.playerId !== playerId && a.authenticated;
+      } catch (_) { return false; }
     });
-    if (otherSockets.length === 0) {
-      await this.state.storage.put('game', {
-        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
-      });
+    if (!hasOtherAuth) {
+      const game = await this._getGame();
+      if (!game.rolling) {
+        await this.state.storage.put('game', {
+          phase: 'comeout', point: 0, rolling: false, rollCount: 0,
+        });
+      }
     }
 
     // Send init with current game state
@@ -217,8 +234,22 @@ export class CrapsTable {
         attachment.authenticated = true;
         ws.serializeAttachment(attachment);
 
-        // Send current state back
+        // Safety: if this is the only authenticated player, ensure comeout phase.
+        // Catches any stale state that slipped past the fetch-time check.
         const game = await this._getGame();
+        const hasOtherAuth = this.state.getWebSockets().some(w => {
+          try {
+            const a = w.deserializeAttachment();
+            return a && a.playerId !== playerId && a.authenticated;
+          } catch (_) { return false; }
+        });
+        if (!hasOtherAuth && !game.rolling && game.phase !== 'comeout') {
+          game.phase = 'comeout';
+          game.point = 0;
+          await this.state.storage.put('game', game);
+        }
+
+        // Send current state back
         ws.send(JSON.stringify({
           type: 'auth-ok',
           stack:    playerData.stack,
@@ -719,12 +750,14 @@ export class CrapsTable {
       await this._advanceShooter(playerId);
     }
 
-    // If no players remain, reset table to comeout
-    const remaining = this.state.getWebSockets().filter(w => {
-      try { const a = w.deserializeAttachment(); return a && a.playerId && a.playerId !== playerId; }
-      catch (_) { return false; }
+    // If no authenticated players remain, reset table to comeout
+    const hasAuthPlayers = this.state.getWebSockets().some(w => {
+      try {
+        const a = w.deserializeAttachment();
+        return a && a.playerId !== playerId && a.authenticated;
+      } catch (_) { return false; }
     });
-    if (remaining.length === 0) {
+    if (!hasAuthPlayers) {
       await this.state.storage.put('game', {
         phase: 'comeout', point: 0, rolling: false, rollCount: 0,
       });

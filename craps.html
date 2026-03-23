@@ -2040,12 +2040,17 @@ function handleWsMessage(data) {
   switch (data.type) {
 
     case 'init': {
-      // Initial state: all current players + shooter
+      // Initial state: all current players + shooter + game phase
       for (const p of data.players || []) {
         if (String(p.playerId) === String(STATE.playerId)) continue;
         _seatPlayer(p);
       }
       if (data.shooter) updateShooter(data.shooter);
+      // Apply game state from server (phase/point) — auth-ok will confirm
+      if (data.game) {
+        STATE.phase = data.game.phase || 'comeout';
+        STATE.point = data.game.point || null;
+      }
       renderAllBetChips();
       break;
     }
@@ -2111,6 +2116,18 @@ function handleWsMessage(data) {
       STATE.point = data.point || null;
       updateLocalPlayerUI();
       renderAllBetChips();
+      // Sync puck to server-authoritative phase
+      if (STATE.phase === 'point' && STATE.point) {
+        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+        document.getElementById('puck').classList.add('on-glow');
+        document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+        movePuckToPoint(STATE.point);
+      } else {
+        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+        document.getElementById('puck').classList.remove('on-glow');
+        document.getElementById('pointDisplay').textContent = '';
+        resetPuckPosition();
+      }
       break;
     }
 
