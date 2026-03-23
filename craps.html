@@ -1529,14 +1529,15 @@ async function handleRollResult(data) {
   const r = data.resolution || {};
   let announcerSub = '';
   const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
+  const isPointMade = prevPhase === 'point' && prevPoint && total === prevPoint;
   if (isNewPoint) {
     announcerSub = 'Point is ' + STATE.point;
-  } else if (prevPhase === 'point' && prevPoint && total === prevPoint) {
+  } else if (isPointMade) {
     announcerSub = 'Point ' + prevPoint + ' made!';
   } else if (r.message) {
     announcerSub = r.message;
   }
-  showAnnouncer(d1, d2, prevPhase, announcerSub, isNewPoint);
+  showAnnouncer(d1, d2, prevPhase, announcerSub, isNewPoint, isPointMade);
 
   // Win/loss flashes
   await new Promise(r2 => setTimeout(r2, 200));
@@ -1623,15 +1624,15 @@ function getDiceCallKey(d1, d2) {
 
 let announcerTimeout = null;
 
-function showAnnouncer(d1, d2, phase, sub, isNewPoint) {
+function showAnnouncer(d1, d2, phase, sub, isNewPoint, isPointMade) {
   const key = getDiceCallKey(d1, d2);
   const entry = DICE_CALLS[key];
   if (!entry) return;
 
+  const total = d1 + d2;
   let callText, mood;
 
   if (isNewPoint) {
-    const total = d1 + d2;
     const isHard = d1 === d2;
     const hardWayNums = [4, 6, 8, 10];
     callText = 'New Point. Point of ' + total + '.';
@@ -1643,9 +1644,21 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint) {
     callText = entry.call;
     if (entry.comeout && phase === 'comeout') callText = entry.comeout;
     else if (entry.point && phase === 'point') callText = entry.point;
-    mood = (callText.includes('Winner') || callText === 'Yo, 11 Yo') ? 'happy'
-      : (callText.includes('Out') || callText.includes('Snake') || callText === 'Boxcars 12' || callText === 'Craps 3') ? 'sad'
-      : entry.mood || 'neutral';
+
+    // Mood based on outcome:
+    // Happy: 7/11 on comeout, or point made
+    // Sad: 2/3/12 on comeout (craps), or 7-out during point phase
+    if (isPointMade) {
+      mood = 'happy';
+    } else if (phase === 'comeout' && (total === 7 || total === 11)) {
+      mood = 'happy';
+    } else if (phase === 'comeout' && (total === 2 || total === 3 || total === 12)) {
+      mood = 'sad';
+    } else if (phase === 'point' && total === 7) {
+      mood = 'sad';
+    } else {
+      mood = entry.mood || 'neutral';
+    }
   }
   const moodMap = {neutral:'chazzypneutral.jpg',happy:'chazzyphappy.jpg',sad:'chazzypsad.jpg',concerned:'chazzypconcerned.jpg'};
 
