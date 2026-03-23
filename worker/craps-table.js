@@ -707,6 +707,17 @@ export class CrapsTable {
     if (shooter === playerId) {
       await this._advanceShooter(playerId);
     }
+
+    // If no players remain, reset table to comeout
+    const remaining = this.state.getWebSockets().filter(w => {
+      try { const a = w.deserializeAttachment(); return a && a.playerId && a.playerId !== playerId; }
+      catch (_) { return false; }
+    });
+    if (remaining.length === 0) {
+      await this.state.storage.put('game', {
+        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
+      });
+    }
   }
 
   async _advanceShooter(currentShooterId) {

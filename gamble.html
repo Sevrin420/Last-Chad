@@ -39,6 +39,11 @@
       bottom: 55vh;
       transition: max-height 0.6s ease, bottom 0.6s ease, opacity 1.2s ease;
     }
+    /* When image shrinks, expand dialogue box into freed space */
+    body.portrait-shrunk #dialogue-box {
+      height: 54vh;
+      transition: height 0.6s ease, opacity 0.8s ease, transform 0.8s ease;
+    }
 
     /* ── Header ── */
     .game-header {
@@ -1274,7 +1279,7 @@
       clearDialogue();
       // Shrink the NPC portrait to make room for chad selection + wager
       const jiptImg = document.getElementById('jipt-image');
-      if (jiptImg) jiptImg.classList.add('shrunk');
+      if (jiptImg) { jiptImg.classList.add('shrunk'); document.body.classList.add('portrait-shrunk'); }
       const addr = userAddress;
       if (!addr) {
         const p = document.createElement('p');
