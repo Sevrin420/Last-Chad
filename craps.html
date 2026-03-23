@@ -1302,11 +1302,9 @@ function onBetTimerExpired() {
       return;
     }
     if (!multi) {
-      // Solo: no pass bet — auto-roll anyway
-      turnPhase = 'no-more-bets';
-      betsLocked = true;
-      showNoMoreBets();
-      setTimeout(() => { startRollPhase(); }, 1500);
+      // Solo: no pass bet — restart bet phase
+      dealerSay("Bet on the pass line to roll!", 'neutral');
+      startBetPhase();
       return;
     }
     // Not the shooter in multi — just wait for new bet phase
@@ -1396,8 +1394,7 @@ function rollDice() {
   if (STATE.isRolling) return;
   if (!isLocalShooter()) return;
   if (turnPhase !== 'rolling') return; // Can only roll during roll phase
-  const multi = getRemotePlayerCount() > 0;
-  if (!STATE.bets.pass && multi) {
+  if (!STATE.bets.pass) {
     dealerSay("Pass line bet required to roll!", 'neutral'); return;
   }
   STATE.isRolling = true;
