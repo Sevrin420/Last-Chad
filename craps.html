@@ -1400,6 +1400,7 @@ async function rollDice() {
         nonce: STATE.nonce,
         newBets: STATE._pendingBets || {},
         sessionToken: STATE.sessionToken,
+        tableCode: currentTableCode,
       }),
     });
     STATE._pendingBets = {};
@@ -1481,6 +1482,8 @@ async function rollDice() {
       dice: [d1, d2],
       phase: STATE.phase,
       point: STATE.point,
+      prevPhase: prevPhase,
+      prevPoint: prevPoint,
       total: total,
       resolution: r,
       message: r.message || '',

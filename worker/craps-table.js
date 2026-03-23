@@ -178,22 +178,31 @@ export class CrapsTable {
         if (d1 < 1 || d1 > 6 || d2 < 1 || d2 > 6 || !Number.isInteger(d1) || !Number.isInteger(d2)) break;
 
         // Store the last roll so /craps/apply-roll can verify dice for remote players
+        // prePhase/prePoint = table state BEFORE this roll (needed for correct bet resolution)
+        // phase/point = table state AFTER this roll resolved
         const rollId = Date.now();
+        const prePhase = data.prevPhase === 'point' ? 'point' : 'comeout';
+        const prePoint = Number(data.prevPoint) || 0;
+        const postPhase = data.phase === 'point' ? 'point' : 'comeout';
+        const postPoint = Number(data.point) || 0;
+
         await this.state.storage.put('lastRoll', {
           rollId,
           dice: [d1, d2],
           total: d1 + d2,
           isHard: d1 === d2,
-          phase: data.phase === 'point' ? 'point' : 'comeout',
-          point: Number(data.point) || 0,
+          prePhase,
+          prePoint,
+          phase: postPhase,
+          point: postPoint,
           shooterId: playerId,
         });
 
         this._broadcast({
           type: 'roll-result', playerId, name,
           dice:    [d1, d2],
-          phase:   data.phase === 'point' ? 'point' : 'comeout',
-          point:   Number(data.point) || 0,
+          phase:   postPhase,
+          point:   postPoint,
           total:   d1 + d2,
           resolution: data.resolution,
           message: String(data.message || '').slice(0, 80),

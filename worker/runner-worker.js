@@ -751,11 +751,11 @@ async function handleCrapsBet(request, env) {
   return json({ ok: true, stack: session.stack, bets: session.bets, comeOdds: session.comeOdds || {} });
 }
 
-// POST /craps/roll  { nonce, newBets: { zone: amount } }
+// POST /craps/roll  { nonce, newBets: { zone: amount }, tableCode }
 // Client sends NEW bets to place; worker validates each against stack, then rolls.
 // Bets are tracked server-side — client cannot inflate existing bets.
 async function handleCrapsRoll(request, env) {
-  const { nonce, newBets, sessionToken } = await parseBody(request);
+  const { nonce, newBets, sessionToken, tableCode } = await parseBody(request);
   if (nonce == null) return json({ error: 'Missing nonce' }, 400);
 
   const key     = `craps:${nonce}`;
@@ -763,6 +763,25 @@ async function handleCrapsRoll(request, env) {
   if (!session) return json({ error: 'No craps session' }, 403);
   if (!verifyCrapsSessionToken(session, sessionToken)) {
     return json({ error: 'Invalid session token' }, 403);
+  }
+
+  // Sync phase/point from the table's last roll so a new shooter who just
+  // took over has the correct table state before resolving.
+  if (tableCode) {
+    const isPublic  = PUBLIC_TABLES.some(t => t.name === tableCode);
+    const isPrivate = tableCode.startsWith('priv-');
+    if (isPublic || isPrivate) {
+      try {
+        const doId  = env.CRAPS_TABLE.idFromName(tableCode);
+        const stub  = env.CRAPS_TABLE.get(doId);
+        const doRes = await stub.fetch(new Request('https://do/last-roll'));
+        const lastRoll = await doRes.json();
+        if (lastRoll && lastRoll.phase) {
+          session.phase = lastRoll.phase;
+          session.point = lastRoll.point || 0;
+        }
+      } catch (_) { /* best-effort sync */ }
+    }
   }
 
   // Guard against concurrent roll requests for the same session.
@@ -901,11 +920,11 @@ async function handleCrapsApplyRoll(request, env) {
   const total  = lastRoll.total;
   const isHard = lastRoll.isHard;
 
-  // Sync phase/point from the table BEFORE resolving bets,
-  // so the player's session matches the table state that produced this roll.
-  // The DO stores the phase/point AFTER the roll, but we need the state BEFORE
-  // the roll to resolve correctly. Use the session's own phase/point (which
-  // should already be in sync from the previous roll or from start).
+  // Sync phase/point from the table's PRE-ROLL state before resolving.
+  // This ensures late-joining players (whose session may still be at
+  // comeout/0) resolve bets against the correct table state.
+  if (lastRoll.prePhase) session.phase = lastRoll.prePhase;
+  if (lastRoll.prePoint !== undefined) session.point = lastRoll.prePoint;
 
   const resolution = crapsResolveBets(session, d1, d2, total, isHard);
 
