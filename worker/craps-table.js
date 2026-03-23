@@ -61,9 +61,16 @@ export class CrapsTable {
     const url = new URL(request.url);
 
     // ── Info (GET) — player count for /tables/list ──
+    // Uses storage (player:* keys) as source of truth, NOT sockets.
+    // Hibernation API retains zombie sockets, making socket count unreliable.
     if (url.pathname === '/info') {
-      const players = this._getPlayerList();
-      return new Response(JSON.stringify({ count: players.length, players }), {
+      const playerKeys = await this.state.storage.list({ prefix: 'player:' });
+      const count = playerKeys.size;
+      const players = [];
+      for (const [, pd] of playerKeys) {
+        players.push({ playerId: pd.player, name: pd.tokenId });
+      }
+      return new Response(JSON.stringify({ count, players }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -107,42 +114,52 @@ export class CrapsTable {
       return new Response('Missing playerId', { status: 400 });
     }
 
-    // ── Purge ALL sockets that aren't this player ──
-    // Hibernation API retains dead sockets (even authenticated ones)
-    // after unclean disconnects. Socket state is unreliable for
-    // detecting who's actually alive. Real players auto-reconnect
-    // within 2 seconds, so purging is safe.
-    const currentSockets = this.state.getWebSockets();
-    let existingSocket = null;
-    for (const ws of currentSockets) {
+    // ── Close ALL existing sockets for this player (reconnect cleanup) ──
+    // Hibernation API retains zombie sockets — close them all.
+    for (const ws of this.state.getWebSockets()) {
       try {
         const att = ws.deserializeAttachment();
         if (att && att.playerId === playerId) {
-          existingSocket = ws;
-        } else {
-          try { ws.close(1000, 'Table reset'); } catch (_) {}
+          try { ws.close(1000, 'Reconnecting'); } catch (_) {}
         }
-      } catch (_) { try { ws.close(1011, 'Stale'); } catch (_e) {} }
+      } catch (_) {}
     }
 
-    // Enforce player cap (check post-purge sockets)
-    const remainingSockets = this.state.getWebSockets();
-    const otherLive = remainingSockets.filter(w => {
-      try { const a = w.deserializeAttachment(); return a && a.playerId !== playerId; }
-      catch (_) { return false; }
-    }).length;
-    if (!existingSocket && otherLive >= MAX_PLAYERS) {
+    // Check player:* keys in storage to decide cap and cleanup.
+    // Storage is the ONLY reliable source of truth — sockets are zombie-infested.
+    const playerKeys = await this.state.storage.list({ prefix: 'player:' });
+    let otherPlayerCount = 0;
+    let selfKeys = [];
+    for (const [key, pd] of playerKeys) {
+      // playerId format is "address-tokenId", player field is just address
+      if (pd && pd.player && playerId.startsWith(pd.player)) {
+        selfKeys.push(key);
+      } else {
+        otherPlayerCount++;
+      }
+    }
+
+    // If no other players, nuke all stale state (including own orphaned sessions)
+    // This is the definitive fix for "reconnect sees old game state" — old player:*
+    // data from un-cashed-out sessions was keeping the table "occupied" forever.
+    if (otherPlayerCount === 0) {
+      // Delete all player:* keys and reset game
+      for (const [key] of playerKeys) {
+        await this.state.storage.delete(key);
+      }
+      await this.state.storage.put('game', {
+        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
+      });
+      await this.state.storage.delete('shooter');
+    }
+
+    if (otherPlayerCount >= MAX_PLAYERS) {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       server.accept();
       server.send(JSON.stringify({ type: 'full' }));
       server.close(4001, 'Table is full');
       return new Response(null, { status: 101, webSocket: client });
-    }
-
-    // Close old socket on reconnect
-    if (existingSocket) {
-      try { existingSocket.close(1000, 'Reconnecting'); } catch (_) {}
     }
 
     // Accept with Hibernation API
@@ -169,7 +186,7 @@ export class CrapsTable {
     // (Worker calls /reset before WS upgrade when table is empty,
     //  so game state is guaranteed clean for first player.)
     const game = await this._getGame();
-    const players = await this._getPlayerListPublic();
+    const players = await this._getPlayerListFromStorage();
     server.send(JSON.stringify({ type: 'init', players, shooter, game }));
 
     // Broadcast join to others
@@ -664,41 +681,20 @@ export class CrapsTable {
     return null;
   }
 
-  _getPlayerList() {
+  async _getPlayerListFromStorage() {
+    // Storage-based player list — immune to zombie sockets.
+    const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     const players = [];
-    for (const ws of this.state.getWebSockets()) {
-      try {
-        const att = ws.deserializeAttachment();
-        if (att) {
-          players.push({
-            playerId: att.playerId,
-            name:     att.name,
-            chadId:   att.chadId,
-          });
-        }
-      } catch (_) {}
-    }
-    return players;
-  }
-
-  async _getPlayerListPublic() {
-    // Returns player info including bets/stack from DO storage
-    const players = [];
-    for (const ws of this.state.getWebSockets()) {
-      try {
-        const att = ws.deserializeAttachment();
-        if (!att) continue;
-        const entry = { playerId: att.playerId, name: att.name, chadId: att.chadId, stack: 0, bets: {}, comeBets: {} };
-        if (att.nonce && att.authenticated) {
-          const pd = await this.state.storage.get(`player:${att.nonce}`);
-          if (pd) {
-            entry.stack = pd.stack || 0;
-            entry.bets = pd.bets || {};
-            entry.comeBets = pd.comeBets || {};
-          }
-        }
-        players.push(entry);
-      } catch (_) {}
+    for (const [key, pd] of playerKeys) {
+      const nonce = key.replace('player:', '');
+      players.push({
+        playerId: pd.player + '-' + pd.tokenId,
+        name:     pd.tokenId,
+        chadId:   Number(pd.tokenId) || 0,
+        stack:    pd.stack || 0,
+        bets:     pd.bets || {},
+        comeBets: pd.comeBets || {},
+      });
     }
     return players;
   }
@@ -741,25 +737,11 @@ export class CrapsTable {
       await this._advanceShooter(playerId);
     }
 
-    // If no other sockets remain at all, reset to comeout
-    const otherSockets = this.state.getWebSockets().filter(w => {
-      try {
-        const a = w.deserializeAttachment();
-        return a && a.playerId !== playerId;
-      } catch (_) { return false; }
-    });
-    // If no other sockets remain, wipe everything — game state + orphaned player data.
-    // The next connecting player will also check _hasPlayerData() as a fallback,
-    // but cleaning up here catches the common case.
-    if (otherSockets.length === 0) {
-      await this.state.storage.put('game', {
-        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
-      });
-      // Delete ALL player:* keys — no one is here to claim them
-      const allKeys = await this.state.storage.list({ prefix: 'player:' });
-      for (const [key] of allKeys) {
-        await this.state.storage.delete(key);
-      }
+    // If no player:* keys remain in storage, the table is truly empty.
+    // Storage is the source of truth — sockets are unreliable (zombies).
+    const remainingPlayers = await this.state.storage.list({ prefix: 'player:', limit: 1 });
+    if (remainingPlayers.size === 0) {
+      await this.state.storage.deleteAll();
     }
   }
 
