@@ -1414,14 +1414,48 @@ async function handleRollResult(data) {
   const [d1, d2] = data.dice;
   const total = data.total;
 
-  // Clear safety timeout for non-shooters
+  // Clear safety timeout
   if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
 
   // Ensure rolling state is set (handles race where roll-result arrives before rolling)
   STATE.isRolling = true;
   betsLocked = true;
 
-  // Stop spin animation (shooter or remote)
+  // ── IMMEDIATELY update phase/point & bets from server (before animation) ──
+  // Use prevPhase/prevPoint from DO (not local STATE which may be stale)
+  const prevPhase = data.prevPhase || STATE.phase;
+  const prevPoint = data.prevPoint !== undefined ? data.prevPoint : STATE.point;
+
+  // Set NEW phase/point right away so puck moves immediately
+  if (data.phase) STATE.phase = data.phase;
+  if (data.point !== undefined) STATE.point = data.point || null;
+
+  // Update bets/stack from server
+  STATE.stack = data.stack;
+  if (data.bets) STATE.bets = data.bets;
+  for (const k of Object.keys(STATE.bets)) {
+    if (STATE.bets[k] === 0) delete STATE.bets[k];
+  }
+
+  // Move puck immediately (before dice animation)
+  if (STATE.phase === 'point' && STATE.point) {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+    document.getElementById('puck').classList.add('on-glow');
+    document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+    movePuckToPoint(STATE.point);
+  } else {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+    document.getElementById('puck').classList.remove('on-glow');
+    document.getElementById('pointDisplay').textContent = '';
+    resetPuckPosition();
+  }
+
+  // Update bet chips immediately (pass line clears on win before animation)
+  renderAllBetChips();
+  updateLocalPlayerUI();
+
+  // ── Dice animation ──
+  // Stop spin intervals
   if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
   if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
   if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
@@ -1439,7 +1473,6 @@ async function handleRollResult(data) {
   }
 
   // Staggered settle: die1 first, die2 after delay
-  // Shorter delay if animation was just started (rolling msg was missed)
   await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
   if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
   STATE.dice = [d1, d2];
@@ -1453,43 +1486,17 @@ async function handleRollResult(data) {
   die2El.classList.remove('rolling');
   die2El.classList.add('settled');
 
-  // Update local state from server-authoritative response
-  const prevPoint = STATE.point;
-  const prevPhase = STATE.phase;
-  STATE.stack = data.stack;
-  if (data.bets) STATE.bets = data.bets;
-  for (const k of Object.keys(STATE.bets)) {
-    if (STATE.bets[k] === 0) delete STATE.bets[k];
-  }
-
-  // Phase/point comes from the phase-update message, but also available here
-  if (data.phase) STATE.phase = data.phase;
-  if (data.point !== undefined) STATE.point = data.point || null;
-
-  // Puck
-  if (STATE.phase === 'point' && STATE.point) {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-    document.getElementById('puck').classList.add('on-glow');
-    document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-    movePuckToPoint(STATE.point);
-  } else {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-    document.getElementById('puck').classList.remove('on-glow');
-    document.getElementById('pointDisplay').textContent = '';
-    resetPuckPosition();
-  }
-
-  // Announcer
+  // ── Announcer (uses prevPhase/prevPoint from DO, not stale local state) ──
   const r = data.resolution || {};
   let announcerSub = '';
-  if (prevPhase === 'comeout' && !prevPoint && !!STATE.point) {
+  const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
+  if (isNewPoint) {
     announcerSub = 'Point is ' + STATE.point;
   } else if (prevPhase === 'point' && prevPoint && total === prevPoint) {
     announcerSub = 'Point ' + prevPoint + ' made!';
   } else if (r.message) {
     announcerSub = r.message;
   }
-  const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
   showAnnouncer(d1, d2, prevPhase, announcerSub, isNewPoint);
 
   // Win/loss flashes
@@ -1501,6 +1508,7 @@ async function handleRollResult(data) {
     document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('lose-flash'));
   }
 
+  // Re-render in case phase-update arrived during animation (idempotent)
   renderAllBetChips();
   updateLocalPlayerUI();
 

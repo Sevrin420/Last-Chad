@@ -363,8 +363,12 @@ export class CrapsTable {
 
         let wasPointPhase = false;
         try {
-          // ── Resolve every authenticated player's bets ──
+          // ── Pass 1: Resolve bets (uses OLD phase/point) & store results ──
+          const prevPhase = game.phase;
+          const prevPoint = game.point;
           const sockets = this.state.getWebSockets();
+          const playerResults = new Map(); // nonce → { resolution, pd }
+
           for (const pws of sockets) {
             let att;
             try { att = pws.deserializeAttachment(); } catch (_) { continue; }
@@ -373,32 +377,14 @@ export class CrapsTable {
             const pd = await this.state.storage.get(`player:${att.nonce}`);
             if (!pd) continue;
 
-            // Resolve this player's bets
-            const resolution = resolveBets(pd, d1, d2, total, isHard, game.phase, game.point);
-
+            const resolution = resolveBets(pd, d1, d2, total, isHard, prevPhase, prevPoint);
             await this.state.storage.put(`player:${att.nonce}`, pd);
-
-            // Send personalized result to this player
-            try {
-              pws.send(JSON.stringify({
-                type: 'roll-result',
-                dice: [d1, d2],
-                total,
-                phase: game.phase,
-                point: game.point,
-                resolution,
-                stack: pd.stack,
-                bets: pd.bets,
-                comeBets: pd.comeBets,
-                comeOdds: pd.comeOdds,
-                pressOptions: resolution.pressOptions || {},
-              }));
-            } catch (_) { /* socket closed mid-roll — skip, don't abort others */ }
+            playerResults.set(att.nonce, { resolution, pd });
           }
 
-          // ── Update shared table phase/point AFTER resolution ──
-          wasPointPhase = game.phase === 'point';
-          if (game.phase === 'comeout') {
+          // ── Compute NEW phase/point BEFORE sending results ──
+          wasPointPhase = prevPhase === 'point';
+          if (prevPhase === 'comeout') {
             if (total === 7 || total === 11 || total === 2 || total === 3 || total === 12) {
               // Stay in comeout
             } else {
@@ -406,10 +392,38 @@ export class CrapsTable {
               game.phase = 'point';
             }
           } else {
-            if (total === game.point || total === 7) {
+            if (total === prevPoint || total === 7) {
               game.phase = 'comeout';
               game.point = 0;
             }
+          }
+
+          // ── Pass 2: Send results with NEW phase/point ──
+          for (const pws of sockets) {
+            let att;
+            try { att = pws.deserializeAttachment(); } catch (_) { continue; }
+            if (!att || !att.authenticated || !att.nonce) continue;
+
+            const cached = playerResults.get(att.nonce);
+            if (!cached) continue;
+
+            try {
+              pws.send(JSON.stringify({
+                type: 'roll-result',
+                dice: [d1, d2],
+                total,
+                prevPhase,
+                prevPoint,
+                phase: game.phase,
+                point: game.point,
+                resolution: cached.resolution,
+                stack: cached.pd.stack,
+                bets: cached.pd.bets,
+                comeBets: cached.pd.comeBets,
+                comeOdds: cached.pd.comeOdds,
+                pressOptions: cached.resolution.pressOptions || {},
+              }));
+            } catch (_) { /* socket closed mid-roll — skip, don't abort others */ }
           }
         } finally {
           // ALWAYS unlock rolling — prevents permanent stuck state
