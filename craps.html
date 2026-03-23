@@ -1393,12 +1393,33 @@ function rollDice() {
 
   // Tell the DO to roll — result comes back via WS 'roll-result'
   wsSend({ type: 'roll' });
+
+  // Safety: if roll-result never arrives, stop spinning after 15s
+  if (window._rollingSafetyTimeout) clearTimeout(window._rollingSafetyTimeout);
+  window._rollingSafetyTimeout = setTimeout(() => {
+    if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+    if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+    const d1 = document.getElementById('die1');
+    const d2 = document.getElementById('die2');
+    d1.classList.remove('rolling'); d1.classList.add('settled');
+    d2.classList.remove('rolling'); d2.classList.add('settled');
+    STATE.isRolling = false;
+    document.getElementById('tableDice').classList.remove('locked');
+    startBetPhase();
+  }, 15000);
 }
 
 // Called by WS handler when DO sends personalized 'roll-result' to this player
 async function handleRollResult(data) {
   const [d1, d2] = data.dice;
   const total = data.total;
+
+  // Clear safety timeout for non-shooters
+  if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
+
+  // Ensure rolling state is set (handles race where roll-result arrives before rolling)
+  STATE.isRolling = true;
+  betsLocked = true;
 
   // Stop spin animation (shooter or remote)
   if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
@@ -1408,8 +1429,18 @@ async function handleRollResult(data) {
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
 
+  // If dice weren't spinning yet (rolling msg missed), start a brief spin
+  const wasAlreadyRolling = die1El.classList.contains('rolling');
+  if (!wasAlreadyRolling) {
+    die1El.classList.remove('settled');
+    die2El.classList.remove('settled');
+    die1El.classList.add('rolling');
+    die2El.classList.add('rolling');
+  }
+
   // Staggered settle: die1 first, die2 after delay
-  await new Promise(r => setTimeout(r, 2500));
+  // Shorter delay if animation was just started (rolling msg was missed)
+  await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
   if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
   STATE.dice = [d1, d2];
   renderDie(document.getElementById('face1'), d1);
@@ -2019,6 +2050,16 @@ function handleWsMessage(data) {
           renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
           renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
         }, 60);
+        // Safety: if roll-result never arrives, stop spinning after 15s
+        if (window._rollingSafetyTimeout) clearTimeout(window._rollingSafetyTimeout);
+        window._rollingSafetyTimeout = setTimeout(() => {
+          if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
+          die1El.classList.remove('rolling'); die1El.classList.add('settled');
+          die2El.classList.remove('rolling'); die2El.classList.add('settled');
+          STATE.isRolling = false;
+          betsLocked = false;
+          startBetPhase();
+        }, 15000);
       }
       break;
     }

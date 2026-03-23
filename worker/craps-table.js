@@ -139,7 +139,7 @@ export class CrapsTable {
 
     // Send init with current game state
     const game = await this._getGame();
-    const players = this._getPlayerListPublic();
+    const players = await this._getPlayerListPublic();
     server.send(JSON.stringify({ type: 'init', players, shooter, game }));
 
     // Broadcast join to others
@@ -361,56 +361,62 @@ export class CrapsTable {
         // Broadcast rolling animation to all players
         this._broadcast({ type: 'rolling', playerId, name }, null);
 
-        // ── Resolve every authenticated player's bets ──
-        const sockets = this.state.getWebSockets();
-        for (const pws of sockets) {
-          let att;
-          try { att = pws.deserializeAttachment(); } catch (_) { continue; }
-          if (!att || !att.authenticated || !att.nonce) continue;
+        let wasPointPhase = false;
+        try {
+          // ── Resolve every authenticated player's bets ──
+          const sockets = this.state.getWebSockets();
+          for (const pws of sockets) {
+            let att;
+            try { att = pws.deserializeAttachment(); } catch (_) { continue; }
+            if (!att || !att.authenticated || !att.nonce) continue;
 
-          const pd = await this.state.storage.get(`player:${att.nonce}`);
-          if (!pd) continue;
+            const pd = await this.state.storage.get(`player:${att.nonce}`);
+            if (!pd) continue;
 
-          // Resolve this player's bets
-          const resolution = resolveBets(pd, d1, d2, total, isHard, game.phase, game.point);
+            // Resolve this player's bets
+            const resolution = resolveBets(pd, d1, d2, total, isHard, game.phase, game.point);
 
-          await this.state.storage.put(`player:${att.nonce}`, pd);
+            await this.state.storage.put(`player:${att.nonce}`, pd);
 
-          // Send personalized result to this player
-          pws.send(JSON.stringify({
-            type: 'roll-result',
-            dice: [d1, d2],
-            total,
-            phase: game.phase,   // will be updated below
-            point: game.point,   // will be updated below
-            resolution,
-            stack: pd.stack,
-            bets: pd.bets,
-            comeBets: pd.comeBets,
-            comeOdds: pd.comeOdds,
-            pressOptions: resolution.pressOptions || {},
-          }));
-        }
+            // Send personalized result to this player
+            try {
+              pws.send(JSON.stringify({
+                type: 'roll-result',
+                dice: [d1, d2],
+                total,
+                phase: game.phase,
+                point: game.point,
+                resolution,
+                stack: pd.stack,
+                bets: pd.bets,
+                comeBets: pd.comeBets,
+                comeOdds: pd.comeOdds,
+                pressOptions: resolution.pressOptions || {},
+              }));
+            } catch (_) { /* socket closed mid-roll — skip, don't abort others */ }
+          }
 
-        // ── Update shared table phase/point AFTER resolution ──
-        const wasPointPhase = game.phase === 'point';
-        if (game.phase === 'comeout') {
-          if (total === 7 || total === 11 || total === 2 || total === 3 || total === 12) {
-            // Stay in comeout
+          // ── Update shared table phase/point AFTER resolution ──
+          wasPointPhase = game.phase === 'point';
+          if (game.phase === 'comeout') {
+            if (total === 7 || total === 11 || total === 2 || total === 3 || total === 12) {
+              // Stay in comeout
+            } else {
+              game.point = total;
+              game.phase = 'point';
+            }
           } else {
-            game.point = total;
-            game.phase = 'point';
+            if (total === game.point || total === 7) {
+              game.phase = 'comeout';
+              game.point = 0;
+            }
           }
-        } else {
-          if (total === game.point || total === 7) {
-            game.phase = 'comeout';
-            game.point = 0;
-          }
+        } finally {
+          // ALWAYS unlock rolling — prevents permanent stuck state
+          game.rolling = false;
+          game.rollCount = (game.rollCount || 0) + 1;
+          await this.state.storage.put('game', game);
         }
-
-        game.rolling = false;
-        game.rollCount = (game.rollCount || 0) + 1;
-        await this.state.storage.put('game', game);
 
         // Send updated phase/point to all
         this._broadcast({
@@ -628,22 +634,23 @@ export class CrapsTable {
     return players;
   }
 
-  _getPlayerListPublic() {
-    // Returns player info including bets/stack for init message
+  async _getPlayerListPublic() {
+    // Returns player info including bets/stack from DO storage
     const players = [];
     for (const ws of this.state.getWebSockets()) {
       try {
         const att = ws.deserializeAttachment();
-        if (att) {
-          players.push({
-            playerId: att.playerId,
-            name:     att.name,
-            chadId:   att.chadId,
-            stack:    att.stack || 0,
-            bets:     att.bets || {},
-            comeBets: att.comeBets || {},
-          });
+        if (!att) continue;
+        const entry = { playerId: att.playerId, name: att.name, chadId: att.chadId, stack: 0, bets: {}, comeBets: {} };
+        if (att.nonce && att.authenticated) {
+          const pd = await this.state.storage.get(`player:${att.nonce}`);
+          if (pd) {
+            entry.stack = pd.stack || 0;
+            entry.bets = pd.bets || {};
+            entry.comeBets = pd.comeBets || {};
+          }
         }
+        players.push(entry);
       } catch (_) {}
     }
     return players;
