@@ -36,8 +36,9 @@
     #jipt-image.visible { opacity: 1; }
     #jipt-image.shrunk {
       max-height: 25vh;
-      bottom: 55vh;
-      transition: max-height 0.6s ease, bottom 0.6s ease, opacity 1.2s ease;
+      bottom: auto;
+      top: 0;
+      transition: max-height 0.6s ease, top 0.6s ease, bottom 0.6s ease, opacity 1.2s ease;
     }
     /* When image shrinks, expand dialogue box into freed space */
     body.portrait-shrunk #dialogue-box {
