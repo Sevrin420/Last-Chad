@@ -1745,11 +1745,6 @@ function escapeHtml(str) { const d=document.createElement('div'); d.textContent=
 
 // ── Cash Out ──
 async function cashOut() {
-  if (STATE.isRolling) {
-    dealerSay("Can't cash out while dice are rolling!", 'neutral');
-    return;
-  }
-
   let betsOnTable = 0;
   for (const val of Object.values(STATE.bets)) betsOnTable += val;
   const totalPayout = STATE.stack + betsOnTable;
