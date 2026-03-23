@@ -136,6 +136,9 @@ export default {
       if (request.method === 'POST' && url.pathname === '/craps/roll') {
         return await handleCrapsRoll(request, env);
       }
+      if (request.method === 'POST' && url.pathname === '/craps/apply-roll') {
+        return await handleCrapsApplyRoll(request, env);
+      }
       if (request.method === 'POST' && url.pathname === '/craps/cashout') {
         return await handleCrapsCashout(request, env);
       }
@@ -829,6 +832,84 @@ async function handleCrapsRoll(request, env) {
   }
 
   session.rolling = false;
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
+
+  return json({
+    ok: true,
+    dice: [d1, d2],
+    total,
+    isHard,
+    resolution,
+    stack: session.stack,
+    phase: session.phase,
+    point: session.point,
+    bets: session.bets,
+    comeBets: session.comeBets || {},
+    pressOptions: resolution.pressOptions || {},
+  });
+}
+
+// POST /craps/apply-roll  { nonce, sessionToken, tableCode, rollId }
+// Called by remote (non-shooter) players after receiving a roll-result via WebSocket.
+// Fetches the verified dice from the CrapsTable Durable Object, then resolves
+// the player's own bets server-side — same logic as the shooter's /craps/roll.
+async function handleCrapsApplyRoll(request, env) {
+  const { nonce, sessionToken, tableCode, rollId } = await parseBody(request);
+  if (nonce == null || !tableCode) return json({ error: 'Missing nonce or tableCode' }, 400);
+
+  const key     = `craps:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No craps session' }, 403);
+  if (!verifyCrapsSessionToken(session, sessionToken)) {
+    return json({ error: 'Invalid session token' }, 403);
+  }
+
+  // Fetch the verified last roll from the Durable Object
+  const isPublic  = PUBLIC_TABLES.some(t => t.name === tableCode);
+  const isPrivate = tableCode.startsWith('priv-');
+  if (!isPublic && !isPrivate) return json({ error: 'Invalid table' }, 400);
+
+  const doId  = env.CRAPS_TABLE.idFromName(tableCode);
+  const stub  = env.CRAPS_TABLE.get(doId);
+  const doRes = await stub.fetch(new Request('https://do/last-roll'));
+  const lastRoll = await doRes.json();
+
+  if (!lastRoll || !lastRoll.dice) {
+    return json({ error: 'No roll to apply' }, 400);
+  }
+
+  // Verify rollId matches to prevent replaying old rolls
+  if (rollId != null && lastRoll.rollId !== rollId) {
+    return json({ error: 'Roll ID mismatch' }, 400);
+  }
+
+  // Guard against applying the same roll twice
+  if (session._lastAppliedRollId === lastRoll.rollId) {
+    // Already applied — return current state without re-resolving
+    return json({
+      ok: true,
+      already: true,
+      stack: session.stack,
+      phase: session.phase,
+      point: session.point,
+      bets: session.bets,
+      comeBets: session.comeBets || {},
+    });
+  }
+
+  const [d1, d2] = lastRoll.dice;
+  const total  = lastRoll.total;
+  const isHard = lastRoll.isHard;
+
+  // Sync phase/point from the table BEFORE resolving bets,
+  // so the player's session matches the table state that produced this roll.
+  // The DO stores the phase/point AFTER the roll, but we need the state BEFORE
+  // the roll to resolve correctly. Use the session's own phase/point (which
+  // should already be in sync from the previous roll or from start).
+
+  const resolution = crapsResolveBets(session, d1, d2, total, isHard);
+
+  session._lastAppliedRollId = lastRoll.rollId;
   await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
 
   return json({

@@ -49,6 +49,14 @@ export class CrapsTable {
       });
     }
 
+    // ── Last-roll endpoint (used by /craps/apply-roll to verify dice) ──
+    if (url.pathname === '/last-roll') {
+      const lastRoll = await this.state.storage.get('lastRoll');
+      return new Response(JSON.stringify(lastRoll || null), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // ── WebSocket upgrade ──
     const upgrade = request.headers.get('Upgrade');
     if (!upgrade || upgrade.toLowerCase() !== 'websocket') {
@@ -168,6 +176,19 @@ export class CrapsTable {
         const d1 = Number(data.dice[0]);
         const d2 = Number(data.dice[1]);
         if (d1 < 1 || d1 > 6 || d2 < 1 || d2 > 6 || !Number.isInteger(d1) || !Number.isInteger(d2)) break;
+
+        // Store the last roll so /craps/apply-roll can verify dice for remote players
+        const rollId = Date.now();
+        await this.state.storage.put('lastRoll', {
+          rollId,
+          dice: [d1, d2],
+          total: d1 + d2,
+          isHard: d1 === d2,
+          phase: data.phase === 'point' ? 'point' : 'comeout',
+          point: Number(data.point) || 0,
+          shooterId: playerId,
+        });
+
         this._broadcast({
           type: 'roll-result', playerId, name,
           dice:    [d1, d2],
@@ -176,6 +197,7 @@ export class CrapsTable {
           total:   d1 + d2,
           resolution: data.resolution,
           message: String(data.message || '').slice(0, 80),
+          rollId,
         }, null);
         break;
       }
