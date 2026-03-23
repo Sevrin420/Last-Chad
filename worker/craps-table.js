@@ -94,27 +94,31 @@ export class CrapsTable {
       return new Response('Missing playerId', { status: 400 });
     }
 
-    // ── Clean up stale sockets before anything else ──
-    // Hibernation API can retain dead sockets from unclean disconnects.
-    // Close any unauthenticated socket that isn't the current player.
+    // ── Purge ALL sockets that aren't this player ──
+    // Hibernation API retains dead sockets (even authenticated ones)
+    // after unclean disconnects. Socket state is unreliable for
+    // detecting who's actually alive. Real players auto-reconnect
+    // within 2 seconds, so purging is safe.
     const currentSockets = this.state.getWebSockets();
     let existingSocket = null;
     for (const ws of currentSockets) {
       try {
         const att = ws.deserializeAttachment();
-        if (!att) { try { ws.close(1011, 'Stale'); } catch (_) {} continue; }
-        if (att.playerId === playerId) { existingSocket = ws; continue; }
-        if (!att.authenticated) { try { ws.close(1011, 'Stale'); } catch (_) {} }
+        if (att && att.playerId === playerId) {
+          existingSocket = ws;
+        } else {
+          try { ws.close(1000, 'Table reset'); } catch (_) {}
+        }
       } catch (_) { try { ws.close(1011, 'Stale'); } catch (_e) {} }
     }
 
-    // Enforce player cap (after cleanup)
-    const liveSockets = this.state.getWebSockets();
-    const otherCount = liveSockets.filter(w => {
+    // Enforce player cap (check post-purge sockets)
+    const remainingSockets = this.state.getWebSockets();
+    const otherLive = remainingSockets.filter(w => {
       try { const a = w.deserializeAttachment(); return a && a.playerId !== playerId; }
       catch (_) { return false; }
     }).length;
-    if (!existingSocket && otherCount >= MAX_PLAYERS) {
+    if (!existingSocket && otherLive >= MAX_PLAYERS) {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       server.accept();
@@ -148,21 +152,16 @@ export class CrapsTable {
       await this.state.storage.put('shooter', shooter);
     }
 
-    // If no other authenticated players, reset game to comeout.
-    // This catches stale state from previous sessions where close didn't fire.
-    const hasOtherAuth = this.state.getWebSockets().some(w => {
-      try {
-        const a = w.deserializeAttachment();
-        return a && a.playerId !== playerId && a.authenticated;
-      } catch (_) { return false; }
-    });
-    if (!hasOtherAuth) {
-      const game = await this._getGame();
-      if (!game.rolling) {
-        await this.state.storage.put('game', {
-          phase: 'comeout', point: 0, rolling: false, rollCount: 0,
-        });
-      }
+    // Determine if the table is stale and should reset.
+    // Socket state is unreliable (Hibernation retains dead sockets),
+    // so we use a timestamp: if no roll in 2+ minutes, game is stale.
+    const tableStale = await this._isTableStale();
+    if (tableStale) {
+      await this.state.storage.put('game', {
+        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
+      });
+      // Clean up any orphaned player data from previous sessions
+      await this._cleanupOrphanedPlayers();
     }
 
     // Send init with current game state
@@ -234,20 +233,20 @@ export class CrapsTable {
         attachment.authenticated = true;
         ws.serializeAttachment(attachment);
 
-        // Safety: if this is the only authenticated player, ensure comeout phase.
-        // Catches any stale state that slipped past the fetch-time check.
+        // Safety: if the table was stale (no activity in 2+ min), force comeout.
+        // Check BEFORE recording activity so the timestamp reflects prior state.
         const game = await this._getGame();
-        const hasOtherAuth = this.state.getWebSockets().some(w => {
-          try {
-            const a = w.deserializeAttachment();
-            return a && a.playerId !== playerId && a.authenticated;
-          } catch (_) { return false; }
-        });
-        if (!hasOtherAuth && !game.rolling && game.phase !== 'comeout') {
-          game.phase = 'comeout';
-          game.point = 0;
-          await this.state.storage.put('game', game);
+        if (!game.rolling && game.phase !== 'comeout') {
+          const tableStale = await this._isTableStale();
+          if (tableStale) {
+            game.phase = 'comeout';
+            game.point = 0;
+            await this.state.storage.put('game', game);
+          }
         }
+
+        // Record activity — this player is definitely alive
+        await this.state.storage.put('lastActivity', Date.now());
 
         // Send current state back
         ws.send(JSON.stringify({
@@ -310,6 +309,7 @@ export class CrapsTable {
         }
 
         await this.state.storage.put(`player:${attachment.nonce}`, pData);
+        await this.state.storage.put('lastActivity', Date.now());
 
         ws.send(JSON.stringify({
           type: 'bet-ok',
@@ -388,9 +388,10 @@ export class CrapsTable {
           break;
         }
 
-        // Lock rolling
+        // Lock rolling & record activity
         game.rolling = true;
         await this.state.storage.put('game', game);
+        await this.state.storage.put('lastActivity', Date.now());
 
         // ── Generate dice (server-side, crypto-secure) ──
         const arr = new Uint32Array(2);
@@ -659,6 +660,34 @@ export class CrapsTable {
     };
   }
 
+  // Returns true if no player activity in the last 2 minutes.
+  // Socket state is unreliable (Hibernation retains dead sockets),
+  // so we use a storage timestamp instead.
+  async _isTableStale() {
+    const lastActivity = await this.state.storage.get('lastActivity');
+    if (!lastActivity) return true; // no activity ever recorded → stale
+    return (Date.now() - lastActivity) > 2 * 60 * 1000;
+  }
+
+  // Remove player:* entries that don't belong to any connected socket.
+  // Prevents orphaned data from building up across sessions.
+  async _cleanupOrphanedPlayers() {
+    const liveNonces = new Set();
+    for (const ws of this.state.getWebSockets()) {
+      try {
+        const att = ws.deserializeAttachment();
+        if (att && att.nonce) liveNonces.add(att.nonce);
+      } catch (_) {}
+    }
+    const allKeys = await this.state.storage.list({ prefix: 'player:' });
+    for (const [key] of allKeys) {
+      const nonce = key.replace('player:', '');
+      if (!liveNonces.has(nonce)) {
+        await this.state.storage.delete(key);
+      }
+    }
+  }
+
   _validateBetPhase(zone, phase, playerData) {
     if (zone.startsWith('place') && phase === 'comeout') return 'Place bets open after point';
     if (zone === 'pass' && phase === 'point') return 'Pass line only on come-out roll';
@@ -750,17 +779,18 @@ export class CrapsTable {
       await this._advanceShooter(playerId);
     }
 
-    // If no authenticated players remain, reset table to comeout
-    const hasAuthPlayers = this.state.getWebSockets().some(w => {
+    // If no other sockets remain at all, reset to comeout
+    const otherSockets = this.state.getWebSockets().filter(w => {
       try {
         const a = w.deserializeAttachment();
-        return a && a.playerId !== playerId && a.authenticated;
+        return a && a.playerId !== playerId;
       } catch (_) { return false; }
     });
-    if (!hasAuthPlayers) {
+    if (otherSockets.length === 0) {
       await this.state.storage.put('game', {
         phase: 'comeout', point: 0, rolling: false, rollCount: 0,
       });
+      await this.state.storage.delete('lastActivity');
     }
   }
 
