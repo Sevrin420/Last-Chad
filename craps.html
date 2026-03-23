@@ -1273,7 +1273,11 @@ function startBetPhase() {
     dealerSay("Place your bets!", 'happy');
   }
   renderAllBetChips();
-  // No timer yet — waits for first bet via onFirstBet()
+  // Auto-start bet timer
+  betTimerStarted = true;
+  const multi = getRemotePlayerCount() > 0;
+  const betTime = multi ? 20 : 15;
+  startTimer(betTime, 'PLACE BETS', onBetTimerExpired);
 }
 
 function getRemotePlayerCount() {
@@ -1282,17 +1286,22 @@ function getRemotePlayerCount() {
   return n;
 }
 
+function onBetTimerExpired() {
+  // If no pass line bet, can't proceed — restart bet phase
+  if (!STATE.bets.pass) {
+    dealerSay("Bet on the pass line to roll!", 'neutral');
+    startBetPhase();
+    return;
+  }
+  turnPhase = 'no-more-bets';
+  betsLocked = true;
+  showNoMoreBets();
+  setTimeout(() => { startRollPhase(); }, 1500);
+}
+
 function onFirstBet() {
-  if (betTimerStarted || turnPhase !== 'betting') return;
-  betTimerStarted = true;
-  const multi = getRemotePlayerCount() > 0;
-  const betTime = multi ? 20 : 15;
-  startTimer(betTime, 'PLACE BETS', () => {
-    turnPhase = 'no-more-bets';
-    betsLocked = true;
-    showNoMoreBets();
-    setTimeout(() => { startRollPhase(); }, 1500);
-  });
+  // No longer needed for timer start (auto-started in startBetPhase),
+  // but kept for any future per-bet hooks.
 }
 
 function showNoMoreBets() {
@@ -1874,22 +1883,10 @@ function initPlayerFromSession() {
   }
 
   broadcastState('joined');
-  // Don't start bet phase yet — show welcome, then auto-start timer after 3s
+  // Don't start bet phase yet — show welcome, then auto-start after 3s
   dealerSay("Bet on the pass line to begin!", 'neutral');
   setTimeout(() => {
     startBetPhase();
-    // Auto-trigger bet timer so it counts down even before first bet
-    if (!betTimerStarted) {
-      betTimerStarted = true;
-      const multi = getRemotePlayerCount() > 0;
-      const betTime = multi ? 20 : 15;
-      startTimer(betTime, 'PLACE BETS', () => {
-        turnPhase = 'no-more-bets';
-        betsLocked = true;
-        showNoMoreBets();
-        setTimeout(() => { startRollPhase(); }, 1500);
-      });
-    }
   }, 3000);
 }
 
