@@ -1001,6 +1001,7 @@ async function placeBet(zone) {
   if (STATE.isRolling || betsLocked) return;
   const amount = STATE.selectedChip;
   if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
+  // Client-side phase validation (fast feedback; DO re-validates server-side)
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
     dealerSay("Place bets open after point.", 'neutral'); return;
   }
@@ -1013,13 +1014,13 @@ async function placeBet(zone) {
   if (zone === 'come' && STATE.phase === 'comeout') {
     dealerSay("Come bets only after point is set.", 'neutral'); return;
   }
+  // Optimistic update (will be corrected by bet-ok / bet-rejected from DO)
   STATE.stack -= amount;
   STATE.bets[zone] = (STATE.bets[zone] || 0) + amount;
-  if (!STATE._pendingBets) STATE._pendingBets = {};
-  STATE._pendingBets[zone] = (STATE._pendingBets[zone] || 0) + amount;
   renderAllBetChips();
   updateLocalPlayerUI();
-  broadcastState();
+  // Send to DO for authoritative validation
+  wsSend({ type: 'bet', zone, amount });
   onFirstBet();
 }
 
@@ -1113,17 +1114,15 @@ function pressBet(zone) {
     dealerSay("Not enough chips to press!", 'sad');
     return;
   }
+  // Optimistic update
   STATE.stack -= pressAmount;
   STATE.bets[zone] = currentBet + pressAmount;
-  // Notify server about the pressed bet so it's tracked server-side
-  if (!STATE._pendingBets) STATE._pendingBets = {};
-  STATE._pendingBets[zone] = (STATE._pendingBets[zone] || 0) + pressAmount;
-  // any extra winnings beyond the press cost stay in stack
   delete STATE.pressOptions[zone];
   renderAllBetChips();
   renderPressButtons();
   updateLocalPlayerUI();
-  broadcastState();
+  // Send to DO for authoritative tracking
+  wsSend({ type: 'press', zone });
 }
 
 function clearPressButtons() {
@@ -1134,6 +1133,7 @@ function clearPressButtons() {
 
 function clearBets() {
   if (STATE.isRolling || betsLocked) return;
+  // Optimistic local clear (server is authoritative — bet-ok corrects)
   for (const zone of Object.keys(STATE.bets)) {
     if (zone === 'pass') continue;
     STATE.stack += STATE.bets[zone];
@@ -1142,7 +1142,7 @@ function clearBets() {
   STATE._pendingBets = {};
   renderAllBetChips();
   updateLocalPlayerUI();
-  broadcastState();
+  wsSend({ type: 'clear-bets' });
 }
 
 function updateLocalPlayerUI() {
@@ -1359,9 +1359,12 @@ function hideTimer() {
 }
 
 // ── Dice Roll ──
-async function rollDice() {
+// Shooter sends { type: 'roll' } via WS; DO generates dice, resolves ALL
+// players, and sends personalized roll-result back to each. The dice
+// animation + result handling is in handleRollResult() below.
+function rollDice() {
   if (STATE.isRolling) return;
-  if (!isLocalShooter()) return; // only the shooter can roll
+  if (!isLocalShooter()) return;
   if (!STATE.bets.pass) {
     dealerSay("Pass line bet required to roll!", 'neutral'); return;
   }
@@ -1374,179 +1377,146 @@ async function rollDice() {
   diceEl.classList.remove('can-roll');
   diceEl.classList.add('locked');
 
-  // Broadcast rolling state so remote players start spin animation
-  broadcastRolling();
-
+  // Start local spin animation immediately (DO sends 'rolling' to others)
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
   die1El.classList.remove('settled');
   die2El.classList.remove('settled');
   die1El.classList.add('rolling');
   die2El.classList.add('rolling');
-
-  let die2cycling = true;
-  const cycleInterval1 = setInterval(() => {
+  window._rollCycleInterval1 = setInterval(() => {
     renderDie(document.getElementById('face1'), Math.floor(Math.random()*6)+1);
   }, 60);
-  const cycleInterval2 = setInterval(() => {
-    if (die2cycling) renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
+  window._rollCycleInterval2 = setInterval(() => {
+    renderDie(document.getElementById('face2'), Math.floor(Math.random()*6)+1);
   }, 60);
 
-  try {
-    const res = await fetchWithTimeout(WORKER_URL + '/craps/roll', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nonce: STATE.nonce,
-        newBets: STATE._pendingBets || {},
-        sessionToken: STATE.sessionToken,
-        tableCode: currentTableCode,
-      }),
+  // Tell the DO to roll — result comes back via WS 'roll-result'
+  wsSend({ type: 'roll' });
+}
+
+// Called by WS handler when DO sends personalized 'roll-result' to this player
+async function handleRollResult(data) {
+  const [d1, d2] = data.dice;
+  const total = data.total;
+
+  // Stop spin animation (shooter or remote)
+  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+  if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
+
+  const die1El = document.getElementById('die1');
+  const die2El = document.getElementById('die2');
+
+  // Staggered settle: die1 first, die2 after delay
+  await new Promise(r => setTimeout(r, 2500));
+  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+  STATE.dice = [d1, d2];
+  renderDie(document.getElementById('face1'), d1);
+  die1El.classList.remove('rolling');
+  die1El.classList.add('settled');
+
+  await new Promise(r => setTimeout(r, 2400));
+  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+  renderDie(document.getElementById('face2'), d2);
+  die2El.classList.remove('rolling');
+  die2El.classList.add('settled');
+
+  // Update local state from server-authoritative response
+  const prevPoint = STATE.point;
+  const prevPhase = STATE.phase;
+  STATE.stack = data.stack;
+  if (data.bets) STATE.bets = data.bets;
+  for (const k of Object.keys(STATE.bets)) {
+    if (STATE.bets[k] === 0) delete STATE.bets[k];
+  }
+
+  // Phase/point comes from the phase-update message, but also available here
+  if (data.phase) STATE.phase = data.phase;
+  if (data.point !== undefined) STATE.point = data.point || null;
+
+  // Puck
+  if (STATE.phase === 'point' && STATE.point) {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+    document.getElementById('puck').classList.add('on-glow');
+    document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+    movePuckToPoint(STATE.point);
+  } else {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+    document.getElementById('puck').classList.remove('on-glow');
+    document.getElementById('pointDisplay').textContent = '';
+    resetPuckPosition();
+  }
+
+  // Announcer
+  const r = data.resolution || {};
+  let announcerSub = '';
+  if (prevPhase === 'comeout' && !prevPoint && !!STATE.point) {
+    announcerSub = 'Point is ' + STATE.point;
+  } else if (prevPhase === 'point' && prevPoint && total === prevPoint) {
+    announcerSub = 'Point ' + prevPoint + ' made!';
+  } else if (r.message) {
+    announcerSub = r.message;
+  }
+  const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
+  showAnnouncer(d1, d2, prevPhase, announcerSub, isNewPoint);
+
+  // Win/loss flashes
+  await new Promise(r2 => setTimeout(r2, 200));
+  for (const key of (r.wins || [])) {
+    document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('win-flash'));
+  }
+  for (const key of (r.losses || [])) {
+    document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('lose-flash'));
+  }
+
+  renderAllBetChips();
+  updateLocalPlayerUI();
+
+  // Press buttons
+  if (data.pressOptions && Object.keys(data.pressOptions).length > 0) {
+    STATE.pressOptions = data.pressOptions;
+    renderPressButtons();
+    if (window._pressTimeout) clearTimeout(window._pressTimeout);
+    window._pressTimeout = setTimeout(() => clearPressButtons(), 5000);
+  }
+
+  // Toast
+  const netWin = r.netWin || 0;
+  if (netWin > 0) showToast(`+${netWin}`, 'win', `Total: ${total}`);
+  else if (netWin < 0) showToast(`${netWin}`, 'lose', `Total: ${total}`);
+
+  setTimeout(() => {
+    document.querySelectorAll('.win-flash,.lose-flash').forEach(el => {
+      el.classList.remove('win-flash','lose-flash');
     });
-    STATE._pendingBets = {};
-    let data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Roll failed');
+  }, 1500);
 
-    // Spin for 2.5s total, then settle die1 first
-    await new Promise(r => setTimeout(r, 2500));
-    clearInterval(cycleInterval1);
-
-    const [d1, d2] = data.dice;
-    STATE.dice = [d1, d2];
-    renderDie(document.getElementById('face1'), d1);
-    die1El.classList.remove('rolling');
-    die1El.classList.add('settled');
-
-    // Die2 keeps spinning for 2.4 more seconds
-    await new Promise(r => setTimeout(r, 2400));
-    die2cycling = false;
-    clearInterval(cycleInterval2);
-
-    renderDie(document.getElementById('face2'), d2);
-    die2El.classList.remove('rolling');
-    die2El.classList.add('settled');
-
-    const prevPoint = STATE.point;
-    const prevPhase = STATE.phase;
-    STATE.stack = data.stack;
-    STATE.phase = data.phase;
-    STATE.point = data.point || null;
-
-    const r = data.resolution;
-    const total = data.total;
-
-    if (data.bets) STATE.bets = data.bets;
-    for (const k of Object.keys(STATE.bets)) {
-      if (STATE.bets[k] === 0) delete STATE.bets[k];
-    }
-
-    if (STATE.phase === 'point' && STATE.point) {
-      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-      document.getElementById('puck').classList.add('on-glow');
-      document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-      movePuckToPoint(STATE.point);
-    } else {
-      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-      document.getElementById('puck').classList.remove('on-glow');
-      document.getElementById('pointDisplay').textContent = '';
-      resetPuckPosition();
-    }
-
-    // Announcer call with dice and context
-    const announcerPhase = prevPhase; // phase before this roll resolved
-    let announcerSub = '';
-    if (prevPhase === 'comeout' && !prevPoint && !!STATE.point) {
-      announcerSub = 'Point is ' + STATE.point;
-    } else if (prevPhase === 'point' && prevPoint && total === prevPoint) {
-      announcerSub = 'Point ' + prevPoint + ' made!';
-    } else if (r.message) {
-      announcerSub = r.message;
-    }
-    const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
-    showAnnouncer(d1, d2, announcerPhase, announcerSub, isNewPoint);
-
-    await new Promise(r2 => setTimeout(r2, 200));
-    for (const key of r.wins) {
-      document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('win-flash'));
-    }
-    for (const key of r.losses) {
-      document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('lose-flash'));
-    }
-
-    renderAllBetChips();
-    updateLocalPlayerUI();
-    broadcastState();
-    // Send roll result via WebSocket so remote players see the dice
-    wsSend({
-      type: 'roll-result',
-      dice: [d1, d2],
-      phase: STATE.phase,
-      point: STATE.point,
-      prevPhase: prevPhase,
-      prevPoint: prevPoint,
-      total: total,
-      resolution: r,
-      message: r.message || '',
-    });
-
-    // Show press buttons for winning bets (auto-clear after 5s)
-    if (data.pressOptions && Object.keys(data.pressOptions).length > 0) {
-      STATE.pressOptions = data.pressOptions;
-      renderPressButtons();
-      if (window._pressTimeout) clearTimeout(window._pressTimeout);
-      window._pressTimeout = setTimeout(() => clearPressButtons(), 5000);
-    }
-
-    const netWin = r.netWin || 0;
-    if (netWin > 0) showToast(`+${netWin}`, 'win', `Total: ${total}`);
-    else if (netWin < 0) showToast(`${netWin}`, 'lose', `Total: ${total}`);
-
-    setTimeout(() => {
-      document.querySelectorAll('.win-flash,.lose-flash').forEach(el => {
-        el.classList.remove('win-flash','lose-flash');
-      });
-    }, 1500);
-
-    if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
-      dealerSay("You're busted! Better luck next time.", 'sad');
-      STATE.isRolling = false;
-      // Auto-cashout at zero so the session is cleanly closed
-      try {
-        await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tokenId: STATE.tokenId, nonce: STATE.nonce, sessionToken: STATE.sessionToken }),
-        });
-      } catch (_) {}
-      sessionStorage.removeItem('craps_session');
-      STATE.nonce = null;
-      broadcastState('busted');
-      setTimeout(() => { window.location.href = 'chadbase.html'; }, 3000);
-      return;
-    }
-
+  // Auto-cashout on bust
+  if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
+    dealerSay("You're busted! Better luck next time.", 'sad');
     STATE.isRolling = false;
-    diceEl.classList.remove('locked');
-    // 7-out: shooter loses dice, advance to next player on server
-    const sevenOut = prevPhase === 'point' && STATE.phase === 'comeout' && total === 7;
-    const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
-    setTimeout(async () => {
-      if (sevenOut) await advanceShooterOnServer();
-      startBetPhase();
-    }, hasPress ? 5000 : 2000);
+    try {
+      await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenId: STATE.tokenId, nonce: STATE.nonce, sessionToken: STATE.sessionToken, tableCode: currentTableCode }),
+      });
+    } catch (_) {}
+    sessionStorage.removeItem('craps_session');
+    STATE.nonce = null;
+    setTimeout(() => { window.location.href = 'chadbase.html'; }, 3000);
     return;
-
-  } catch (err) {
-    clearInterval(cycleInterval1);
-    clearInterval(cycleInterval2);
-    die1El.classList.remove('rolling');
-    die2El.classList.remove('rolling');
-    dealerSay('Roll failed: ' + (err.message || 'Network error'), 'sad');
   }
 
   STATE.isRolling = false;
-  diceEl.classList.remove('locked');
-  setTimeout(() => startBetPhase(), 2000);
+  document.getElementById('tableDice').classList.remove('locked');
+  // Seven-out rotation is now handled server-side by the DO roll handler.
+  // The client just needs to start the next bet phase after a delay.
+  const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
+  setTimeout(() => {
+    startBetPhase();
+  }, hasPress ? 5000 : 2000);
 }
 
 // ── Announcer Overlay ──
@@ -1734,6 +1704,7 @@ async function cashOut() {
         tokenId: STATE.tokenId,
         nonce: STATE.nonce,
         sessionToken: STATE.sessionToken,
+        tableCode: currentTableCode,
       }),
     });
     const data = await res.json();
@@ -1872,18 +1843,10 @@ function wsSend(data) {
   }
 }
 
-function broadcastState(extra) {
-  wsSend({
-    type: 'state',
-    stack:    STATE.stack || 0,
-    bets:     STATE.bets || {},
-    comeBets: STATE.comeBets || {},
-  });
-}
-
-function broadcastRolling() {
-  wsSend({ type: 'rolling' });
-}
+// broadcastState/broadcastRolling are now handled by the DO.
+// Keep as no-ops for any remaining call sites.
+function broadcastState(extra) {}
+function broadcastRolling() {}
 
 function connectTable(tableCode) {
   if (_tableWs) {
@@ -1896,8 +1859,20 @@ function connectTable(tableCode) {
   _tableWs = ws;
 
   ws.onopen = () => {
-    // Send initial state once connected
-    broadcastState('joined');
+    // Authenticate with the DO — include full session data for self-registration
+    // (player may have picked table after /craps/start, so DO might not have them yet;
+    // the DO verifies the HMAC token before trusting any client-supplied data)
+    if (STATE.nonce && STATE.sessionToken) {
+      wsSend({
+        type: 'auth',
+        nonce: STATE.nonce,
+        sessionToken: STATE.sessionToken,
+        player: STATE.player,
+        tokenId: STATE.tokenId,
+        stack: STATE.stack,
+        buyIn: STATE.buyIn,
+      });
+    }
   };
 
   ws.onmessage = (e) => {
@@ -1998,9 +1973,41 @@ function handleWsMessage(data) {
       break;
     }
 
+    // ── Auth confirmed by DO ──
+    case 'auth-ok': {
+      STATE.stack = data.stack;
+      STATE.bets = data.bets || {};
+      STATE.phase = data.phase || 'comeout';
+      STATE.point = data.point || null;
+      updateLocalPlayerUI();
+      renderAllBetChips();
+      break;
+    }
+
+    // ── Bet confirmed by DO ──
+    case 'bet-ok': {
+      // Sync authoritative state from DO
+      STATE.stack = data.stack;
+      STATE.bets = data.bets || {};
+      if (data.comeBets) STATE.comeBets = data.comeBets;
+      renderAllBetChips();
+      updateLocalPlayerUI();
+      break;
+    }
+
+    // ── Bet rejected by DO ──
+    case 'bet-rejected': {
+      // Revert optimistic update — re-sync from last known good state
+      dealerSay(data.reason || 'Bet rejected', 'sad');
+      // Request current state (the next bet-ok or auth-ok will correct it)
+      break;
+    }
+
+    // ── Rolling animation (from DO, for non-shooters) ──
     case 'rolling': {
-      // Shooter started rolling — start spin animation for non-shooters
       if (!isLocalShooter()) {
+        STATE.isRolling = true;
+        betsLocked = true;
         const die1El = document.getElementById('die1');
         const die2El = document.getElementById('die2');
         die1El.classList.remove('settled');
@@ -2016,113 +2023,28 @@ function handleWsMessage(data) {
       break;
     }
 
+    // ── Personalized roll result (from DO, sent to ALL players) ──
     case 'roll-result': {
-      if (!isLocalShooter() && data.dice) {
-        // Stop spin animation
-        if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
-        const [d1, d2] = data.dice;
-        STATE.dice = [d1, d2];
-        renderDie(document.getElementById('face1'), d1);
-        renderDie(document.getElementById('face2'), d2);
-        const die1El = document.getElementById('die1');
-        const die2El = document.getElementById('die2');
-        die1El.classList.remove('rolling');
-        die2El.classList.remove('rolling');
-        die1El.classList.add('settled');
-        die2El.classList.add('settled');
+      if (data.dice) {
+        handleRollResult(data);
+      }
+      break;
+    }
 
-        // Show announcer
-        const total = d1 + d2;
-        const sub = data.message || '';
-        showAnnouncer(d1, d2, STATE.phase, sub, false);
-        addChatMsg('roll', `rolled ${d1} + ${d2} = ${total}`, data.name || 'Shooter', 0);
-
-        // ── Apply roll to this player's server-side session ──
-        // Resolves our bets, updates stack/phase/point server-side
-        if (STATE.nonce && STATE.sessionToken && currentTableCode) {
-          (async () => {
-            try {
-              const res = await fetchWithTimeout(WORKER_URL + '/craps/apply-roll', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  nonce: STATE.nonce,
-                  sessionToken: STATE.sessionToken,
-                  tableCode: currentTableCode,
-                  rollId: data.rollId,
-                }),
-              });
-              const result = await res.json();
-              if (!result.ok) { console.warn('apply-roll error:', result.error); return; }
-
-              STATE.stack = result.stack;
-              STATE.phase = result.phase;
-              STATE.point = result.point || null;
-              if (result.bets) STATE.bets = result.bets;
-              for (const k of Object.keys(STATE.bets)) {
-                if (STATE.bets[k] === 0) delete STATE.bets[k];
-              }
-
-              // Update puck
-              if (STATE.phase === 'point' && STATE.point) {
-                document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-                document.getElementById('puck').classList.add('on-glow');
-                document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-                movePuckToPoint(STATE.point);
-              } else {
-                document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-                document.getElementById('puck').classList.remove('on-glow');
-                document.getElementById('pointDisplay').textContent = '';
-                resetPuckPosition();
-              }
-
-              // Win/loss flashes
-              const r = result.resolution || {};
-              for (const key of (r.wins || [])) {
-                document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('win-flash'));
-              }
-              for (const key of (r.losses || [])) {
-                document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('lose-flash'));
-              }
-
-              // Press buttons for winning bets
-              if (result.pressOptions && Object.keys(result.pressOptions).length > 0) {
-                STATE.pressOptions = result.pressOptions;
-                renderPressButtons();
-                if (window._pressTimeout) clearTimeout(window._pressTimeout);
-                window._pressTimeout = setTimeout(() => clearPressButtons(), 5000);
-              }
-
-              // Net win/loss toast
-              const netWin = r.netWin || 0;
-              if (netWin > 0) showToast(`+${netWin}`, 'win', `Total: ${total}`);
-              else if (netWin < 0) showToast(`${netWin}`, 'lose', `Total: ${total}`);
-
-              renderAllBetChips();
-              updateLocalPlayerUI();
-              broadcastState();
-            } catch (err) {
-              console.error('apply-roll failed:', err);
-            }
-          })();
-        } else {
-          // No session — just sync phase/point from WS message
-          if (data.phase) {
-            STATE.phase = data.phase;
-            STATE.point = data.point || null;
-            if (STATE.phase === 'point' && STATE.point) {
-              document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-              document.getElementById('puck').classList.add('on-glow');
-              document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-              movePuckToPoint(STATE.point);
-            } else {
-              document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-              document.getElementById('puck').classList.remove('on-glow');
-              document.getElementById('pointDisplay').textContent = '';
-              resetPuckPosition();
-            }
-          }
-        }
+    // ── Phase/point update (from DO, after roll resolves) ──
+    case 'phase-update': {
+      STATE.phase = data.phase || 'comeout';
+      STATE.point = data.point || null;
+      if (STATE.phase === 'point' && STATE.point) {
+        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+        document.getElementById('puck').classList.add('on-glow');
+        document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+        movePuckToPoint(STATE.point);
+      } else {
+        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+        document.getElementById('puck').classList.remove('on-glow');
+        document.getElementById('pointDisplay').textContent = '';
+        resetPuckPosition();
       }
       break;
     }
