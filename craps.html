@@ -1132,12 +1132,28 @@ function clearPressButtons() {
 }
 
 function clearBets() {
-  if (STATE.isRolling || betsLocked) return;
-  // Optimistic local clear (server is authoritative — bet-ok corrects)
+  if (STATE.isRolling) {
+    dealerSay("Can't clear bets while dice are rolling!", 'neutral');
+    return;
+  }
+  if (turnPhase !== 'betting') {
+    dealerSay("Bets are locked — wait for next betting round.", 'neutral');
+    return;
+  }
+  // Pass line and pass odds are locked — never clearable
+  const locked = ['pass', 'passOdds'];
+  let cleared = false;
   for (const zone of Object.keys(STATE.bets)) {
-    if (zone === 'pass') continue;
-    STATE.stack += STATE.bets[zone];
-    delete STATE.bets[zone];
+    if (locked.includes(zone)) continue;
+    if (STATE.bets[zone] > 0) {
+      STATE.stack += STATE.bets[zone];
+      delete STATE.bets[zone];
+      cleared = true;
+    }
+  }
+  if (!cleared) {
+    dealerSay("Pass line bets are locked — can't be removed.", 'neutral');
+    return;
   }
   STATE._pendingBets = {};
   renderAllBetChips();
@@ -1711,7 +1727,10 @@ function escapeHtml(str) { const d=document.createElement('div'); d.textContent=
 
 // ── Cash Out ──
 async function cashOut() {
-  if (STATE.isRolling) return;
+  if (STATE.isRolling) {
+    dealerSay("Can't cash out while dice are rolling!", 'neutral');
+    return;
+  }
 
   let betsOnTable = 0;
   for (const val of Object.values(STATE.bets)) betsOnTable += val;
