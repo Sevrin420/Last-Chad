@@ -1363,6 +1363,11 @@ function rollDice() {
   diceEl.classList.remove('can-roll');
   diceEl.classList.add('locked');
 
+  // Announce the point during roll
+  if (STATE.phase === 'point' && STATE.point) {
+    dealerSay(`Point is ${STATE.point}, looking for a ${STATE.point}!`, 'neutral');
+  }
+
   // Start local spin animation immediately (DO sends 'rolling' to others)
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
@@ -1850,7 +1855,23 @@ function initPlayerFromSession() {
   }
 
   broadcastState('joined');
-  startBetPhase();
+  // Don't start bet phase yet — show welcome, then auto-start timer after 3s
+  dealerSay("Bet on the pass line to begin!", 'neutral');
+  setTimeout(() => {
+    startBetPhase();
+    // Auto-trigger bet timer so it counts down even before first bet
+    if (!betTimerStarted) {
+      betTimerStarted = true;
+      const multi = getRemotePlayerCount() > 0;
+      const betTime = multi ? 20 : 15;
+      startTimer(betTime, 'PLACE BETS', () => {
+        turnPhase = 'no-more-bets';
+        betsLocked = true;
+        showNoMoreBets();
+        setTimeout(() => { startRollPhase(); }, 1500);
+      });
+    }
+  }, 3000);
 }
 
 // ── Player Panel Helpers ──
@@ -2072,6 +2093,10 @@ function handleWsMessage(data) {
       if (!isLocalShooter()) {
         STATE.isRolling = true;
         betsLocked = true;
+        // Announce point during roll for non-shooters
+        if (STATE.phase === 'point' && STATE.point) {
+          dealerSay(`Point is ${STATE.point}, looking for a ${STATE.point}!`, 'neutral');
+        }
         const die1El = document.getElementById('die1');
         const die2El = document.getElementById('die2');
         die1El.classList.remove('settled');
@@ -2113,16 +2138,19 @@ function handleWsMessage(data) {
     case 'phase-update': {
       STATE.phase = data.phase || 'comeout';
       STATE.point = data.point || null;
-      if (STATE.phase === 'point' && STATE.point) {
-        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-        document.getElementById('puck').classList.add('on-glow');
-        document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-        movePuckToPoint(STATE.point);
-      } else {
-        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-        document.getElementById('puck').classList.remove('on-glow');
-        document.getElementById('pointDisplay').textContent = '';
-        resetPuckPosition();
+      // Don't move puck while dice are rolling — handleRollResult will do it
+      if (!STATE.isRolling) {
+        if (STATE.phase === 'point' && STATE.point) {
+          document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+          document.getElementById('puck').classList.add('on-glow');
+          document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+          movePuckToPoint(STATE.point);
+        } else {
+          document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+          document.getElementById('puck').classList.remove('on-glow');
+          document.getElementById('pointDisplay').textContent = '';
+          resetPuckPosition();
+        }
       }
       break;
     }
