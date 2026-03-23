@@ -698,7 +698,8 @@
 <div class="game-header">
   <div class="header-left">
     <div id="nav-placeholder"></div>
-    <button class="header-action-btn" id="headerActionBtn" onclick="headerAction()">CLEAR / CASH OUT</button>
+    <button class="header-action-btn" id="clearBetsBtn" onclick="clearBets()">CLEAR</button>
+    <button class="header-action-btn cashout-mode" id="cashOutBtn" onclick="cashOut()">CASH OUT</button>
   </div>
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
 </div>
@@ -1165,30 +1166,9 @@ function updateLocalPlayerUI() {
   updateHeaderButton();
 }
 
-function hasNonPassBets() {
-  for (const zone of Object.keys(STATE.bets)) {
-    if (zone !== 'pass' && STATE.bets[zone] > 0) return true;
-  }
-  return false;
-}
-
-function updateHeaderButton() {
-  const btn = document.getElementById('headerActionBtn');
-  if (!btn) return;
-  if (hasNonPassBets()) {
-    btn.classList.remove('cashout-mode');
-  } else {
-    btn.classList.add('cashout-mode');
-  }
-}
-
-function headerAction() {
-  if (hasNonPassBets()) {
-    clearBets();
-  } else {
-    cashOut();
-  }
-}
+// No-ops for removed toggle logic — kept in case referenced elsewhere
+function updateHeaderButton() {}
+function headerAction() {}
 
 // ── Shooter Rotation ──
 // Shooter is tracked server-side by playerId. Each client resolves it to a local seat.
