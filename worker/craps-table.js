@@ -137,6 +137,17 @@ export class CrapsTable {
       await this.state.storage.put('shooter', shooter);
     }
 
+    // If this is the only player (empty table), reset game to comeout
+    const otherSockets = this.state.getWebSockets().filter(w => {
+      try { const a = w.deserializeAttachment(); return a && a.playerId && a.playerId !== playerId; }
+      catch (_) { return false; }
+    });
+    if (otherSockets.length === 0) {
+      await this.state.storage.put('game', {
+        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
+      });
+    }
+
     // Send init with current game state
     const game = await this._getGame();
     const players = await this._getPlayerListPublic();
