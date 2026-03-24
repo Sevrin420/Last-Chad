@@ -1438,12 +1438,12 @@ function rollDice() {
     let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _lastFace1);
     _lastFace1 = v;
     renderDie(document.getElementById('face1'), v);
-  }, 100);
+  }, 300);
   window._rollCycleInterval2 = setInterval(() => {
     let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _lastFace2);
     _lastFace2 = v;
     renderDie(document.getElementById('face2'), v);
-  }, 100);
+  }, 300);
 
   // Tell the DO to roll — result comes back via WS 'roll-result'
   wsSend({ type: 'roll' });
@@ -2151,7 +2151,7 @@ function handleWsMessage(data) {
           _rLast1 = v1; _rLast2 = v2;
           renderDie(document.getElementById('face1'), v1);
           renderDie(document.getElementById('face2'), v2);
-        }, 100);
+        }, 300);
         // Safety: if roll-result never arrives, stop spinning after 15s
         if (window._rollingSafetyTimeout) clearTimeout(window._rollingSafetyTimeout);
         window._rollingSafetyTimeout = setTimeout(() => {
