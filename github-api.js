@@ -5,7 +5,7 @@
 
 class GitHubAPI {
   constructor(token, owner, repo, branch = 'main') {
-    this.token = token;
+    this.token = (token || '').trim();
     this.owner = owner;
     this.repo = repo;
     this.branch = branch;

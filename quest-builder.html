@@ -1876,9 +1876,9 @@
       if (!confirmed) return;
 
       // Get GitHub token from localStorage or prompt user
-      let token = localStorage.getItem('githubToken');
+      let token = (localStorage.getItem('githubToken') || '').trim();
       if (!token) {
-        token = prompt('Enter your GitHub Personal Access Token (stored in browser):\n\nGet one at: https://github.com/settings/tokens?type=beta');
+        token = (prompt('Enter your GitHub Personal Access Token (stored in browser):\n\nGet one at: https://github.com/settings/tokens?type=beta') || '').trim();
         if (!token) return;
         localStorage.setItem('githubToken', token);
       }
