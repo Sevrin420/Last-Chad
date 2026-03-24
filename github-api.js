@@ -468,11 +468,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
               <div class="hud-stat-box"><div class="hud-stat-label">CHA</div><div class="hud-stat-value" id="hudCha_${sid}">—</div></div>
             </div>
           </div>
-          <div class="hud-cells-row" id="hudCellsRow_${sid}" style="display:flex;gap:8px;justify-content:center;margin-top:8px;width:100%;">
-            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">LVL</div><div class="hud-stat-value" id="hudLvl_${sid}">—</div></div>
-            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">OPEN</div><div class="hud-stat-value" id="hudOpen_${sid}">—</div></div>
-            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">LOCKED</div><div class="hud-stat-value" id="hudClosed_${sid}">—</div></div>
-          </div>
           <div class="hud-items-row" id="hudItemsRow_${sid}">
             <div class="hud-item-label">EQUIPPED</div>
           </div>
@@ -747,18 +742,15 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .hud-stats-panel {
       display: flex;
-      flex-direction: row;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 4px;
       flex: 1;
-      align-content: flex-start;
       padding-top: 4px;
     }
     .hud-stat-box {
       background: url('https://lastchad.xyz/assets/stat-frame.png') center/100% 100% no-repeat;
       padding: 12px 8px;
       text-align: center;
-      flex: 1 1 calc(50% - 4px);
       min-width: 0;
       box-sizing: border-box;
     }
