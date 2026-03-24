@@ -15,7 +15,7 @@
  *   { type: 'auth',       nonce, sessionToken }
  *   { type: 'bet',        zone, amount }
  *   { type: 'clear-bets' }
- *   { type: 'roll',       manual }         ← manual=true if player clicked dice
+ *   { type: 'roll' }
  *   { type: 'press',      zone }
  *   { type: 'pass-dice' }
  *   { type: 'chat',       text }
@@ -397,9 +397,6 @@ export class CrapsTable {
           break;
         }
 
-        // Track whether shooter manually clicked roll vs auto-timer
-        const wasManualRoll = !!data.manual;
-
         // Lock rolling & record activity
         game.rolling = true;
         await this.state.storage.put('game', game);
@@ -497,15 +494,6 @@ export class CrapsTable {
         // Seven-out: was in point phase and rolled a 7 → rotate shooter
         if (wasPointPhase && total === 7) {
           await this._advanceShooter(playerId);
-        }
-
-        // AFK detection: shooter didn't manually click roll → kick after roll resolves
-        // Only in multiplayer — solo auto-roll is normal
-        if (!wasManualRoll) {
-          const remainingPlayers = await this.state.storage.list({ prefix: 'player:' });
-          if (remainingPlayers.size > 1) {
-            await this._kickPlayer(ws, playerId, attachment.nonce, 'AFK — removed from table');
-          }
         }
 
         break;
