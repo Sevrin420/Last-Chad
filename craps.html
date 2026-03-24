@@ -1504,7 +1504,8 @@ async function handleRollResult(data) {
     settleRollImmediate(data);
   } else {
     // ── Dice animation (only when tab is visible) ──
-    killSpinIntervals();
+    // Clear safety timeout but keep pip-cycling intervals alive during spin
+    if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
     const die1El = document.getElementById('die1');
     const die2El = document.getElementById('die2');
 
@@ -1520,6 +1521,8 @@ async function handleRollResult(data) {
     // Staggered settle: die1 first, die2 after delay
     await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
     if (_rollSeq !== mySeq) return;
+    // Kill pip cycling now that dice are about to settle
+    killSpinIntervals();
     STATE.dice = [d1, d2];
     renderDie(document.getElementById('face1'), d1);
     die1El.classList.remove('rolling');
