@@ -40,9 +40,9 @@
       top: 56px;
       transition: max-height 0.6s ease, top 0.6s ease, bottom 0.6s ease, opacity 1.2s ease;
     }
-    /* When image shrinks, expand dialogue box into freed space */
+    /* When image shrinks, expand dialogue box to sit right under the portrait */
     body.portrait-shrunk #dialogue-box {
-      height: 54vh;
+      height: calc(100vh - 25vh - 56px);
       transition: height 0.6s ease, opacity 0.8s ease, transform 0.8s ease;
     }
 
