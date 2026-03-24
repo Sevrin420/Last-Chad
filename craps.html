@@ -935,8 +935,14 @@ const PLAYER_COLORS = ['#4caf50','#42a5f5','#ab47bc','#ef5350'];
 
 const crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null');
 
+// Gate: must enter through gamble.html (which sets craps_session)
+if (!crapsSession) {
+  window.location.href = 'gamble.html';
+  throw new Error('No craps session — redirecting to Gamble Den');
+}
+
 const STATE = {
-  stack: crapsSession ? crapsSession.stack : 0,
+  stack: crapsSession.stack,
   selectedChip: 1,
   bets: {},
   remoteBets: {},
@@ -946,14 +952,14 @@ const STATE = {
   dice: [5, 5],
   isRolling: false,
   playerName: 'Player',
-  nftName: crapsSession ? (crapsSession.chadName || 'Chad #' + crapsSession.tokenId) : '',
-  playerId: crapsSession ? (crapsSession.player + '-' + crapsSession.tokenId) : ('anon-' + Math.random().toString(36).slice(2)),
-  chadId: crapsSession ? crapsSession.tokenId : null,
+  nftName: crapsSession.chadName || 'Chad #' + crapsSession.tokenId,
+  playerId: crapsSession.player + '-' + crapsSession.tokenId,
+  chadId: crapsSession.tokenId,
   seat: 0,
-  nonce: crapsSession ? crapsSession.nonce : null,
-  sessionToken: crapsSession ? crapsSession.sessionToken : null,
-  tokenId: crapsSession ? crapsSession.tokenId : null,
-  player: crapsSession ? crapsSession.player : null,
+  nonce: crapsSession.nonce,
+  sessionToken: crapsSession.sessionToken,
+  tokenId: crapsSession.tokenId,
+  player: crapsSession.player,
   buyIn: crapsSession ? crapsSession.buyIn : 0,
 };
 
@@ -1848,11 +1854,7 @@ function exitTable() {
 
 // ── Wallet ──
 function connectWallet() {
-  if (STATE.player) {
-    initPlayerFromSession();
-  } else {
-    dealerSay("Start a game from the Gamble Den first!", 'neutral');
-  }
+  initPlayerFromSession();
 }
 
 function initPlayerFromSession() {
