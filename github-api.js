@@ -147,20 +147,16 @@ class GitHubAPI {
       // Get the commit tree
       progress('Fetching commit tree...');
       const commit = await this.getCommit(latestCommitSha);
-      const treeData = await this.getTree(commit.tree.sha, true);
+      const baseTreeSha = commit.tree.sha;
+      const treeData = await this.getTree(baseTreeSha, true);
       console.log(`✓ Tree fetched with ${treeData.tree.length} existing items`);
 
-      // Prepare tree items
-      const treeItems = treeData.tree.map(item => ({
-        path: item.path,
-        mode: item.mode,
-        type: item.type,
-        sha: item.sha
-      }));
+      // Only track NEW/CHANGED files — base_tree handles the rest
+      const treeItems = [];
 
       // Read quest index first to assign a stable on-chain questId
       progress('Updating quest manifest...');
-      const indexJsonItem = treeItems.find(item => item.path === 'quests/index.json');
+      const indexJsonItem = treeData.tree.find(item => item.path === 'quests/index.json');
       let questIndex = [];
       if (indexJsonItem && indexJsonItem.sha) {
         try {
@@ -179,8 +175,6 @@ class GitHubAPI {
         questIndex.push({ name: questName, slug: sanitized, questId });
       }
       const indexBlob = await this.createBlob(JSON.stringify(questIndex, null, 2), 'utf-8');
-      const indexIdx = treeItems.findIndex(item => item.path === 'quests/index.json');
-      if (indexIdx !== -1) treeItems.splice(indexIdx, 1);
       treeItems.push({
         path: 'quests/index.json',
         mode: '100644',
@@ -276,7 +270,7 @@ class GitHubAPI {
 
       // Create new tree
       progress(`Building file tree (${treeItems.length} files)...`);
-      const newTree = await this.createTree(treeItems, commit.tree.sha);
+      const newTree = await this.createTree(treeItems, baseTreeSha);
       console.log(`✓ Tree created: ${newTree.sha.substring(0, 7)}`);
 
       // Create commit
