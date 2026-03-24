@@ -34,7 +34,6 @@
       backdrop-filter:blur(8px);height:40px;
     }
     .header-left{display:flex;align-items:center;gap:10px}
-    .header-title{font-size:0.5rem;color:#4caf50;text-shadow:0 0 10px rgba(76,175,80,0.4);display:none}
     .header-action-btn{
       font-family:'Press Start 2P',monospace;font-size:0.35rem;
       padding:6px 12px;border-radius:5px;cursor:pointer;
@@ -497,7 +496,6 @@
 
 
     /* ── Chat Box ── */
-    /* ── Chat Box ── */
     .chat-box{
       flex:0 0 180px;height:180px;
       display:flex;flex-direction:column;
@@ -526,13 +524,6 @@
     .chat-send{
       font-family:'Press Start 2P',monospace;font-size:0.9rem;
       padding:9px 18px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
-    }
-
-    .controls{display:flex;gap:4px;margin-left:auto;align-items:center}
-    .ctrl-btn{
-      font-family:'Press Start 2P',monospace;font-size:0.3rem;
-      padding:7px 10px;border-radius:5px;cursor:pointer;
-      border:2px solid;transition:all 0.2s;
     }
 
     /* ── Result Toast ── */
@@ -688,7 +679,6 @@
 
     /* ── Responsive (mobile) ── */
     @media(max-width:600px){
-      .dealer-row{flex-wrap:wrap;gap:4px}
       .bet-zone:hover .zone-label{font-size:0.2rem}
       .bet-zone:hover .zone-payout{font-size:0.12rem}
       .remote-name{font-size:0.16rem}
@@ -907,10 +897,6 @@
     </div>
   </div>
 
-  <!-- BOTTOM ROW (test button only) -->
-  <div style="display:none" id="bottomRow">
-    <div id="pointDisplay"></div>
-  </div>
 
 </div><!-- /table-wrapper -->
 
@@ -1000,9 +986,6 @@ function renderDie(faceEl, value) {
   }
 }
 
-renderDie(document.getElementById('face1'), 5);
-renderDie(document.getElementById('face2'), 5);
-
 // ── Chip Selection ──
 function selectChip(value) {
   STATE.selectedChip = value;
@@ -1035,17 +1018,6 @@ async function placeBet(zone) {
   updateLocalPlayerUI();
   // Send to DO for authoritative validation
   wsSend({ type: 'bet', zone, amount });
-  onFirstBet();
-}
-
-function formatBetName(zone) {
-  const names = {
-    pass:'PASS LINE', field:'FIELD',
-    place4:'PLACE 4', place5:'PLACE 5', place6:'PLACE 6',
-    place8:'PLACE 8', place9:'PLACE 9', place10:'PLACE 10',
-    hard4:'HARD 4', hard6:'HARD 6', hard8:'HARD 8', hard10:'HARD 10'
-  };
-  return names[zone] || zone.toUpperCase();
 }
 
 function movePuckToPoint(point) {
@@ -1070,6 +1042,53 @@ function resetPuckPosition() {
   puck.style.left = '';
   puck.style.top = '2%';
   puck.style.right = '10px';
+}
+
+function syncPuck() {
+  if (STATE.phase === 'point' && STATE.point) {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+    document.getElementById('puck').classList.add('on-glow');
+    movePuckToPoint(STATE.point);
+  } else {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+    document.getElementById('puck').classList.remove('on-glow');
+    resetPuckPosition();
+  }
+}
+
+function killSpinIntervals() {
+  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+  if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
+}
+
+function startDiceSpin() {
+  const die1El = document.getElementById('die1');
+  const die2El = document.getElementById('die2');
+  die1El.classList.remove('settled');
+  die2El.classList.remove('settled');
+  die1El.classList.add('rolling');
+  die2El.classList.add('rolling');
+  killSpinIntervals();
+  let _last1 = 0, _last2 = 0;
+  window._rollCycleInterval1 = setInterval(() => {
+    let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _last1);
+    _last1 = v;
+    renderDie(document.getElementById('face1'), v);
+  }, 300);
+  window._rollCycleInterval2 = setInterval(() => {
+    let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _last2);
+    _last2 = v;
+    renderDie(document.getElementById('face2'), v);
+  }, 300);
+  window._rollingSafetyTimeout = setTimeout(() => {
+    killSpinIntervals();
+    die1El.classList.remove('rolling'); die1El.classList.add('settled');
+    die2El.classList.remove('rolling'); die2El.classList.add('settled');
+    STATE.isRolling = false;
+    document.getElementById('tableDice').classList.remove('locked');
+    startBetPhase();
+  }, 15000);
 }
 
 function renderAllBetChips() {
@@ -1169,7 +1188,6 @@ function clearBets() {
     dealerSay("Pass line bets are locked — can't be removed.", 'neutral');
     return;
   }
-  STATE._pendingBets = {};
   renderAllBetChips();
   updateLocalPlayerUI();
   wsSend({ type: 'clear-bets' });
@@ -1178,12 +1196,7 @@ function clearBets() {
 function updateLocalPlayerUI() {
   const tableStack = document.getElementById('tableStackDisplay');
   if (tableStack) tableStack.textContent = STATE.stack;
-  updateHeaderButton();
 }
-
-// No-ops for removed toggle logic — kept in case referenced elsewhere
-function updateHeaderButton() {}
-function headerAction() {}
 
 // ── Shooter Rotation ──
 // Shooter is tracked server-side by playerId. Each client resolves it to a local seat.
@@ -1247,15 +1260,12 @@ function advanceShooterOnServer() {
 
 // ── Turn Phase System ──
 // Solo: no bet timer, no auto-roll. Multi: 20s bets, 10s auto-roll.
-let turnTimer = null;
 let turnPhase = 'betting';
 let betsLocked = false;
-let betTimerStarted = false;
 
 function startBetPhase() {
   turnPhase = 'betting';
   betsLocked = false;
-  betTimerStarted = false;
   clearPressButtons();
   const diceEl = document.getElementById('tableDice');
   diceEl.classList.remove('can-roll');
@@ -1275,8 +1285,6 @@ function startBetPhase() {
     dealerSay("Place your bets!", 'neutral');
   }
   renderAllBetChips();
-  // Auto-start bet timer
-  betTimerStarted = true;
   const multi = getRemotePlayerCount() > 0;
   const betTime = multi ? 20 : 15;
   startTimer(betTime, 'PLACE BETS', onBetTimerExpired);
@@ -1313,11 +1321,6 @@ function onBetTimerExpired() {
   betsLocked = true;
   showNoMoreBets();
   setTimeout(() => { startRollPhase(); }, 1500);
-}
-
-function onFirstBet() {
-  // No longer needed for timer start (auto-started in startBetPhase),
-  // but kept for any future per-bet hooks.
 }
 
 function showNoMoreBets() {
@@ -1386,7 +1389,6 @@ function clearTimer() {
   if (_timerRAF) { cancelAnimationFrame(_timerRAF); _timerRAF = null; }
   if (_timerBackup) { clearTimeout(_timerBackup); _timerBackup = null; }
   _timerTick = null;
-  turnTimer = null;
 }
 
 // ── Tab-away protection: skip/fast-forward roll animations ──
@@ -1395,14 +1397,9 @@ let _pendingRollData = null; // latest roll-result for fast-forward on tab retur
 
 // Immediately settle dice + UI to the latest roll state
 function settleRollImmediate(data) {
-  // Kill all spin intervals & safety timeouts
-  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
-  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
-  if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
-  if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
+  killSpinIntervals();
   if (window._pressTimeout) { clearTimeout(window._pressTimeout); window._pressTimeout = null; }
 
-  // Settle dice
   const [d1, d2] = data.dice;
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
@@ -1412,20 +1409,7 @@ function settleRollImmediate(data) {
   die2El.classList.remove('rolling'); die2El.classList.add('settled');
   STATE.dice = [d1, d2];
 
-  // Puck
-  if (STATE.phase === 'point' && STATE.point) {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-    document.getElementById('puck').classList.add('on-glow');
-    document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-    movePuckToPoint(STATE.point);
-  } else {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-    document.getElementById('puck').classList.remove('on-glow');
-    document.getElementById('pointDisplay').textContent = '';
-    resetPuckPosition();
-  }
-
-  // Chips & UI
+  syncPuck();
   renderAllBetChips();
   updateLocalPlayerUI();
   document.querySelectorAll('.win-flash,.lose-flash').forEach(el => {
@@ -1482,41 +1466,8 @@ function rollDice() {
     dealerSay(`Point is ${STATE.point}, looking for a ${STATE.point}!`, 'neutral');
   }
 
-  // Start local spin animation immediately (DO sends 'rolling' to others)
-  const die1El = document.getElementById('die1');
-  const die2El = document.getElementById('die2');
-  die1El.classList.remove('settled');
-  die2El.classList.remove('settled');
-  die1El.classList.add('rolling');
-  die2El.classList.add('rolling');
-  let _lastFace1 = 0, _lastFace2 = 0;
-  window._rollCycleInterval1 = setInterval(() => {
-    let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _lastFace1);
-    _lastFace1 = v;
-    renderDie(document.getElementById('face1'), v);
-  }, 300);
-  window._rollCycleInterval2 = setInterval(() => {
-    let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _lastFace2);
-    _lastFace2 = v;
-    renderDie(document.getElementById('face2'), v);
-  }, 300);
-
-  // Tell the DO to roll — result comes back via WS 'roll-result'
+  startDiceSpin();
   wsSend({ type: 'roll' });
-
-  // Safety: if roll-result never arrives, stop spinning after 15s
-  if (window._rollingSafetyTimeout) clearTimeout(window._rollingSafetyTimeout);
-  window._rollingSafetyTimeout = setTimeout(() => {
-    if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
-    if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
-    const d1 = document.getElementById('die1');
-    const d2 = document.getElementById('die2');
-    d1.classList.remove('rolling'); d1.classList.add('settled');
-    d2.classList.remove('rolling'); d2.classList.add('settled');
-    STATE.isRolling = false;
-    document.getElementById('tableDice').classList.remove('locked');
-    startBetPhase();
-  }, 15000);
 }
 
 // Called by WS handler when DO sends personalized 'roll-result' to this player
@@ -1551,17 +1502,12 @@ async function handleRollResult(data) {
   _pendingRollData = data;
   const mySeq = ++_rollSeq;
 
-  // If tab is hidden (multiplayer rolls while away), skip animation entirely
+  // If tab is hidden, skip animation entirely
   if (document.hidden) {
     settleRollImmediate(data);
-    // Still run announcer/toast below, they're lightweight
   } else {
     // ── Dice animation (only when tab is visible) ──
-    // Stop spin intervals
-    if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
-    if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
-    if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
-
+    killSpinIntervals();
     const die1El = document.getElementById('die1');
     const die2El = document.getElementById('die2');
 
@@ -1576,34 +1522,19 @@ async function handleRollResult(data) {
 
     // Staggered settle: die1 first, die2 after delay
     await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
-    if (_rollSeq !== mySeq) return;  // superseded by newer roll or visibility fast-forward
-    if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+    if (_rollSeq !== mySeq) return;
     STATE.dice = [d1, d2];
     renderDie(document.getElementById('face1'), d1);
     die1El.classList.remove('rolling');
     die1El.classList.add('settled');
 
     await new Promise(r => setTimeout(r, 2400));
-    if (_rollSeq !== mySeq) return;  // superseded by newer roll or visibility fast-forward
-    if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+    if (_rollSeq !== mySeq) return;
     renderDie(document.getElementById('face2'), d2);
     die2El.classList.remove('rolling');
     die2El.classList.add('settled');
 
-    // ── Dice have settled — now move puck and update visual state ──
-    if (STATE.phase === 'point' && STATE.point) {
-      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-      document.getElementById('puck').classList.add('on-glow');
-      document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-      movePuckToPoint(STATE.point);
-    } else {
-      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-      document.getElementById('puck').classList.remove('on-glow');
-      document.getElementById('pointDisplay').textContent = '';
-      resetPuckPosition();
-    }
-
-    // Update bet chips after dice settle
+    syncPuck();
     renderAllBetChips();
     updateLocalPlayerUI();
   }
@@ -1807,13 +1738,6 @@ function dealerSay(text, mood) {
   }, 6000);
 }
 
-function getWinQuip() {
-  return ["Winner winner!","Hot dice!","Pay the man!","Keep 'em coming!","Lucky roll!"][Math.floor(Math.random()*5)];
-}
-function getLoseQuip() {
-  return ["House wins.","Tough break.","That's craps.","Dice are cold.","Better luck next roll."][Math.floor(Math.random()*5)];
-}
-
 // ── Toast ──
 function showToast(text, type, sub) {
   const el = document.getElementById('resultToast');
@@ -1845,7 +1769,7 @@ function sendChat() {
   const text = input.value.trim();
   if (!text) return;
   addChatMsg('chat', text, STATE.nftName || STATE.playerName, 0);
-  broadcastMessage({ type:'chat', name:STATE.nftName||STATE.playerName, text, seat:0 });
+  wsSend({ type: 'chat', text });
   input.value = '';
 }
 
@@ -1909,7 +1833,6 @@ async function cashOut() {
     STATE.bets = {};
     STATE.stack = 0;
     renderAllBetChips();
-    broadcastState('cashed out');
     setTimeout(() => { window.location.href = 'chadbase.html'; }, 2000);
 
   } catch (err) {
@@ -1960,7 +1883,6 @@ function initPlayerFromSession() {
 
   dealerSay("Welcome! Place your bets.", 'happy');
 
-  broadcastState('joined');
   // Don't start bet phase yet — show welcome, then auto-start after 3s
   dealerSay("Bet on the pass line to begin!", 'neutral');
   setTimeout(() => {
@@ -1985,27 +1907,19 @@ function setPlayerName(seat, nftName) {
   if (el) el.textContent = nftName || 'Unknown';
 }
 
-function setPlayerStack(seat, stack) {
-  const el = document.getElementById('stack-' + seat);
-  if (el) el.textContent = stack + ' chips';
-}
-
 function clearPlayerPanel(seat) {
   if (seat > 0) {
     const slot = document.getElementById('slot-' + seat);
     if (slot) { slot.classList.add('empty'); slot.classList.remove('occupied'); }
   }
   setPlayerName(seat, 'Waiting');
-  const stack = document.getElementById('stack-' + seat);
-  if (stack) stack.textContent = '';
 }
 
 
 // ── Multiplayer State Sync (WebSocket) ──
 
-let _tableWs = null;        // WebSocket connection to Durable Object
+let _tableWs = null;
 let _wsReconnectTimer = null;
-let _remoteCycleInterval = null;
 
 function wsUrl(table) {
   // Convert REST worker URL to WebSocket URL
@@ -2021,11 +1935,6 @@ function wsSend(data) {
     _tableWs.send(JSON.stringify(data));
   }
 }
-
-// broadcastState/broadcastRolling are now handled by the DO.
-// Keep as no-ops for any remaining call sites.
-function broadcastState(extra) {}
-function broadcastRolling() {}
 
 function connectTable(tableCode) {
   if (_tableWs) {
@@ -2139,7 +2048,6 @@ function handleWsMessage(data) {
         if (remotePlayers[s].uid === data.playerId) {
           if (data.stack !== undefined) {
             remotePlayers[s].stack = data.stack;
-            setPlayerStack(s, data.stack);
           }
           const remoteBetMap = {};
           if (data.bets) Object.assign(remoteBetMap, data.bets);
@@ -2165,18 +2073,7 @@ function handleWsMessage(data) {
       STATE.point = data.point || null;
       updateLocalPlayerUI();
       renderAllBetChips();
-      // Sync puck to server-authoritative phase
-      if (STATE.phase === 'point' && STATE.point) {
-        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-        document.getElementById('puck').classList.add('on-glow');
-        document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-        movePuckToPoint(STATE.point);
-      } else {
-        document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-        document.getElementById('puck').classList.remove('on-glow');
-        document.getElementById('pointDisplay').textContent = '';
-        resetPuckPosition();
-      }
+      syncPuck();
       break;
     }
 
@@ -2185,7 +2082,6 @@ function handleWsMessage(data) {
       // Sync authoritative state from DO
       STATE.stack = data.stack;
       STATE.bets = data.bets || {};
-      if (data.comeBets) STATE.comeBets = data.comeBets;
       renderAllBetChips();
       updateLocalPlayerUI();
       break;
@@ -2204,37 +2100,11 @@ function handleWsMessage(data) {
       if (!isLocalShooter()) {
         STATE.isRolling = true;
         betsLocked = true;
-        // Skip spin animation if tab is hidden — roll-result will settle immediately
-        if (document.hidden) break;
-        // Announce point during roll for non-shooters
+        if (document.hidden) break; // roll-result will settle immediately
         if (STATE.phase === 'point' && STATE.point) {
           dealerSay(`Point is ${STATE.point}, looking for a ${STATE.point}!`, 'neutral');
         }
-        const die1El = document.getElementById('die1');
-        const die2El = document.getElementById('die2');
-        die1El.classList.remove('settled');
-        die2El.classList.remove('settled');
-        die1El.classList.add('rolling');
-        die2El.classList.add('rolling');
-        if (_remoteCycleInterval) clearInterval(_remoteCycleInterval);
-        let _rLast1 = 0, _rLast2 = 0;
-        _remoteCycleInterval = setInterval(() => {
-          let v1; do { v1 = Math.floor(Math.random()*6)+1; } while (v1 === _rLast1);
-          let v2; do { v2 = Math.floor(Math.random()*6)+1; } while (v2 === _rLast2);
-          _rLast1 = v1; _rLast2 = v2;
-          renderDie(document.getElementById('face1'), v1);
-          renderDie(document.getElementById('face2'), v2);
-        }, 300);
-        // Safety: if roll-result never arrives, stop spinning after 15s
-        if (window._rollingSafetyTimeout) clearTimeout(window._rollingSafetyTimeout);
-        window._rollingSafetyTimeout = setTimeout(() => {
-          if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
-          die1El.classList.remove('rolling'); die1El.classList.add('settled');
-          die2El.classList.remove('rolling'); die2El.classList.add('settled');
-          STATE.isRolling = false;
-          betsLocked = false;
-          startBetPhase();
-        }, 15000);
+        startDiceSpin();
       }
       break;
     }
@@ -2251,20 +2121,7 @@ function handleWsMessage(data) {
     case 'phase-update': {
       STATE.phase = data.phase || 'comeout';
       STATE.point = data.point || null;
-      // Don't move puck while dice are rolling — handleRollResult will do it
-      if (!STATE.isRolling) {
-        if (STATE.phase === 'point' && STATE.point) {
-          document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-          document.getElementById('puck').classList.add('on-glow');
-          document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-          movePuckToPoint(STATE.point);
-        } else {
-          document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-          document.getElementById('puck').classList.remove('on-glow');
-          document.getElementById('pointDisplay').textContent = '';
-          resetPuckPosition();
-        }
-      }
+      if (!STATE.isRolling) syncPuck();
       break;
     }
 
@@ -2318,7 +2175,6 @@ function _seatPlayer(p) {
       remotePlayers[s].nftName = p.name;
       remotePlayers[s].stack = p.stack || 0;
       setPlayerName(s, p.name);
-      setPlayerStack(s, p.stack || 0);
       if (p.chadId) { remotePlayers[s].chadId = p.chadId; setChadPortrait(s, p.chadId); }
       return;
     }
@@ -2332,18 +2188,12 @@ function _seatPlayer(p) {
       remotePlayers[s].stack = p.stack || 0;
       setChadPortrait(s, p.chadId);
       setPlayerName(s, p.name);
-      setPlayerStack(s, p.stack || 0);
       const remoteBetMap = {};
       if (p.bets) Object.assign(remoteBetMap, p.bets);
       STATE.remoteBets[s] = remoteBetMap;
       return;
     }
   }
-}
-
-function broadcastMessage(msg) {
-  if (!currentTableCode || !msg) return;
-  wsSend({ type: 'chat', text: msg.text || '' });
 }
 
 // ===================================================================
@@ -2473,7 +2323,6 @@ window.connectWallet = connectWallet;
 window.placeBet = placeBet;
 window.selectChip = selectChip;
 window.clearBets = clearBets;
-window.headerAction = headerAction;
 window.sendChat = sendChat;
 window.joinPublicTable = joinPublicTable;
 window.createPrivateTable = createPrivateTable;
