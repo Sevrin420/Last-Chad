@@ -2837,11 +2837,46 @@ ${diceInitJs}
       var workerCells = null;
       var workerSig = null;
       if (WORKER_URL && chadId) {
+        _setText(statusEl, 'SYNCING CELLS...');
+        try {
+          // Final reconciliation: replay ALL tracked XP sources to the worker before /session/win.
+          // The worker deduplicates by sectionId, so replaying is always safe and ensures
+          // nothing was lost from earlier fire-and-forget calls.
+          var _replayPromises = [];
+          Object.keys(_visitedSections).forEach(function(sid) {
+            if (sectionXpMap[sid] !== undefined) {
+              _replayPromises.push(
+                fetch(WORKER_URL + '/session/visit-section', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: sid, sectionXp: sectionXpMap[sid] }),
+                }).catch(function() {})
+              );
+            }
+          });
+          Object.keys(_runnerScores).forEach(function(sid) {
+            _replayPromises.push(
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'runner_' + sid, sectionXp: _runnerScores[sid] }),
+              }).catch(function() {})
+            );
+          });
+          Object.keys(_scoredDiceSections).forEach(function(sid) {
+            _replayPromises.push(
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'dice_' + sid, sectionXp: _scoredDiceSections[sid] }),
+              }).catch(function() {})
+            );
+          });
+          await Promise.all(_replayPromises);
+        } catch(e) { /* reconciliation failed — proceed with whatever worker has */ }
+
         _setText(statusEl, 'CALCULATING CELLS...');
         try {
-          // All XP sources (sections, runner, dice cargo) are already accumulated in the worker
-          // via /session/visit-section calls made in real-time as they were earned.
-          // Send diceXP: 0 — the worker just adds stat bonus once and returns the signed total.
           var winResp = await fetch(WORKER_URL + '/session/win', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
