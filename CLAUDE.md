@@ -67,10 +67,11 @@ At the start of each new session, ask the user: **"Are you working on `update.md
 - Item #1: "Cindy's Code" (500 supply, free, non-stackable)
 
 **QuestRewards.sol**
-- `startQuest()` → generates keccak256 seed
-- `completeQuest()` → dice rolls, XP calculation, awards via LastChad
-- 1-hour session timeout, 1 attempt per quest per token
-- XP = choiceBonus1 + diceScore + choiceBonus2 + dexBonus
+- `startQuest()` → generates keccak256 seed, sets `isActive` flag (no escrow — NFT stays in wallet)
+- `completeQuest()` → oracle-signed cell reward, clears `isActive`
+- 1-hour session timeout, 30-day cooldown between same quest attempts (configurable)
+- Cells = sectionCells + diceCargo + statBonus (computed by Cloudflare Worker, signed by oracle)
+- Arcade sessions for minigame death/survival with death rate limiter
 
 ### Tests (`/test`)
 
@@ -124,12 +125,14 @@ At the start of each new session, ask the user: **"Are you working on `update.md
 - If any missing: XP = 0
 - Deterministic: same seed + same kept dice = same score
 
-### XP Formula
+### Cell Reward Formula
 ```
-XP = choiceBonus1 + diceScore + choiceBonus2 + dexBonus
+Cells = sectionCells + diceCargo + statBonus
 ```
-- Choice bonuses: choice1 (1 or 3) + choice2 (2 or 3)
-- dexBonus: 1 dex point ≈ 1 XP bonus
+- `sectionCells`: sum of cells from all visited sections (tracked server-side by worker)
+- `diceCargo`: Ship Captain Crew cargo score (0–12)
+- `statBonus`: character stat value for the dice section's configured stat (fetched from chain by worker)
+- Final amount is signed by the oracle and verified on-chain in `completeQuest`
 
 ### On-Chain Dice — Mandatory
 Dice rolls in quest gameplay always derive from an on-chain keccak256 seed. There is no `Math.random()` fallback in quest pages.
@@ -215,12 +218,13 @@ The item ID must match its ID in `LastChadItems.sol`. Equipped items are saved p
 ### Player Lifecycle (end-to-end)
 
 ```
-1. MINT        mint.html        → LastChad.mint()         → ERC-721 token #1–70
-2. SETUP       mint.html        → LastChad.setStats()     → name + 2 stat points distributed
-3. QUEST       quests/*/        → QuestRewards.startQuest() → NFT locked in escrow
+1. MINT        mint.html        → LastChad.mint()           → ERC-721 token #1–70
+2. SETUP       mint.html        → LastChad.setStats()       → name + 2 stat points distributed
+3. QUEST       quests/*/        → QuestRewards.startQuest() → isActive flag set (NFT stays in wallet)
 4. GAMEPLAY    off-chain (JS)   → dice rolls derived from seed, narrative choices made
-5. RESOLVE     game server      → QuestRewards.completeQuest() → NFT returned + XP awarded
+5. RESOLVE     player claims    → QuestRewards.completeQuest() → oracle-signed cells awarded, isActive cleared
 6. LEVEL UP    stats.html       → LastChad.spendStatPoint()  → player assigns new stat point
+7. ARCADE      arcade minigames → QuestRewards.startArcade() → survive or get eliminated permanently
 ```
 
 ---
@@ -231,10 +235,10 @@ The item ID must match its ID in `LastChadItems.sol`. Equipped items are saved p
 |----------|------|
 | `LastChad.sol` | Source of truth for ownership, stats, XP, levels, cells |
 | `LastChadItems.sol` | ERC-1155 item registry; minting gated by authorized game contracts |
-| `QuestRewards.sol` | Quest escrow + reward dispatcher; the only authorized game contract |
+| `QuestRewards.sol` | Quest session manager + reward dispatcher (no escrow — uses isActive flag) |
 
 **Authorization chain:**
-- `LastChad.setGameContract(questRewardsAddress, true)` → allows `QuestRewards` to call `awardExperience`, `awardCells`, `spendCells`
+- `LastChad.setGameContract(questRewardsAddress, true)` → allows `QuestRewards` to call `awardCells`, `spendCells`, `setActive`, `eliminate`
 - `LastChadItems.setGameContract(questRewardsAddress, true)` → allows `QuestRewards` to call `mintTo`
 - Both authorizations must be set by the owner wallet after deploy
 
@@ -296,12 +300,13 @@ The item ID must match its ID in `LastChadItems.sol`. Equipped items are saved p
 ```
 Player calls startQuest(tokenId, questId)
   → Requires: ownerOf(tokenId) == msg.sender
-  → Requires: !questStarted[tokenId][questId]   ← one attempt per quest per token, ever
-  → Sets:     questStarted[tokenId][questId] = true
-  → Sets:     lockedBy[tokenId] = msg.sender
-  → Transfers: NFT from player → QuestRewards (escrow)
+  → Requires: !eliminated(tokenId)
+  → Requires: !isActive(tokenId)                    ← one quest/arcade at a time
+  → Requires: cooldown elapsed (30 days default)     ← replaces one-attempt-ever
+  → Sets:     lastQuestTime[tokenId][questId] = now
+  → Sets:     isActive(tokenId) = true               ← NFT stays in wallet, just flagged
   → Generates: seed = keccak256(tokenId, questId, block.prevrandao, block.timestamp, msg.sender)
-  → Stores:   QuestSession { seed, questId, startTime, active:true }
+  → Stores:   QuestSession { seed, questId, startTime, active:true, player }
   → Emits:    QuestStarted(tokenId, questId, seed, expiresAt)
 ```
 
@@ -310,54 +315,60 @@ Player calls startQuest(tokenId, questId)
 awardCells(tokenId, amount)   → LastChad.awardCells()   → player gains cells
 awardItem(tokenId, itemId)    → LastChadItems.mintTo()  → player gains ERC-1155 item
 ```
-Both require `lockedBy[tokenId] != address(0)` (NFT must still be locked).
+Both require `session.active` (active quest session).
 
 #### 3. purchaseItem (player, during active session only)
 ```
 Player calls purchaseItem(tokenId, itemId)
-  → Requires: lockedBy[tokenId] == msg.sender        ← must be the quest participant
   → Requires: session.active == true
-  → Requires: block.timestamp <= startTime + 1 hour  ← enforced explicitly
-  → Requires: itemPrices[itemId] > 0                 ← item must be in the quest shop
+  → Requires: session.player == msg.sender            ← must be the quest participant
+  → Requires: block.timestamp <= startTime + 1 hour   ← enforced explicitly
+  → Requires: itemPrices[itemId] > 0                  ← item must be in the quest shop
   → Calls:    LastChad.spendCells(tokenId, cost)
   → Calls:    LastChadItems.mintTo(msg.sender, itemId, 1)
 ```
 
-#### 4a. completeQuest — success (game owner)
+#### 4a. completeQuest — success (player-initiated, oracle-signed)
 ```
-completeQuest(tokenId, questId, xpAmount > 0)
-  → Requires: session.active, correct questId, not expired, not already completed
+Player calls completeQuest(tokenId, questId, cellReward, oracleSig)
+  → Requires: session.active, correct questId, msg.sender == session.player
+  → Requires: block.timestamp <= startTime + 1 hour
+  → Requires: valid oracle signature over (tokenId, questId, player, cellReward)
   → Deletes:  pendingSessions[tokenId]
   → Sets:     questCompleted[tokenId][questId] = true
-  → Deletes:  lockedBy[tokenId]
-  → Transfers: NFT from QuestRewards → original player
-  → Calls:    LastChad.awardExperience(tokenId, xpAmount)
+  → Sets:     isActive(tokenId) = false
+  → Calls:    LastChad.awardCells(tokenId, cellReward)  ← oracle-signed amount
+  → Also awards: bonus cells + item from QuestConfig if configured
   → Emits:    QuestCompleted
 ```
 
-#### 4b. completeQuest — fail (game owner)
+#### 4b. failQuest (game owner)
 ```
-completeQuest(tokenId, questId, xpAmount == 0)
-  → Deletes:  pendingSessions[tokenId]   ← session gone, but lockedBy remains
-  → NFT stays locked in escrow
+failQuest(tokenId, questId)
+  → Deletes:  pendingSessions[tokenId]
+  → Sets:     isActive(tokenId) = false
+  → No rewards, no death
   → Emits:    QuestFailed
-  → Next step: burnLocked (permanent) or releaseLocked (mercy)
 ```
 
-#### 5. burnLocked (game owner — fail outcome)
+#### 5. Arcade Sessions (server-managed minigames)
 ```
-burnLocked(tokenId)
-  → Deletes:  lockedBy[tokenId]
-  → Transfers: NFT → 0x000...dEaD (burned forever)
-  → Emits:    NFTBurned
+startArcade(tokenId, gameType, seed)   ← game owner only
+  → Sets isActive, stores ArcadeSession
+
+confirmSurvival(tokenId)               ← game owner
+  → Clears session, sets isActive = false
+
+confirmDeath(tokenId)                  ← game owner
+  → Clears session, sets isActive = false
+  → Calls LastChad.eliminate(tokenId)   ← permanent elimination
+  → Death rate limiter: max 10 deaths per 60-second window
 ```
 
-#### 6. releaseLocked (game owner — error recovery / mercy)
+#### 6. Emergency release (game owner)
 ```
-releaseLocked(tokenId)
-  → Deletes:  lockedBy[tokenId] + pendingSessions[tokenId]
-  → Transfers: NFT back to original owner
-  → Emits:    NFTReleased
+releaseQuest(tokenId)   → clears pendingSessions, sets isActive = false
+releaseArcade(tokenId)  → clears arcadeSessions, sets isActive = false
 ```
 
 ---
@@ -367,9 +378,11 @@ releaseLocked(tokenId)
 | Rule | Where enforced |
 |------|----------------|
 | 1-hour session window | `completeQuest` and `purchaseItem` both check `block.timestamp <= startTime + 1 hour` |
-| One attempt per quest per token | `questStarted[tokenId][questId]` set before NFT transfer, never cleared |
-| One quest at a time | NFT is in escrow; player can't start another quest with the same token |
-| Shop only while locked | `purchaseItem` requires `lockedBy[tokenId] == msg.sender` |
+| 30-day quest cooldown | `lastQuestTime[tokenId][questId] + questCooldown` checked in `startQuest` (configurable via `setQuestCooldown`) |
+| One quest/arcade at a time | `isActive(tokenId)` flag prevents starting another quest or arcade while one is active |
+| Shop only during active session | `purchaseItem` requires `session.active && session.player == msg.sender` |
+| Oracle-signed rewards | `completeQuest` verifies ECDSA signature from oracle over (tokenId, questId, player, cellReward) |
+| Death rate limiter | Max 10 arcade deaths per 60-second window; auto-pauses if exceeded |
 
 ---
 
@@ -391,14 +404,14 @@ seed = keccak256(abi.encodePacked(tokenId, questId, block.prevrandao, block.time
 - If any missing: cargo score = 0
 - Same seed + same kept dice = same score always (fully deterministic)
 
-**XP formula:**
+**Cell reward formula (computed by Cloudflare Worker):**
 ```
-xpAmount = choiceBonus1 + cargoScore + choiceBonus2 + dexBonus
+finalCells = sectionCellsTotal + diceCargo + statBonus
 ```
-- `choiceBonus1`: story choice at start (e.g. 1 or 3 XP)
-- `cargoScore`: 0–12 from dice
-- `choiceBonus2`: story choice at end (e.g. 2 or 3 XP)
-- `dexBonus`: character's dexterity stat (1 DEX ≈ 1 XP)
+- `sectionCellsTotal`: sum of all visited section cell awards (tracked server-side via `/session/visit-section`)
+- `diceCargo`: cargo score from Ship Captain Crew (0–12), also sent via `/session/visit-section` as `dice_<sectionId>`
+- `statBonus`: character's stat value for the dice section's configured stat bonus (fetched from chain by worker)
+- Worker signs the result with oracle key; `completeQuest` verifies on-chain
 
 ---
 
@@ -407,12 +420,15 @@ xpAmount = choiceBonus1 + cargoScore + choiceBonus2 + dexBonus
 `gameOwner` is set to `msg.sender` at deploy time and is `immutable` — it cannot be changed.
 
 **Powers of gameOwner:**
-- Call `completeQuest`, `awardCells`, `awardItem`, `burnLocked`, `releaseLocked`
-- Set shop item prices via `setItemPrice`
-- Award unlimited XP/cells to any locked token (no cap on-chain)
-- Burn any locked NFT permanently
+- Call `failQuest`, `awardCells`, `awardItem`, `releaseQuest`, `releaseArcade`
+- Start/resolve arcade sessions: `startArcade`, `confirmSurvival`, `confirmDeath`
+- Set shop item prices via `setItemPrice`, quest configs via `setQuestConfig`
+- Set oracle address via `setOracle`, adjust cooldown via `setQuestCooldown`
+- Award unlimited cells to any active-session token (no cap on-chain)
+- Permanently eliminate any token via arcade death (`confirmDeath` → `LastChad.eliminate`)
+- Pause/unpause deaths via `pauseDeaths` / `unpauseDeaths`
 
-**Implication:** The game owner wallet must be secured (hardware wallet recommended). If lost, any currently locked NFTs are permanently stuck.
+**Implication:** The game owner wallet must be secured (hardware wallet recommended). If lost, any currently active sessions are stuck until session expiry.
 
 ---
 
