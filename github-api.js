@@ -54,8 +54,9 @@ class GitHubAPI {
         throw err;
       }
       // Otherwise, it's a network error
-      console.error(`❌ Network Error (${method} ${path}):`, err.message);
-      throw new Error(`Network error: ${err.message}`);
+      console.error(`❌ Network Error (${method} ${path}):`, err.message, err);
+      console.error(`   Token length: ${this.token.length}, starts: ${this.token.substring(0, 8)}...`);
+      throw new Error(`Network error: ${err.message}\n(Request: ${method} ${url})`);
     }
   }
 
