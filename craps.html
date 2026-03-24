@@ -1389,9 +1389,65 @@ function clearTimer() {
   turnTimer = null;
 }
 
-// When tab becomes visible again, immediately catch up the timer
+// ── Visibility change: fast-forward animations when tab returns ──
+let _pendingRollData = null;
+let _rollAnimAborted = false;
+
+function fastForwardRoll() {
+  if (!_pendingRollData || !STATE.isRolling) return;
+  _rollAnimAborted = true;
+  const data = _pendingRollData;
+  _pendingRollData = null;
+
+  // Kill all spin intervals & safety timeouts
+  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+  if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
+  if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
+  if (window._pressTimeout) { clearTimeout(window._pressTimeout); window._pressTimeout = null; }
+
+  // Settle dice immediately
+  const [d1, d2] = data.dice;
+  const die1El = document.getElementById('die1');
+  const die2El = document.getElementById('die2');
+  renderDie(document.getElementById('face1'), d1);
+  renderDie(document.getElementById('face2'), d2);
+  die1El.classList.remove('rolling'); die1El.classList.add('settled');
+  die2El.classList.remove('rolling'); die2El.classList.add('settled');
+  STATE.dice = [d1, d2];
+
+  // Puck
+  if (STATE.phase === 'point' && STATE.point) {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+    document.getElementById('puck').classList.add('on-glow');
+    document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+    movePuckToPoint(STATE.point);
+  } else {
+    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+    document.getElementById('puck').classList.remove('on-glow');
+    document.getElementById('pointDisplay').textContent = '';
+    resetPuckPosition();
+  }
+
+  // Chips & UI
+  renderAllBetChips();
+  updateLocalPlayerUI();
+  document.querySelectorAll('.win-flash,.lose-flash').forEach(el => {
+    el.classList.remove('win-flash','lose-flash');
+  });
+
+  // Clean up rolling state
+  STATE.isRolling = false;
+  document.getElementById('tableDice').classList.remove('locked');
+  clearPressButtons();
+  startBetPhase();
+}
+
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && _timerTick) _timerTick();
+  if (!document.hidden) {
+    if (_timerTick) _timerTick();
+    fastForwardRoll();
+  }
 });
 
 function hideTimer() {
@@ -1491,6 +1547,10 @@ async function handleRollResult(data) {
     if (STATE.bets[k] === 0) delete STATE.bets[k];
   }
 
+  // ── Store pending roll data for visibility fast-forward ──
+  _pendingRollData = data;
+  _rollAnimAborted = false;
+
   // ── Dice animation ──
   // Stop spin intervals
   if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
@@ -1511,6 +1571,7 @@ async function handleRollResult(data) {
 
   // Staggered settle: die1 first, die2 after delay
   await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
+  if (_rollAnimAborted) return;  // fast-forwarded by visibilitychange
   if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
   STATE.dice = [d1, d2];
   renderDie(document.getElementById('face1'), d1);
@@ -1518,6 +1579,7 @@ async function handleRollResult(data) {
   die1El.classList.add('settled');
 
   await new Promise(r => setTimeout(r, 2400));
+  if (_rollAnimAborted) return;  // fast-forwarded by visibilitychange
   if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
   renderDie(document.getElementById('face2'), d2);
   die2El.classList.remove('rolling');
@@ -1556,6 +1618,7 @@ async function handleRollResult(data) {
 
   // Win/loss flashes
   await new Promise(r2 => setTimeout(r2, 200));
+  if (_rollAnimAborted) return;
   for (const key of (r.wins || [])) {
     document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('win-flash'));
   }
@@ -1586,6 +1649,7 @@ async function handleRollResult(data) {
   if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
     dealerSay("You're busted! Better luck next time.", 'sad');
     STATE.isRolling = false;
+    _pendingRollData = null;
     try {
       await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
         method: 'POST',
@@ -1600,6 +1664,7 @@ async function handleRollResult(data) {
   }
 
   STATE.isRolling = false;
+  _pendingRollData = null;  // animation completed normally
   // Keep dice locked until next bet phase starts
   // Seven-out rotation is now handled server-side by the DO roll handler.
   const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
