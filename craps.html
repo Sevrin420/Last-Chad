@@ -838,7 +838,7 @@
           <div class="chip chip-10-sprite" data-value="10" onclick="selectChip(10)"></div>
           <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
         </div>
-        <div class="table-dice can-roll" id="tableDice" onclick="rollDice()">
+        <div class="table-dice can-roll" id="tableDice" onclick="manualRollClicked=true;rollDice()">
           <div class="die" id="die1"><div class="die-face" id="face1"></div></div>
           <div class="die" id="die2"><div class="die-face" id="face2"></div></div>
         </div>
@@ -1308,8 +1308,11 @@ function showNoMoreBets() {
   label.style.display = '';
 }
 
+let manualRollClicked = false;
+
 function startRollPhase() {
   turnPhase = 'rolling';
+  manualRollClicked = false;
   const diceEl = document.getElementById('tableDice');
   const shooter = isLocalShooter();
 
@@ -1317,7 +1320,7 @@ function startRollPhase() {
     diceEl.classList.add('can-roll');
     diceEl.classList.remove('locked');
     document.getElementById('rollPrompt').style.display = '';
-    startTimer(10, 'ROLL', () => { rollDice(); });
+    startTimer(10, 'ROLL', () => { rollDice(); }); // auto-roll: manualRollClicked stays false
   } else {
     // Not the shooter — dice locked, show waiting timer
     diceEl.classList.remove('can-roll');
@@ -1409,7 +1412,7 @@ function rollDice() {
   }, 100);
 
   // Tell the DO to roll — result comes back via WS 'roll-result'
-  wsSend({ type: 'roll' });
+  wsSend({ type: 'roll', manual: manualRollClicked });
 
   // Safety: if roll-result never arrives, stop spinning after 15s
   if (window._rollingSafetyTimeout) clearTimeout(window._rollingSafetyTimeout);
@@ -2213,6 +2216,20 @@ function handleWsMessage(data) {
       break;
     }
 
+    case 'ping': {
+      wsSend({ type: 'pong' });
+      break;
+    }
+
+    case 'kick': {
+      addChatMsg('system', data.reason || 'You have been removed from the table.');
+      dealerSay(data.reason || 'Hit the road!', 'angry');
+      // Prevent auto-reconnect, then close
+      currentTableCode = null;
+      disconnectTable();
+      break;
+    }
+
     default:
       break;
   }
@@ -2346,7 +2363,7 @@ async function refreshLobbyTables() {
 refreshLobbyTables();
 setInterval(refreshLobbyTables, 10_000);
 
-// WebSocket connection = presence. No heartbeat needed.
+// Heartbeat: DO pings every 30s, client responds with pong (handled in handleWsMessage).
 window.addEventListener('beforeunload', (e) => {
   if (STATE.nonce && STATE.stack > 0) {
     // Save abandoned session so player can reclaim cells later

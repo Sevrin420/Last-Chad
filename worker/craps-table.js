@@ -15,10 +15,11 @@
  *   { type: 'auth',       nonce, sessionToken }
  *   { type: 'bet',        zone, amount }
  *   { type: 'clear-bets' }
- *   { type: 'roll' }
+ *   { type: 'roll',       manual }         ← manual=true if player clicked dice
  *   { type: 'press',      zone }
  *   { type: 'pass-dice' }
  *   { type: 'chat',       text }
+ *   { type: 'pong' }                       ← heartbeat response
  *
  * ── WebSocket messages OUT (to client) ──
  *   { type: 'init',        players, shooter, game }
@@ -33,6 +34,8 @@
  *                           bets, comeBets, pressOptions }
  *   { type: 'shooter',     playerId }
  *   { type: 'chat',        playerId, name, text }
+ *   { type: 'ping' }                       ← heartbeat (every 30s)
+ *   { type: 'kick',        reason }         ← AFK/timeout removal
  *   { type: 'error',       message }
  *   { type: 'full' }
  */
@@ -178,6 +181,12 @@ export class CrapsTable {
     // Broadcast join to others
     this._broadcast({ type: 'join', playerId, name: String(name).slice(0, 20), chadId }, playerId);
 
+    // Start heartbeat alarm if not already running
+    const currentAlarm = await this.state.storage.getAlarm();
+    if (!currentAlarm) {
+      await this.state.storage.setAlarm(Date.now() + 30_000);
+    }
+
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -194,6 +203,13 @@ export class CrapsTable {
     const { playerId, name } = attachment;
 
     switch (data.type) {
+
+      // ── Heartbeat pong ──
+      case 'pong': {
+        attachment.lastPong = Date.now();
+        ws.serializeAttachment(attachment);
+        break;
+      }
 
       // ── Auth: link WS connection to registered player ──
       case 'auth': {
@@ -381,6 +397,9 @@ export class CrapsTable {
           break;
         }
 
+        // Track whether shooter manually clicked roll vs auto-timer
+        const wasManualRoll = !!data.manual;
+
         // Lock rolling & record activity
         game.rolling = true;
         await this.state.storage.put('game', game);
@@ -478,6 +497,15 @@ export class CrapsTable {
         // Seven-out: was in point phase and rolled a 7 → rotate shooter
         if (wasPointPhase && total === 7) {
           await this._advanceShooter(playerId);
+        }
+
+        // AFK detection: shooter didn't manually click roll → kick after roll resolves
+        // Only in multiplayer — solo auto-roll is normal
+        if (!wasManualRoll) {
+          const remainingPlayers = await this.state.storage.list({ prefix: 'player:' });
+          if (remainingPlayers.size > 1) {
+            await this._kickPlayer(ws, playerId, attachment.nonce, 'AFK — removed from table');
+          }
         }
 
         break;
@@ -683,6 +711,78 @@ export class CrapsTable {
       });
     }
     return players;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Heartbeat alarm — pings all sockets, kills zombies
+  // ═══════════════════════════════════════════════════════════════════════
+
+  async alarm() {
+    const sockets = this.state.getWebSockets();
+    const now = Date.now();
+    let activeSockets = 0;
+
+    for (const ws of sockets) {
+      let att;
+      try { att = ws.deserializeAttachment(); } catch (_) { continue; }
+      if (!att) continue;
+
+      // If lastPong was set and is older than 60s, socket is zombie
+      if (att.lastPong && (now - att.lastPong) > 60_000) {
+        try { ws.close(4002, 'Heartbeat timeout'); } catch (_) {}
+        continue;
+      }
+
+      // Send ping and mark the time (if no lastPong yet, initialize it)
+      try {
+        ws.send(JSON.stringify({ type: 'ping' }));
+        if (!att.lastPong) {
+          att.lastPong = now;
+          ws.serializeAttachment(att);
+        }
+        activeSockets++;
+      } catch (_) {}
+    }
+
+    // Reschedule if there are still active sockets
+    if (activeSockets > 0) {
+      await this.state.storage.setAlarm(Date.now() + 30_000);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Kick a player (AFK, etc.) — notify them, then close socket
+  // ═══════════════════════════════════════════════════════════════════════
+
+  async _kickPlayer(ws, playerId, nonce, reason) {
+    try {
+      ws.send(JSON.stringify({ type: 'kick', reason }));
+    } catch (_) {}
+
+    // Small delay so the kick message reaches the client before close
+    // (DO alarm-based delay not needed — close triggers _handleDisconnect)
+    try {
+      ws.close(4003, reason);
+    } catch (_) {}
+  }
+
+  async _advanceShooter(currentShooterId) {
+    const remaining = await this.state.storage.list({ prefix: 'player:' });
+    if (remaining.size === 0) return;
+
+    // Build ordered list of playerIds from storage
+    const playerIds = [];
+    for (const [, pd] of remaining) {
+      playerIds.push(pd.player + '-' + pd.tokenId);
+    }
+
+    // Pick next player after current shooter (round-robin)
+    const idx = playerIds.indexOf(currentShooterId);
+    const nextIdx = (idx + 1) % playerIds.length;
+    const nextShooter = playerIds[nextIdx];
+
+    await this.state.storage.put('shooter', nextShooter);
+    this._broadcast({ type: 'shooter', playerId: nextShooter }, null);
   }
 
   _broadcast(data, excludePlayerId) {
