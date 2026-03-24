@@ -448,7 +448,7 @@
       100%{transform:rotateX(360deg) rotateY(360deg) rotateZ(0deg)}
     }
     .die.rolling{
-      animation:dice-tumble 0.4s ease-in-out infinite;
+      animation:dice-tumble 0.25s ease-in-out infinite;
       border-color:#c9a84c;
       box-shadow:inset 3px 3px 8px rgba(255,255,255,0.88),inset -2px -2px 6px rgba(0,0,0,0.28),2px 2px 0 #878787,3px 3px 0 #767676,4px 4px 0 #656565,5px 5px 12px rgba(0,0,0,0.72),0 0 18px rgba(201,168,76,0.45);
     }
@@ -1072,12 +1072,12 @@ function startDiceSpin() {
     let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _last1);
     _last1 = v;
     renderDie(document.getElementById('face1'), v);
-  }, 300);
+  }, 1000);
   window._rollCycleInterval2 = setInterval(() => {
     let v; do { v = Math.floor(Math.random()*6)+1; } while (v === _last2);
     _last2 = v;
     renderDie(document.getElementById('face2'), v);
-  }, 300);
+  }, 1000);
   window._rollingSafetyTimeout = setTimeout(() => {
     killSpinIntervals();
     die1El.classList.remove('rolling'); die1El.classList.add('settled');
