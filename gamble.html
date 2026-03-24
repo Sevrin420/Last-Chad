@@ -552,6 +552,50 @@
       font-size: 0.32rem; color: #4caf50; margin-top: 12px; min-height: 1.4em;
     }
 
+    /* ── Craps Rules Popup ── */
+    .rules-overlay {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85);
+    }
+    .rules-overlay.active { display: flex; }
+    .rules-box {
+      background: url('assets/mainbg.png') center/cover no-repeat;
+      border: 3px solid #c9a84c;
+      border-radius: 8px; padding: 28px 20px;
+      max-width: 440px; width: 92%; max-height: 85vh;
+      overflow-y: auto; text-align: left;
+      box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 20px rgba(139,105,20,0.25);
+      position: relative;
+    }
+    .rules-title {
+      font-size: 0.65rem; color: #c9a84c; text-align: center;
+      margin-bottom: 20px; text-shadow: 0 0 8px rgba(201,168,76,0.4);
+    }
+    .rules-text {
+      font-size: 0.35rem; color: #f5e6c8; line-height: 2.6;
+      margin-bottom: 12px;
+    }
+    .rules-text .highlight { color: #4caf50; }
+    .rules-text .loss { color: #e74c3c; }
+    .rules-text .point-num { color: #c9a84c; font-weight: bold; }
+    .rules-puck-demo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #fff; color: #000; font-size: 0.22rem;
+      font-weight: bold; border: 2px solid #c9a84c;
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
+      vertical-align: middle; margin: 0 4px;
+    }
+    .rules-close {
+      display: block; margin: 18px auto 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; color: #c9a84c;
+      background: rgba(61,46,10,0.4); border: 2px solid #5c4409;
+      border-radius: 4px; padding: 10px 20px; cursor: pointer;
+    }
+    .rules-close:hover { border-color: #c9a84c; background: rgba(92,68,9,0.4); }
+
     @media (max-width: 520px) {
       .craps-table { padding: 4px; gap: 2px; }
       .craps-zone { min-height: 28px; }
@@ -1052,6 +1096,26 @@
     <button class="craps-result-btn" id="craps-result-btn">CONTINUE</button>
   </div>
 
+  <!-- Craps Rules Popup -->
+  <div class="rules-overlay" id="rules-overlay">
+    <div class="rules-box">
+      <div class="rules-title">CRAPS OVERVIEW</div>
+      <div class="rules-text">
+        To begin, click the <span class="highlight">PASS LINE</span> to place your bets.<br><br>
+        On the first roll (the Come Out roll):<br>
+        <span class="highlight">7 or 11</span> = Instant Winner!<br>
+        <span class="loss">2, 3, or 12</span> = Instant Loss.<br><br>
+        If any of these numbers are rolled, place a new bet and begin again.<br><br>
+        If any other number is rolled — <span class="point-num">4, 5, 6, 8, 9, 10</span> — this number becomes the <span class="highlight">POINT</span>. And the puck moves to the ON position: <span class="rules-puck-demo">ON</span><br><br>
+        Now the player must roll their <span class="highlight">POINT</span> number to win.<br><br>
+        If they roll a <span class="loss">7</span> before their POINT, all bets are lost.<br>
+        If they roll their <span class="highlight">POINT</span>, the pass line bet wins!<br><br>
+        Upon a <span class="loss">7-out</span> or making the POINT, the game resets with a new Come Out roll.
+      </div>
+      <button class="rules-close" id="rules-close-btn">GOT IT</button>
+    </div>
+  </div>
+
   <!-- Sound effects -->
   <audio id="sfx-win" src="sound effects/youwin.wav" preload="auto"></audio>
   <audio id="sfx-lose" src="sound effects/youlose.wav" preload="auto"></audio>
@@ -1254,6 +1318,17 @@
 
     function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+    // ── Craps Rules Popup ──
+    function showCrapsRules() {
+      document.getElementById('rules-overlay').classList.add('active');
+    }
+    document.getElementById('rules-close-btn').addEventListener('click', () => {
+      document.getElementById('rules-overlay').classList.remove('active');
+    });
+    document.getElementById('rules-overlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+    });
+
     // ── Flow: Intro ──
     async function showIntro() {
       introShown = true;
@@ -1263,7 +1338,8 @@
         "Anyhow, let's play shall we?"
       ]);
       showChoices([
-        { label: "Hand me the bones Chazzy", action: startCrapsGame }
+        { label: "Hand me the bones Chazzy", action: startCrapsGame },
+        { label: "Craps Rules", action: showCrapsRules }
       ]);
     }
 
@@ -1957,7 +2033,8 @@
         "Play again?"
       ]);
       showChoices([
-        { label: "Roll the bones", action: startCrapsGame }
+        { label: "Roll the bones", action: startCrapsGame },
+        { label: "Craps Rules", action: showCrapsRules }
       ]);
     }
 
