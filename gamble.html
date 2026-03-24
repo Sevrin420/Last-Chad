@@ -1783,14 +1783,21 @@
 
         // Let animation run at least 1.2s total
         await delay(1200);
-        clearInterval(cycleInterval);
 
         const [d1, d2] = data.dice;
 
-        // Show final dice
+        // Stop first die, keep second cycling
+        clearInterval(cycleInterval);
         crapsRenderFace('craps-face0', d1);
-        crapsRenderFace('craps-face1', d2);
         document.getElementById('craps-die0').classList.remove('rolling');
+        const secondCycle = setInterval(() => {
+          crapsRenderFace('craps-face1', Math.floor(Math.random() * 6) + 1);
+        }, 60);
+        await delay(600);
+        clearInterval(secondCycle);
+
+        // Show final second die
+        crapsRenderFace('craps-face1', d2);
         document.getElementById('craps-die1').classList.remove('rolling');
 
         // Sync state from worker
