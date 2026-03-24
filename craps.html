@@ -1389,16 +1389,12 @@ function clearTimer() {
   turnTimer = null;
 }
 
-// ── Visibility change: fast-forward animations when tab returns ──
-let _pendingRollData = null;
-let _rollAnimAborted = false;
+// ── Tab-away protection: skip/fast-forward roll animations ──
+let _rollSeq = 0;           // increments each handleRollResult call
+let _pendingRollData = null; // latest roll-result for fast-forward on tab return
 
-function fastForwardRoll() {
-  if (!_pendingRollData || !STATE.isRolling) return;
-  _rollAnimAborted = true;
-  const data = _pendingRollData;
-  _pendingRollData = null;
-
+// Immediately settle dice + UI to the latest roll state
+function settleRollImmediate(data) {
   // Kill all spin intervals & safety timeouts
   if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
   if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
@@ -1406,7 +1402,7 @@ function fastForwardRoll() {
   if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
   if (window._pressTimeout) { clearTimeout(window._pressTimeout); window._pressTimeout = null; }
 
-  // Settle dice immediately
+  // Settle dice
   const [d1, d2] = data.dice;
   const die1El = document.getElementById('die1');
   const die2El = document.getElementById('die2');
@@ -1436,17 +1432,21 @@ function fastForwardRoll() {
     el.classList.remove('win-flash','lose-flash');
   });
 
-  // Clean up rolling state
   STATE.isRolling = false;
+  _pendingRollData = null;
   document.getElementById('tableDice').classList.remove('locked');
   clearPressButtons();
-  startBetPhase();
 }
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     if (_timerTick) _timerTick();
-    fastForwardRoll();
+    // Fast-forward any in-progress roll animation
+    if (_pendingRollData && STATE.isRolling) {
+      _rollSeq++;  // abort any in-flight handleRollResult awaits
+      settleRollImmediate(_pendingRollData);
+      startBetPhase();
+    }
   }
 });
 
@@ -1547,60 +1547,66 @@ async function handleRollResult(data) {
     if (STATE.bets[k] === 0) delete STATE.bets[k];
   }
 
-  // ── Store pending roll data for visibility fast-forward ──
+  // ── Store pending roll data & claim a sequence number ──
   _pendingRollData = data;
-  _rollAnimAborted = false;
+  const mySeq = ++_rollSeq;
 
-  // ── Dice animation ──
-  // Stop spin intervals
-  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
-  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
-  if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
-
-  const die1El = document.getElementById('die1');
-  const die2El = document.getElementById('die2');
-
-  // If dice weren't spinning yet (rolling msg missed), start a brief spin
-  const wasAlreadyRolling = die1El.classList.contains('rolling');
-  if (!wasAlreadyRolling) {
-    die1El.classList.remove('settled');
-    die2El.classList.remove('settled');
-    die1El.classList.add('rolling');
-    die2El.classList.add('rolling');
-  }
-
-  // Staggered settle: die1 first, die2 after delay
-  await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
-  if (_rollAnimAborted) return;  // fast-forwarded by visibilitychange
-  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
-  STATE.dice = [d1, d2];
-  renderDie(document.getElementById('face1'), d1);
-  die1El.classList.remove('rolling');
-  die1El.classList.add('settled');
-
-  await new Promise(r => setTimeout(r, 2400));
-  if (_rollAnimAborted) return;  // fast-forwarded by visibilitychange
-  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
-  renderDie(document.getElementById('face2'), d2);
-  die2El.classList.remove('rolling');
-  die2El.classList.add('settled');
-
-  // ── Dice have settled — now move puck and update visual state ──
-  if (STATE.phase === 'point' && STATE.point) {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
-    document.getElementById('puck').classList.add('on-glow');
-    document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
-    movePuckToPoint(STATE.point);
+  // If tab is hidden (multiplayer rolls while away), skip animation entirely
+  if (document.hidden) {
+    settleRollImmediate(data);
+    // Still run announcer/toast below, they're lightweight
   } else {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
-    document.getElementById('puck').classList.remove('on-glow');
-    document.getElementById('pointDisplay').textContent = '';
-    resetPuckPosition();
-  }
+    // ── Dice animation (only when tab is visible) ──
+    // Stop spin intervals
+    if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+    if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+    if (_remoteCycleInterval) { clearInterval(_remoteCycleInterval); _remoteCycleInterval = null; }
 
-  // Update bet chips after dice settle (pass line disappears after animation)
-  renderAllBetChips();
-  updateLocalPlayerUI();
+    const die1El = document.getElementById('die1');
+    const die2El = document.getElementById('die2');
+
+    // If dice weren't spinning yet (rolling msg missed), start a brief spin
+    const wasAlreadyRolling = die1El.classList.contains('rolling');
+    if (!wasAlreadyRolling) {
+      die1El.classList.remove('settled');
+      die2El.classList.remove('settled');
+      die1El.classList.add('rolling');
+      die2El.classList.add('rolling');
+    }
+
+    // Staggered settle: die1 first, die2 after delay
+    await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
+    if (_rollSeq !== mySeq) return;  // superseded by newer roll or visibility fast-forward
+    if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+    STATE.dice = [d1, d2];
+    renderDie(document.getElementById('face1'), d1);
+    die1El.classList.remove('rolling');
+    die1El.classList.add('settled');
+
+    await new Promise(r => setTimeout(r, 2400));
+    if (_rollSeq !== mySeq) return;  // superseded by newer roll or visibility fast-forward
+    if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+    renderDie(document.getElementById('face2'), d2);
+    die2El.classList.remove('rolling');
+    die2El.classList.add('settled');
+
+    // ── Dice have settled — now move puck and update visual state ──
+    if (STATE.phase === 'point' && STATE.point) {
+      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+      document.getElementById('puck').classList.add('on-glow');
+      document.getElementById('pointDisplay').textContent = 'POINT: ' + STATE.point;
+      movePuckToPoint(STATE.point);
+    } else {
+      document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+      document.getElementById('puck').classList.remove('on-glow');
+      document.getElementById('pointDisplay').textContent = '';
+      resetPuckPosition();
+    }
+
+    // Update bet chips after dice settle
+    renderAllBetChips();
+    updateLocalPlayerUI();
+  }
 
   // ── Announcer (uses prevPhase/prevPoint from DO, not stale local state) ──
   const r = data.resolution || {};
@@ -1618,7 +1624,7 @@ async function handleRollResult(data) {
 
   // Win/loss flashes
   await new Promise(r2 => setTimeout(r2, 200));
-  if (_rollAnimAborted) return;
+  if (_rollSeq !== mySeq) return;  // superseded
   for (const key of (r.wins || [])) {
     document.querySelectorAll(`[data-bet="${key}"]`).forEach(z => z.classList.add('win-flash'));
   }
@@ -2198,6 +2204,8 @@ function handleWsMessage(data) {
       if (!isLocalShooter()) {
         STATE.isRolling = true;
         betsLocked = true;
+        // Skip spin animation if tab is hidden — roll-result will settle immediately
+        if (document.hidden) break;
         // Announce point during roll for non-shooters
         if (STATE.phase === 'point' && STATE.point) {
           dealerSay(`Point is ${STATE.point}, looking for a ${STATE.point}!`, 'neutral');
