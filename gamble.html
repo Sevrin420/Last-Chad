@@ -1781,20 +1781,14 @@
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Roll failed');
 
-        // Let animation run at least 1.2s total
-        await delay(1200);
-
         const [d1, d2] = data.dice;
 
-        // Stop first die, keep second cycling
-        clearInterval(cycleInterval);
+        // First die lands at 600ms, second keeps cycling until 1200ms
+        await delay(600);
         crapsRenderFace('craps-face0', d1);
         document.getElementById('craps-die0').classList.remove('rolling');
-        const secondCycle = setInterval(() => {
-          crapsRenderFace('craps-face1', Math.floor(Math.random() * 6) + 1);
-        }, 60);
         await delay(600);
-        clearInterval(secondCycle);
+        clearInterval(cycleInterval);
 
         // Show final second die
         crapsRenderFace('craps-face1', d2);
