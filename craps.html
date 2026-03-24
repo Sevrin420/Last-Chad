@@ -1823,28 +1823,13 @@ async function cashOut() {
 
 // ── Exit Table ──
 function exitTable() {
-  if (STATE.nonce && (STATE.stack > 0 || Object.keys(STATE.bets).length > 0)) {
+  if (STATE.nonce) {
     let betsOnTable = 0;
     for (const val of Object.values(STATE.bets)) betsOnTable += val;
     const totalCells = STATE.stack + betsOnTable;
     if (totalCells > 0) {
-      const msg = `⚠️ You have ${totalCells} cells on the table!\n\nPass line bets will be LOST.\nOther bets can be recovered.\n\nCash out instead?`;
+      const msg = `⚠️ You have ${totalCells} cells on the table!\n\nLeaving without cashing out means you LOSE all cells.\n\nAre you sure?`;
       if (!confirm(msg)) return;
-      // Save abandoned session for non-passline recovery
-      const abandonData = {
-        nonce: STATE.nonce,
-        sessionToken: STATE.sessionToken,
-        tokenId: STATE.tokenId,
-        player: STATE.player,
-        stack: STATE.stack,
-        bets: { ...STATE.bets },
-        buyIn: STATE.buyIn,
-        tableCode: currentTableCode,
-        abandonedAt: Date.now(),
-      };
-      delete abandonData.bets.pass;
-      delete abandonData.bets.passOdds;
-      localStorage.setItem('craps_abandoned_' + STATE.tokenId, JSON.stringify(abandonData));
     }
   }
   sessionStorage.removeItem('craps_session');
@@ -1876,23 +1861,7 @@ function initPlayerFromSession() {
   if (welcomeEl) welcomeEl.textContent = 'Welcome, ' + (STATE.nftName || STATE.playerName) + '!';
   addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} cells.`);
 
-  // Check for abandoned session recovery
-  const abandonKey = 'craps_abandoned_' + STATE.tokenId;
-  const abandoned = localStorage.getItem(abandonKey);
-  if (abandoned) {
-    try {
-      const abd = JSON.parse(abandoned);
-      let recoverable = abd.stack || 0;
-      for (const [k, v] of Object.entries(abd.bets || {})) recoverable += v;
-      if (recoverable > 0) {
-        addChatMsg('system', `Recovered ${recoverable} abandoned cells from last session.`);
-        dealerSay(`Welcome back! ${recoverable} cells recovered.`, 'happy');
-      }
-    } catch (_) {}
-    localStorage.removeItem(abandonKey);
-  } else {
-    dealerSay("Welcome! Place your bets.", 'happy');
-  }
+  dealerSay("Welcome! Place your bets.", 'happy');
 
   broadcastState('joined');
   // Don't start bet phase yet — show welcome, then auto-start after 3s
@@ -2361,25 +2330,8 @@ setInterval(refreshLobbyTables, 10_000);
 // Heartbeat: DO pings every 30s, client responds with pong (handled in handleWsMessage).
 window.addEventListener('beforeunload', (e) => {
   if (STATE.nonce && STATE.stack > 0) {
-    // Save abandoned session so player can reclaim cells later
-    const abandonData = {
-      nonce: STATE.nonce,
-      sessionToken: STATE.sessionToken,
-      tokenId: STATE.tokenId,
-      player: STATE.player,
-      stack: STATE.stack,
-      bets: { ...STATE.bets },
-      buyIn: STATE.buyIn,
-      tableCode: currentTableCode,
-      abandonedAt: Date.now(),
-    };
-    // Don't save passline bets — those are lost (house rules)
-    delete abandonData.bets.pass;
-    delete abandonData.bets.passOdds;
-    localStorage.setItem('craps_abandoned_' + STATE.tokenId, JSON.stringify(abandonData));
-
     e.preventDefault();
-    e.returnValue = 'You have cells on the table! Cash out first or they may be lost.';
+    e.returnValue = 'You have cells on the table! Cash out first or they will be lost.';
   }
   // Always close the WS so the DO fires _handleDisconnect and cleans up player:* data
   disconnectTable();
