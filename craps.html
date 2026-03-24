@@ -712,13 +712,13 @@
       <button class="lobby-btn join" onclick="showJoinPrivate()">JOIN PRIVATE TABLE</button>
     </div>
     <div class="lobby-invite-area" id="inviteArea">
-      <div class="lobby-invite-label">INVITE LINK (click to copy)</div>
-      <div class="lobby-invite-link" id="inviteLink" onclick="copyInviteLink()"></div>
+      <div class="lobby-invite-label">INVITE CODE (click to copy)</div>
+      <div class="lobby-invite-link" id="inviteCode" onclick="copyInviteCode()"></div>
       <div class="lobby-copied" id="copiedMsg">Copied!</div>
       <button class="lobby-btn public" style="margin-top:10px" onclick="enterTable()">ENTER TABLE</button>
     </div>
     <div class="lobby-invite-area" id="joinPrivateArea">
-      <input class="lobby-join-input" id="privateCodeInput" placeholder="Paste invite link or code..." />
+      <input class="lobby-join-input" id="privateCodeInput" placeholder="Enter invite code..." />
       <button class="lobby-join-go" onclick="joinPrivateTable()">JOIN</button>
     </div>
   </div>
@@ -2222,10 +2222,10 @@ function joinPublicTable(tableName) {
 }
 
 function createPrivateTable() {
-  currentTableCode = 'priv-' + generateTableCode();
+  const code = generateTableCode();
+  currentTableCode = 'priv-' + code;
   tableIsPrivate = true;
-  const url = window.location.origin + window.location.pathname + '#' + currentTableCode;
-  document.getElementById('inviteLink').textContent = url;
+  document.getElementById('inviteCode').textContent = code;
   document.getElementById('inviteArea').classList.add('show');
   document.getElementById('joinPrivateArea').classList.remove('show');
 }
@@ -2236,20 +2236,16 @@ function showJoinPrivate() {
 }
 
 function joinPrivateTable() {
-  const input = document.getElementById('privateCodeInput').value.trim();
-  if (!input) return;
-  if (input.includes('#')) {
-    currentTableCode = input.split('#').pop();
-  } else {
-    currentTableCode = input;
-  }
+  const code = document.getElementById('privateCodeInput').value.trim().toUpperCase();
+  if (!code) return;
+  currentTableCode = 'priv-' + code;
   tableIsPrivate = true;
   enterTable();
 }
 
-function copyInviteLink() {
-  const link = document.getElementById('inviteLink').textContent;
-  navigator.clipboard.writeText(link).then(() => {
+function copyInviteCode() {
+  const code = document.getElementById('inviteCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
     const msg = document.getElementById('copiedMsg');
     msg.classList.add('show');
     setTimeout(() => msg.classList.remove('show'), 2000);
@@ -2257,20 +2253,10 @@ function copyInviteLink() {
 }
 
 function enterTable() {
-  window.location.hash = currentTableCode || 'public-1';
   document.getElementById('tableLobby').classList.add('hidden');
   document.getElementById('tableWrapper').style.display = '';
   connectTable(currentTableCode);
 }
-
-(function checkHashJoin() {
-  let hash = window.location.hash.slice(1);
-  if (!hash) return;
-  if (hash === 'public-main') hash = 'public-1';
-  currentTableCode = hash;
-  tableIsPrivate = hash.startsWith('priv-');
-  enterTable();
-})();
 
 async function refreshLobbyTables() {
   const grid = document.getElementById('publicTableGrid');
@@ -2334,7 +2320,7 @@ window.joinPublicTable = joinPublicTable;
 window.createPrivateTable = createPrivateTable;
 window.showJoinPrivate = showJoinPrivate;
 window.joinPrivateTable = joinPrivateTable;
-window.copyInviteLink = copyInviteLink;
+window.copyInviteCode = copyInviteCode;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
 window.pressBet = pressBet;
