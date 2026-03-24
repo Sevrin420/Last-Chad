@@ -2702,7 +2702,17 @@ ${diceInitJs}
           var _rXP = Number(e.data.runnerXP);
           _questRunnerXP += _rXP;
           // Record by section ID so this can be replayed to the worker after a page reload
-          if (currentSectionId != null) _runnerScores[currentSectionId] = _rXP;
+          if (currentSectionId != null) {
+            _runnerScores[currentSectionId] = _rXP;
+            // Send runner XP to worker immediately (like dice scores) so it's counted in /session/win
+            if (WORKER_URL && chadId) {
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'runner_' + currentSectionId, sectionXp: _rXP }),
+              }).catch(function() {});
+            }
+          }
         }
         _saveProgress();
         // Advance to next section: check minigame map first, then legacy game map
