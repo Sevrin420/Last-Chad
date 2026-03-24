@@ -317,8 +317,8 @@ export class CrapsTable {
           pData.bets[zone] = (pData.bets[zone] || 0) + amount;
         }
 
+        pData.lastBetTime = Date.now();
         await this.state.storage.put(`player:${attachment.nonce}`, pData);
-
 
         ws.send(JSON.stringify({
           type: 'bet-ok',
@@ -606,6 +606,7 @@ export class CrapsTable {
       comeBets: {},
       comeOdds: {},
       buyIn:    Number(buyIn) || 0,
+      lastBetTime: Date.now(),
       _expectedToken: sessionToken,
     });
 
@@ -732,6 +733,25 @@ export class CrapsTable {
       } catch (_) {}
     }
 
+    // ── Idle check: kick players who haven't bet in 15 minutes ──
+    const IDLE_MS = 15 * 60 * 1000;
+    const playerKeys = await this.state.storage.list({ prefix: 'player:' });
+    for (const [key, pd] of playerKeys) {
+      if (!pd.lastBetTime || (now - pd.lastBetTime) < IDLE_MS) continue;
+      const idlePlayerId = pd.player + '-' + pd.tokenId;
+      const nonce = key.replace('player:', '');
+      // Find their socket
+      for (const ws of sockets) {
+        try {
+          const att = ws.deserializeAttachment();
+          if (att && att.nonce === nonce) {
+            await this._kickPlayer(ws, idlePlayerId, nonce, 'Idle for 15 minutes — removed from table');
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
     // Reschedule if there are still active sockets
     if (activeSockets > 0) {
       await this.state.storage.setAlarm(Date.now() + 30_000);
@@ -743,12 +763,31 @@ export class CrapsTable {
   // ═══════════════════════════════════════════════════════════════════════
 
   async _kickPlayer(ws, playerId, nonce, reason) {
+    // Log the kick + lost cells to KV for admin review
+    const pd = await this.state.storage.get(`player:${nonce}`);
+    if (pd) {
+      let cellsLost = pd.stack || 0;
+      for (const v of Object.values(pd.bets || {})) cellsLost += v;
+      for (const v of Object.values(pd.comeBets || {})) cellsLost += v;
+      for (const v of Object.values(pd.comeOdds || {})) cellsLost += v;
+      const logEntry = {
+        wallet:    pd.player,
+        tokenId:   pd.tokenId,
+        cellsLost,
+        stack:     pd.stack || 0,
+        bets:      pd.bets || {},
+        reason,
+        kickedAt:  new Date().toISOString(),
+      };
+      try {
+        const logKey = `kick:${Date.now()}:${pd.player}`;
+        await this.env.RUNNER_KV.put(logKey, JSON.stringify(logEntry), { expirationTtl: 90 * 86400 });
+      } catch (_) {}
+    }
+
     try {
       ws.send(JSON.stringify({ type: 'kick', reason }));
     } catch (_) {}
-
-    // Small delay so the kick message reaches the client before close
-    // (DO alarm-based delay not needed — close triggers _handleDisconnect)
     try {
       ws.close(4003, reason);
     } catch (_) {}

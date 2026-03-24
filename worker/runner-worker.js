@@ -145,6 +145,23 @@ export default {
         return await handleTableList(env);
       }
 
+      // Admin: view kick log (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
+      if (request.method === 'GET' && url.pathname === '/craps/kick-log') {
+        const auth = request.headers.get('Authorization') || '';
+        const token = auth.replace('Bearer ', '');
+        if (!token || token !== env.ORACLE_PRIVATE_KEY) {
+          return json({ error: 'Unauthorized' }, 403);
+        }
+        const list = await env.RUNNER_KV.list({ prefix: 'kick:' });
+        const entries = [];
+        for (const key of list.keys) {
+          const val = await env.RUNNER_KV.get(key.name, { type: 'json' });
+          if (val) entries.push(val);
+        }
+        entries.sort((a, b) => new Date(b.kickedAt) - new Date(a.kickedAt));
+        return json({ kicks: entries });
+      }
+
       // Admin: reset all public tables (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
       if (request.method === 'POST' && url.pathname === '/tables/reset-all') {
         const auth = request.headers.get('Authorization') || '';
