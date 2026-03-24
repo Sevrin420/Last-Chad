@@ -898,8 +898,6 @@
         <select id="filterSort">
           <option value="price-asc">Price: Low → High</option>
           <option value="price-desc">Price: High → Low</option>
-          <option value="cells-asc">Locked Cells: Low → High</option>
-          <option value="cells-desc">Locked Cells: High → Low</option>
           <option value="total-asc">Total Cells: Low → High</option>
           <option value="total-desc">Total Cells: High → Low</option>
         </select>
@@ -1462,8 +1460,6 @@
       const stat = key => l => (statsCache.get(l.tokenId.toString()) || {})[key] || 0;
       if (sortBy === 'price-asc')   filtered.sort((a, b) => a.price.lt(b.price) ? -1 : 1);
       if (sortBy === 'price-desc')  filtered.sort((a, b) => b.price.lt(a.price) ? -1 : 1);
-      if (sortBy === 'cells-asc')   filtered.sort((a, b) => stat('cells')(a) - stat('cells')(b));
-      if (sortBy === 'cells-desc')  filtered.sort((a, b) => stat('cells')(b) - stat('cells')(a));
       if (sortBy === 'total-asc')   filtered.sort((a, b) => stat('totalCells')(a) - stat('totalCells')(b));
       if (sortBy === 'total-desc')  filtered.sort((a, b) => stat('totalCells')(b) - stat('totalCells')(a));
 
