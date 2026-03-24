@@ -1340,6 +1340,10 @@ function startRollPhase() {
   }
 }
 
+let _timerRAF = null;
+let _timerBackup = null;
+let _timerTick = null;   // exposed for visibilitychange catch-up
+
 function startTimer(seconds, label, onComplete) {
   clearTimer();
   const bar = document.getElementById('timerBar');
@@ -1349,24 +1353,37 @@ function startTimer(seconds, label, onComplete) {
   lbl.style.display = '';
   lbl.className = 'timer-label';
   fill.classList.remove('urgent');
-  let remaining = seconds * 10;
-  const total = remaining;
+  const deadline = Date.now() + seconds * 1000;
+  const totalMs = seconds * 1000;
+  let fired = false;
   function tick() {
-    remaining--;
-    const pct = (remaining / total) * 100;
+    if (fired) return;
+    const left = Math.max(0, deadline - Date.now());
+    const pct = (left / totalMs) * 100;
     fill.style.width = pct + '%';
-    const secs = Math.ceil(remaining / 10);
+    const secs = Math.ceil(left / 1000);
     lbl.textContent = `${label}: ${secs}s`;
-    if (remaining <= 30) fill.classList.add('urgent');
-    if (remaining <= 0) { clearTimer(); onComplete(); }
+    if (left <= 3000) fill.classList.add('urgent');
+    if (left <= 0) { fired = true; clearTimer(); onComplete(); return; }
+    _timerRAF = requestAnimationFrame(tick);
   }
-  tick();
-  turnTimer = setInterval(tick, 100);
+  _timerTick = tick;
+  _timerRAF = requestAnimationFrame(tick);
+  // Backup: setTimeout guarantees onComplete fires even if tab is backgrounded
+  _timerBackup = setTimeout(() => { if (!fired) { fired = true; clearTimer(); onComplete(); } }, seconds * 1000 + 100);
 }
 
 function clearTimer() {
-  if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+  if (_timerRAF) { cancelAnimationFrame(_timerRAF); _timerRAF = null; }
+  if (_timerBackup) { clearTimeout(_timerBackup); _timerBackup = null; }
+  _timerTick = null;
+  turnTimer = null;
 }
+
+// When tab becomes visible again, immediately catch up the timer
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _timerTick) _timerTick();
+});
 
 function hideTimer() {
   clearTimer();
@@ -2374,6 +2391,23 @@ window.copyInviteLink = copyInviteLink;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
 window.pressBet = pressBet;
+// Intercept nav links — warn if player has cells on table
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('.nav-link');
+  if (!link) return;
+  if (!STATE.nonce) return;
+  let total = STATE.stack;
+  for (const v of Object.values(STATE.bets)) total += v;
+  if (total <= 0) return;
+  e.preventDefault();
+  const msg = `⚠️ You have ${total} cells on the table!\n\nLeaving without cashing out means you LOSE all cells.\n\nAre you sure?`;
+  if (confirm(msg)) {
+    sessionStorage.removeItem('craps_session');
+    disconnectTable();
+    window.location.href = link.href;
+  }
+});
+
 console.log('[craps] module loaded OK — all window exports set');
 </script>
 <script>
