@@ -836,7 +836,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
 
     .narrative {
-      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      font-size: clamp(0.6rem, 2.2vw, 0.8rem);
       line-height: 2.2;
       color: #f5e6c8;
       margin-bottom: 24px;
@@ -845,7 +845,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     .narrative p + p { margin-top: 14px; }
     .narrative.typing p { display: none; }
     .typewriter-line {
-      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      font-size: clamp(0.6rem, 2.2vw, 0.8rem);
       line-height: 2.2;
       color: #f5e6c8;
       min-height: 2.4em;
@@ -1145,7 +1145,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       letter-spacing: 0.04em;
     }
     .intro-text {
-      font-size: clamp(0.38rem, 1.5vw, 0.52rem);
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
       line-height: 2.4;
       color: #f5e6c8;
       margin-bottom: 36px;
@@ -1857,7 +1857,7 @@ function showPanel(id) {
           await wait(50);
         }
         cur.remove();
-        if (li < introLines.length - 1) await wait(1500);
+        if (li < introLines.length - 1) await wait(2200);
       }
       await wait(400);
       if (startBtn) {
