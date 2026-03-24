@@ -114,46 +114,32 @@ export class CrapsTable {
       return new Response('Missing playerId', { status: 400 });
     }
 
-    // ── Close ALL existing sockets for this player (reconnect cleanup) ──
-    // Hibernation API retains zombie sockets — close them all.
+    // Close stale sockets for this player (Hibernation retains zombies)
     for (const ws of this.state.getWebSockets()) {
       try {
         const att = ws.deserializeAttachment();
-        if (att && att.playerId === playerId) {
-          try { ws.close(1000, 'Reconnecting'); } catch (_) {}
-        }
+        if (att && att.playerId === playerId) ws.close(1000, 'Reconnecting');
       } catch (_) {}
     }
 
-    // Check player:* keys in storage to decide cap and cleanup.
-    // Storage is the ONLY reliable source of truth — sockets are zombie-infested.
+    // Storage = truth. Count other players, clean up own orphaned sessions.
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
-    let otherPlayerCount = 0;
-    let selfKeys = [];
+    let otherCount = 0;
     for (const [key, pd] of playerKeys) {
-      // playerId format is "address-tokenId", player field is just address
       if (pd && pd.player && playerId.startsWith(pd.player)) {
-        selfKeys.push(key);
+        await this.state.storage.delete(key); // own stale session
       } else {
-        otherPlayerCount++;
+        otherCount++;
       }
     }
 
-    // If no other players, nuke all stale state (including own orphaned sessions)
-    // This is the definitive fix for "reconnect sees old game state" — old player:*
-    // data from un-cashed-out sessions was keeping the table "occupied" forever.
-    if (otherPlayerCount === 0) {
-      // Delete all player:* keys and reset game
-      for (const [key] of playerKeys) {
-        await this.state.storage.delete(key);
-      }
-      await this.state.storage.put('game', {
-        phase: 'comeout', point: 0, rolling: false, rollCount: 0,
-      });
+    // Solo or empty table → fresh start
+    if (otherCount === 0) {
+      await this.state.storage.put('game', { phase: 'comeout', point: 0, rolling: false, rollCount: 0 });
       await this.state.storage.delete('shooter');
     }
 
-    if (otherPlayerCount >= MAX_PLAYERS) {
+    if (otherCount >= MAX_PLAYERS) {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       server.accept();
@@ -175,9 +161,9 @@ export class CrapsTable {
       authenticated: false,
     });
 
-    // Ensure a shooter exists
+    // Ensure a shooter exists (after cleanup, shooter may have been deleted)
     let shooter = await this.state.storage.get('shooter');
-    if (!shooter || !this._isPlayerConnected(shooter)) {
+    if (!shooter) {
       shooter = playerId;
       await this.state.storage.put('shooter', shooter);
     }
@@ -634,12 +620,12 @@ export class CrapsTable {
     // Remove player from DO storage
     await this.state.storage.delete(`player:${nonce}`);
 
-    // Disconnect their WebSocket
+    // Close their WebSocket — this triggers webSocketClose → _handleDisconnect
+    // which broadcasts 'leave', rotates shooter, and resets if table is empty.
     for (const ws of this.state.getWebSockets()) {
       try {
         const att = ws.deserializeAttachment();
         if (att && att.nonce === String(nonce)) {
-          this._broadcast({ type: 'leave', playerId: att.playerId }, att.playerId);
           ws.close(1000, 'Cashed out');
           break;
         }
@@ -699,16 +685,6 @@ export class CrapsTable {
     return players;
   }
 
-  _isPlayerConnected(playerId) {
-    for (const ws of this.state.getWebSockets()) {
-      try {
-        const att = ws.deserializeAttachment();
-        if (att && att.playerId === playerId) return true;
-      } catch (_) {}
-    }
-    return false;
-  }
-
   _broadcast(data, excludePlayerId) {
     const msg = JSON.stringify(data);
     for (const ws of this.state.getWebSockets()) {
@@ -720,59 +696,44 @@ export class CrapsTable {
     }
   }
 
+  // ── Single authoritative cleanup when ANY player leaves ──
+  // Called by: webSocketClose, webSocketError
+  // 1. Remove player data from storage (instant)
+  // 2. Broadcast 'leave' to remaining players
+  // 3. Rotate shooter if needed (using storage, not sockets)
+  // 4. If table empty → nuke all state
   async _handleDisconnect(ws) {
     let playerId = null;
     let nonce = null;
     try {
       const att = ws.deserializeAttachment();
-      if (att) {
-        playerId = att.playerId;
-        nonce = att.nonce;
-      }
+      if (att) { playerId = att.playerId; nonce = att.nonce; }
     } catch (_) {}
-
     if (!playerId) return;
 
-    // Delete this player's session data from storage so /info
-    // no longer counts them and the table can be reclaimed.
-    if (nonce) {
-      await this.state.storage.delete(`player:${nonce}`);
-    }
+    // 1. Remove player from storage immediately
+    if (nonce) await this.state.storage.delete(`player:${nonce}`);
 
+    // 2. Notify others
     this._broadcast({ type: 'leave', playerId }, playerId);
 
-    // If the shooter left, rotate
-    const shooter = await this.state.storage.get('shooter');
-    if (shooter === playerId) {
-      await this._advanceShooter(playerId);
-    }
-
-    // If no player:* keys remain in storage, the table is truly empty.
-    // Storage is the source of truth — sockets are unreliable (zombies).
-    const remainingPlayers = await this.state.storage.list({ prefix: 'player:', limit: 1 });
-    if (remainingPlayers.size === 0) {
+    // 3. Check remaining players (storage = truth) and handle shooter
+    const remaining = await this.state.storage.list({ prefix: 'player:' });
+    if (remaining.size === 0) {
+      // Table empty — full reset
       await this.state.storage.deleteAll();
-    }
-  }
-
-  async _advanceShooter(currentShooterId) {
-    const sockets = this.state.getWebSockets();
-    const playerIds = [];
-    for (const ws of sockets) {
-      try {
-        const att = ws.deserializeAttachment();
-        if (att && att.playerId !== currentShooterId) playerIds.push(att.playerId);
-      } catch (_) {}
-    }
-
-    if (playerIds.length === 0) {
-      await this.state.storage.delete('shooter');
       return;
     }
 
-    const nextShooter = playerIds[0];
-    await this.state.storage.put('shooter', nextShooter);
-    this._broadcast({ type: 'shooter', playerId: nextShooter }, null);
+    // Table has players — rotate shooter if needed
+    const shooter = await this.state.storage.get('shooter');
+    if (shooter === playerId) {
+      // Pick first remaining player from storage as new shooter
+      const [, nextPd] = [...remaining][0];
+      const nextShooter = nextPd.player + '-' + nextPd.tokenId;
+      await this.state.storage.put('shooter', nextShooter);
+      this._broadcast({ type: 'shooter', playerId: nextShooter }, null);
+    }
   }
 
   async _verifySessionToken(nonce, player, token) {
