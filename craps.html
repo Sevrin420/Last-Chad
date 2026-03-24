@@ -1232,22 +1232,25 @@ function applyShooterUI() {
 }
 
 function updateShooter(newShooterPlayerId) {
-  if (!newShooterPlayerId || newShooterPlayerId === shooterPlayerId) return;
+  if (!newShooterPlayerId) return;
+  const changed = newShooterPlayerId !== shooterPlayerId;
   const prev = shooterPlayerId;
   shooterPlayerId = newShooterPlayerId;
   applyShooterUI();
 
-  // Always announce the new shooter
-  const name = getShooterName();
-  if (prev) {
-    dealerSay(`New shooter coming out! Let's see what ya got ${name}`, 'happy');
-  } else {
-    // First shooter on table join
-    dealerSay(`${name} has the dice! Place your bets`, 'happy');
+  if (changed) {
+    const name = getShooterName();
+    if (prev) {
+      dealerSay(`New shooter coming out! Let's see what ya got ${name}`, 'happy');
+    } else {
+      dealerSay(`${name} has the dice! Place your bets`, 'happy');
+    }
   }
-  // Start fresh bet phase for the new shooter (if not mid-roll)
+  // Kill any stale timers from before reconnect, then start fresh bet phase
   if (!STATE.isRolling) {
-    setTimeout(() => { startBetPhase(); }, 2000);
+    clearTimer();
+    killSpinIntervals();
+    setTimeout(() => { startBetPhase(); }, changed ? 2000 : 500);
   }
 }
 
@@ -1417,6 +1420,8 @@ function settleRollImmediate(data) {
   _pendingRollData = null;
   document.getElementById('tableDice').classList.remove('locked');
   clearPressButtons();
+  // Schedule next bet phase (hidden-tab rolls skip the normal animation path)
+  setTimeout(() => { startBetPhase(); }, 500);
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -1426,7 +1431,7 @@ document.addEventListener('visibilitychange', () => {
     if (_pendingRollData && STATE.isRolling) {
       _rollSeq++;  // abort any in-flight handleRollResult awaits
       settleRollImmediate(_pendingRollData);
-      startBetPhase();
+      // settleRollImmediate already schedules startBetPhase
     }
   }
 });
@@ -2003,12 +2008,14 @@ function handleWsMessage(data) {
         if (String(p.playerId) === String(STATE.playerId)) continue;
         _seatPlayer(p);
       }
-      if (data.shooter) updateShooter(data.shooter);
-      // Apply game state from server (phase/point) — auth-ok will confirm
+      // Apply game state from server BEFORE updateShooter (it checks isRolling)
       if (data.game) {
         STATE.phase = data.game.phase || 'comeout';
         STATE.point = data.game.point || null;
+        STATE.isRolling = !!data.game.rolling;
       }
+      syncPuck();
+      if (data.shooter) updateShooter(data.shooter);
       renderAllBetChips();
       break;
     }

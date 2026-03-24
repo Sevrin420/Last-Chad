@@ -128,18 +128,27 @@ export class CrapsTable {
     // Storage = truth. Count other players, clean up own orphaned sessions.
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     let otherCount = 0;
+    let selfReconnect = false;
     for (const [key, pd] of playerKeys) {
       if (pd && pd.player && playerId.startsWith(pd.player)) {
-        await this.state.storage.delete(key); // own stale session
+        selfReconnect = true;
+        // Don't delete — auth handler will reuse the existing session with bets intact
       } else {
         otherCount++;
       }
     }
 
-    // Solo or empty table → fresh start
-    if (otherCount === 0) {
+    // Truly empty table (no players at all) → fresh start
+    if (otherCount === 0 && !selfReconnect) {
       await this.state.storage.put('game', { phase: 'comeout', point: 0, rolling: false, rollCount: 0 });
       await this.state.storage.delete('shooter');
+    } else if (otherCount === 0 && selfReconnect) {
+      // Solo reconnect — preserve game state (point/bets) but clear rolling flag
+      const game = await this._getGame();
+      if (game.rolling) {
+        game.rolling = false;
+        await this.state.storage.put('game', game);
+      }
     }
 
     if (otherCount >= MAX_PLAYERS) {
