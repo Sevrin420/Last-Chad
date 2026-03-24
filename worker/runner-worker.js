@@ -145,6 +145,28 @@ export default {
         return await handleTableList(env);
       }
 
+      // Admin: reset all public tables (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
+      if (request.method === 'POST' && url.pathname === '/tables/reset-all') {
+        const auth = request.headers.get('Authorization') || '';
+        const token = auth.replace('Bearer ', '');
+        if (!token || token !== env.ORACLE_PRIVATE_KEY) {
+          return json({ error: 'Unauthorized' }, 403);
+        }
+        const results = [];
+        for (const t of PUBLIC_TABLES) {
+          try {
+            const id = env.CRAPS_TABLE.idFromName(t.name);
+            const stub = env.CRAPS_TABLE.get(id);
+            const res = await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
+            const body = await res.json();
+            results.push({ table: t.name, ...body });
+          } catch (err) {
+            results.push({ table: t.name, error: err.message });
+          }
+        }
+        return json({ ok: true, results });
+      }
+
       // Agora RTC token
       if (request.method === 'POST' && url.pathname === '/agora/token') {
         return await handleAgoraToken(request, env);
