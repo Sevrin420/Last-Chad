@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      administration: write
     steps:
       - name: Checkout source branch
         uses: actions/checkout@v4
