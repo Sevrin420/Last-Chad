@@ -1319,20 +1319,23 @@
     });
 
     // ========== QUEST DROPDOWN ==========
-    function loadQuestDropdown() {
+    async function loadQuestDropdown() {
       const questSelect = document.getElementById('questSelect');
       if (!questSelect) return;
-      const quests = [
-        { name: 'Episode 1 - A New Home (Intro)', slug: 'episode-1-a-new-home-intro', questId: 2 }
-      ];
-      questIndexData = quests;
-      questSelect.innerHTML = '';
-      quests.forEach(q => {
-        const opt = document.createElement('option');
-        opt.value = q.slug;
-        opt.textContent = q.name;
-        questSelect.appendChild(opt);
-      });
+      try {
+        const resp = await fetch('/quests/index.json');
+        const quests = await resp.json();
+        questIndexData = quests;
+        questSelect.innerHTML = '';
+        quests.forEach(q => {
+          const opt = document.createElement('option');
+          opt.value = q.slug;
+          opt.textContent = q.name;
+          questSelect.appendChild(opt);
+        });
+      } catch (e) {
+        questSelect.innerHTML = '<option value="">Failed to load quests</option>';
+      }
     }
     loadQuestDropdown();
 
