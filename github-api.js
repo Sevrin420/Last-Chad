@@ -1485,7 +1485,7 @@ ${completePanelHtml}
     function updateExpBox() {
       var total = _questRunnerXP + _sectionCells;
       Object.keys(diceOutcomes).forEach(function(sid) {
-        total += (diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0;
+        total += (diceState[Number(sid)] && diceState[Number(sid)].cargoScore) || 0;
       });
       var el = document.getElementById('expBoxValue');
       if (el) el.textContent = total;
