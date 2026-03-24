@@ -947,7 +947,7 @@ const STATE = {
   isRolling: false,
   playerName: 'Player',
   nftName: crapsSession ? (crapsSession.chadName || 'Chad #' + crapsSession.tokenId) : '',
-  playerId: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36),
+  playerId: crapsSession ? (crapsSession.player + '-' + crapsSession.tokenId) : ('anon-' + Math.random().toString(36).slice(2)),
   chadId: crapsSession ? crapsSession.tokenId : null,
   seat: 0,
   nonce: crapsSession ? crapsSession.nonce : null,
@@ -1836,6 +1836,7 @@ function exitTable() {
       localStorage.setItem('craps_abandoned_' + STATE.tokenId, JSON.stringify(abandonData));
     }
   }
+  sessionStorage.removeItem('craps_session');
   disconnectTable();
   window.location.href = 'gamble.html';
 }
@@ -2367,8 +2368,8 @@ window.addEventListener('beforeunload', (e) => {
 
     e.preventDefault();
     e.returnValue = 'You have cells on the table! Cash out first or they may be lost.';
-    return e.returnValue;
   }
+  // Always close the WS so the DO fires _handleDisconnect and cleans up player:* data
   disconnectTable();
 });
 
