@@ -722,12 +722,22 @@ export class CrapsTable {
 
   async _handleDisconnect(ws) {
     let playerId = null;
+    let nonce = null;
     try {
       const att = ws.deserializeAttachment();
-      if (att) playerId = att.playerId;
+      if (att) {
+        playerId = att.playerId;
+        nonce = att.nonce;
+      }
     } catch (_) {}
 
     if (!playerId) return;
+
+    // Delete this player's session data from storage so /info
+    // no longer counts them and the table can be reclaimed.
+    if (nonce) {
+      await this.state.storage.delete(`player:${nonce}`);
+    }
 
     this._broadcast({ type: 'leave', playerId }, playerId);
 
