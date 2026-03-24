@@ -737,7 +737,9 @@ export class CrapsTable {
     const IDLE_MS = 15 * 60 * 1000;
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeys) {
-      if (!pd.lastBetTime || (now - pd.lastBetTime) < IDLE_MS) continue;
+      // No lastBetTime = joined before this feature — treat as idle immediately
+      const lastBet = pd.lastBetTime || 0;
+      if ((now - lastBet) < IDLE_MS) continue;
       const idlePlayerId = pd.player + '-' + pd.tokenId;
       const nonce = key.replace('player:', '');
       // Find their socket
