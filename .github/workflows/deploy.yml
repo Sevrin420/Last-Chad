@@ -25,6 +25,7 @@ on:
           - award-owner-cells # Award 100 open cells to every Chad in the owner wallet
           - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
           - approve-market   # Whitelist LastChad + Items on the Market contract
+          - reset-tables     # Reset all 6 public craps tables (nuke stuck game state)
       network:
         description: 'Network (ignored if target=worker)'
         required: true
@@ -431,3 +432,31 @@ jobs:
             git commit -m "chore: sync worker contract addresses from config.js [skip ci]"
             git push origin ${{ github.ref_name }}
           fi
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job: Reset all public craps tables (nuke stuck game state in DOs)
+  # ───────────────────────────────────────────────────────────────────────────
+  reset-tables:
+    name: Reset All Craps Tables
+    runs-on: ubuntu-latest
+    if: inputs.target == 'reset-tables'
+
+    steps:
+      - name: Reset all 6 public tables via /tables/reset-all
+        env:
+          ORACLE_PRIVATE_KEY: ${{ secrets.ORACLE_PRIVATE_KEY }}
+        run: |
+          WORKER_URL="https://last-chad-runner.severin20.workers.dev"
+          echo "Resetting all public craps tables..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${WORKER_URL}/tables/reset-all" \
+            -H "Authorization: Bearer ${ORACLE_PRIVATE_KEY}" \
+            -H "Content-Type: application/json")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          echo "HTTP ${HTTP_CODE}"
+          echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Reset failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          echo "All tables reset successfully."
