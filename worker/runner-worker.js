@@ -47,7 +47,7 @@ const CORS = {
 };
 
 const WIN_THRESHOLD_MS  = 110_000; // runner: 2 min map, 10s buffer
-const MAX_XP_PER_QUEST  = 500;     // generous cap — allows multi-section quests to scale
+const MAX_XP_PER_QUEST  = 9999999;  // effectively uncapped
 const QUEST_CACHE_TTL   = 86_400;  // 24h — quest configs change rarely
 const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'charisma']);
 
