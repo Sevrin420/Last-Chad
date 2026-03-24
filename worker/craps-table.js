@@ -901,9 +901,7 @@ function resolveBets(player, d1, d2, total, isHard, phase, point) {
   if (bets.field) {
     const fieldNums = [2, 3, 4, 9, 10, 11, 12];
     if (fieldNums.includes(total)) {
-      let payout = bets.field;
-      if (total === 2) payout = bets.field * 2;
-      else if (total === 12) payout = bets.field * 3;
+      const payout = bets.field;
       netWin += payout;
       player.stack += payout;
       wins.push('field');
