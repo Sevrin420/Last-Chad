@@ -1,0 +1,62 @@
+name: Create Main Branch
+
+# Trigger manually from GitHub Actions tab:
+# Repo → Actions → "Create Main Branch" → Run workflow → pick source branch
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: 'Branch to create main from'
+        required: true
+        default: 'claude/craps-game-onchain-SDPba'
+        type: string
+
+jobs:
+  create-main:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      administration: write
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_branch }}
+          fetch-depth: 0
+
+      - name: Create and push main branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B main
+          git push -u origin main --force
+
+      - name: Set main as default branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X PATCH repos/${{ github.repository }} \
+            -f default_branch=main
+
+      - name: Configure GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Try to update existing Pages config, or create it
+          gh api -X PUT repos/${{ github.repository }}/pages \
+            -f source='{"branch":"main","path":"/"}' \
+            --silent 2>/dev/null || \
+          gh api -X POST repos/${{ github.repository }}/pages \
+            -f source='{"branch":"main","path":"/"}' \
+            --silent 2>/dev/null || \
+          echo "⚠️ Pages config may need manual setup — check Settings > Pages"
+
+      - name: Summary
+        run: |
+          echo "## ✅ Main branch created!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source:** \`${{ inputs.source_branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Default branch:** \`main\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Pages:** serving from \`main\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Quest Builder should now work — it targets \`main\` by default." >> $GITHUB_STEP_SUMMARY
