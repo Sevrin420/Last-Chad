@@ -1568,7 +1568,7 @@ async function handleRollResult(data) {
     STATE.pressOptions = data.pressOptions;
     renderPressButtons();
     if (window._pressTimeout) clearTimeout(window._pressTimeout);
-    window._pressTimeout = setTimeout(() => clearPressButtons(), 5000);
+    window._pressTimeout = setTimeout(() => clearPressButtons(), 8000);
   }
 
   // Toast
