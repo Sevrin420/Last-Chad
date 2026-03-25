@@ -95,7 +95,7 @@ export function loadWcScript() {
   if (window.WalletConnectEthereumProvider) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'assets/walletconnect-provider.js';
+    s.src = '/assets/walletconnect-provider.js';
     s.onload = resolve;
     s.onerror = () => reject(new Error('Failed to load WalletConnect SDK'));
     document.head.appendChild(s);
