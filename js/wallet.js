@@ -145,26 +145,49 @@ async function connectInjected(walletName, { onConnected, onDisconnected }) {
   }
 
   try {
-    const accounts = await rawProvider.request({ method: 'eth_requestAccounts' });
+    // In dApp browsers (Core, Rabby, etc.) eth_accounts often returns accounts
+    // without prompting. Use that first, fall back to eth_requestAccounts.
+    let accounts;
+    try {
+      accounts = await rawProvider.request({ method: 'eth_accounts' });
+    } catch (_) { accounts = []; }
+
+    if (!accounts || accounts.length === 0) {
+      // eth_requestAccounts can hang in some dApp browsers — add a 10s timeout
+      accounts = await Promise.race([
+        rawProvider.request({ method: 'eth_requestAccounts' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error(
+          'Connection timed out. Please try refreshing the page.'
+        )), 10000))
+      ]);
+    }
+
     if (!accounts || accounts.length === 0) throw new Error('No accounts returned');
 
-    await switchToAvalanche(rawProvider);
+    // Chain switching can fail in some dApp browsers — don't block connection
+    try {
+      await switchToAvalanche(rawProvider);
+    } catch (chainErr) {
+      console.warn('Chain switch failed (may already be correct):', chainErr);
+    }
 
     _provider    = new ethers.providers.Web3Provider(rawProvider);
     _signer      = _provider.getSigner();
     _userAddress = accounts[0];
     onConnected(accounts[0]);
 
-    rawProvider.on('accountsChanged', (accs) => {
-      if (accs.length === 0) {
-        _provider = null; _signer = null; _userAddress = null;
-        onDisconnected();
-      } else {
-        _userAddress = accs[0];
-        onConnected(accs[0]);
-      }
-    });
-    rawProvider.on('chainChanged', () => window.location.reload());
+    try {
+      rawProvider.on('accountsChanged', (accs) => {
+        if (accs.length === 0) {
+          _provider = null; _signer = null; _userAddress = null;
+          onDisconnected();
+        } else {
+          _userAddress = accs[0];
+          onConnected(accs[0]);
+        }
+      });
+      rawProvider.on('chainChanged', () => window.location.reload());
+    } catch (_) { /* some providers don't support event listeners */ }
 
   } catch (err) {
     console.error('Connection failed:', err);
@@ -254,7 +277,7 @@ export async function autoReconnect(callbacks) {
   try {
     const accounts = await rawProvider.request({ method: 'eth_accounts' });
     if (accounts && accounts.length > 0) {
-      await switchToAvalanche(rawProvider);
+      try { await switchToAvalanche(rawProvider); } catch (_) { /* non-fatal */ }
       _provider    = new ethers.providers.Web3Provider(rawProvider);
       _signer      = _provider.getSigner();
       _userAddress = accounts[0];
