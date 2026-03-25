@@ -295,7 +295,7 @@ export async function disconnect(onDisconnectedCb) {
   _signer      = null;
   _userAddress = null;
   _clearWalletType();
-  onDisconnectedCb();
+  if (onDisconnectedCb) onDisconnectedCb();
 }
 
 // ========== AUTO-RECONNECT ==========

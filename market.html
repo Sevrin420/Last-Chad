@@ -1115,7 +1115,7 @@
       else openWalletModal();
     });
     disconnectBtn.addEventListener('click', () => {
-      disconnect();
+      disconnect(onDisconnected);
       disconnectDropdown.classList.remove('show');
     });
     document.addEventListener('click', e => {
