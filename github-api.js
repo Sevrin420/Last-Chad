@@ -1594,6 +1594,7 @@ function showPanel(id) {
       var actionWrap = panel.querySelector('.action-wrap');
       var hudEl = id ? panel.querySelector('.quest-hud') : null;
       var diceSection = id ? panel.querySelector('.dice-section') : null;
+      var claimSection = panel.querySelector('.claim-xp-section');
       if (img) { img.style.transition = ''; img.style.opacity = '0'; }
       if (narrative) {
         narrative.style.transition = '';
@@ -1610,6 +1611,7 @@ function showPanel(id) {
       } else {
         if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
       }
+      if (claimSection) { claimSection.style.transition = ''; claimSection.style.opacity = '0'; claimSection.style.pointerEvents = 'none'; }
       panel.classList.add('active');
       // Show exp box only on non-game, non-complete panels
       var _isGameSec = id && (!!gameSectionMap[id] || !!minigameSectionMap[id]);
@@ -2017,6 +2019,7 @@ function showPanel(id) {
       var actionWrap = panel.querySelector('.action-wrap');
       var hudEl = sid ? panel.querySelector('.quest-hud') : null;
       var diceSection = sid ? panel.querySelector('.dice-section') : null;
+      var claimSection = panel.querySelector('.claim-xp-section');
 
       // Collect plain-text lines from narrative <p> tags
       var lines = [];
@@ -2106,6 +2109,14 @@ function showPanel(id) {
           if (!alive()) return;
         }
         if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      }
+      // Reveal claim section after narrative finishes typing
+      if (claimSection) {
+        await wait(400);
+        if (!alive()) return;
+        claimSection.style.transition = 'opacity 1.2s ease';
+        claimSection.style.opacity = '1';
+        claimSection.style.pointerEvents = 'auto';
       }
     }
 
