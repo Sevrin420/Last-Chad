@@ -216,8 +216,12 @@ export async function connectWallet(walletName, callbacks) {
     (window.core && window.core.ethereum) ||
     (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
 
-  if (walletName === 'walletconnect' ||
-      (walletName === 'core' && isMobile() && !coreInjected)) {
+  // Core on mobile: deep-link into Core app's in-app browser first
+  if (walletName === 'core' && isMobile() && !coreInjected) {
+    const deepLink = getMobileDeepLink('core');
+    if (deepLink) { window.location.href = deepLink; return; }
+  }
+  if (walletName === 'walletconnect') {
     await connectWalletConnect(callbacks);
     return;
   }
