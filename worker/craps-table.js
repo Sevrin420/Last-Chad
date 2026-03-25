@@ -353,11 +353,16 @@ export class CrapsTable {
         const pClear = await this.state.storage.get(`player:${attachment.nonce}`);
         if (!pClear) break;
 
-        // Return all bets to stack
-        for (const val of Object.values(pClear.bets || {})) pClear.stack += val;
+        // Return clearable bets to stack — pass and passOdds are locked (contract bets)
+        const lockedZones = new Set(['pass', 'passOdds']);
+        const keptBets = {};
+        for (const [zone, val] of Object.entries(pClear.bets || {})) {
+          if (lockedZones.has(zone)) { keptBets[zone] = val; }
+          else { pClear.stack += val; }
+        }
         for (const val of Object.values(pClear.comeBets || {})) pClear.stack += val;
         for (const val of Object.values(pClear.comeOdds || {})) pClear.stack += val;
-        pClear.bets = {};
+        pClear.bets = keptBets;
         pClear.comeBets = {};
         pClear.comeOdds = {};
 
@@ -636,12 +641,15 @@ export class CrapsTable {
       return jsonResp({ error: 'Invalid session token' }, 403);
     }
 
-    // Return all bets to stack
-    let betsOnTable = 0;
-    for (const val of Object.values(pd.bets || {})) betsOnTable += val;
-    for (const val of Object.values(pd.comeBets || {})) betsOnTable += val;
-    for (const val of Object.values(pd.comeOdds || {})) betsOnTable += val;
-    const payout = pd.stack + betsOnTable;
+    // Return clearable bets to stack — pass and passOdds are forfeited (contract bets)
+    const lockedCashout = new Set(['pass', 'passOdds']);
+    let betsReturned = 0;
+    for (const [zone, val] of Object.entries(pd.bets || {})) {
+      if (!lockedCashout.has(zone)) betsReturned += val;
+    }
+    for (const val of Object.values(pd.comeBets || {})) betsReturned += val;
+    for (const val of Object.values(pd.comeOdds || {})) betsReturned += val;
+    const payout = pd.stack + betsReturned;
 
     // Remove player from DO storage
     await this.state.storage.delete(`player:${nonce}`);

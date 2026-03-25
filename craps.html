@@ -1842,13 +1842,20 @@ function escapeHtml(str) { const d=document.createElement('div'); d.textContent=
 
 // ── Cash Out ──
 async function cashOut() {
-  let betsOnTable = 0;
-  for (const val of Object.values(STATE.bets)) betsOnTable += val;
-  const totalPayout = STATE.stack + betsOnTable;
+  // Pass and passOdds are contract bets — forfeited on cashout
+  const lockedZones = new Set(['pass', 'passOdds']);
+  let returnableBets = 0;
+  let lockedBets = 0;
+  for (const [zone, val] of Object.entries(STATE.bets)) {
+    if (lockedZones.has(zone)) lockedBets += val;
+    else returnableBets += val;
+  }
+  const totalPayout = STATE.stack + returnableBets;
 
   if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
 
-  if (!(await gameConfirm(`Cash out ${totalPayout} cells?`))) return;
+  const forfeitMsg = lockedBets > 0 ? ` (${lockedBets} on pass line will be forfeited)` : '';
+  if (!(await gameConfirm(`Cash out ${totalPayout} cells?${forfeitMsg}`))) return;
 
   hideTimer();
   betsLocked = true;
