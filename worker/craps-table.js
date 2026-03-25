@@ -527,12 +527,8 @@ export class CrapsTable {
           await this.state.storage.put('game', game);
         }
 
-        // Send updated phase/point to all
-        this._broadcast({
-          type: 'phase-update',
-          phase: game.phase,
-          point: game.point,
-        }, null);
+        // phase/point is already included in each roll-result message,
+        // so no separate phase-update broadcast needed here.
 
         // Seven-out: was in point phase and rolled a 7 → rotate shooter
         if (wasPointPhase && total === 7) {
@@ -858,8 +854,10 @@ export class CrapsTable {
 
     // Reschedule: shorter interval when game phase is active
     if (activeSockets > 0) {
-      const gameActive = game.turnDeadline && game.turnDeadline > now;
-      const nextAlarm = gameActive ? Math.min(2000, game.turnDeadline - now + 100) : 30_000;
+      // Re-read game — phase transitions above may have updated it
+      const freshGame = await this._getGame();
+      const gameActive = freshGame.turnDeadline && freshGame.turnDeadline > now;
+      const nextAlarm = gameActive ? Math.min(2000, freshGame.turnDeadline - now + 100) : 30_000;
       await this.state.storage.setAlarm(Date.now() + nextAlarm);
     }
   }
