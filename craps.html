@@ -906,7 +906,7 @@
 <script src="nav.js"></script>
 <script type="module">
 import { connectWallet as walletConnect, autoReconnect, disconnect,
-         getSigner, getUserAddress, truncateAddress } from './js/wallet.js';
+         getSigner, ensureSigner, getUserAddress, truncateAddress } from './js/wallet.js';
 import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
 
 /* ===================================================================
@@ -1818,8 +1818,8 @@ async function cashOut() {
     }
 
     dealerSay("Claiming cells on-chain...", 'neutral');
-    const signer = getSigner();
-    if (!signer) throw new Error('Wallet not connected');
+    const signer = await ensureSigner();
+    if (!signer) throw new Error('Wallet not connected — please reconnect and try again');
     const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
     const tx = await gamble.claimWinnings(STATE.tokenId, data.payout, data.nonce, data.signature);
     dealerSay("Confirming transaction...", 'neutral');

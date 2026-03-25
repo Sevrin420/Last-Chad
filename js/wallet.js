@@ -30,6 +30,39 @@ export function getProvider()    { return _provider; }
 export function getSigner()      { return _signer; }
 export function getUserAddress() { return _userAddress; }
 
+// Async version: if signer is null, tries to restore WC session first
+export async function ensureSigner() {
+  if (_signer) return _signer;
+  // Try WC session restore
+  const saved = _getSavedWalletType();
+  if (saved === 'walletconnect' && WALLETCONNECT_PROJECT_ID) {
+    try {
+      const wcProvider = await _initWcProvider();
+      if (wcProvider.session) {
+        _wcProvider  = wcProvider;
+        _provider    = new ethers.providers.Web3Provider(wcProvider);
+        _signer      = _provider.getSigner();
+        _userAddress = await _signer.getAddress();
+        return _signer;
+      }
+    } catch (_) {}
+  }
+  // Try injected provider
+  const raw = window.ethereum || window.avalanche;
+  if (raw) {
+    try {
+      const accs = await raw.request({ method: 'eth_accounts' });
+      if (accs && accs.length > 0) {
+        _provider    = new ethers.providers.Web3Provider(raw);
+        _signer      = _provider.getSigner();
+        _userAddress = accs[0];
+        return _signer;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
 // ========== HELPERS ==========
 export function isMobile() {
   return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
