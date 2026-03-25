@@ -1321,6 +1321,7 @@ function advanceShooterOnServer() {
 // Solo: no bet timer, no auto-roll. Multi: 20s bets, 10s auto-roll.
 let turnPhase = 'betting';
 let betsLocked = false;
+let cashingOut = false;
 
 function startBetPhase() {
   turnPhase = 'betting';
@@ -1851,6 +1852,7 @@ async function cashOut() {
 
   hideTimer();
   betsLocked = true;
+  cashingOut = true;
   document.getElementById('tableDice').classList.add('locked');
   dealerSay("Cashing out...", 'neutral');
 
@@ -1900,6 +1902,7 @@ async function cashOut() {
     setTimeout(() => { window.location.href = 'chadbase.html'; }, 2000);
 
   } catch (err) {
+    cashingOut = false;
     dealerSay('Cashout failed: ' + (err.reason || err.message || 'Unknown error'), 'sad');
     startBetPhase();
   }
@@ -2339,12 +2342,13 @@ setInterval(refreshLobbyTables, 10_000);
 
 // Heartbeat: DO pings every 30s, client responds with pong (handled in handleWsMessage).
 window.addEventListener('beforeunload', (e) => {
-  if (STATE.nonce && STATE.stack > 0) {
+  // Skip warning during cashout — WalletConnect may trigger navigation for signing
+  if (!cashingOut && STATE.nonce && STATE.stack > 0) {
     e.preventDefault();
     e.returnValue = 'You have cells on the table! Cash out first or they will be lost.';
   }
   // Always close the WS so the DO fires _handleDisconnect and cleans up player:* data
-  disconnectTable();
+  if (!cashingOut) disconnectTable();
 });
 
 // ── Init ──
