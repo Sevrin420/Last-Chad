@@ -1142,8 +1142,9 @@ function startDiceSpin() {
     die1El.classList.remove('rolling'); die1El.classList.add('settled');
     die2El.classList.remove('rolling'); die2El.classList.add('settled');
     STATE.isRolling = false;
+    _pendingRollData = null;
     document.getElementById('tableDice').classList.remove('locked');
-    startBetPhase();
+    scheduleBetPhase(500);
   }, 15000);
 }
 
@@ -1309,7 +1310,7 @@ function updateShooter(newShooterPlayerId) {
   if (!STATE.isRolling) {
     clearTimer();
     killSpinIntervals();
-    setTimeout(() => { startBetPhase(); }, changed ? 2000 : 500);
+    scheduleBetPhase(changed ? 2000 : 500);
   }
 }
 
@@ -1322,8 +1323,16 @@ function advanceShooterOnServer() {
 let turnPhase = 'betting';
 let betsLocked = false;
 let cashingOut = false;
+let _betPhaseTimer = null; // dedup overlapping startBetPhase calls
+
+function scheduleBetPhase(delayMs) {
+  if (_betPhaseTimer) clearTimeout(_betPhaseTimer);
+  _betPhaseTimer = setTimeout(() => { _betPhaseTimer = null; startBetPhase(); }, delayMs);
+}
 
 function startBetPhase() {
+  // Cancel any pending startBetPhase calls to prevent duplicates
+  if (_betPhaseTimer) { clearTimeout(_betPhaseTimer); _betPhaseTimer = null; }
   turnPhase = 'betting';
   betsLocked = false;
   clearPressButtons();
@@ -1481,7 +1490,7 @@ function settleRollImmediate(data) {
   document.getElementById('tableDice').classList.remove('locked');
   clearPressButtons();
   // Schedule next bet phase (hidden-tab rolls skip the normal animation path)
-  setTimeout(() => { startBetPhase(); }, 500);
+  scheduleBetPhase(500);
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -1491,7 +1500,17 @@ document.addEventListener('visibilitychange', () => {
     if (_pendingRollData && STATE.isRolling) {
       _rollSeq++;  // abort any in-flight handleRollResult awaits
       settleRollImmediate(_pendingRollData);
-      // settleRollImmediate already schedules startBetPhase
+    } else if (STATE.isRolling && !_pendingRollData) {
+      // Tab returned but we missed the roll-result (WS reconnected mid-roll)
+      // Clear stuck rolling state and restart bet phase
+      STATE.isRolling = false;
+      killSpinIntervals();
+      const die1El = document.getElementById('die1');
+      const die2El = document.getElementById('die2');
+      die1El.classList.remove('rolling'); die1El.classList.add('settled');
+      die2El.classList.remove('rolling'); die2El.classList.add('settled');
+      document.getElementById('tableDice').classList.remove('locked');
+      scheduleBetPhase(500);
     }
   }
 });
@@ -1670,9 +1689,7 @@ async function handleRollResult(data) {
   // Keep dice locked until next bet phase starts
   // Seven-out rotation is now handled server-side by the DO roll handler.
   const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
-  setTimeout(() => {
-    startBetPhase();
-  }, hasPress ? 5000 : 2000);
+  scheduleBetPhase(hasPress ? 5000 : 2000);
 }
 
 // ── Announcer Overlay ──
@@ -2081,7 +2098,13 @@ function handleWsMessage(data) {
       if (data.game) {
         STATE.phase = data.game.phase || 'comeout';
         STATE.point = data.game.point || null;
-        STATE.isRolling = !!data.game.rolling;
+        // If server says rolling but we reconnected mid-roll, the roll-result
+        // was already sent and we missed it. Clear rolling so we don't get stuck.
+        if (data.game.rolling && !_pendingRollData) {
+          STATE.isRolling = false;
+        } else {
+          STATE.isRolling = !!data.game.rolling;
+        }
       }
       syncPuck();
       if (data.shooter) updateShooter(data.shooter);

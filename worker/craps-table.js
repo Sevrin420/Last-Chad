@@ -217,6 +217,14 @@ export class CrapsTable {
       case 'pong': {
         attachment.lastPong = Date.now();
         ws.serializeAttachment(attachment);
+        // Also update lastActivity in player storage to prevent false idle kicks
+        if (attachment.nonce) {
+          const pPong = await this.state.storage.get(`player:${attachment.nonce}`);
+          if (pPong) {
+            pPong.lastActivity = Date.now();
+            await this.state.storage.put(`player:${attachment.nonce}`, pPong);
+          }
+        }
         break;
       }
 
@@ -733,8 +741,9 @@ export class CrapsTable {
       try { att = ws.deserializeAttachment(); } catch (_) { continue; }
       if (!att) continue;
 
-      // If lastPong was set and is older than 60s, socket is zombie
-      if (att.lastPong && (now - att.lastPong) > 60_000) {
+      // If lastPong was set and is older than 120s, socket is zombie
+      // (tabs can freeze JS for 30-60s when backgrounded — 120s avoids false positives)
+      if (att.lastPong && (now - att.lastPong) > 120_000) {
         try { ws.close(4002, 'Heartbeat timeout'); } catch (_) {}
         continue;
       }
@@ -750,13 +759,14 @@ export class CrapsTable {
       } catch (_) {}
     }
 
-    // ── Idle check: kick players who haven't bet in 15 minutes ──
+    // ── Idle check: kick players with no activity (bets or pongs) for 15 minutes ──
     const IDLE_MS = 15 * 60 * 1000;
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeys) {
-      // No lastBetTime = joined before this feature — treat as idle immediately
-      const lastBet = pd.lastBetTime || 0;
-      if ((now - lastBet) < IDLE_MS) continue;
+      // Use most recent of lastBetTime and lastActivity (pong)
+      const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
+      if (lastActive === 0) continue; // just joined, no timestamp yet — skip
+      if ((now - lastActive) < IDLE_MS) continue;
       const idlePlayerId = pd.player + '-' + pd.tokenId;
       const nonce = key.replace('player:', '');
       // Find their socket
