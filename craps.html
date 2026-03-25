@@ -1144,7 +1144,7 @@ function startDiceSpin() {
     STATE.isRolling = false;
     _pendingRollData = null;
     document.getElementById('tableDice').classList.remove('locked');
-    scheduleBetPhase(500);
+    // Server will send next turn-phase; no client scheduling needed
   }, 15000);
 }
 
@@ -1306,11 +1306,10 @@ function updateShooter(newShooterPlayerId) {
       dealerSay(`${name} has the dice! Place your bets`, 'happy');
     }
   }
-  // Kill any stale timers from before reconnect, then start fresh bet phase
+  // Kill any stale timers from before reconnect — server will send turn-phase
   if (!STATE.isRolling) {
     clearTimer();
     killSpinIntervals();
-    scheduleBetPhase(changed ? 2000 : 500);
   }
 }
 
@@ -1318,46 +1317,12 @@ function advanceShooterOnServer() {
   wsSend({ type: 'pass-dice' });
 }
 
-// ── Turn Phase System ──
-// Solo: no bet timer, no auto-roll. Multi: 20s bets, 10s auto-roll.
+// ── Turn Phase System (server-authoritative) ──
+// The DO drives all phase transitions via 'turn-phase' messages.
+// Client just renders the current phase and timer from the server deadline.
 let turnPhase = 'betting';
 let betsLocked = false;
 let cashingOut = false;
-let _betPhaseTimer = null; // dedup overlapping startBetPhase calls
-
-function scheduleBetPhase(delayMs) {
-  if (_betPhaseTimer) clearTimeout(_betPhaseTimer);
-  _betPhaseTimer = setTimeout(() => { _betPhaseTimer = null; startBetPhase(); }, delayMs);
-}
-
-function startBetPhase() {
-  // Cancel any pending startBetPhase calls to prevent duplicates
-  if (_betPhaseTimer) { clearTimeout(_betPhaseTimer); _betPhaseTimer = null; }
-  turnPhase = 'betting';
-  betsLocked = false;
-  clearPressButtons();
-  const diceEl = document.getElementById('tableDice');
-  diceEl.classList.remove('can-roll');
-  diceEl.classList.add('locked');
-  document.getElementById('rollPrompt').style.display = 'none';
-  hideTimer();
-  if (STATE.phase === 'comeout') {
-    // Check if any place/hardway bets are still on table
-    const offKeys = ['place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
-    const hasOffBets = offKeys.some(k => STATE.bets[k] > 0);
-    if (hasOffBets) {
-      dealerSay("Come-out roll — all bets OFF except Pass Line and Field.", 'neutral');
-    } else {
-      dealerSay("Come-out roll — place your bets!", 'neutral');
-    }
-  } else {
-    dealerSay("Place your bets!", 'neutral');
-  }
-  renderAllBetChips();
-  const multi = getRemotePlayerCount() > 0;
-  const betTime = multi ? 20 : 15;
-  startTimer(betTime, 'PLACE BETS', onBetTimerExpired);
-}
 
 function getRemotePlayerCount() {
   let n = 0;
@@ -1365,31 +1330,51 @@ function getRemotePlayerCount() {
   return n;
 }
 
-function onBetTimerExpired() {
-  const multi = getRemotePlayerCount() > 0;
+// Apply a phase from the server — the ONLY way phase transitions happen
+function applyTurnPhase(serverPhase, deadline) {
+  turnPhase = serverPhase;
+  clearTimer();
+  clearPressButtons();
+  const diceEl = document.getElementById('tableDice');
 
-  if (!STATE.bets.pass) {
-    if (multi && isLocalShooter()) {
-      // Multiplayer: shooter didn't bet — pass dice to next player
-      dealerSay("No pass line bet — passing the dice!", 'neutral');
-      advanceShooterOnServer();
-      // The 'shooter' WS message will trigger updateShooter → new bet phase
-      return;
+  if (serverPhase === 'betting') {
+    betsLocked = false;
+    diceEl.classList.remove('can-roll');
+    diceEl.classList.add('locked');
+    document.getElementById('rollPrompt').style.display = 'none';
+    if (STATE.phase === 'comeout') {
+      const offKeys = ['place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
+      const hasOffBets = offKeys.some(k => STATE.bets[k] > 0);
+      dealerSay(hasOffBets ? "Come-out roll — all bets OFF except Pass Line and Field." : "Come-out roll — place your bets!", 'neutral');
+    } else {
+      dealerSay("Place your bets!", 'neutral');
     }
-    if (!multi) {
-      // Solo: no pass bet — restart bet phase
-      dealerSay("Bet on the pass line to roll!", 'neutral');
-      startBetPhase();
-      return;
+    renderAllBetChips();
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (remaining > 0) startTimer(remaining, 'PLACE BETS', () => {});
+
+  } else if (serverPhase === 'rolling') {
+    betsLocked = true;
+    if (isLocalShooter()) {
+      diceEl.classList.add('can-roll');
+      diceEl.classList.remove('locked');
+      document.getElementById('rollPrompt').style.display = '';
+    } else {
+      diceEl.classList.remove('can-roll');
+      diceEl.classList.add('locked');
+      document.getElementById('rollPrompt').style.display = 'none';
     }
-    // Not the shooter in multi — just wait for new bet phase
-    return;
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    const label = isLocalShooter() ? 'ROLL' : (getShooterName() + ' ROLLING');
+    if (remaining > 0) startTimer(remaining, label, () => {});
+
+  } else if (serverPhase === 'result') {
+    betsLocked = true;
+    diceEl.classList.remove('can-roll');
+    diceEl.classList.add('locked');
+    document.getElementById('rollPrompt').style.display = 'none';
+    hideTimer();
   }
-
-  turnPhase = 'no-more-bets';
-  betsLocked = true;
-  showNoMoreBets();
-  setTimeout(() => { startRollPhase(); }, 1500);
 }
 
 function showNoMoreBets() {
@@ -1398,27 +1383,6 @@ function showNoMoreBets() {
   label.textContent = 'NO MORE BETS';
   label.className = 'timer-label no-more-bets';
   label.style.display = '';
-}
-
-function startRollPhase() {
-  turnPhase = 'rolling';
-  const diceEl = document.getElementById('tableDice');
-  const shooter = isLocalShooter();
-
-  if (shooter) {
-    diceEl.classList.add('can-roll');
-    diceEl.classList.remove('locked');
-    document.getElementById('rollPrompt').style.display = '';
-    startTimer(10, 'ROLL', () => { rollDice(); }); // auto-roll: manualRollClicked stays false
-  } else {
-    // Not the shooter — dice locked, show waiting timer
-    diceEl.classList.remove('can-roll');
-    diceEl.classList.add('locked');
-    document.getElementById('rollPrompt').style.display = 'none';
-    startTimer(10, getShooterName() + ' ROLLING', () => {
-      // Auto-roll triggers on the shooter's client; we just wait
-    });
-  }
 }
 
 let _timerRAF = null;
@@ -1489,8 +1453,7 @@ function settleRollImmediate(data) {
   _pendingRollData = null;
   document.getElementById('tableDice').classList.remove('locked');
   clearPressButtons();
-  // Schedule next bet phase (hidden-tab rolls skip the normal animation path)
-  scheduleBetPhase(500);
+  // Server will send next turn-phase after result delay
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -1502,7 +1465,7 @@ document.addEventListener('visibilitychange', () => {
       settleRollImmediate(_pendingRollData);
     } else if (STATE.isRolling && !_pendingRollData) {
       // Tab returned but we missed the roll-result (WS reconnected mid-roll)
-      // Clear stuck rolling state and restart bet phase
+      // Clear stuck rolling state — server will send turn-phase
       STATE.isRolling = false;
       killSpinIntervals();
       const die1El = document.getElementById('die1');
@@ -1510,7 +1473,6 @@ document.addEventListener('visibilitychange', () => {
       die1El.classList.remove('rolling'); die1El.classList.add('settled');
       die2El.classList.remove('rolling'); die2El.classList.add('settled');
       document.getElementById('tableDice').classList.remove('locked');
-      scheduleBetPhase(500);
     }
   }
 });
@@ -1688,8 +1650,7 @@ async function handleRollResult(data) {
   _pendingRollData = null;  // animation completed normally
   // Keep dice locked until next bet phase starts
   // Seven-out rotation is now handled server-side by the DO roll handler.
-  const hasPress = data.pressOptions && Object.keys(data.pressOptions).length > 0;
-  scheduleBetPhase(hasPress ? 5000 : 2000);
+  // Server will send next turn-phase after result delay
 }
 
 // ── Announcer Overlay ──
@@ -1928,7 +1889,6 @@ async function cashOut() {
   } catch (err) {
     cashingOut = false;
     dealerSay('Cashout failed: ' + (err.reason || err.message || 'Unknown error'), 'sad');
-    startBetPhase();
   }
 }
 
@@ -1974,11 +1934,8 @@ function initPlayerFromSession() {
 
   dealerSay("Welcome! Place your bets.", 'happy');
 
-  // Don't start bet phase yet — show welcome, then auto-start after 3s
+  // Server will send turn-phase once auth completes
   dealerSay("Bet on the pass line to begin!", 'neutral');
-  setTimeout(() => {
-    startBetPhase();
-  }, 3000);
 }
 
 // ── Player Panel Helpers ──
@@ -2109,6 +2066,8 @@ function handleWsMessage(data) {
       syncPuck();
       if (data.shooter) updateShooter(data.shooter);
       renderAllBetChips();
+      // Apply server-driven phase
+      if (data.turnPhase) applyTurnPhase(data.turnPhase, data.turnDeadline || 0);
       break;
     }
 
@@ -2173,6 +2132,8 @@ function handleWsMessage(data) {
       updateLocalPlayerUI();
       renderAllBetChips();
       syncPuck();
+      // Apply server-driven phase
+      if (data.turnPhase) applyTurnPhase(data.turnPhase, data.turnDeadline || 0);
       break;
     }
 
@@ -2241,6 +2202,15 @@ function handleWsMessage(data) {
 
     case 'full': {
       alert('Table is full!');
+      break;
+    }
+
+    case 'turn-phase': {
+      // Also sync craps phase/point if provided
+      if (data.phase) STATE.phase = data.phase;
+      if (data.point !== undefined) STATE.point = data.point;
+      syncPuck();
+      applyTurnPhase(data.turnPhase, data.deadline || data.turnDeadline || 0);
       break;
     }
 
