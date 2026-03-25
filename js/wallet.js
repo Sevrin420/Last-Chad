@@ -174,6 +174,7 @@ async function connectInjected(walletName, { onConnected, onDisconnected }) {
     _provider    = new ethers.providers.Web3Provider(rawProvider);
     _signer      = _provider.getSigner();
     _userAddress = accounts[0];
+    _saveWalletType(walletName || 'injected');
     onConnected(accounts[0]);
 
     try {
@@ -195,6 +196,44 @@ async function connectInjected(walletName, { onConnected, onDisconnected }) {
   }
 }
 
+// ========== WALLETCONNECT SESSION PERSISTENCE ==========
+const WC_STORAGE_KEY = 'lc_wallet_type';
+let _wcProvider = null; // keep reference for session reuse
+
+function _saveWalletType(type) { try { localStorage.setItem(WC_STORAGE_KEY, type); } catch (_) {} }
+function _clearWalletType()    { try { localStorage.removeItem(WC_STORAGE_KEY); } catch (_) {} }
+function _getSavedWalletType() { try { return localStorage.getItem(WC_STORAGE_KEY); } catch (_) { return null; } }
+
+async function _initWcProvider() {
+  await loadWcScript();
+  const EthereumProvider = window.WalletConnectEthereumProvider.EthereumProvider;
+  return EthereumProvider.init({
+    projectId: WALLETCONNECT_PROJECT_ID,
+    chains: [43113],
+    showQrModal: true,
+    rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' }
+  });
+}
+
+function _setupWcListeners(wcProvider, onConnected, onDisconnected) {
+  wcProvider.on('accountsChanged', (accs) => {
+    if (accs.length === 0) {
+      _provider = null; _signer = null; _userAddress = null;
+      _clearWalletType();
+      onDisconnected();
+    } else {
+      _userAddress = accs[0];
+      onConnected(accs[0]);
+    }
+  });
+  wcProvider.on('disconnect', () => {
+    _provider = null; _signer = null; _userAddress = null;
+    _wcProvider = null;
+    _clearWalletType();
+    onDisconnected();
+  });
+}
+
 // ========== CONNECT: WALLETCONNECT ==========
 async function connectWalletConnect({ onConnected, onDisconnected }) {
   if (!WALLETCONNECT_PROJECT_ID) {
@@ -202,34 +241,17 @@ async function connectWalletConnect({ onConnected, onDisconnected }) {
     return;
   }
   try {
-    await loadWcScript();
-    const EthereumProvider = window.WalletConnectEthereumProvider.EthereumProvider;
-    const wcProvider = await EthereumProvider.init({
-      projectId: WALLETCONNECT_PROJECT_ID,
-      chains: [43113],
-      showQrModal: true,
-      rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' }
-    });
+    const wcProvider = await _initWcProvider();
     await wcProvider.connect();
 
+    _wcProvider  = wcProvider;
     _provider    = new ethers.providers.Web3Provider(wcProvider);
     _signer      = _provider.getSigner();
     _userAddress = await _signer.getAddress();
-    onConnected(_userAddress);
 
-    wcProvider.on('accountsChanged', (accs) => {
-      if (accs.length === 0) {
-        _provider = null; _signer = null; _userAddress = null;
-        onDisconnected();
-      } else {
-        _userAddress = accs[0];
-        onConnected(accs[0]);
-      }
-    });
-    wcProvider.on('disconnect', () => {
-      _provider = null; _signer = null; _userAddress = null;
-      onDisconnected();
-    });
+    _saveWalletType('walletconnect');
+    onConnected(_userAddress);
+    _setupWcListeners(wcProvider, onConnected, onDisconnected);
 
   } catch (err) {
     console.error('WalletConnect failed:', err);
@@ -263,15 +285,45 @@ export async function connectWallet(walletName, callbacks) {
 }
 
 // ========== DISCONNECT ==========
-export function disconnect(onDisconnectedCb) {
+export async function disconnect(onDisconnectedCb) {
+  // Disconnect WalletConnect session if active
+  if (_wcProvider) {
+    try { await _wcProvider.disconnect(); } catch (_) {}
+    _wcProvider = null;
+  }
   _provider    = null;
   _signer      = null;
   _userAddress = null;
+  _clearWalletType();
   onDisconnectedCb();
 }
 
 // ========== AUTO-RECONNECT ==========
 export async function autoReconnect(callbacks) {
+  const savedType = _getSavedWalletType();
+
+  // Try WalletConnect session restore first if that's what was saved
+  if (savedType === 'walletconnect' && WALLETCONNECT_PROJECT_ID) {
+    try {
+      const wcProvider = await _initWcProvider();
+      // WC v2 stores sessions in localStorage — if a session exists,
+      // the provider is already connected after init()
+      if (wcProvider.session) {
+        _wcProvider  = wcProvider;
+        _provider    = new ethers.providers.Web3Provider(wcProvider);
+        _signer      = _provider.getSigner();
+        _userAddress = await _signer.getAddress();
+        callbacks.onConnected(_userAddress);
+        _setupWcListeners(wcProvider, callbacks.onConnected, callbacks.onDisconnected);
+        return;
+      }
+    } catch (e) {
+      console.warn('WalletConnect session restore failed:', e);
+      _clearWalletType();
+    }
+  }
+
+  // Fall back to injected provider auto-reconnect
   const rawProvider = window.ethereum || window.avalanche;
   if (!rawProvider) return;
   try {
