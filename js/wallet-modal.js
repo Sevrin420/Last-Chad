@@ -19,7 +19,7 @@
   // ── CSS (scoped to #walletModal to avoid collisions) ──
   var style = document.createElement('style');
   style.textContent =
-    '#walletModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center;padding:20px}' +
+    '#walletModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;padding:20px}' +
     '#walletModal.show{display:flex}' +
     '#walletModal .wm-box{background:linear-gradient(180deg,#1e1608 0%,#140f05 100%);border:3px solid #5c4409;border-radius:8px;padding:28px 24px;max-width:360px;width:100%;box-shadow:0 0 40px rgba(0,0,0,0.8)}' +
     '#walletModal .wm-title{font-family:"Press Start 2P",monospace;font-size:0.7rem;color:#c9a84c;text-align:center;margin:0 0 24px;letter-spacing:0.05em}' +
@@ -30,7 +30,7 @@
     '#walletModal .wm-cancel{display:block;width:100%;font-family:"Press Start 2P",monospace;font-size:0.45rem;color:#5c4409;background:none;border:1px solid #3d2e0a;border-radius:4px;cursor:pointer;padding:10px;margin-top:4px;transition:all 0.15s}' +
     '#walletModal .wm-cancel:hover{color:#f5e6c8;border-color:#8b6914}' +
     /* Force WalletConnect QR modal (injected by library) above all game overlays */
-    'wcm-modal,w3m-modal,.wcm-overlay,.w3m-overlay,[class*="walletconnect"]{z-index:20000!important}';
+    'wcm-modal,w3m-modal,w3m-core,w3m-overlay,.wcm-overlay,.w3m-overlay,[class*="walletconnect"],[id*="walletconnect"],[class*="w3m"],[class*="wcm"]{z-index:999999!important;position:fixed!important}';
   document.head.appendChild(style);
 
   // ── HTML ──
