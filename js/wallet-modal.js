@@ -42,6 +42,10 @@
   modal.innerHTML =
     '<div class="wm-box">' +
       '<h2 class="wm-title">Connect Wallet</h2>' +
+      '<button class="wm-option" data-wallet="core">' +
+        '<span class="wm-icon" style="background:#e84142;">&#9830;</span>' +
+        'Core' +
+      '</button>' +
       '<button class="wm-option" data-wallet="rabby">' +
         '<span class="wm-icon" style="background:#7c6be6;">&#128176;</span>' +
         'Rabby' +
