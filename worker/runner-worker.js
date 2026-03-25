@@ -190,7 +190,7 @@ export default {
       }
     } catch (err) {
       console.error(err);
-      return json({ error: 'Internal error' }, 500);
+      return json({ ok: false, error: 'Internal error', reason: err.message || 'server_error' }, 500);
     }
 
     return json({ error: 'Not found' }, 404);
