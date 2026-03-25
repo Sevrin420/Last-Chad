@@ -2186,7 +2186,7 @@ function showPanel(id) {
       else { openWalletModal(); }
     });
     document.getElementById('disconnectBtn').addEventListener('click', onDisconnected);
-    document.addEventListener('wallet-selected', function(e) { connectWallet(e.detail.wallet); });
+    document.addEventListener('wallet-selected', function(e) { connectWallet(e.detail.wallet).catch(function(err) { console.error('Wallet connection error:', err); alert('Connection error: ' + (err.message || err)); }); });
     document.addEventListener('click', function(e) { if (!e.target.closest('.wallet-wrapper')) document.getElementById('disconnectDropdown').classList.remove('show'); });
 
 

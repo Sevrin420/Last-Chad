@@ -1274,7 +1274,10 @@
       if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
     });
 
-    document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
+    document.addEventListener('wallet-selected', e => {
+      connectWallet(e.detail.wallet, { onConnected, onDisconnected })
+        .catch(err => { console.error('Wallet connection error:', err); alert('Connection error: ' + (err.message || err)); });
+    });
 
     // ── Typewriter ──
     function typewrite(el, text, speed = 40) {

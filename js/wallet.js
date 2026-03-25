@@ -73,6 +73,12 @@ export function getMobileDeepLink(walletName) {
 
 // ========== CHAIN SWITCHING ==========
 export async function switchToAvalanche(rawProvider) {
+  // Check if already on the correct chain — skip switching if so
+  try {
+    const chainId = await rawProvider.request({ method: 'eth_chainId' });
+    if (chainId === AVAX_CHAIN_ID) return;
+  } catch (_) { /* proceed to switch */ }
+
   try {
     await rawProvider.request({
       method: 'wallet_switchEthereumChain',
@@ -216,8 +222,9 @@ export async function connectWallet(walletName, callbacks) {
     (window.core && window.core.ethereum) ||
     (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
 
-  // Core on mobile: deep-link into Core app's in-app browser first
-  if (walletName === 'core' && isMobile() && !coreInjected) {
+  // Core on mobile without any injected provider: deep-link into Core app
+  // If window.ethereum exists we're already in a dApp browser — use it directly
+  if (walletName === 'core' && isMobile() && !coreInjected && !hasInjected) {
     const deepLink = getMobileDeepLink('core');
     if (deepLink) { window.location.href = deepLink; return; }
   }
