@@ -523,6 +523,33 @@
       padding:9px 18px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
     }
 
+    /* ── Custom Confirm Dialog (dApp browser safe) ── */
+    .confirm-overlay{
+      position:fixed;inset:0;z-index:9000;
+      display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,0.85);
+    }
+    .confirm-overlay.show{display:flex}
+    .confirm-box{
+      background:linear-gradient(180deg,#1e1608,#0a0a0f);
+      border:2px solid #5c4409;border-radius:10px;
+      padding:24px 28px;max-width:340px;width:85%;text-align:center;
+    }
+    .confirm-box p{font-size:0.4rem;color:#f5e6c8;margin:0 0 18px;line-height:1.8}
+    .confirm-btns{display:flex;gap:12px;justify-content:center}
+    .confirm-btns button{
+      font-family:'Press Start 2P',monospace;font-size:0.35rem;
+      padding:10px 18px;border-radius:5px;cursor:pointer;border:2px solid;
+    }
+    .confirm-yes{
+      border-color:#2e7d32;color:#fff;
+      background:linear-gradient(180deg,#4caf50 0%,#2e7d32 100%);
+    }
+    .confirm-no{
+      border-color:#5c4409;color:#f5e6c8;
+      background:linear-gradient(180deg,#2a1f0a 0%,#0a0a0f 100%);
+    }
+
     /* ── Result Toast ── */
     .result-toast{
       position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
@@ -698,6 +725,17 @@
     <button class="header-action-btn cashout-mode" id="cashOutBtn" onclick="cashOut()">CASH OUT</button>
   </div>
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT WALLET</button>
+</div>
+
+<!-- ── Custom Confirm Dialog ── -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <p id="confirmMsg"></p>
+    <div class="confirm-btns">
+      <button class="confirm-yes" id="confirmYes">YES</button>
+      <button class="confirm-no" id="confirmNo">CANCEL</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── Table Lobby ── -->
@@ -916,6 +954,27 @@ import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
    =================================================================== */
 
 const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+
+// Custom confirm dialog — native confirm() breaks in some dApp browsers (Core mobile)
+function gameConfirm(msg) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('confirmOverlay');
+    document.getElementById('confirmMsg').textContent = msg;
+    overlay.classList.add('show');
+    const yes = document.getElementById('confirmYes');
+    const no  = document.getElementById('confirmNo');
+    function cleanup(result) {
+      overlay.classList.remove('show');
+      yes.removeEventListener('click', onYes);
+      no.removeEventListener('click', onNo);
+      resolve(result);
+    }
+    function onYes() { cleanup(true); }
+    function onNo()  { cleanup(false); }
+    yes.addEventListener('click', onYes);
+    no.addEventListener('click', onNo);
+  });
+}
 
 function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
   const controller = new AbortController();
@@ -1788,7 +1847,7 @@ async function cashOut() {
 
   if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
 
-  if (!confirm(`Cash out ${totalPayout} cells?`)) return;
+  if (!(await gameConfirm(`Cash out ${totalPayout} cells?`))) return;
 
   hideTimer();
   betsLocked = true;
@@ -1847,14 +1906,14 @@ async function cashOut() {
 }
 
 // ── Exit Table ──
-function exitTable() {
+async function exitTable() {
   if (STATE.nonce) {
     let betsOnTable = 0;
     for (const val of Object.values(STATE.bets)) betsOnTable += val;
     const totalCells = STATE.stack + betsOnTable;
     if (totalCells > 0) {
-      const msg = `⚠️ You have ${totalCells} cells on the table!\n\nLeaving without cashing out means you LOSE all cells.\n\nAre you sure?`;
-      if (!confirm(msg)) return;
+      const msg = `You have ${totalCells} cells on the table! Leaving without cashing out means you LOSE all cells. Are you sure?`;
+      if (!(await gameConfirm(msg))) return;
     }
   }
   sessionStorage.removeItem('craps_session');
@@ -2333,12 +2392,15 @@ document.addEventListener('click', (e) => {
   for (const v of Object.values(STATE.bets)) total += v;
   if (total <= 0) return;
   e.preventDefault();
-  const msg = `⚠️ You have ${total} cells on the table!\n\nLeaving without cashing out means you LOSE all cells.\n\nAre you sure?`;
-  if (confirm(msg)) {
-    sessionStorage.removeItem('craps_session');
-    disconnectTable();
-    window.location.href = link.href;
-  }
+  const href = link.href;
+  const msg = `You have ${total} cells on the table! Leaving without cashing out means you LOSE all cells. Are you sure?`;
+  gameConfirm(msg).then((yes) => {
+    if (yes) {
+      sessionStorage.removeItem('craps_session');
+      disconnectTable();
+      window.location.href = href;
+    }
+  });
 });
 
 console.log('[craps] module loaded OK — all window exports set');

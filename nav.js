@@ -32,7 +32,8 @@
   var toggle   = document.getElementById('navToggle');
   var dropdown = document.getElementById('navDropdown');
 
-  toggle.addEventListener('click', function () {
+  toggle.addEventListener('click', function (e) {
+    e.stopPropagation();
     toggle.classList.toggle('open');
     dropdown.classList.toggle('show');
   });
