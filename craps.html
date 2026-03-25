@@ -945,13 +945,13 @@ const STATE = {
   isRolling: false,
   playerName: 'Player',
   nftName: crapsSession.chadName || 'Chad #' + crapsSession.tokenId,
-  playerId: crapsSession.player + '-' + crapsSession.tokenId,
+  playerId: (crapsSession.player || '').toLowerCase() + '-' + crapsSession.tokenId,
   chadId: crapsSession.tokenId,
   seat: 0,
   nonce: crapsSession.nonce,
   sessionToken: crapsSession.sessionToken,
   tokenId: crapsSession.tokenId,
-  player: crapsSession.player,
+  player: (crapsSession.player || '').toLowerCase(),
   buyIn: crapsSession ? crapsSession.buyIn : 0,
 };
 
