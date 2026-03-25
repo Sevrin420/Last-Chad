@@ -267,11 +267,11 @@ export async function connectWallet(walletName, callbacks) {
     (window.core && window.core.ethereum) ||
     (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
 
-  // Core on mobile without any injected provider: deep-link into Core app
-  // If window.ethereum exists we're already in a dApp browser — use it directly
-  if (walletName === 'core' && isMobile() && !coreInjected && !hasInjected) {
-    const deepLink = getMobileDeepLink('core');
-    if (deepLink) { window.location.href = deepLink; return; }
+  // Core on mobile: always use WalletConnect — Core mobile has NO injected provider.
+  // On desktop, Core extension injects window.ethereum so coreInjected will be true.
+  if (walletName === 'core' && isMobile() && !coreInjected) {
+    await connectWalletConnect(callbacks);
+    return;
   }
   if (walletName === 'walletconnect') {
     await connectWalletConnect(callbacks);

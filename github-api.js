@@ -2523,6 +2523,10 @@ ${diceInitJs}
 
     async function switchToAvalanche(raw) {
       try {
+        var chainId = await raw.request({ method: 'eth_chainId' });
+        if (chainId === AVAX_CHAIN_ID) return;
+      } catch(_) {}
+      try {
         await raw.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
       } catch (err) {
         if (err.code === 4902) await raw.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
@@ -2547,6 +2551,13 @@ ${diceInitJs}
       document.getElementById('disconnectDropdown').classList.remove('show');
     }
 
+    // WalletConnect session persistence
+    var _wcProvider = null;
+    var WC_KEY = 'lc_wallet_type';
+    function _saveWallet(t) { try { localStorage.setItem(WC_KEY, t); } catch(_) {} }
+    function _clearWallet() { try { localStorage.removeItem(WC_KEY); } catch(_) {} }
+    function _getSavedWallet() { try { return localStorage.getItem(WC_KEY); } catch(_) { return null; } }
+
     async function connectInjected(name) {
       var raw = null;
       if (name === 'core' && (window.avalanche || (window.core && window.core.ethereum))) { raw = window.avalanche || window.core.ethereum; }
@@ -2562,14 +2573,24 @@ ${diceInitJs}
       }
       if (!raw) { alert(name + ' wallet not detected.'); return; }
       try {
-        var accounts = await raw.request({ method: 'eth_requestAccounts' });
+        var accounts;
+        try { accounts = await raw.request({ method: 'eth_accounts' }); } catch(_) { accounts = []; }
+        if (!accounts || accounts.length === 0) {
+          accounts = await Promise.race([
+            raw.request({ method: 'eth_requestAccounts' }),
+            new Promise(function(_, rej) { setTimeout(function() { rej(new Error('Connection timed out.')); }, 10000); })
+          ]);
+        }
         if (!accounts || accounts.length === 0) throw new Error('No accounts');
-        await switchToAvalanche(raw);
+        try { await switchToAvalanche(raw); } catch(_) {}
         walletProvider = new ethers.providers.Web3Provider(raw);
         walletSigner = walletProvider.getSigner();
+        _saveWallet(name || 'injected');
         onConnected(accounts[0]);
-        raw.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
-        raw.on('chainChanged', function() { window.location.reload(); });
+        try {
+          raw.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
+          raw.on('chainChanged', function() { window.location.reload(); });
+        } catch(_) {}
       } catch (err) { if (err.code !== 4001) alert('Connection failed: ' + (err.message || err)); }
     }
 
@@ -2577,27 +2598,42 @@ ${diceInitJs}
       if (window.WalletConnectEthereumProvider) return Promise.resolve();
       return new Promise(function(resolve, reject) {
         var s = document.createElement('script');
-        s.src = '../../assets/walletconnect-provider.js';
+        s.src = '/assets/walletconnect-provider.js';
         s.onload = resolve; s.onerror = function() { reject(new Error('Failed to load WalletConnect')); };
         document.head.appendChild(s);
       });
     }
 
+    async function _initWc() {
+      await loadWcScript();
+      return window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: READ_RPC } });
+    }
+
+    function _setupWcListeners(wc) {
+      wc.on('accountsChanged', function(accs) { if (accs.length === 0) { _clearWallet(); onDisconnected(); } else onConnected(accs[0]); });
+      wc.on('disconnect', function() { _wcProvider = null; _clearWallet(); onDisconnected(); });
+    }
+
     async function connectWalletConnect() {
       try {
-        await loadWcScript();
-        var wc = await window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: READ_RPC } });
+        var wc = await _initWc();
         await wc.connect();
+        _wcProvider = wc;
         walletProvider = new ethers.providers.Web3Provider(wc);
         walletSigner = walletProvider.getSigner();
+        _saveWallet('walletconnect');
         onConnected(await walletSigner.getAddress());
-        wc.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
-        wc.on('disconnect', onDisconnected);
+        _setupWcListeners(wc);
       } catch (err) { alert('WalletConnect failed. Please try again.'); }
     }
 
     async function connectWallet(name) {
+      // Core mobile has no injected provider — must use WalletConnect
       if (name === 'walletconnect') { await connectWalletConnect(); return; }
+      if (name === 'core' && isMobile()) {
+        var coreInjected = window.avalanche || (window.core && window.core.ethereum) || (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
+        if (!coreInjected) { await connectWalletConnect(); return; }
+      }
       await connectInjected(name);
     }
 
@@ -2743,14 +2779,28 @@ ${diceInitJs}
       }
     });
 
-    // Auto-reconnect wallet on page load
+    // Auto-reconnect wallet on page load (supports WalletConnect session restore)
     (async function() {
+      var saved = _getSavedWallet();
+      if (saved === 'walletconnect') {
+        try {
+          var wc = await _initWc();
+          if (wc.session) {
+            _wcProvider = wc;
+            walletProvider = new ethers.providers.Web3Provider(wc);
+            walletSigner = walletProvider.getSigner();
+            onConnected(await walletSigner.getAddress());
+            _setupWcListeners(wc);
+            return;
+          }
+        } catch(e) { _clearWallet(); }
+      }
       var raw = window.ethereum || window.avalanche;
       if (raw) {
         try {
           var accounts = await raw.request({ method: 'eth_accounts' });
           if (accounts && accounts.length > 0) {
-            await switchToAvalanche(raw);
+            try { await switchToAvalanche(raw); } catch(_) {}
             walletProvider = new ethers.providers.Web3Provider(raw);
             walletSigner = walletProvider.getSigner();
             onConnected(accounts[0]);
