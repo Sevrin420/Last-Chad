@@ -2870,7 +2870,7 @@ ${diceInitJs}
           var winResp = await fetch(WORKER_URL + '/session/win', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: 0 }),
+            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID }),
           }).then(function(r) { return r.json(); });
           if (winResp && winResp.ok) {
             workerCells = winResp.xpAmount;

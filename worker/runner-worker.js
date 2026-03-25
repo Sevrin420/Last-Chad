@@ -306,18 +306,16 @@ async function handleVisitSection(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /session/win  { tokenId, questId, diceXP }
+// POST /session/win  { tokenId, questId }
 //
-// diceXP — raw score computed by the game UI (cargo score / lives remaining).
-//          The Worker adds the stat bonus on top from authoritative sources.
-//          The client cannot influence which stat is used or its value.
-//
-// Returns { ok, signature, xpAmount } on success.
+// Calculates final cell reward from server-tracked section visits (including
+// dice cargo scores sent as dice_{sectionId} entries) plus per-section stat
+// bonuses fetched from chain.  Returns { ok, signature, xpAmount }.
 // ---------------------------------------------------------------------------
 async function handleWin(request, env) {
-  const { tokenId, questId, diceXP } = await parseBody(request);
-  if (!tokenId || questId == null || diceXP == null) {
-    return json({ error: 'Missing tokenId, questId, or diceXP' }, 400);
+  const { tokenId, questId } = await parseBody(request);
+  if (!tokenId || questId == null) {
+    return json({ error: 'Missing tokenId or questId' }, 400);
   }
 
   const key     = kvKey(tokenId, questId);
@@ -332,9 +330,9 @@ async function handleWin(request, env) {
     return json({ ok: false, reason: 'too_fast', elapsed, required: WIN_THRESHOLD_MS }, 403);
   }
 
-  const dice = Math.max(0, Math.min(Number(diceXP) || 0, 12)); // dice cargo score 0–12
-
   // 1. Sum XP from every quest section the player actually visited (tracked server-side).
+  //    This includes narrative sections, runner minigame wins, and dice cargo scores
+  //    (sent as dice_{sectionId} entries via /session/visit-section).
   const sectionXpTotal = Object.values(session.visitedSections ?? {})
     .reduce((sum, xp) => sum + Number(xp), 0);
 
@@ -353,8 +351,7 @@ async function handleWin(request, env) {
     }
   }
 
-  // finalXP = section XP (server-tracked) + dice cargo score (client-reported) + per-section stat bonuses (chain)
-  const finalXP = Math.min(sectionXpTotal + dice + statValue, MAX_XP_PER_QUEST);
+  const finalXP = Math.min(sectionXpTotal + statValue, MAX_XP_PER_QUEST);
 
   // 4. Sign keccak256(tokenId, questId, player, finalXP)
   //    Must match what QuestRewards.sol verifies on-chain.
@@ -369,10 +366,9 @@ async function handleWin(request, env) {
   await env.RUNNER_KV.put(key, JSON.stringify({
     ...session,
     completed: true,
-    diceScore: dice,
   }), { expirationTtl: 86_400 }); // keep 24h so status endpoint can confirm
 
-  return json({ ok: true, signature, xpAmount: finalXP, sectionXpTotal, dice, statBonuses, statValue, elapsed });
+  return json({ ok: true, signature, xpAmount: finalXP, sectionXpTotal, statBonuses, statValue, elapsed });
 }
 
 // ---------------------------------------------------------------------------
