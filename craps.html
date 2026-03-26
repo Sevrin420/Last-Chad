@@ -1496,8 +1496,6 @@ function rollDice() {
     dealerSay("Pass line bet required to roll!", 'neutral'); return;
   }
   STATE.isRolling = true;
-  turnPhase = 'waiting';
-  betsLocked = true;
   hideTimer();
   document.getElementById('rollPrompt').style.display = 'none';
   const diceEl = document.getElementById('tableDice');
@@ -1523,14 +1521,12 @@ async function handleRollResult(data) {
 
   // Ensure rolling state is set (handles race where roll-result arrives before rolling)
   STATE.isRolling = true;
-  betsLocked = true;
 
-  // ── Update STATE immediately (prevents phase-update race condition) ──
-  // Use prevPhase/prevPoint from DO (not local STATE which may be stale)
+  // Use prevPhase/prevPoint from DO — server is source of truth
   const prevPhase = data.prevPhase || STATE.phase;
   const prevPoint = data.prevPoint !== undefined ? data.prevPoint : STATE.point;
 
-  // Set NEW phase/point in STATE right away (so phase-update doesn't desync)
+  // Sync phase/point from server
   if (data.phase) STATE.phase = data.phase;
   if (data.point !== undefined) STATE.point = data.point || null;
 
@@ -1836,7 +1832,6 @@ async function cashOut() {
   if (!(await gameConfirm(`Cash out ${totalPayout} cells?${forfeitMsg}`))) return;
 
   hideTimer();
-  betsLocked = true;
   cashingOut = true;
   document.getElementById('tableDice').classList.add('locked');
   dealerSay("Cashing out...", 'neutral');
@@ -1923,9 +1918,7 @@ function initPlayerFromSession() {
   if (STATE.chadId) {
     setChadPortrait(0, STATE.chadId);
     setPlayerName(0, STATE.nftName || 'Chad #' + STATE.chadId);
-    // Default to self as shooter until server responds
-    if (!shooterPlayerId) shooterPlayerId = STATE.playerId;
-    applyShooterUI();
+    // Shooter is set by server via init/shooter messages — don't assume locally
   }
   updateLocalPlayerUI();
   const welcomeEl = document.getElementById('welcomeMsg');
@@ -2149,9 +2142,12 @@ function handleWsMessage(data) {
 
     // ── Bet rejected by DO ──
     case 'bet-rejected': {
-      // Revert optimistic update — re-sync from last known good state
       dealerSay(data.reason || 'Bet rejected', 'sad');
-      // Request current state (the next bet-ok or auth-ok will correct it)
+      // Server sends authoritative stack/bets with rejection — sync from it
+      if (data.stack !== undefined) STATE.stack = data.stack;
+      if (data.bets) STATE.bets = data.bets;
+      renderAllBetChips();
+      updateLocalPlayerUI();
       break;
     }
 
@@ -2159,7 +2155,6 @@ function handleWsMessage(data) {
     case 'rolling': {
       if (!isLocalShooter()) {
         STATE.isRolling = true;
-        betsLocked = true;
         if (document.hidden) break; // roll-result will settle immediately
         if (STATE.phase === 'point' && STATE.point) {
           dealerSay(`Point is ${STATE.point}, looking for a ${STATE.point}!`, 'neutral');

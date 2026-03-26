@@ -322,25 +322,25 @@ export class CrapsTable {
 
         // Server-authoritative: only accept bets during betting phase
         if (game.turnPhase && game.turnPhase !== 'betting') {
-          ws.send(JSON.stringify({ type: 'bet-rejected', reason: 'Bets are locked' }));
+          ws.send(JSON.stringify({ type: 'bet-rejected', reason: 'Bets are locked', stack: pData.stack, bets: pData.bets }));
           break;
         }
 
         const zone = data.zone;
         const amount = Math.max(0, Math.floor(Number(data.amount) || 0));
         if (!VALID_BET_ZONES.has(zone) || amount <= 0) {
-          ws.send(JSON.stringify({ type: 'bet-rejected', reason: 'Invalid bet' }));
+          ws.send(JSON.stringify({ type: 'bet-rejected', reason: 'Invalid bet', stack: pData.stack, bets: pData.bets }));
           break;
         }
         if (amount > pData.stack) {
-          ws.send(JSON.stringify({ type: 'bet-rejected', reason: 'Insufficient stack' }));
+          ws.send(JSON.stringify({ type: 'bet-rejected', reason: 'Insufficient stack', stack: pData.stack, bets: pData.bets }));
           break;
         }
 
         // Phase rules
         const phaseError = this._validateBetPhase(zone, game.phase, pData);
         if (phaseError) {
-          ws.send(JSON.stringify({ type: 'bet-rejected', reason: phaseError }));
+          ws.send(JSON.stringify({ type: 'bet-rejected', reason: phaseError, stack: pData.stack, bets: pData.bets }));
           break;
         }
 
