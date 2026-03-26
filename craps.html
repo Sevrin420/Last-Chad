@@ -1675,13 +1675,18 @@ async function handleRollResult(data) {
   _pendingRollData = null;
 
   // Replay any turn-phase message that arrived during the animation
+  // Delay so the dice announcer gets screen time before "Place your bets"
   if (_pendingTurnPhase) {
     const tp = _pendingTurnPhase;
     _pendingTurnPhase = null;
-    if (tp.phase) STATE.phase = tp.phase;
-    if (tp.point !== undefined) STATE.point = tp.point;
-    syncPuck();
-    applyTurnPhase(tp.turnPhase, tp.deadline || tp.turnDeadline || 0);
+    await new Promise(r => setTimeout(r, 3500));
+    // Only replay if no newer turn-phase arrived during the wait
+    if (!_pendingTurnPhase) {
+      if (tp.phase) STATE.phase = tp.phase;
+      if (tp.point !== undefined) STATE.point = tp.point;
+      syncPuck();
+      applyTurnPhase(tp.turnPhase, tp.deadline || tp.turnDeadline || 0);
+    }
   }
 }
 

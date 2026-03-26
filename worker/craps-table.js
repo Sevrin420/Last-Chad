@@ -44,7 +44,7 @@ const MAX_PLAYERS = 4;
 const BET_TIME_SOLO = 15;
 const BET_TIME_MULTI = 20;
 const ROLL_TIME = 10;
-const RESULT_DELAY = 4; // seconds after roll before next bet phase
+const RESULT_DELAY = 10; // seconds after roll — covers dice animation (5s) + announcer (3.5s) + buffer
 
 // Valid bet zones
 const VALID_BET_ZONES = new Set([
