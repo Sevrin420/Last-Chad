@@ -1442,6 +1442,15 @@ function settleRollImmediate(data) {
   die2El.classList.remove('rolling'); die2El.classList.add('settled');
   STATE.dice = [d1, d2];
 
+  // Apply server state immediately (hidden tab — no animation needed)
+  if (data.phase) STATE.phase = data.phase;
+  if (data.point !== undefined) STATE.point = data.point || null;
+  STATE.stack = data.stack;
+  if (data.bets) STATE.bets = data.bets;
+  for (const k of Object.keys(STATE.bets)) {
+    if (STATE.bets[k] === 0) delete STATE.bets[k];
+  }
+
   syncPuck();
   renderAllBetChips();
   updateLocalPlayerUI();
@@ -1526,27 +1535,22 @@ async function handleRollResult(data) {
   const prevPhase = data.prevPhase || STATE.phase;
   const prevPoint = data.prevPoint !== undefined ? data.prevPoint : STATE.point;
 
-  // Sync phase/point from server
-  if (data.phase) STATE.phase = data.phase;
-  if (data.point !== undefined) STATE.point = data.point || null;
-
-  // Update bets/stack from server (visual update deferred until dice settle)
-  STATE.stack = data.stack;
-  if (data.bets) STATE.bets = data.bets;
-  for (const k of Object.keys(STATE.bets)) {
-    if (STATE.bets[k] === 0) delete STATE.bets[k];
-  }
+  // DEFER state updates — don't apply bets/stack/phase/point until after dice settle
+  // Store server values for later application
+  const serverPhase = data.phase;
+  const serverPoint = data.point;
+  const serverStack = data.stack;
+  const serverBets = data.bets;
 
   // ── Store pending roll data & claim a sequence number ──
   _pendingRollData = data;
   const mySeq = ++_rollSeq;
 
-  // If tab is hidden, skip animation entirely
+  // If tab is hidden, skip animation entirely — apply everything immediately
   if (document.hidden) {
     settleRollImmediate(data);
   } else {
     // ── Dice animation (only when tab is visible) ──
-    // Clear safety timeout but keep pip-cycling intervals alive during spin
     if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
     const die1El = document.getElementById('die1');
     const die2El = document.getElementById('die2');
@@ -1563,7 +1567,6 @@ async function handleRollResult(data) {
     // Staggered settle: die1 first, die2 after delay
     await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
     if (_rollSeq !== mySeq) return;
-    // Kill pip cycling now that dice are about to settle
     killSpinIntervals();
     STATE.dice = [d1, d2];
     renderDie(document.getElementById('face1'), d1);
@@ -1576,18 +1579,32 @@ async function handleRollResult(data) {
     die2El.classList.remove('rolling');
     die2El.classList.add('settled');
 
+    // ── 1 second pause after last die settles before ANY visual updates ──
+    await new Promise(r => setTimeout(r, 1000));
+    if (_rollSeq !== mySeq) return;
+
+    // NOW apply server state and update visuals
+    if (serverPhase) STATE.phase = serverPhase;
+    if (serverPoint !== undefined) STATE.point = serverPoint || null;
+    STATE.stack = serverStack;
+    if (serverBets) STATE.bets = serverBets;
+    for (const k of Object.keys(STATE.bets)) {
+      if (STATE.bets[k] === 0) delete STATE.bets[k];
+    }
+
     syncPuck();
     renderAllBetChips();
     updateLocalPlayerUI();
   }
 
-  // ── Announcer (uses prevPhase/prevPoint from DO, not stale local state) ──
+  // ── Announcer (uses server data, not local STATE) ──
   const r = data.resolution || {};
   let announcerSub = '';
-  const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!STATE.point;
+  const newPoint = data.point || 0;
+  const isNewPoint = prevPhase === 'comeout' && !prevPoint && !!newPoint;
   const isPointMade = prevPhase === 'point' && prevPoint && total === prevPoint;
   if (isNewPoint) {
-    announcerSub = 'Point is ' + STATE.point;
+    announcerSub = 'Point is ' + newPoint;
   } else if (isPointMade) {
     announcerSub = 'Point ' + prevPoint + ' made!';
   } else if (r.message) {
