@@ -1323,6 +1323,7 @@ function advanceShooterOnServer() {
 let turnPhase = 'betting';
 let betsLocked = false;
 let cashingOut = false;
+let _pendingTurnPhase = null; // buffered turn-phase msg during dice animation
 
 function getRemotePlayerCount() {
   let n = 0;
@@ -1461,6 +1462,16 @@ function settleRollImmediate(data) {
   STATE.isRolling = false;
   _pendingRollData = null;
   document.getElementById('tableDice').classList.remove('locked');
+
+  // Replay any buffered turn-phase
+  if (_pendingTurnPhase) {
+    const tp = _pendingTurnPhase;
+    _pendingTurnPhase = null;
+    if (tp.phase) STATE.phase = tp.phase;
+    if (tp.point !== undefined) STATE.point = tp.point;
+    syncPuck();
+    applyTurnPhase(tp.turnPhase, tp.deadline || tp.turnDeadline || 0);
+  }
   clearPressButtons();
   // Server will send next turn-phase after result delay
 }
@@ -1646,6 +1657,7 @@ async function handleRollResult(data) {
     dealerSay("You're busted! Better luck next time.", 'sad');
     STATE.isRolling = false;
     _pendingRollData = null;
+    _pendingTurnPhase = null; // don't replay — player is leaving
     try {
       await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
         method: 'POST',
@@ -1660,10 +1672,17 @@ async function handleRollResult(data) {
   }
 
   STATE.isRolling = false;
-  _pendingRollData = null;  // animation completed normally
-  // Keep dice locked until next bet phase starts
-  // Seven-out rotation is now handled server-side by the DO roll handler.
-  // Server will send next turn-phase after result delay
+  _pendingRollData = null;
+
+  // Replay any turn-phase message that arrived during the animation
+  if (_pendingTurnPhase) {
+    const tp = _pendingTurnPhase;
+    _pendingTurnPhase = null;
+    if (tp.phase) STATE.phase = tp.phase;
+    if (tp.point !== undefined) STATE.point = tp.point;
+    syncPuck();
+    applyTurnPhase(tp.turnPhase, tp.deadline || tp.turnDeadline || 0);
+  }
 }
 
 // ── Announcer Overlay ──
@@ -2191,9 +2210,10 @@ function handleWsMessage(data) {
 
     // ── Phase/point update (from DO, after roll resolves) ──
     case 'phase-update': {
+      if (STATE.isRolling) break; // wait for dice to settle
       STATE.phase = data.phase || 'comeout';
       STATE.point = data.point || null;
-      if (!STATE.isRolling) syncPuck();
+      syncPuck();
       break;
     }
 
@@ -2218,7 +2238,11 @@ function handleWsMessage(data) {
     }
 
     case 'turn-phase': {
-      // Also sync craps phase/point if provided
+      if (STATE.isRolling) {
+        // Dice still animating — buffer and replay after settle + 1s pause
+        _pendingTurnPhase = data;
+        break;
+      }
       if (data.phase) STATE.phase = data.phase;
       if (data.point !== undefined) STATE.point = data.point;
       syncPuck();
