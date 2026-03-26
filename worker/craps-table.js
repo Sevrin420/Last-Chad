@@ -784,47 +784,47 @@ export class CrapsTable {
     if (game.turnDeadline && now >= game.turnDeadline) {
       if (game.turnPhase === 'betting') {
         // Bet timer expired — check if shooter has a pass bet
+        // Use storage (not sockets) for reliability — sockets can be hibernated/stale
         const shooter = await this.state.storage.get('shooter');
         let shooterHasBet = false;
         if (shooter) {
-          // Find shooter's nonce to look up their data
-          for (const ws of sockets) {
-            try {
-              const att = ws.deserializeAttachment();
-              if (att && att.playerId === shooter && att.nonce) {
-                const pd = await this.state.storage.get(`player:${att.nonce}`);
-                if (pd && pd.bets && pd.bets.pass > 0) shooterHasBet = true;
-                break;
-              }
-            } catch (_) {}
+          const playerKeys = await this.state.storage.list({ prefix: 'player:' });
+          for (const [, pd] of playerKeys) {
+            const pid = (pd.player || '') + '-' + (pd.tokenId || '');
+            if (pid === shooter && pd.bets && pd.bets.pass > 0) {
+              shooterHasBet = true;
+              break;
+            }
           }
         }
         if (shooterHasBet) {
           // Transition: betting → rolling
           await this._startRollPhase();
         } else {
-          // Shooter didn't bet — pass dice
+          // Shooter didn't bet — pass dice or restart bet phase
           const count = await this._getPlayerCount();
           if (count > 1 && shooter) {
             await this._advanceShooter(shooter);
           }
-          // Start new bet phase (advanceShooter broadcast triggers client update,
-          // but we also start bet phase so new shooter gets a timer)
           await this._startBetPhase();
         }
       } else if (game.turnPhase === 'rolling') {
         // Roll timer expired — auto-roll for the shooter
         const shooter = await this.state.storage.get('shooter');
-        // Find shooter's socket and trigger roll
+        let rolled = false;
         for (const ws of sockets) {
           try {
             const att = ws.deserializeAttachment();
             if (att && att.playerId === shooter && att.authenticated) {
-              // Simulate a roll message from the shooter
               await this.webSocketMessage(ws, JSON.stringify({ type: 'roll' }));
+              rolled = true;
               break;
             }
           } catch (_) {}
+        }
+        // If couldn't find shooter's socket, force next bet phase
+        if (!rolled) {
+          await this._startBetPhase();
         }
       } else if (game.turnPhase === 'result') {
         // Result display time elapsed — start next bet phase
@@ -854,11 +854,16 @@ export class CrapsTable {
 
     // Reschedule: shorter interval when game phase is active
     if (activeSockets > 0) {
-      // Re-read game — phase transitions above may have updated it
       const freshGame = await this._getGame();
-      const gameActive = freshGame.turnDeadline && freshGame.turnDeadline > now;
-      const nextAlarm = gameActive ? Math.min(2000, freshGame.turnDeadline - now + 100) : 30_000;
-      await this.state.storage.setAlarm(Date.now() + nextAlarm);
+      const freshNow = Date.now();
+      if (freshGame.turnDeadline && freshGame.turnDeadline > freshNow) {
+        // Active phase — poll frequently to catch deadline
+        const delay = Math.max(500, Math.min(2000, freshGame.turnDeadline - freshNow + 100));
+        await this.state.storage.setAlarm(freshNow + delay);
+      } else {
+        // Idle — heartbeat every 30s
+        await this.state.storage.setAlarm(freshNow + 30_000);
+      }
     }
   }
 
