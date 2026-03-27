@@ -48,11 +48,6 @@
       border-bottom: 2px solid #5c4409;
       backdrop-filter: blur(8px);
     }
-    .chad-name {
-      font-size: 0.55rem;
-      color: #c9a84c;
-      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
-    }
 
     .main {
       position: relative;
@@ -69,7 +64,7 @@
       position: relative;
       width: 100%;
       max-width: 310px;
-      margin-bottom: 20px;
+      margin: 0 auto 20px;
       background: url('../../assets/dialogue.jpg') no-repeat center / 100% 100%;
       padding: 28px;
     }
@@ -217,7 +212,7 @@
     }
 
     .narrative {
-      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      font-size: clamp(0.6rem, 2.2vw, 0.8rem);
       line-height: 2.2;
       color: #f5e6c8;
       margin-bottom: 24px;
@@ -226,7 +221,7 @@
     .narrative p + p { margin-top: 14px; }
     .narrative.typing p { display: none; }
     .typewriter-line {
-      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      font-size: clamp(0.6rem, 2.2vw, 0.8rem);
       line-height: 2.2;
       color: #f5e6c8;
       min-height: 2.4em;
@@ -470,7 +465,7 @@
       letter-spacing: 0.04em;
     }
     .intro-text {
-      font-size: clamp(0.38rem, 1.5vw, 0.52rem);
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
       line-height: 2.4;
       color: #f5e6c8;
       margin-bottom: 36px;
@@ -772,7 +767,7 @@
       <div id="introText" class="intro-text" style="opacity:0;"></div>
 <div id="introCompletedBanner" style="display:none;" class="quest-completed-banner">CHAD #<span id="introCompletedId"></span> HAS ALREADY COMPLETED THIS QUEST</div>
       <div id="escrowBox" style="margin:18px 0 10px;font-size:0.48rem;color:#c9a84c;text-align:center;line-height:1.8;">
-        <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking escrow status…</div>
+        <div id="escrowStatus" style="margin-bottom:10px;">⏳ Checking quest status…</div>
         <a href="../../adventure.html" id="goAdventureBtn" style="display:none;font-family:'Press Start 2P',monospace;font-size:0.48rem;color:#c9a84c;text-decoration:underline;cursor:pointer;">← Start quest from the Adventure page</a>
       </div>
       <button class="intro-start-btn" id="introStartBtn" onclick="startQuest()" disabled style="opacity:0;pointer-events:none;">START</button>
@@ -783,7 +778,6 @@
 
   <header class="header">
     <div id="nav-placeholder"></div>
-    <span class="chad-name" id="chadName">Episode 1 - A New Home [demo]</span>
     <div class="wallet-wrapper">
       <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
       <div class="disconnect-dropdown" id="disconnectDropdown">
@@ -1022,6 +1016,9 @@
   <div class="modal-overlay" id="walletModal">
     <div class="modal">
       <h2 class="modal-title">Connect Wallet</h2>
+      <button class="wallet-option" data-wallet="core">
+        <span class="wallet-icon" style="background:#e84142;">&#9830;</span>Core
+      </button>
       <button class="wallet-option" data-wallet="rabby">
         <span class="wallet-icon" style="background:#7c6be6;">&#128176;</span>Rabby
       </button>
@@ -1303,7 +1300,7 @@ function showPanel(id) {
         return;
       }
 
-      statusEl.textContent = '⏳ Checking escrow status…';
+      statusEl.textContent = '⏳ Checking quest status…';
       try {
         var rp = _getReadProvider();
         var qr = new ethers.Contract(QUEST_REWARDS_ADDRESS, QUEST_REWARDS_ABI, rp);
@@ -1312,7 +1309,7 @@ function showPanel(id) {
         var lockerMatchesUser = userAddress && locker.toLowerCase() === userAddress.toLowerCase();
         if (lockerIsSet && (!userAddress || lockerMatchesUser)) {
           // Locked by this user (or wallet not yet connected — trust on-chain state)
-          statusEl.textContent = '✅ CHAD #' + chadId + ' is locked in escrow';
+          statusEl.textContent = '✅ CHAD #' + chadId + ' is ready';
           if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(true);
         } else if (lockerIsSet && !lockerMatchesUser) {
@@ -1328,7 +1325,7 @@ function showPanel(id) {
         }
       } catch(e) {
         // RPC error — don't block the player
-        statusEl.textContent = '⚠️ Could not verify escrow (network error)';
+        statusEl.textContent = '⚠️ Could not verify quest status (network error)';
         if (advBtn) advBtn.style.display = 'none';
         _setStartEnabled(true);
       }
@@ -1408,7 +1405,7 @@ function showPanel(id) {
           await wait(50);
         }
         cur.remove();
-        if (li < introLines.length - 1) await wait(500);
+        if (li < introLines.length - 1) await wait(1200);
       }
       await wait(400);
       if (startBtn) {
@@ -1611,7 +1608,7 @@ function showPanel(id) {
             tw.appendChild(cur);
             await wait(60);
           }
-          await wait(1800);
+          await wait(2300);
           if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
           if (li < lines.length - 1) {
             tw.textContent = '';
@@ -2244,7 +2241,17 @@ function showPanel(id) {
           var _rXP = Number(e.data.runnerXP);
           _questRunnerXP += _rXP;
           // Record by section ID so this can be replayed to the worker after a page reload
-          if (currentSectionId != null) _runnerScores[currentSectionId] = _rXP;
+          if (currentSectionId != null) {
+            _runnerScores[currentSectionId] = _rXP;
+            // Send runner XP to worker immediately (like dice scores) so it's counted in /session/win
+            if (WORKER_URL && chadId) {
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'runner_' + currentSectionId, sectionXp: _rXP }),
+              }).catch(function() {});
+            }
+          }
         }
         _saveProgress();
         // Advance to next section: check minigame map first, then legacy game map
@@ -2341,10 +2348,10 @@ function showPanel(id) {
               try { wasStarted = await qrRead.questStarted(chadId, QUEST_ID); } catch(e) {}
               if (wasStarted) {
                 // Quest was started but session expired and NFT was released — unrecoverable
-                _setText(statusEl, 'Quest session expired. Your NFT was returned — cells for this attempt cannot be claimed.');
+                _setText(statusEl, 'Quest session expired. Your character was returned — cells for this attempt cannot be claimed.');
               } else {
                 // Quest was never started on-chain — player skipped adventure.html
-                _setText(statusEl, 'Quest not started on-chain. Begin from the Adventure page to lock your Chad and earn cells.');
+                _setText(statusEl, 'Quest not started. Begin from the Adventure page.');
               }
               btn.disabled = true;
               _setText(btn, 'SESSION INACTIVE');

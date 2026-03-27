@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ol' Jipt's Gamble — Last Chad</title>
+  <title>Gambling Den — Last Chad</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
@@ -20,7 +20,7 @@
       color: #ffe96a;
     }
 
-    /* ── Jipt portrait image ── */
+    /* ── Chazzy P portrait image ── */
     #jipt-image {
       position: fixed;
       bottom: 43vh;
@@ -34,35 +34,16 @@
       transition: opacity 1.2s ease;
     }
     #jipt-image.visible { opacity: 1; }
-
-    /* ── Enter The Den overlay ── */
-    #enter-overlay {
-      position: fixed; inset: 0; z-index: 500;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0, 0, 0, 0.55);
-      transition: opacity 0.8s ease;
+    #jipt-image.shrunk {
+      max-height: 25vh;
+      bottom: auto;
+      top: 56px;
+      transition: max-height 0.6s ease, top 0.6s ease, bottom 0.6s ease, opacity 1.2s ease;
     }
-    #enter-overlay.hidden { opacity: 0; pointer-events: none; }
-
-    #enter-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.8rem, 2.5vw, 1.2rem);
-      color: #ffaa40;
-      background: rgba(10, 10, 15, 0.75);
-      border: 2px solid #ffaa40;
-      padding: 1.2em 2em; cursor: pointer;
-      letter-spacing: 0.08em;
-      text-shadow: 0 0 12px #ffaa40, 0 0 24px rgba(255,150,30,0.5);
-      box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05);
-      animation: den-pulse 2s ease-in-out infinite;
-      transition: transform 0.15s ease;
-      outline: none;
-      text-decoration: none;
-    }
-    #enter-btn:hover { transform: scale(1.06); }
-    @keyframes den-pulse {
-      0%, 100% { box-shadow: 0 0 20px rgba(255,150,30,0.3), inset 0 0 20px rgba(255,150,30,0.05); }
-      50%       { box-shadow: 0 0 40px rgba(255,150,30,0.6), inset 0 0 30px rgba(255,150,30,0.12); }
+    /* When image shrinks, expand dialogue box to sit right under the portrait */
+    body.portrait-shrunk #dialogue-box {
+      height: calc(100vh - 25vh - 56px);
+      transition: height 0.6s ease, opacity 0.8s ease, transform 0.8s ease;
     }
 
     /* ── Header ── */
@@ -211,7 +192,7 @@
     }
 
     #dialogue-text {
-      flex: 1; overflow-y: auto;
+      overflow-y: auto;
       font-size: 0.65rem;
       line-height: 2.2;
       color: #c9a84c;
@@ -571,6 +552,50 @@
       font-size: 0.32rem; color: #4caf50; margin-top: 12px; min-height: 1.4em;
     }
 
+    /* ── Craps Rules Popup ── */
+    .rules-overlay {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85);
+    }
+    .rules-overlay.active { display: flex; }
+    .rules-box {
+      background: url('assets/mainbg.png') center/cover no-repeat;
+      border: 3px solid #c9a84c;
+      border-radius: 8px; padding: 28px 20px;
+      max-width: 440px; width: 92%; max-height: 85vh;
+      overflow-y: auto; text-align: left;
+      box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 20px rgba(139,105,20,0.25);
+      position: relative;
+    }
+    .rules-title {
+      font-size: 0.65rem; color: #c9a84c; text-align: center;
+      margin-bottom: 20px; text-shadow: 0 0 8px rgba(201,168,76,0.4);
+    }
+    .rules-text {
+      font-size: 0.35rem; color: #f5e6c8; line-height: 2.6;
+      margin-bottom: 12px;
+    }
+    .rules-text .highlight { color: #4caf50; }
+    .rules-text .loss { color: #e74c3c; }
+    .rules-text .point-num { color: #c9a84c; font-weight: bold; }
+    .rules-puck-demo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #fff; color: #000; font-size: 0.22rem;
+      font-weight: bold; border: 2px solid #c9a84c;
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
+      vertical-align: middle; margin: 0 4px;
+    }
+    .rules-close {
+      display: block; margin: 18px auto 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.4rem; color: #c9a84c;
+      background: rgba(61,46,10,0.4); border: 2px solid #5c4409;
+      border-radius: 4px; padding: 10px 20px; cursor: pointer;
+    }
+    .rules-close:hover { border-color: #c9a84c; background: rgba(92,68,9,0.4); }
+
     @media (max-width: 520px) {
       .craps-table { padding: 4px; gap: 2px; }
       .craps-zone { min-height: 28px; }
@@ -579,10 +604,8 @@
       .craps-controls { flex-wrap: wrap; gap: 6px; }
     }
     @media (min-width: 900px) {
-      .craps-table { max-width: 860px; }
-      .craps-zone { min-height: 44px; }
-      .craps-zone .zone-label { font-size: 0.32rem; }
-      .craps-die { width: 70px; height: 70px; }
+      .game-header{width:min(56vh,500px);max-width:100%;left:50%;right:auto;transform:translateX(-50%)}
+      .craps-table { max-width: 100%; }
     }
 
     @keyframes result-pulse {
@@ -925,19 +948,14 @@
 
     /* === Desktop === */
     @media (min-width: 900px) {
-      .dialogue-box { max-width: 520px; }
-      .nft-grid { max-width: 500px; }
+      .dialogue-box { max-width: 100%; }
+      .nft-grid { max-width: 100%; }
     }
   </style>
 </head>
 <body>
 
-  <img id="jipt-image" src="assets/Oldjipt/oldjiptcoin.jpg" alt="" />
-
-  <!-- Enter The Den overlay -->
-  <div id="enter-overlay">
-    <button id="enter-btn">ENTER THE DEN</button>
-  </div>
+  <img id="jipt-image" src="assets/chazzyp/chazzypgamble.jpg" alt="" />
 
   <!-- Background music -->
   <audio id="bg-music" src="music/moody.mp3" loop></audio>
@@ -1078,6 +1096,26 @@
     <button class="craps-result-btn" id="craps-result-btn">CONTINUE</button>
   </div>
 
+  <!-- Craps Rules Popup -->
+  <div class="rules-overlay" id="rules-overlay">
+    <div class="rules-box">
+      <div class="rules-title">CRAPS OVERVIEW</div>
+      <div class="rules-text">
+        To begin, click the <span class="highlight">PASS LINE</span> to place your bets.<br><br>
+        On the first roll (the Come Out roll):<br>
+        <span class="highlight">7 or 11</span> = Instant Winner!<br>
+        <span class="loss">2, 3, or 12</span> = Instant Loss.<br><br>
+        If any of these numbers are rolled, place a new bet and begin again.<br><br>
+        If any other number is rolled — <span class="point-num">4, 5, 6, 8, 9, 10</span> — this number becomes the <span class="highlight">POINT</span>. And the puck moves to the ON position: <span class="rules-puck-demo">ON</span><br><br>
+        Now the player must roll their <span class="highlight">POINT</span> number to win.<br><br>
+        If they roll a <span class="loss">7</span> before their POINT, all bets are lost.<br>
+        If they roll their <span class="highlight">POINT</span>, the pass line bet wins!<br><br>
+        Upon a <span class="loss">7-out</span> or making the POINT, the game resets with a new Come Out roll.
+      </div>
+      <button class="rules-close" id="rules-close-btn">GOT IT</button>
+    </div>
+  </div>
+
   <!-- Sound effects -->
   <audio id="sfx-win" src="sound effects/youwin.wav" preload="auto"></audio>
   <audio id="sfx-lose" src="sound effects/youlose.wav" preload="auto"></audio>
@@ -1109,7 +1147,7 @@
       <div style="width:60px"></div>
     </div>
     <div class="poker-image-wrap" id="poker-image-placeholder">
-      <img src="assets/Oldjipt/Standing" alt="Ol' Jipt" />
+      <img src="assets/chazzyp/chazzypgamble.jpg" alt="Chazzy P" />
     </div>
     <div class="poker-payout poker-payout-wide" id="poker-payout-table">
       <div class="payout-title">— PAYOUTS —</div>
@@ -1145,16 +1183,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect,
-             getSigner, truncateAddress } from './js/wallet.js';
+             getSigner, ensureSigner, truncateAddress } from './js/wallet.js';
     import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
 
     // ── Music & Enter ──
     const jiptImage  = document.getElementById('jipt-image');
     const bgMusic    = document.getElementById('bg-music');
-    const enterOverlay = document.getElementById('enter-overlay');
     const dialogueBox = document.getElementById('dialogue-box');
     bgMusic.volume = 0.27;
-    let hasEntered = false;
+    let hasEntered = true;
 
     const muteBtn = document.getElementById('mute-btn');
     muteBtn.addEventListener('click', () => {
@@ -1162,20 +1199,15 @@
       muteBtn.textContent = bgMusic.muted ? '🔇' : '🔊';
     });
 
-    document.getElementById('enter-btn').addEventListener('click', async () => {
-      enterOverlay.classList.add('hidden');
-      bgMusic.play().catch(() => {});
-      hasEntered = true;
-
-      // Fade in jipt image immediately
-      jiptImage.classList.add('visible');
-
-      // Show dialogue
+    // Auto-enter
+    bgMusic.play().catch(() => {});
+    jiptImage.classList.add('visible');
+    (async () => {
       await delay(900);
       dialogueBox.classList.add('visible');
       await delay(400);
-      showIntro();
-    });
+      if (!introShown) showIntro();
+    })();
 
     function duckMusic(targetVol = 0.05, ms = 400) {
       const step = (bgMusic.volume - targetVol) / (ms / 30);
@@ -1196,6 +1228,7 @@
     // ── State ──
     let selectedTokenId = null;
     let selectedCells   = 0;
+    let selectedChadName = '';
     let wagerAmount     = 0;
     let currentGame     = 'craps'; // 'craps' or 'poker'
 
@@ -1211,12 +1244,13 @@
 
     let userAddress = null;
 
+    let introShown = false;
     function onConnected(addr) {
       userAddress = addr;
       walletBtn.textContent = truncateAddress(addr);
       walletBtn.classList.add('connected');
       closeWalletModal();
-      if (hasEntered) showIntro();
+      if (hasEntered && !introShown) showIntro();
     }
 
     function onDisconnected() {
@@ -1240,7 +1274,10 @@
       if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
     });
 
-    document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
+    document.addEventListener('wallet-selected', e => {
+      connectWallet(e.detail.wallet, { onConnected, onDisconnected })
+        .catch(err => { console.error('Wallet connection error:', err); alert('Connection error: ' + (err.message || err)); });
+    });
 
     // ── Typewriter ──
     function typewrite(el, text, speed = 40) {
@@ -1284,20 +1321,34 @@
 
     function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+    // ── Craps Rules Popup ──
+    function showCrapsRules() {
+      document.getElementById('rules-overlay').classList.add('active');
+    }
+    document.getElementById('rules-close-btn').addEventListener('click', () => {
+      document.getElementById('rules-overlay').classList.remove('active');
+    });
+    document.getElementById('rules-overlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+    });
+
     // ── Flow: Intro ──
     async function showIntro() {
+      introShown = true;
       await showNpcText([
-        "So you've come to see ol' Jipt eh?",
-        "How's about we play a game o' chance?"
+        "Ugg, I do hate being on set.",
+        "The grime... The Smell!",
+        "Anyhow, let's play shall we?"
       ]);
       showChoices([
-        { label: "Roll the bones", action: startCrapsGame }
+        { label: "Hand me the bones Chazzy", action: startCrapsGame },
+        { label: "Craps Rules", action: showCrapsRules }
       ]);
     }
 
     // ── Flow: Select NFT ──
     let _minWager = 1;
-    let _maxWager = 50;
+    let _maxWager = 500;
 
     async function startCrapsGame() {
       currentGame = 'craps';
@@ -1306,6 +1357,9 @@
 
     async function startChadSelect() {
       clearDialogue();
+      // Shrink the NPC portrait to make room for chad selection + wager
+      const jiptImg = document.getElementById('jipt-image');
+      if (jiptImg) { jiptImg.classList.add('shrunk'); document.body.classList.add('portrait-shrunk'); }
       const addr = userAddress;
       if (!addr) {
         const p = document.createElement('p');
@@ -1360,7 +1414,8 @@
         try {
           const id = (await contract.tokenOfOwnerByIndex(addr, idx)).toNumber();
           const cells = (await contract.getCells(id)).toNumber();
-          ownedTokens.push({ id, cells });
+          const chadName = await contract.tokenName(id) || ('Chad #' + id);
+          ownedTokens.push({ id, cells, chadName });
         } catch (e) { /* error */ }
       }
 
@@ -1405,6 +1460,7 @@
     async function selectChad(token, allTokens) {
       selectedTokenId = token.id;
       selectedCells = token.cells;
+      selectedChadName = token.chadName || ('Chad #' + token.id);
 
       // Highlight selected card
       document.querySelectorAll('.nft-card').forEach((c, i) => {
@@ -1455,6 +1511,9 @@
       `;
       dialogueText.appendChild(wagerSec);
 
+      // Auto-scroll to wager area after chad selection
+      wagerSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
       const slider = document.getElementById('wager-slider');
       const amountDisplay = document.getElementById('wager-amount');
       slider.addEventListener('input', () => {
@@ -1490,7 +1549,7 @@
 
     async function beginCrapsRound() {
       choicesDiv.innerHTML = '';
-      const signer = getSigner();
+      const signer = await ensureSigner();
       if (!signer) { alert('Wallet not connected!'); return; }
 
       const statusEl = document.createElement('p');
@@ -1572,6 +1631,7 @@
         sessionStorage.setItem('craps_session', JSON.stringify({
           nonce: crapsNonce,
           tokenId: selectedTokenId,
+          chadName: selectedChadName,
           stack: crapsStack,
           sessionToken: crapsSessionToken,
           player: userAddress,
@@ -1724,16 +1784,17 @@
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Roll failed');
 
-        // Let animation run at least 1.2s total
-        await delay(1200);
-        clearInterval(cycleInterval);
-
         const [d1, d2] = data.dice;
 
-        // Show final dice
+        // First die lands at 600ms, second keeps cycling until 1200ms
+        await delay(600);
         crapsRenderFace('craps-face0', d1);
-        crapsRenderFace('craps-face1', d2);
         document.getElementById('craps-die0').classList.remove('rolling');
+        await delay(600);
+        clearInterval(cycleInterval);
+
+        // Show final second die
+        crapsRenderFace('craps-face1', d2);
         document.getElementById('craps-die1').classList.remove('rolling');
 
         // Sync state from worker
@@ -1904,7 +1965,8 @@
 
         // Call claimWinnings with oracle signature
         statusEl.textContent = 'Claiming cells on-chain...';
-        const signer = getSigner();
+        const signer = await ensureSigner();
+        if (!signer) throw new Error('Wallet not connected');
         const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
         const tx = await gamble.claimWinnings(selectedTokenId, serverPayout, cashoutData.nonce, cashoutData.signature);
         statusEl.textContent = 'Confirming...';
@@ -1976,7 +2038,8 @@
         "Play again?"
       ]);
       showChoices([
-        { label: "Roll the bones", action: startCrapsGame }
+        { label: "Roll the bones", action: startCrapsGame },
+        { label: "Craps Rules", action: showCrapsRules }
       ]);
     }
 
@@ -2054,7 +2117,7 @@
               label: 'CLAIM WINNINGS', action: async () => {
                 choicesDiv.innerHTML = '';
                 try {
-                  const signer = await getSigner();
+                  const signer = await ensureSigner();
                   if (!signer) throw new Error('Wallet not connected');
                   const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
                   const tx = await gamble.claimWinnings(data.tokenId, data.payout, data.nonce, data.signature);
@@ -2156,7 +2219,7 @@
       await typewrite(msg, "Placing your bet on-chain...", 40);
 
       try {
-        const signer = await getSigner();
+        const signer = await ensureSigner();
         if (!signer) throw new Error('Wallet not connected');
         const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
         const tx = await gamble.commitWager(selectedTokenId, pokerWager);
@@ -2589,7 +2652,7 @@
             signature: data.signature,
           }));
 
-          const signer = await getSigner();
+          const signer = await ensureSigner();
           if (!signer) throw new Error('Wallet not connected');
           const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
           const tx = await gamble.claimWinnings(selectedTokenId, data.payout, data.nonce, data.signature);

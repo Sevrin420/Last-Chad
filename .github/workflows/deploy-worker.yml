@@ -1,0 +1,85 @@
+name: Deploy Worker
+
+# One-click deploy from GitHub Actions tab:
+# Repo → Actions → "Deploy Worker" → Run workflow
+on:
+  workflow_dispatch:
+
+# Required GitHub secrets:
+#   CF_API_TOKEN       — Cloudflare API token (Workers:Edit + D1/DO permissions)
+#   CF_ACCOUNT_ID      — Cloudflare account ID
+#   ORACLE_PRIVATE_KEY — Oracle wallet private key for Worker
+#   AGORA_APP_CERT     — Agora App Certificate (optional)
+#   KV_NAMESPACE_ID    — RUNNER_KV production namespace ID
+#   KV_PREVIEW_ID      — RUNNER_KV preview namespace ID
+
+jobs:
+  deploy:
+    name: Deploy Cloudflare Worker + Durable Objects
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm ci
+
+      - name: Sync contract addresses from js/config.js → wrangler.toml
+        working-directory: worker
+        run: |
+          LASTCHAD=$(grep "CONTRACT_ADDRESS\b" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          QUESTREWARDS=$(grep "QUEST_REWARDS_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          GAMBLE=$(grep "GAMBLE_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          RPC=$(grep "READ_RPC" ../js/config.js | head -1 | sed "s/.*'\(https[^']*\)'.*/\1/")
+
+          echo "LastChad:     $LASTCHAD"
+          echo "QuestRewards: $QUESTREWARDS"
+          echo "Gamble:       $GAMBLE"
+          echo "RPC:          $RPC"
+
+          sed -i "s|LASTCHAD_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|LASTCHAD_ADDRESS      = \"${LASTCHAD}\"|" wrangler.toml
+          sed -i "s|QUEST_REWARDS_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|QUEST_REWARDS_ADDRESS = \"${QUESTREWARDS}\"|" wrangler.toml
+          sed -i "s|GAMBLE_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|GAMBLE_ADDRESS        = \"${GAMBLE}\"|" wrangler.toml
+          sed -i "s|READ_RPC.*=.*\"https[^\"]*\"|READ_RPC              = \"${RPC}\"|" wrangler.toml
+
+      - name: Patch KV namespace IDs into wrangler.toml
+        working-directory: worker
+        env:
+          KV_ID:      ${{ secrets.KV_NAMESPACE_ID }}
+          KV_PREVIEW: ${{ secrets.KV_PREVIEW_ID }}
+        run: |
+          sed -i "s|REPLACE_WITH_KV_NAMESPACE_ID|${KV_ID}|g" wrangler.toml
+          sed -i "s|REPLACE_WITH_KV_PREVIEW_ID|${KV_PREVIEW}|g" wrangler.toml
+
+      - name: Deploy Worker + Durable Objects
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Push ORACLE_PRIVATE_KEY secret
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          ORACLE_PRIVATE_KEY:    ${{ secrets.ORACLE_PRIVATE_KEY }}
+        run: printf '%s' "$ORACLE_PRIVATE_KEY" | npx wrangler secret put ORACLE_PRIVATE_KEY
+
+      - name: Push AGORA_APP_CERT secret
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          AGORA_APP_CERT:        ${{ secrets.AGORA_APP_CERT }}
+        run: |
+          if [ -n "$AGORA_APP_CERT" ]; then
+            printf '%s' "$AGORA_APP_CERT" | npx wrangler secret put AGORA_APP_CERT
+          else
+            echo "AGORA_APP_CERT not set — skipping"
+          fi

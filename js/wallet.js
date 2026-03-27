@@ -30,6 +30,39 @@ export function getProvider()    { return _provider; }
 export function getSigner()      { return _signer; }
 export function getUserAddress() { return _userAddress; }
 
+// Async version: if signer is null, tries to restore WC session first
+export async function ensureSigner() {
+  if (_signer) return _signer;
+  // Try WC session restore
+  const saved = _getSavedWalletType();
+  if (saved === 'walletconnect' && WALLETCONNECT_PROJECT_ID) {
+    try {
+      const wcProvider = await _initWcProvider();
+      if (wcProvider.session) {
+        _wcProvider  = wcProvider;
+        _provider    = new ethers.providers.Web3Provider(wcProvider);
+        _signer      = _provider.getSigner();
+        _userAddress = await _signer.getAddress();
+        return _signer;
+      }
+    } catch (_) {}
+  }
+  // Try injected provider
+  const raw = window.ethereum || window.avalanche;
+  if (raw) {
+    try {
+      const accs = await raw.request({ method: 'eth_accounts' });
+      if (accs && accs.length > 0) {
+        _provider    = new ethers.providers.Web3Provider(raw);
+        _signer      = _provider.getSigner();
+        _userAddress = accs[0];
+        return _signer;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
 // ========== HELPERS ==========
 export function isMobile() {
   return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
@@ -73,6 +106,12 @@ export function getMobileDeepLink(walletName) {
 
 // ========== CHAIN SWITCHING ==========
 export async function switchToAvalanche(rawProvider) {
+  // Check if already on the correct chain — skip switching if so
+  try {
+    const chainId = await rawProvider.request({ method: 'eth_chainId' });
+    if (chainId === AVAX_CHAIN_ID) return;
+  } catch (_) { /* proceed to switch */ }
+
   try {
     await rawProvider.request({
       method: 'wallet_switchEthereumChain',
@@ -95,7 +134,7 @@ export function loadWcScript() {
   if (window.WalletConnectEthereumProvider) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'assets/walletconnect-provider.js';
+    s.src = '/assets/walletconnect-provider.js';
     s.onload = resolve;
     s.onerror = () => reject(new Error('Failed to load WalletConnect SDK'));
     document.head.appendChild(s);
@@ -139,31 +178,93 @@ async function connectInjected(walletName, { onConnected, onDisconnected }) {
   }
 
   try {
-    const accounts = await rawProvider.request({ method: 'eth_requestAccounts' });
+    // In dApp browsers (Core, Rabby, etc.) eth_accounts often returns accounts
+    // without prompting. Use that first, fall back to eth_requestAccounts.
+    let accounts;
+    try {
+      accounts = await rawProvider.request({ method: 'eth_accounts' });
+    } catch (_) { accounts = []; }
+
+    if (!accounts || accounts.length === 0) {
+      // eth_requestAccounts can hang in some dApp browsers — add a 10s timeout
+      accounts = await Promise.race([
+        rawProvider.request({ method: 'eth_requestAccounts' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error(
+          'Connection timed out. Please try refreshing the page.'
+        )), 10000))
+      ]);
+    }
+
     if (!accounts || accounts.length === 0) throw new Error('No accounts returned');
 
-    await switchToAvalanche(rawProvider);
+    // Chain switching can fail in some dApp browsers — don't block connection
+    try {
+      await switchToAvalanche(rawProvider);
+    } catch (chainErr) {
+      console.warn('Chain switch failed (may already be correct):', chainErr);
+    }
 
     _provider    = new ethers.providers.Web3Provider(rawProvider);
     _signer      = _provider.getSigner();
     _userAddress = accounts[0];
+    _saveWalletType(walletName || 'injected');
     onConnected(accounts[0]);
 
-    rawProvider.on('accountsChanged', (accs) => {
-      if (accs.length === 0) {
-        _provider = null; _signer = null; _userAddress = null;
-        onDisconnected();
-      } else {
-        _userAddress = accs[0];
-        onConnected(accs[0]);
-      }
-    });
-    rawProvider.on('chainChanged', () => window.location.reload());
+    try {
+      rawProvider.on('accountsChanged', (accs) => {
+        if (accs.length === 0) {
+          _provider = null; _signer = null; _userAddress = null;
+          onDisconnected();
+        } else {
+          _userAddress = accs[0];
+          onConnected(accs[0]);
+        }
+      });
+      rawProvider.on('chainChanged', () => window.location.reload());
+    } catch (_) { /* some providers don't support event listeners */ }
 
   } catch (err) {
     console.error('Connection failed:', err);
     if (err.code !== 4001) alert('Failed to connect: ' + (err.message || err));
   }
+}
+
+// ========== WALLETCONNECT SESSION PERSISTENCE ==========
+const WC_STORAGE_KEY = 'lc_wallet_type';
+let _wcProvider = null; // keep reference for session reuse
+
+function _saveWalletType(type) { try { localStorage.setItem(WC_STORAGE_KEY, type); } catch (_) {} }
+function _clearWalletType()    { try { localStorage.removeItem(WC_STORAGE_KEY); } catch (_) {} }
+function _getSavedWalletType() { try { return localStorage.getItem(WC_STORAGE_KEY); } catch (_) { return null; } }
+
+async function _initWcProvider() {
+  await loadWcScript();
+  const EthereumProvider = window.WalletConnectEthereumProvider.EthereumProvider;
+  return EthereumProvider.init({
+    projectId: WALLETCONNECT_PROJECT_ID,
+    chains: [43113],
+    showQrModal: true,
+    rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' }
+  });
+}
+
+function _setupWcListeners(wcProvider, onConnected, onDisconnected) {
+  wcProvider.on('accountsChanged', (accs) => {
+    if (accs.length === 0) {
+      _provider = null; _signer = null; _userAddress = null;
+      _clearWalletType();
+      onDisconnected();
+    } else {
+      _userAddress = accs[0];
+      onConnected(accs[0]);
+    }
+  });
+  wcProvider.on('disconnect', () => {
+    _provider = null; _signer = null; _userAddress = null;
+    _wcProvider = null;
+    _clearWalletType();
+    onDisconnected();
+  });
 }
 
 // ========== CONNECT: WALLETCONNECT ==========
@@ -173,34 +274,17 @@ async function connectWalletConnect({ onConnected, onDisconnected }) {
     return;
   }
   try {
-    await loadWcScript();
-    const EthereumProvider = window.WalletConnectEthereumProvider.EthereumProvider;
-    const wcProvider = await EthereumProvider.init({
-      projectId: WALLETCONNECT_PROJECT_ID,
-      chains: [43113],
-      showQrModal: true,
-      rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' }
-    });
+    const wcProvider = await _initWcProvider();
     await wcProvider.connect();
 
+    _wcProvider  = wcProvider;
     _provider    = new ethers.providers.Web3Provider(wcProvider);
     _signer      = _provider.getSigner();
     _userAddress = await _signer.getAddress();
-    onConnected(_userAddress);
 
-    wcProvider.on('accountsChanged', (accs) => {
-      if (accs.length === 0) {
-        _provider = null; _signer = null; _userAddress = null;
-        onDisconnected();
-      } else {
-        _userAddress = accs[0];
-        onConnected(accs[0]);
-      }
-    });
-    wcProvider.on('disconnect', () => {
-      _provider = null; _signer = null; _userAddress = null;
-      onDisconnected();
-    });
+    _saveWalletType('walletconnect');
+    onConnected(_userAddress);
+    _setupWcListeners(wcProvider, onConnected, onDisconnected);
 
   } catch (err) {
     console.error('WalletConnect failed:', err);
@@ -216,8 +300,13 @@ export async function connectWallet(walletName, callbacks) {
     (window.core && window.core.ethereum) ||
     (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
 
-  if (walletName === 'walletconnect' ||
-      (walletName === 'core' && isMobile() && !coreInjected)) {
+  // Core on mobile: always use WalletConnect — Core mobile has NO injected provider.
+  // On desktop, Core extension injects window.ethereum so coreInjected will be true.
+  if (walletName === 'core' && isMobile() && !coreInjected) {
+    await connectWalletConnect(callbacks);
+    return;
+  }
+  if (walletName === 'walletconnect') {
     await connectWalletConnect(callbacks);
     return;
   }
@@ -229,21 +318,51 @@ export async function connectWallet(walletName, callbacks) {
 }
 
 // ========== DISCONNECT ==========
-export function disconnect(onDisconnectedCb) {
+export async function disconnect(onDisconnectedCb) {
+  // Disconnect WalletConnect session if active
+  if (_wcProvider) {
+    try { await _wcProvider.disconnect(); } catch (_) {}
+    _wcProvider = null;
+  }
   _provider    = null;
   _signer      = null;
   _userAddress = null;
-  onDisconnectedCb();
+  _clearWalletType();
+  if (onDisconnectedCb) onDisconnectedCb();
 }
 
 // ========== AUTO-RECONNECT ==========
 export async function autoReconnect(callbacks) {
+  const savedType = _getSavedWalletType();
+
+  // Try WalletConnect session restore first if that's what was saved
+  if (savedType === 'walletconnect' && WALLETCONNECT_PROJECT_ID) {
+    try {
+      const wcProvider = await _initWcProvider();
+      // WC v2 stores sessions in localStorage — if a session exists,
+      // the provider is already connected after init()
+      if (wcProvider.session) {
+        _wcProvider  = wcProvider;
+        _provider    = new ethers.providers.Web3Provider(wcProvider);
+        _signer      = _provider.getSigner();
+        _userAddress = await _signer.getAddress();
+        callbacks.onConnected(_userAddress);
+        _setupWcListeners(wcProvider, callbacks.onConnected, callbacks.onDisconnected);
+        return;
+      }
+    } catch (e) {
+      console.warn('WalletConnect session restore failed:', e);
+      _clearWalletType();
+    }
+  }
+
+  // Fall back to injected provider auto-reconnect
   const rawProvider = window.ethereum || window.avalanche;
   if (!rawProvider) return;
   try {
     const accounts = await rawProvider.request({ method: 'eth_accounts' });
     if (accounts && accounts.length > 0) {
-      await switchToAvalanche(rawProvider);
+      try { await switchToAvalanche(rawProvider); } catch (_) { /* non-fatal */ }
       _provider    = new ethers.providers.Web3Provider(rawProvider);
       _signer      = _provider.getSigner();
       _userAddress = accounts[0];

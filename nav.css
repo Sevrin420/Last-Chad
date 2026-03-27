@@ -52,22 +52,26 @@
 
 /* === Desktop === */
 @media (min-width: 900px) {
-  .nav-toggle { display: none; }
-  .nav-dropdown {
-    display: flex !important;
-    position: static;
-    background: none;
-    border: none;
-    box-shadow: none;
-    min-width: auto;
-    flex-direction: row;
-    gap: 4px;
+  /* Keep hamburger menu in portrait frame */
+
+  /* ── Portrait phone frame ── */
+  html {
+    background: #050508;
   }
-  .nav-link {
-    padding: 8px 14px;
-    border-bottom: none;
-    border-radius: 3px;
-    font-size: 0.6rem;
+  body {
+    max-width: min(56vh, 500px);
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    border-left: 1px solid rgba(92, 68, 9, 0.25);
+    border-right: 1px solid rgba(92, 68, 9, 0.25);
+    box-shadow: 0 0 80px rgba(0, 0, 0, 0.7);
   }
-  .nav-link:hover { background: rgba(92, 68, 9, 0.25); }
+  html .header {
+    width: min(56vh, 500px);
+    max-width: 100%;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
 }

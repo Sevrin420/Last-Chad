@@ -41,46 +41,6 @@
       filter: blur(0px) brightness(1);
     }
 
-    /* ── Enter Camp overlay ── */
-    #enter-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      transition: opacity 0.8s ease;
-    }
-
-    #enter-overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    #enter-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.8rem, 2.5vw, 1.2rem);
-      color: #ffe96a;
-      background: rgba(10, 10, 15, 0.75);
-      border: 2px solid #ffe96a;
-      padding: 1.2em 2em;
-      cursor: pointer;
-      letter-spacing: 0.08em;
-      text-shadow: 0 0 12px #ffe96a, 0 0 24px rgba(220,185,20,0.5);
-      box-shadow: 0 0 20px rgba(220,185,20,0.3), inset 0 0 20px rgba(220,185,20,0.05);
-      animation: btn-pulse 2s ease-in-out infinite;
-      transition: transform 0.15s ease;
-    }
-
-    #enter-btn:hover {
-      transform: scale(1.06);
-    }
-
-    @keyframes btn-pulse {
-      0%, 100% { box-shadow: 0 0 20px rgba(220,185,20,0.3), inset 0 0 20px rgba(220,185,20,0.05); }
-      50%       { box-shadow: 0 0 40px rgba(220,185,20,0.6), inset 0 0 30px rgba(220,185,20,0.12); }
-    }
-
     /* ── Nav positioned over scene ── */
     .nav-wrapper { position: absolute; top: 12px; left: 12px; z-index: 200; }
 
@@ -265,8 +225,8 @@
     </a>
 
     <!-- Pot over fire — Eat/Rest -->
-    <a class="zone zone-rest" href="recharge.html">
-      <span class="zone-label">RECHARGE</span>
+    <a class="zone zone-rest" href="charge.html">
+      <span class="zone-label">CHARGE</span>
     </a>
 
     <!-- Boxes left of pot — Docs -->
@@ -280,11 +240,6 @@
     </a>
   </div>
 
-  <!-- Enter Camp overlay -->
-  <div id="enter-overlay">
-    <button id="enter-btn">ENTER BASE</button>
-  </div>
-
   <button id="mute-btn">🔊</button>
 
   <!-- Nav menu -->
@@ -293,23 +248,11 @@
   <audio id="bg-music" src="music/moody.mp3" loop></audio>
   <script>
     const music = document.getElementById('bg-music');
-    const overlay = document.getElementById('enter-overlay');
     const scene = document.getElementById('scene');
 
     music.volume = 0.3;
-
-    function reveal() {
-      music.play().catch(() => {});
-      overlay.classList.add('hidden');
-      scene.classList.add('revealed');
-    }
-
-    // Auto-reveal when coming from the Enter button on index.html
-    if (new URLSearchParams(window.location.search).get('autoplay') === '1') {
-      reveal();
-    }
-
-    document.getElementById('enter-btn').addEventListener('click', reveal);
+    music.play().catch(() => {});
+    scene.classList.add('revealed');
 
     const muteBtn = document.getElementById('mute-btn');
     muteBtn.addEventListener('click', () => {

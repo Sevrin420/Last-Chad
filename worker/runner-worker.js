@@ -38,6 +38,7 @@
  */
 
 import { ethers } from 'ethers';
+export { CrapsTable } from './craps-table.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': 'https://lastchad.xyz',
@@ -46,7 +47,7 @@ const CORS = {
 };
 
 const WIN_THRESHOLD_MS  = 110_000; // runner: 2 min map, 10s buffer
-const MAX_XP_PER_QUEST  = 50;      // hard cap — Worker will never sign more
+const MAX_XP_PER_QUEST  = 9999999;  // effectively uncapped
 const QUEST_CACHE_TTL   = 86_400;  // 24h — quest configs change rarely
 const VALID_STATS       = new Set(['strength', 'intelligence', 'dexterity', 'charisma']);
 
@@ -54,6 +55,13 @@ const POKER_SESSION_TTL = 600;    // 10 minutes per session (reset on every inte
 const CRAPS_SESSION_TTL = 1200;   // 20 minutes per craps session (longer game)
 const TABLE_PRESENCE_TTL = 120;   // 2 minutes — heartbeat refreshes this
 const TABLE_STALE_MS = 90_000;    // 90s — entries older than this are filtered out
+const MAX_PUBLIC_TABLES  = 6;
+const MAX_PRIVATE_TABLES = 10;
+const MAX_PLAYERS_PER_TABLE = 4;
+const PUBLIC_TABLES = Array.from({ length: MAX_PUBLIC_TABLES }, (_, i) => ({
+  name: `public-${i + 1}`,
+  label: `PUBLIC TABLE ${i + 1}`,
+}));
 const POKER_PAYOUTS = {
   'ROYAL FLUSH':      250,
   'STRAIGHT FLUSH':    50,
@@ -118,29 +126,62 @@ export default {
         return await handlePokerCashout(request, env);
       }
 
-      // Craps endpoints
+      // Craps endpoints (game logic lives in CrapsTable DO;
+      // Worker handles on-chain verification + cashout signing only)
       if (request.method === 'POST' && url.pathname === '/craps/start') {
         return await handleCrapsStart(request, env);
-      }
-      if (request.method === 'POST' && url.pathname === '/craps/bet') {
-        return await handleCrapsBet(request, env);
-      }
-      if (request.method === 'POST' && url.pathname === '/craps/roll') {
-        return await handleCrapsRoll(request, env);
       }
       if (request.method === 'POST' && url.pathname === '/craps/cashout') {
         return await handleCrapsCashout(request, env);
       }
 
-      // Table presence endpoints
-      if (request.method === 'POST' && url.pathname === '/tables/join') {
-        return await handleTableJoin(request, env);
+      // ── WebSocket upgrade → Durable Object ──
+      if (url.pathname === '/craps/ws') {
+        return await handleCrapsWebSocket(request, url, env);
       }
-      if (request.method === 'POST' && url.pathname === '/tables/leave') {
-        return await handleTableLeave(request, env);
-      }
+
+      // Table list (queries Durable Objects for player counts)
       if (request.method === 'GET' && url.pathname === '/tables/list') {
         return await handleTableList(env);
+      }
+
+      // Admin: view kick log (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
+      if (request.method === 'GET' && url.pathname === '/craps/kick-log') {
+        const auth = request.headers.get('Authorization') || '';
+        const token = auth.replace('Bearer ', '');
+        if (!token || token !== env.ORACLE_PRIVATE_KEY) {
+          return json({ error: 'Unauthorized' }, 403);
+        }
+        const list = await env.RUNNER_KV.list({ prefix: 'kick:' });
+        const entries = [];
+        for (const key of list.keys) {
+          const val = await env.RUNNER_KV.get(key.name, { type: 'json' });
+          if (val) entries.push(val);
+        }
+        entries.sort((a, b) => new Date(b.kickedAt) - new Date(a.kickedAt));
+        return json({ kicks: entries });
+      }
+
+      // Admin: reset all public tables (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
+      if (request.method === 'POST' && url.pathname === '/tables/reset-all') {
+        const auth = request.headers.get('Authorization') || '';
+        const token = auth.replace('Bearer ', '');
+        if (!token || token !== env.ORACLE_PRIVATE_KEY) {
+          return json({ error: 'Unauthorized' }, 403);
+        }
+        const results = [];
+        for (const t of PUBLIC_TABLES) {
+          try {
+            const id = env.CRAPS_TABLE.idFromName(t.name);
+            const stub = env.CRAPS_TABLE.get(id);
+            const res = await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
+            const body = await res.json();
+            results.push({ table: t.name, ...body });
+          } catch (err) {
+            results.push({ table: t.name, error: err.message });
+          }
+        }
+        return json({ ok: true, results });
       }
 
       // Agora RTC token
@@ -149,7 +190,7 @@ export default {
       }
     } catch (err) {
       console.error(err);
-      return json({ error: 'Internal error' }, 500);
+      return json({ ok: false, error: 'Internal error', reason: err.message || 'server_error' }, 500);
     }
 
     return json({ error: 'Not found' }, 404);
@@ -265,18 +306,16 @@ async function handleVisitSection(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /session/win  { tokenId, questId, diceXP }
+// POST /session/win  { tokenId, questId }
 //
-// diceXP — raw score computed by the game UI (cargo score / lives remaining).
-//          The Worker adds the stat bonus on top from authoritative sources.
-//          The client cannot influence which stat is used or its value.
-//
-// Returns { ok, signature, xpAmount } on success.
+// Calculates final cell reward from server-tracked section visits (including
+// dice cargo scores sent as dice_{sectionId} entries) plus per-section stat
+// bonuses fetched from chain.  Returns { ok, signature, xpAmount }.
 // ---------------------------------------------------------------------------
 async function handleWin(request, env) {
-  const { tokenId, questId, diceXP } = await parseBody(request);
-  if (!tokenId || questId == null || diceXP == null) {
-    return json({ error: 'Missing tokenId, questId, or diceXP' }, 400);
+  const { tokenId, questId } = await parseBody(request);
+  if (!tokenId || questId == null) {
+    return json({ error: 'Missing tokenId or questId' }, 400);
   }
 
   const key     = kvKey(tokenId, questId);
@@ -291,9 +330,9 @@ async function handleWin(request, env) {
     return json({ ok: false, reason: 'too_fast', elapsed, required: WIN_THRESHOLD_MS }, 403);
   }
 
-  const dice = Math.max(0, Math.min(Number(diceXP) || 0, 12)); // dice cargo score 0–12
-
   // 1. Sum XP from every quest section the player actually visited (tracked server-side).
+  //    This includes narrative sections, runner minigame wins, and dice cargo scores
+  //    (sent as dice_{sectionId} entries via /session/visit-section).
   const sectionXpTotal = Object.values(session.visitedSections ?? {})
     .reduce((sum, xp) => sum + Number(xp), 0);
 
@@ -312,8 +351,7 @@ async function handleWin(request, env) {
     }
   }
 
-  // finalXP = section XP (server-tracked) + dice cargo score (client-reported) + per-section stat bonuses (chain)
-  const finalXP = Math.min(sectionXpTotal + dice + statValue, MAX_XP_PER_QUEST);
+  const finalXP = Math.min(sectionXpTotal + statValue, MAX_XP_PER_QUEST);
 
   // 4. Sign keccak256(tokenId, questId, player, finalXP)
   //    Must match what QuestRewards.sol verifies on-chain.
@@ -328,10 +366,9 @@ async function handleWin(request, env) {
   await env.RUNNER_KV.put(key, JSON.stringify({
     ...session,
     completed: true,
-    diceScore: dice,
   }), { expirationTtl: 86_400 }); // keep 24h so status endpoint can confirm
 
-  return json({ ok: true, signature, xpAmount: finalXP, sectionXpTotal, dice, statBonuses, statValue, elapsed });
+  return json({ ok: true, signature, xpAmount: finalXP, sectionXpTotal, statBonuses, statValue, elapsed });
 }
 
 // ---------------------------------------------------------------------------
@@ -605,9 +642,11 @@ function shuffleDeckCrypto() {
 //  CRAPS ENDPOINTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-// POST /craps/start  { tokenId, nonce, player }
+// POST /craps/start  { tokenId, nonce, player, tableCode }
+// Verifies on-chain wager, generates session token, registers player in the
+// CrapsTable Durable Object. Game state lives entirely in the DO — no KV.
 async function handleCrapsStart(request, env) {
-  const { tokenId, nonce, player } = await parseBody(request);
+  const { tokenId, nonce, player, tableCode } = await parseBody(request);
   if (tokenId == null || nonce == null || !player) {
     return json({ error: 'Missing tokenId, nonce, or player' }, 400);
   }
@@ -615,7 +654,7 @@ async function handleCrapsStart(request, env) {
     return json({ error: 'Invalid player address' }, 400);
   }
 
-  // Check if nonce was already cashed out (KV marker persists after session deletion)
+  // Check if nonce was already cashed out (KV marker persists after DO cleanup)
   const cashoutKey = `craps_done:${nonce}`;
   const alreadyCashedOut = await env.RUNNER_KV.get(cashoutKey);
   if (alreadyCashedOut) {
@@ -626,13 +665,12 @@ async function handleCrapsStart(request, env) {
   const provider = new ethers.JsonRpcProvider(env.READ_RPC);
   const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
 
-  // Check if nonce was already claimed on-chain
   const used = await gamble.usedNonces(BigInt(nonce));
   if (used) {
     return json({ error: 'Nonce already claimed on-chain' }, 403);
   }
 
-  const wager    = Number(await gamble.wagerAmounts(BigInt(nonce)));
+  const wager = Number(await gamble.wagerAmounts(BigInt(nonce)));
   if (wager === 0) {
     return json({ error: 'No active wager for this nonce' }, 403);
   }
@@ -643,336 +681,95 @@ async function handleCrapsStart(request, env) {
 
   const sessionToken = await generateCrapsSessionToken(nonce, player.toLowerCase(), env);
 
-  const key = `craps:${nonce}`;
-  const existing = await env.RUNNER_KV.get(key, { type: 'json' });
-  if (existing) {
-    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: CRAPS_SESSION_TTL });
-    return json({ ok: true, stack: existing.stack, sessionToken });
+  // Register player in the CrapsTable Durable Object (if tableCode provided).
+  // If no tableCode yet (player picks table on craps.html), the DO registration
+  // happens when the client sends the 'auth' WS message — the DO checks the token.
+  // We still pre-register if we have the table so the player data is ready.
+  if (tableCode) {
+    const isPublic  = PUBLIC_TABLES.some(t => t.name === tableCode);
+    const isPrivate = tableCode.startsWith('priv-');
+    if (isPublic || isPrivate) {
+      try {
+        const doId = env.CRAPS_TABLE.idFromName(tableCode);
+        const stub = env.CRAPS_TABLE.get(doId);
+        await stub.fetch(new Request('https://do/register', {
+          method: 'POST',
+          body: JSON.stringify({
+            nonce:        String(nonce),
+            tokenId:      String(tokenId),
+            player:       player.toLowerCase(),
+            stack:        wager,
+            sessionToken,
+            buyIn:        wager,
+          }),
+        }));
+      } catch (_) { /* best-effort; auth WS message will retry */ }
+    }
   }
-
-  await env.RUNNER_KV.put(key, JSON.stringify({
-    tokenId: String(tokenId),
-    player:  player.toLowerCase(),
-    stack:   wager,
-    phase:   'comeout',
-    point:   0,
-    bets:    {},
-    comeBets: {},
-    comeOdds: {},
-    _expectedToken: sessionToken,
-  }), { expirationTtl: CRAPS_SESSION_TTL });
 
   return json({ ok: true, stack: wager, sessionToken });
 }
 
-// POST /craps/bet  { nonce, zone, amount }
-// Place a single bet server-side. Stack is deducted on the Worker.
-async function handleCrapsBet(request, env) {
-  const { nonce, zone, amount, sessionToken } = await parseBody(request);
-  if (nonce == null || !zone) return json({ error: 'Missing nonce or zone' }, 400);
-
-  const key     = `craps:${nonce}`;
-  const session = await env.RUNNER_KV.get(key, { type: 'json' });
-  if (!session) return json({ error: 'No craps session' }, 403);
-  if (!verifyCrapsSessionToken(session, sessionToken)) {
-    return json({ error: 'Invalid session token' }, 403);
-  }
-
-  const validBetZones = new Set([
-    'pass','field','come','passOdds',
-    'place4','place5','place6','place8','place9','place10',
-    'hard4','hard6','hard8','hard10',
-  ]);
-  if (!validBetZones.has(zone)) return json({ error: 'Invalid bet zone' }, 400);
-  if (zone.startsWith('place') && session.phase === 'comeout') {
-    return json({ error: 'Place bets open after point' }, 400);
-  }
-
-  const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
-  if (amt <= 0) return json({ error: 'Invalid amount or insufficient stack' }, 400);
-
-  session.stack -= amt;
-  session.bets[zone] = (session.bets[zone] || 0) + amt;
-
-  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
-  return json({ ok: true, stack: session.stack, bets: session.bets });
-}
-
-// POST /craps/roll  { nonce, newBets: { zone: amount } }
-// Client sends NEW bets to place; worker validates each against stack, then rolls.
-// Bets are tracked server-side — client cannot inflate existing bets.
-async function handleCrapsRoll(request, env) {
-  const { nonce, newBets, sessionToken } = await parseBody(request);
-  if (nonce == null) return json({ error: 'Missing nonce' }, 400);
-
-  const key     = `craps:${nonce}`;
-  const session = await env.RUNNER_KV.get(key, { type: 'json' });
-  if (!session) return json({ error: 'No craps session' }, 403);
-  if (!verifyCrapsSessionToken(session, sessionToken)) {
-    return json({ error: 'Invalid session token' }, 403);
-  }
-
-  // ── Server-side bet placement: validate each new bet against stack ──
-  const validBetZones = new Set([
-    'pass','field','come','passOdds',
-    'place4','place5','place6','place8','place9','place10',
-    'hard4','hard6','hard8','hard10',
-  ]);
-  if (newBets && typeof newBets === 'object') {
-    for (const [zone, amount] of Object.entries(newBets)) {
-      if (!validBetZones.has(zone)) continue;
-      const amt = Math.max(0, Math.min(Math.floor(Number(amount) || 0), session.stack));
-      if (amt <= 0) continue;
-      // Place bets only valid during point phase
-      if (zone.startsWith('place') && session.phase === 'comeout') continue;
-      session.stack -= amt;
-      session.bets[zone] = (session.bets[zone] || 0) + amt;
-    }
-  }
-
-  // Must have at least one bet on the table
-  const totalBets = Object.values(session.bets).reduce((s, v) => s + v, 0)
-    + Object.values(session.comeBets || {}).reduce((s, v) => s + v, 0);
-  if (totalBets === 0) {
-    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
-    return json({ error: 'No bets on table' }, 400);
-  }
-
-  // Generate dice server-side — crypto.getRandomValues, not Math.random
-  const arr = new Uint32Array(2);
-  crypto.getRandomValues(arr);
-  const d1 = (arr[0] % 6) + 1;
-  const d2 = (arr[1] % 6) + 1;
-  const total = d1 + d2;
-  const isHard = (d1 === d2);
-
-  // Resolve all bets (server-side authoritative)
-  const resolution = crapsResolveBets(session, d1, d2, total, isHard);
-
-  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: CRAPS_SESSION_TTL });
-
-  return json({
-    ok: true,
-    dice: [d1, d2],
-    total,
-    isHard,
-    resolution,
-    stack: session.stack,
-    phase: session.phase,
-    point: session.point,
-    bets: session.bets,
-    comeBets: session.comeBets || {},
-  });
-}
-
-// POST /craps/cashout  { tokenId, nonce }
+// POST /craps/cashout  { tokenId, nonce, sessionToken, tableCode }
+// Fetches player state from the CrapsTable DO, signs the payout, cleans up.
 async function handleCrapsCashout(request, env) {
-  const { tokenId, nonce, sessionToken } = await parseBody(request);
-  if (tokenId == null || nonce == null) {
-    return json({ error: 'Missing tokenId or nonce' }, 400);
+  const { tokenId, nonce, sessionToken, tableCode } = await parseBody(request);
+  if (tokenId == null || nonce == null || !sessionToken) {
+    return json({ error: 'Missing tokenId, nonce, or sessionToken' }, 400);
   }
 
-  const key     = `craps:${nonce}`;
-  const session = await env.RUNNER_KV.get(key, { type: 'json' });
-  if (!session) return json({ error: 'No craps session' }, 403);
-  if (!verifyCrapsSessionToken(session, sessionToken)) {
-    return json({ error: 'Invalid session token' }, 403);
+  // Check if already cashed out
+  const cashoutKey = `craps_done:${nonce}`;
+  const alreadyCashedOut = await env.RUNNER_KV.get(cashoutKey);
+  if (alreadyCashedOut) {
+    return json({ error: 'Already cashed out' }, 403);
   }
-  if (String(tokenId) !== session.tokenId) {
+
+  // Fetch player state from DO and remove them from the table
+  if (!tableCode) return json({ error: 'Missing tableCode' }, 400);
+  const isPublic  = PUBLIC_TABLES.some(t => t.name === tableCode);
+  const isPrivate = tableCode.startsWith('priv-');
+  if (!isPublic && !isPrivate) return json({ error: 'Invalid table' }, 400);
+
+  const doId  = env.CRAPS_TABLE.idFromName(tableCode);
+  const stub  = env.CRAPS_TABLE.get(doId);
+  const doRes = await stub.fetch(new Request('https://do/cashout', {
+    method: 'POST',
+    body: JSON.stringify({ nonce: String(nonce), sessionToken }),
+  }));
+  const cashoutData = await doRes.json();
+
+  if (!cashoutData.ok) {
+    return json({ error: cashoutData.error || 'Cashout failed' }, doRes.status);
+  }
+
+  const payout = cashoutData.payout;
+  const playerAddr = cashoutData.player;
+
+  if (String(tokenId) !== cashoutData.tokenId) {
     return json({ error: 'Token mismatch' }, 403);
   }
 
-  // Return all bets to stack
-  let betsOnTable = 0;
-  for (const val of Object.values(session.bets || {})) betsOnTable += val;
-  for (const val of Object.values(session.comeBets || {})) betsOnTable += val;
-  for (const val of Object.values(session.comeOdds || {})) betsOnTable += val;
-  const payout = session.stack + betsOnTable;
-
-  // Mark nonce as done to prevent reuse (persists 24h after session deletion)
-  const cashoutKey = `craps_done:${nonce}`;
+  // Mark nonce as done BEFORE signing to prevent double-cashout races.
+  await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
 
   if (payout === 0) {
-    await env.RUNNER_KV.delete(key);
-    await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
     return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
   }
 
   const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
   const messageHash  = ethers.solidityPackedKeccak256(
     ['uint256', 'uint256', 'uint256', 'address'],
-    [BigInt(tokenId), BigInt(payout), BigInt(nonce), session.player]
+    [BigInt(tokenId), BigInt(payout), BigInt(nonce), playerAddr]
   );
   const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
 
-  // Delete session and mark nonce as used
-  await env.RUNNER_KV.delete(key);
-  await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
   return json({ ok: true, payout, nonce: Number(nonce), signature });
 }
 
-// Craps bet resolution — mutates session in place, returns resolution info
-function crapsResolveBets(session, d1, d2, total, isHard) {
-  const bets = session.bets || {};
-  const comeBets = session.comeBets || {};
-  const comeOdds = session.comeOdds || {};
-  let netWin = 0;
-  const wins = [];
-  const losses = [];
-  let message = '';
+// ── Removed: crapsResolveBets, crapsCalcOdds, verifyCrapsSessionToken ──
+// All game logic now lives in the CrapsTable Durable Object (craps-table.js).
 
-  // FIELD (one-roll)
-  if (bets.field) {
-    const fieldNums = [2,3,4,9,10,11,12];
-    if (fieldNums.includes(total)) {
-      let payout = bets.field;
-      if (total === 2) payout = bets.field * 2;
-      else if (total === 12) payout = bets.field * 3;
-      netWin += payout;
-      session.stack += bets.field + payout;
-      wins.push('field');
-      message = 'FIELD ' + total + '! +' + payout;
-    } else { losses.push('field'); }
-    bets.field = 0;
-  }
-
-  // HARDWAYS
-  const hardMap = { hard4: 4, hard6: 6, hard8: 8, hard10: 10 };
-  const hardPay = { hard4: 7, hard6: 9, hard8: 9, hard10: 7 };
-  for (const [key, num] of Object.entries(hardMap)) {
-    if (!bets[key]) continue;
-    if (total === num && isHard) {
-      const payout = bets[key] * hardPay[key];
-      netWin += payout;
-      session.stack += bets[key] + payout;
-      wins.push(key);
-      message = 'HARD ' + num + '! +' + payout;
-      bets[key] = 0;
-    } else if (total === 7 || (total === num && !isHard)) {
-      losses.push(key);
-      bets[key] = 0;
-    }
-  }
-
-  // COME BETS (on a number)
-  for (const [numStr, amt] of Object.entries(comeBets)) {
-    const num = parseInt(numStr);
-    if (total === num) {
-      netWin += amt;
-      session.stack += amt + amt;
-      message = 'COME ' + num + ' wins! +' + amt;
-      if (comeOdds[numStr]) {
-        const oddsPay = crapsCalcOdds(num, comeOdds[numStr]);
-        netWin += oddsPay;
-        session.stack += comeOdds[numStr] + oddsPay;
-        delete comeOdds[numStr];
-      }
-      delete comeBets[numStr];
-    } else if (total === 7) {
-      delete comeBets[numStr];
-      if (comeOdds[numStr]) delete comeOdds[numStr];
-    }
-  }
-
-  // NEW COME BET
-  if (bets.come) {
-    if (total === 7 || total === 11) {
-      netWin += bets.come;
-      session.stack += bets.come + bets.come;
-      wins.push('come');
-      message = 'COME wins! +' + bets.come;
-      bets.come = 0;
-    } else if (total === 2 || total === 3 || total === 12) {
-      losses.push('come');
-      bets.come = 0;
-    } else {
-      const numKey = String(total);
-      if (!comeBets[numKey]) comeBets[numKey] = 0;
-      comeBets[numKey] += bets.come;
-      message = 'Come bet moves to ' + total;
-      bets.come = 0;
-    }
-  }
-
-  // PLACE BETS
-  const placePay = { 4: [9,5], 5: [7,5], 6: [7,6], 8: [7,6], 9: [7,5], 10: [9,5] };
-  for (const num of [4,5,6,8,9,10]) {
-    const key = 'place' + num;
-    if (!bets[key]) continue;
-    if (total === num) {
-      const [payNum, payDen] = placePay[num];
-      const payout = Math.floor(bets[key] * payNum / payDen);
-      netWin += payout;
-      session.stack += bets[key] + payout;
-      wins.push(key);
-      message = 'PLACE ' + num + ' hits! +' + payout;
-      bets[key] = 0;
-    } else if (total === 7) {
-      losses.push(key);
-      bets[key] = 0;
-    }
-  }
-
-  // PASS LINE + ODDS
-  if (session.phase === 'comeout') {
-    if (bets.pass) {
-      if (total === 7 || total === 11) {
-        netWin += bets.pass;
-        session.stack += bets.pass + bets.pass;
-        wins.push('pass');
-        message = total === 7 ? 'SEVEN! Winner!' : 'YO ELEVEN! Winner!';
-        bets.pass = 0;
-      } else if (total === 2 || total === 3 || total === 12) {
-        losses.push('pass');
-        message = total === 12 ? 'TWELVE! Craps!' : total === 2 ? 'SNAKE EYES! Craps!' : 'THREE CRAPS!';
-        bets.pass = 0;
-      } else {
-        session.point = total;
-        session.phase = 'point';
-        message = 'Point is ' + total + '!';
-      }
-    }
-  } else {
-    if (total === session.point) {
-      if (bets.pass) {
-        netWin += bets.pass;
-        session.stack += bets.pass + bets.pass;
-        wins.push('pass');
-        message = 'WINNER! Point ' + session.point + '!';
-        if (bets.passOdds) {
-          const oddsPay = crapsCalcOdds(session.point, bets.passOdds);
-          netWin += oddsPay;
-          session.stack += bets.passOdds + oddsPay;
-          bets.passOdds = 0;
-        }
-        bets.pass = 0;
-      }
-      session.phase = 'comeout';
-      session.point = 0;
-    } else if (total === 7) {
-      if (bets.pass) { losses.push('pass'); bets.pass = 0; }
-      if (bets.passOdds) { bets.passOdds = 0; }
-      message = 'SEVEN OUT!';
-      session.phase = 'comeout';
-      session.point = 0;
-    }
-  }
-
-  session.bets = bets;
-  session.comeBets = comeBets;
-  session.comeOdds = comeOdds;
-
-  return { netWin, wins, losses, message };
-}
-
-function crapsCalcOdds(pointNum, bet) {
-  switch (pointNum) {
-    case 4: case 10: return bet * 2;
-    case 5: case 9:  return Math.floor(bet * 3 / 2);
-    case 6: case 8:  return Math.floor(bet * 6 / 5);
-    default: return 0;
-  }
-}
 
 async function generateCrapsSessionToken(nonce, player, env) {
   const key = await crypto.subtle.importKey(
@@ -987,10 +784,6 @@ async function generateCrapsSessionToken(nonce, player, env) {
   return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function verifyCrapsSessionToken(session, sessionToken) {
-  if (!session._expectedToken || !sessionToken) return false; // fail closed
-  return session._expectedToken === sessionToken;
-}
 
 /** Convert card index (0-51) to { rank: 0-12, suit: 0-3 } */
 function cardFromIndex(idx) {
@@ -1113,54 +906,77 @@ function json(data, status = 200) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  TABLE PRESENCE (lobby player counts)
+//  CRAPS TABLE — WebSocket routing via Durable Objects
 // ═══════════════════════════════════════════════════════════════════════════
 
-// POST /tables/join  { table, playerId }
-async function handleTableJoin(request, env) {
-  const { table, playerId } = await parseBody(request);
-  if (!table || !playerId) return json({ error: 'Missing table or playerId' }, 400);
-
-  const key = `table_players:${table}`;
-  const existing = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
-  existing[playerId] = Date.now();
-  await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
-
-  const now = Date.now();
-  const count = Object.values(existing).filter(ts => now - ts < TABLE_STALE_MS).length;
-  return json({ ok: true, count });
-}
-
-// POST /tables/leave  { table, playerId }
-async function handleTableLeave(request, env) {
-  const { table, playerId } = await parseBody(request);
-  if (!table || !playerId) return json({ error: 'Missing table or playerId' }, 400);
-
-  const key = `table_players:${table}`;
-  const existing = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
-  delete existing[playerId];
-
-  if (Object.keys(existing).length === 0) {
-    await env.RUNNER_KV.delete(key);
-  } else {
-    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: TABLE_PRESENCE_TTL });
+// GET /craps/ws?table=X&playerId=Y&name=Z&chadId=N  (WebSocket upgrade)
+// Routes the connection to the CrapsTable Durable Object for that table.
+async function handleCrapsWebSocket(request, url, env) {
+  const table = url.searchParams.get('table');
+  if (!table) {
+    return new Response(JSON.stringify({ error: 'Missing table' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
+    });
   }
-  return json({ ok: true });
+
+  // Validate table name
+  const isPublic  = PUBLIC_TABLES.some(t => t.name === table);
+  const isPrivate = table.startsWith('priv-');
+  if (!isPublic && !isPrivate) {
+    return new Response(JSON.stringify({ error: 'Invalid table name' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
+    });
+  }
+
+  // Route to the Durable Object (one DO per table)
+  const id = env.CRAPS_TABLE.idFromName(table);
+  const stub = env.CRAPS_TABLE.get(id);
+
+  // If table has 0 players, hard-reset all DO state before connecting.
+  // This nukes stale game state left by zombie Hibernation sockets.
+  try {
+    const infoRes = await stub.fetch(new Request('https://do/info'));
+    const info = await infoRes.json();
+    if ((info.count || 0) === 0) {
+      await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
+    }
+  } catch (_) { /* best-effort; proceed with WS upgrade either way */ }
+
+  // Forward the entire request (including Upgrade headers + query params)
+  return stub.fetch(request);
 }
 
-// GET /tables/list
+// GET /tables/list — returns player counts by querying each public table's DO
 async function handleTableList(env) {
-  const key = `table_players:public-main`;
-  const players = await env.RUNNER_KV.get(key, { type: 'json' }) || {};
-  const now = Date.now();
-  const active = Object.entries(players).filter(([, ts]) => now - ts < TABLE_STALE_MS);
+  const tables = [];
 
+  // Query all public table DOs in parallel
+  const queries = PUBLIC_TABLES.map(async (t) => {
+    try {
+      const id = env.CRAPS_TABLE.idFromName(t.name);
+      const stub = env.CRAPS_TABLE.get(id);
+      const res = await stub.fetch(new Request('https://do/info'));
+      const data = await res.json();
+      return {
+        name: t.name,
+        label: t.label,
+        players: data.count || 0,
+        maxPlayers: MAX_PLAYERS_PER_TABLE,
+      };
+    } catch (_) {
+      return {
+        name: t.name,
+        label: t.label,
+        players: 0,
+        maxPlayers: MAX_PLAYERS_PER_TABLE,
+      };
+    }
+  });
+
+  const results = await Promise.all(queries);
   return json({
-    tables: [{
-      name: 'public-main',
-      label: 'PUBLIC TABLE',
-      players: active.length,
-    }],
+    tables: results,
+    limits: { maxPublic: MAX_PUBLIC_TABLES, maxPrivate: MAX_PRIVATE_TABLES, maxPerTable: MAX_PLAYERS_PER_TABLE },
   });
 }
 
@@ -1173,12 +989,12 @@ async function handleAgoraToken(request, env) {
   const { channelName, uid } = await parseBody(request);
   if (!channelName) return json({ error: 'Missing channelName' }, 400);
 
-  const appId = env.AGORA_APP_ID;
-  const appCert = env.AGORA_APP_CERT;
+  const appId = (env.AGORA_APP_ID || '').trim();
+  const appCert = (env.AGORA_APP_CERT || '').trim();
   if (!appId || !appCert) return json({ error: 'Agora not configured' }, 500);
 
   const uidStr = String(uid || 0);
-  const expireTs = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+  const expireTs = Math.floor(Date.now() / 1000) + 21600; // 6 hours (covers 5h max session)
 
   // Privileges: joinChannel(1), publishAudio(2), publishVideo(3), publishData(4)
   const privileges = { 1: expireTs, 2: expireTs, 3: expireTs, 4: expireTs };
@@ -1261,10 +1077,14 @@ async function buildAgoraToken006(appId, appCert, channelName, uidStr, privilege
   signing = await hmacSha256(signing, uint32LEBytes(salt));
   signing = await hmacSha256(signing, uint32LEBytes(ts));
 
-  // Build message content: salt + ts + privileges
+  // Build message content: salt + ts + services
+  // AccessToken2 (006) requires privileges wrapped in a service map
   const content = [];
   putUint32LE(content, salt);
   putUint32LE(content, ts);
+  // Services map: count=1, then service type 1 (kRtc) with its privileges
+  putUint16LE(content, 1);       // 1 service
+  putUint16LE(content, 1);       // service type = kRtc
   putTreeMapUInt32(content, privileges);
   const contentBytes = new Uint8Array(content);
 

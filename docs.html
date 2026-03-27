@@ -376,9 +376,9 @@
 
     /* === Desktop === */
     @media (min-width: 900px) {
-      #lobby-dice-section { max-width: 680px; }
-      .lobby-choice-btn { max-width: 420px; font-size: 0.7rem; }
-      #lobby1-img { max-width: 280px; }
+      #lobby-dice-section { max-width: 100%; }
+      .lobby-choice-btn { max-width: 100%; }
+      #lobby1-img { max-width: 100%; }
     }
 
     /* === Collapsible Sections === */
@@ -471,22 +471,22 @@
 
   <main class="main">
 
-    <div style="background: rgba(0,0,0,0.85); border: 2px solid #5a3d00; border-radius: 6px; padding: 20px 24px; margin-bottom: 24px; font-size: 0.65rem; line-height: 2.2;">
-      <p style="text-align: center; margin-bottom: 2px !important; font-size: 1.1rem; font-family: 'Press Start 2P', monospace; color: #ffffff !important;">Last Chad</p>
-      <p style="text-align: center; margin-bottom: 14px !important; font-size: 0.55rem; color: #e8c060 !important;">(an adventure role playing game)</p>
-      <p style="margin-bottom: 14px !important; font-weight: bold; color: #ffffff !important;"><span style="color: #c0392b !important;">Death is permanent</span> but to the <span style="color: #c9a84c !important;">winner</span> go the spoils</p>
-      <p style="color: #4caf50 !important; margin-bottom: 6px !important; font-weight: bold; letter-spacing: 1px;">&#9670; Supply: <span style="color: #66bb6a !important;">5,555</span></p>
-      <p style="color: #4caf50 !important; margin-bottom: 0 !important; font-weight: bold; letter-spacing: 1px;">&#9670; Mint: <span style="color: #66bb6a !important;">3 Avax</span></p>
+    <div style="position: relative; background: rgba(0,0,0,0.85); border: 2px solid #5a3d00; border-radius: 6px; padding: 20px 24px; margin-bottom: 24px; font-size: 0.65rem; line-height: 2.2; overflow: hidden;">
+      <img src="assets/chazzyp/chazzptvstoked.png" alt="Chazzy" style="position: absolute; right: 0; bottom: 0; width: 30%; image-rendering: pixelated; z-index: 0;">
+      <p style="text-align: center; margin-bottom: 2px !important; font-size: 1.1rem; font-family: 'Press Start 2P', monospace; color: #ffffff !important; position: relative; z-index: 1;">Last Chad</p>
+      <p style="text-align: center; margin-bottom: 14px !important; font-size: 0.55rem; color: #e8c060 !important; position: relative; z-index: 1;">(a survival tv show)</p>
+      <p style="color: #4caf50 !important; margin-bottom: 6px !important; font-weight: bold; letter-spacing: 1px; position: relative; z-index: 1;">&#9670; Supply: <span style="color: #66bb6a !important;">333</span></p>
+      <p style="color: #4caf50 !important; margin-bottom: 0 !important; font-weight: bold; letter-spacing: 1px; position: relative; z-index: 1;">&#9670; Mint: <span style="color: #66bb6a !important;">2 Avax</span></p>
     </div>
 
-    <!-- CELO TECH -->
+    <!-- CELO TECH STUDIOS -->
     <div class="doc-section">
-      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">CELO TECH</h2>
+      <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">CELO TECH STUDIOS</h2>
       <div class="doc-body">
-        <img id="celotech-img" src="assets/docs_lobby/celotech.jpg" alt="Celo Tech" style="display:block; width:100%; max-width:420px; margin:0 auto 0;">
+        <img id="celotech-img" src="assets/docs_lobby/celotech.jpg" alt="Celo Tech Studios" style="display:block; width:100%; max-width:420px; margin:0 auto 0;">
         <button class="lobby-btn" id="enterLobbyBtn">Enter the Lobby</button>
         <div id="lobby-scene" style="display:none;">
-          <img id="lobby1-img" src="assets/docs_lobby/lobby1.jpg" alt="Celo Tech Lobby">
+          <img id="lobby1-img" src="assets/docs_lobby/lobby1.jpg" alt="Celo Tech Studios Lobby">
           <div id="lobby-text-box">
             <span id="lobby-line"></span>
           </div>
@@ -559,10 +559,10 @@
     <div class="doc-section">
       <h2 class="doc-toggle" style="color: #e8c060; font-size: 0.975rem;">&#9876; LORE</h2>
       <div class="doc-body" style="position: relative; overflow: hidden;">
-        <img src="assets/docs_lobby/robotwomen.png" alt="" style="float: right; width: 110px; margin: 0 0 0 -18px; display: block; pointer-events: none;" />
+        <video src="assets/docs_lobby/docstv2.mp4" autoplay loop muted playsinline style="float: right; width: 110px; margin: 40px 0 0 -18px; display: block; pointer-events: none;"></video>
         <p style="margin-bottom: 16px !important;">Earth 2050.</p>
-        <p style="margin-bottom: 16px !important;">The world stands still during the <span style="color: #e8c060 !important;">2 week</span> competition known as <span style="color: #c0392b !important; font-weight: bold;">Last Chad</span></p>
-        <p style="margin-bottom: 16px !important;">Billions are glued to their televisions as <span style="color: #e8c060 !important;">10,000</span> lucky contestants compete for <span style="color: #f7931a !important; font-weight: bold;">&#8383; 1 Bitcoin</span></p>
+        <p style="margin-bottom: 16px !important;">The world stands still during the <span style="color: #e8c060 !important;">3 month</span> competition known as <span style="color: #c0392b !important; font-weight: bold;">Last Chad</span></p>
+        <p style="margin-bottom: 16px !important;">Billions are glued to their televisions as lucky contestants compete for <span style="color: #f7931a !important; font-weight: bold;">riches and glory</span></p>
       </div>
     </div>
 
@@ -585,6 +585,12 @@
       <h2 class="doc-toggle" style="color: #c9a84c; font-size: 0.975rem;">&#9670; STAT BONUSES</h2>
       <div class="doc-body">
 
+        <p style="margin-bottom: 8px !important;">Players assign <span style="color: #e8c060 !important; font-weight: bold;">2 points</span> at mint and <span style="color: #4caf50 !important; font-weight: bold;">1 point</span> per level up.</p>
+
+        <p style="margin-bottom: 0 !important;">Stat bonuses are added to dice totals and can unlock items</p>
+
+        <img src="assets/docs_lobby/docstats.jpg" alt="Stats" style="width: 100%; border-radius: 8px; margin-bottom: 16px;" />
+
         <div class="stat-grid">
           <div class="stat-card">
             <span class="stat-icon">⚡</span>
@@ -604,12 +610,6 @@
           </div>
         </div>
 
-        <p style="margin-bottom: 8px !important;">Players assign <span style="color: #e8c060 !important; font-weight: bold;">2 points</span> at mint and <span style="color: #4caf50 !important; font-weight: bold;">1 point</span> per level up.</p>
-
-        <p style="margin-bottom: 0 !important;">Stat bonuses are added to dice totals and can unlock items</p>
-
-        <img src="assets/docs_lobby/docstats.jpg" alt="Stats" style="width: 100%; border-radius: 8px; margin-bottom: 16px;" />
-
         <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.7rem; margin-bottom: 12px !important; letter-spacing: 1px;">&#9674; Items &amp; Equipment</p>
 
         <div class="yield-card">
@@ -626,10 +626,17 @@
       <div class="doc-body">
         <p style="margin-bottom: 14px !important; font-weight: bold;">Mint Funds</p>
         <p style="margin-bottom: 10px !important;"><span style="color: #e8c060 !important; font-weight: bold;">90%</span> Defi (Yield Generation)</p>
-        <p style="margin-bottom: 20px !important;"><span style="color: #e8c060 !important; font-weight: bold;">10%</span> Team</p>
+        <p style="margin-bottom: 20px !important;"><span style="color: #e8c060 !important; font-weight: bold;">10%</span> Protocol Development</p>
         <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 14px !important; letter-spacing: 1px;">&#9674; Yield Breakdown</p>
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.65rem; margin-bottom: 10px !important; letter-spacing: 1px;">Stage 1: The Cull</p>
         <div class="yield-card">
-          <p style="margin-bottom: 0 !important;"><span style="color: #e8c060 !important; font-weight: bold;">100%</span> &#9852; Buys and burns <span style="color: #c0392b !important;">Chad</span> NFTs</p>
+          <p style="margin-bottom: 0 !important;"><span style="color: #e8c060 !important; font-weight: bold;">100%</span> &#9852; Buy/Eliminate <span style="color: #c0392b !important;">Chad</span> NFTs</p>
+        </div>
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.65rem; margin-top: 14px !important; margin-bottom: 10px !important; letter-spacing: 1px;">Stage 2: Endgame</p>
+        <div class="yield-card">
+          <p style="margin-bottom: 6px !important;"><span style="color: #4caf50 !important; font-weight: bold;">50%</span> &#127873; Airdrops</p>
+          <p style="margin-bottom: 6px !important;"><span style="color: #f7931a !important; font-weight: bold;">40%</span> &#127922; Casino Tournament</p>
+          <p style="margin-bottom: 0 !important;"><span style="color: #e8c060 !important; font-weight: bold;">10%</span> &#9852; Buy Chads (Ecosystem Development)</p>
         </div>
       </div>
     </div>
@@ -638,9 +645,9 @@
     <div class="doc-section">
       <h2 class="doc-toggle" style="color: #c0392b; font-size: 0.975rem;">&#9760; THE CULL</h2>
       <div class="doc-body">
-        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">Duration:</span> <span style="color: #ffffff !important;">6 months</span></p>
-        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">When:</span> <span style="color: #ffffff !important;">Last day of each month</span></p>
-        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">What:</span> The bottom <span style="color: #c0392b !important; font-weight: bold;">20%</span> of Chads by lowest locked cells are <span style="color: #c0392b !important; font-weight: bold;">eliminated</span> from the game</p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">Duration:</span> <span style="color: #ffffff !important;">3 months</span></p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">When:</span> <span style="color: #ffffff !important;">Every 2 weeks</span></p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #e8c060 !important; font-weight: bold;">What:</span> The bottom <span style="color: #c0392b !important; font-weight: bold;">30 NFTs (10%)</span> by total locked cells are <span style="color: #c0392b !important; font-weight: bold;">eliminated</span></p>
         <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 10px !important; letter-spacing: 1px;">&#9674; Consequences</p>
         <div class="yield-card">
           <p style="margin-bottom: 6px !important;"><span style="color: #c0392b !important;">&#10007;</span> No playing quests</p>
@@ -655,14 +662,14 @@
     <div class="doc-section">
       <h2 class="doc-toggle" style="color: #f7931a; font-size: 0.975rem;">&#9733; ENDGAME</h2>
       <div class="doc-body">
-        <p style="margin-bottom: 14px !important;">After <span style="color: #e8c060 !important; font-weight: bold;">6 months</span> the cull ends</p>
-        <p style="margin-bottom: 14px !important;">Yield continues to <span style="color: #c0392b !important; font-weight: bold;">buy &amp; burn</span> Chads until <span style="color: #f7931a !important; font-weight: bold;">1,000</span> remain</p>
-        <p style="margin-bottom: 20px !important;"><span style="color: #f7931a !important; font-weight: bold;">1,000 Chads = Endgame</span></p>
-        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 14px !important; letter-spacing: 1px;">&#9674; Yield Distribution</p>
+        <p style="margin-bottom: 14px !important;">After <span style="color: #e8c060 !important; font-weight: bold;">3 months</span> the cull ends</p>
+        <p style="margin-bottom: 14px !important;"><span style="color: #f7931a !important; font-weight: bold;">100%</span> buy/burn continues till <span style="color: #f7931a !important; font-weight: bold;">100 Chads</span> remain</p>
+        <p style="margin-bottom: 20px !important;"><span style="color: #f7931a !important; font-weight: bold;">100 Chads = Endgame</span></p>
+        <p style="color: #e8c060 !important; font-weight: bold; font-size: 0.75rem; margin-bottom: 14px !important; letter-spacing: 1px;">&#9674; Yield</p>
         <div class="yield-card">
-          <p style="margin-bottom: 6px !important;"><span style="color: #f7931a !important; font-weight: bold;">50%</span> &#127381; Airdrop to holders</p>
-          <p style="margin-bottom: 6px !important;"><span style="color: #e8c060 !important; font-weight: bold;">25%</span> &#9852; Buy &amp; burn</p>
-          <p style="margin-bottom: 0 !important;"><span style="color: #4caf50 !important; font-weight: bold;">25%</span> &#9881; Ecosystem development</p>
+          <p style="margin-bottom: 6px !important;"><span style="color: #f7931a !important; font-weight: bold;">75%</span> &#127922; Craps Tournament</p>
+          <p style="margin-bottom: 6px !important;"><span style="color: #e8c060 !important; font-weight: bold;">15%</span> &#9852; Buy/burn</p>
+          <p style="margin-bottom: 0 !important;"><span style="color: #4caf50 !important; font-weight: bold;">10%</span> &#9881; Ecosystem Development</p>
         </div>
       </div>
     </div>
@@ -716,7 +723,10 @@
       if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
     });
 
-    document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
+    document.addEventListener('wallet-selected', e => {
+      connectWallet(e.detail.wallet, { onConnected, onDisconnected })
+        .catch(err => { console.error('Wallet connection error:', err); alert('Connection error: ' + (err.message || err)); });
+    });
 
     // ========== AUTO-RECONNECT ==========
     autoReconnect({ onConnected, onDisconnected });
@@ -806,7 +816,7 @@
       setTimeout(() => { img.style.opacity = '1'; }, 30);
 
       const introLines = [
-        'Hi, welcome to Celo Tech. I\'m Cindy',
+        'Hi, welcome to Celo Tech Studios. I\'m Cindy',
         'Are you here for the competition?'
       ];
 

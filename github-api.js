@@ -5,7 +5,7 @@
 
 class GitHubAPI {
   constructor(token, owner, repo, branch = 'main') {
-    this.token = token;
+    this.token = (token || '').trim();
     this.owner = owner;
     this.repo = repo;
     this.branch = branch;
@@ -54,8 +54,9 @@ class GitHubAPI {
         throw err;
       }
       // Otherwise, it's a network error
-      console.error(`❌ Network Error (${method} ${path}):`, err.message);
-      throw new Error(`Network error: ${err.message}`);
+      console.error(`❌ Network Error (${method} ${path}):`, err.message, err);
+      console.error(`   Token length: ${this.token.length}, starts: ${this.token.substring(0, 8)}...`);
+      throw new Error(`Network error: ${err.message}\n(Request: ${method} ${url})`);
     }
   }
 
@@ -146,20 +147,16 @@ class GitHubAPI {
       // Get the commit tree
       progress('Fetching commit tree...');
       const commit = await this.getCommit(latestCommitSha);
-      const treeData = await this.getTree(commit.tree.sha, true);
+      const baseTreeSha = commit.tree.sha;
+      const treeData = await this.getTree(baseTreeSha, true);
       console.log(`✓ Tree fetched with ${treeData.tree.length} existing items`);
 
-      // Prepare tree items
-      const treeItems = treeData.tree.map(item => ({
-        path: item.path,
-        mode: item.mode,
-        type: item.type,
-        sha: item.sha
-      }));
+      // Only track NEW/CHANGED files — base_tree handles the rest
+      const treeItems = [];
 
       // Read quest index first to assign a stable on-chain questId
       progress('Updating quest manifest...');
-      const indexJsonItem = treeItems.find(item => item.path === 'quests/index.json');
+      const indexJsonItem = treeData.tree.find(item => item.path === 'quests/index.json');
       let questIndex = [];
       if (indexJsonItem && indexJsonItem.sha) {
         try {
@@ -178,8 +175,6 @@ class GitHubAPI {
         questIndex.push({ name: questName, slug: sanitized, questId });
       }
       const indexBlob = await this.createBlob(JSON.stringify(questIndex, null, 2), 'utf-8');
-      const indexIdx = treeItems.findIndex(item => item.path === 'quests/index.json');
-      if (indexIdx !== -1) treeItems.splice(indexIdx, 1);
       treeItems.push({
         path: 'quests/index.json',
         mode: '100644',
@@ -275,7 +270,7 @@ class GitHubAPI {
 
       // Create new tree
       progress(`Building file tree (${treeItems.length} files)...`);
-      const newTree = await this.createTree(treeItems, commit.tree.sha);
+      const newTree = await this.createTree(treeItems, baseTreeSha);
       console.log(`✓ Tree created: ${newTree.sha.substring(0, 7)}`);
 
       // Create commit
@@ -473,11 +468,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
               <div class="hud-stat-box"><div class="hud-stat-label">CHA</div><div class="hud-stat-value" id="hudCha_${sid}">—</div></div>
             </div>
           </div>
-          <div class="hud-cells-row" id="hudCellsRow_${sid}" style="display:flex;gap:8px;justify-content:center;margin-top:8px;width:100%;">
-            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">LVL</div><div class="hud-stat-value" id="hudLvl_${sid}">—</div></div>
-            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">OPEN</div><div class="hud-stat-value" id="hudOpen_${sid}">—</div></div>
-            <div class="hud-stat-box" style="flex:1;"><div class="hud-stat-label">LOCKED</div><div class="hud-stat-value" id="hudClosed_${sid}">—</div></div>
-          </div>
           <div class="hud-items-row" id="hudItemsRow_${sid}">
             <div class="hud-item-label">EQUIPPED</div>
           </div>
@@ -660,21 +650,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       background: rgba(30, 20, 10, 0.9);
       border-bottom: 2px solid #5c4409;
       backdrop-filter: blur(8px);
-      /* needed so .chad-name absolute positioning is contained */
-      overflow: visible;
-    }
-    .chad-name {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.55rem;
-      color: #c9a84c;
-      text-align: center;
-      text-shadow: 0 0 8px rgba(201, 168, 76, 0.3);
-      white-space: nowrap;
-      max-width: 50%;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .main {
@@ -752,18 +727,15 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
     .hud-stats-panel {
       display: flex;
-      flex-direction: row;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 4px;
       flex: 1;
-      align-content: flex-start;
       padding-top: 4px;
     }
     .hud-stat-box {
       background: url('https://lastchad.xyz/assets/stat-frame.png') center/100% 100% no-repeat;
       padding: 12px 8px;
       text-align: center;
-      flex: 1 1 calc(50% - 4px);
       min-width: 0;
       box-sizing: border-box;
     }
@@ -841,7 +813,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     }
 
     .narrative {
-      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      font-size: clamp(0.6rem, 2.2vw, 0.8rem);
       line-height: 2.2;
       color: #f5e6c8;
       margin-bottom: 24px;
@@ -850,7 +822,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
     .narrative p + p { margin-top: 14px; }
     .narrative.typing p { display: none; }
     .typewriter-line {
-      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
+      font-size: clamp(0.6rem, 2.2vw, 0.8rem);
       line-height: 2.2;
       color: #f5e6c8;
       min-height: 2.4em;
@@ -1150,7 +1122,7 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
       letter-spacing: 0.04em;
     }
     .intro-text {
-      font-size: clamp(0.38rem, 1.5vw, 0.52rem);
+      font-size: clamp(0.5rem, 1.8vw, 0.65rem);
       line-height: 2.4;
       color: #f5e6c8;
       margin-bottom: 36px;
@@ -1456,7 +1428,6 @@ function generateQuestHTML(questName, sections, introDialogue = '', hasIntroPhot
 
   <header class="header">
     <div id="nav-placeholder"></div>
-    <span class="chad-name" id="chadName">${escapeHtml(questName)}</span>
     <div class="wallet-wrapper">
       <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
       <div class="disconnect-dropdown" id="disconnectDropdown">
@@ -1607,6 +1578,7 @@ function showPanel(id) {
       var actionWrap = panel.querySelector('.action-wrap');
       var hudEl = id ? panel.querySelector('.quest-hud') : null;
       var diceSection = id ? panel.querySelector('.dice-section') : null;
+      var claimSection = panel.querySelector('.claim-xp-section');
       if (img) { img.style.transition = ''; img.style.opacity = '0'; }
       if (narrative) {
         narrative.style.transition = '';
@@ -1623,6 +1595,7 @@ function showPanel(id) {
       } else {
         if (actionWrap) { actionWrap.style.transition = ''; actionWrap.style.opacity = '0'; actionWrap.style.pointerEvents = 'none'; }
       }
+      if (claimSection) { claimSection.style.transition = ''; claimSection.style.opacity = '0'; claimSection.style.pointerEvents = 'none'; }
       panel.classList.add('active');
       // Show exp box only on non-game, non-complete panels
       var _isGameSec = id && (!!gameSectionMap[id] || !!minigameSectionMap[id]);
@@ -1669,12 +1642,10 @@ function showPanel(id) {
       }
 
       // When reaching the complete panel, show total cells that will be claimed.
-      // Use cargoScore (not totalScore) for dice sections — totalScore includes statBonusVal
-      // per section, but the worker adds the stat bonus only ONCE globally on /session/win.
-      // Summing totalScore across multiple dice sections would overcount the bonus.
+      // totalScore = cargoScore + per-section stat bonus, matching the worker calculation.
       if (!id) {
         var _cellTotal = _sectionCells + _questRunnerXP + Object.keys(diceOutcomes).reduce(function(sum, sid) {
-          return sum + ((diceState[Number(sid)] && diceState[Number(sid)].cargoScore) || 0);
+          return sum + ((diceState[Number(sid)] && diceState[Number(sid)].totalScore) || 0);
         }, 0);
         var xpPreviewEl = document.getElementById('xpPreview');
         var xpPreviewVal = document.getElementById('xpPreviewValue');
@@ -1770,7 +1741,7 @@ function showPanel(id) {
         if (lastTime.toNumber() > 0 && now < lastTime.toNumber() + cooldown.toNumber()) {
           var remaining = (lastTime.toNumber() + cooldown.toNumber()) - now;
           var days = Math.ceil(remaining / 86400);
-          statusEl.textContent = '⏳ Quest on cooldown — ' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
+          statusEl.textContent = 'This Chad has already attempted the quest';
           if (advBtn) advBtn.style.display = 'none';
           _setStartEnabled(false);
           return;
@@ -1862,7 +1833,7 @@ function showPanel(id) {
           await wait(50);
         }
         cur.remove();
-        if (li < introLines.length - 1) await wait(1500);
+        if (li < introLines.length - 1) await wait(2200);
       }
       await wait(400);
       if (startBtn) {
@@ -2032,6 +2003,7 @@ function showPanel(id) {
       var actionWrap = panel.querySelector('.action-wrap');
       var hudEl = sid ? panel.querySelector('.quest-hud') : null;
       var diceSection = sid ? panel.querySelector('.dice-section') : null;
+      var claimSection = panel.querySelector('.claim-xp-section');
 
       // Collect plain-text lines from narrative <p> tags
       var lines = [];
@@ -2082,7 +2054,7 @@ function showPanel(id) {
             tw.appendChild(cur);
             await wait(60);
           }
-          await wait(1800);
+          await wait(2300);
           if (!alive()) { tw.remove(); narrative.classList.remove('typing'); return; }
           if (li < lines.length - 1) {
             tw.textContent = '';
@@ -2121,6 +2093,14 @@ function showPanel(id) {
           if (!alive()) return;
         }
         if (actionWrap) { actionWrap.style.transition = 'opacity 1.2s ease'; actionWrap.style.opacity = '1'; actionWrap.style.pointerEvents = 'auto'; }
+      }
+      // Reveal claim section after narrative finishes typing
+      if (claimSection) {
+        await wait(400);
+        if (!alive()) return;
+        claimSection.style.transition = 'opacity 1.2s ease';
+        claimSection.style.opacity = '1';
+        claimSection.style.pointerEvents = 'auto';
       }
     }
 
@@ -2527,6 +2507,10 @@ ${diceInitJs}
 
     async function switchToAvalanche(raw) {
       try {
+        var chainId = await raw.request({ method: 'eth_chainId' });
+        if (chainId === AVAX_CHAIN_ID) return;
+      } catch(_) {}
+      try {
         await raw.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: AVAX_CHAIN_ID }] });
       } catch (err) {
         if (err.code === 4902) await raw.request({ method: 'wallet_addEthereumChain', params: [AVAX_CHAIN] });
@@ -2551,6 +2535,13 @@ ${diceInitJs}
       document.getElementById('disconnectDropdown').classList.remove('show');
     }
 
+    // WalletConnect session persistence
+    var _wcProvider = null;
+    var WC_KEY = 'lc_wallet_type';
+    function _saveWallet(t) { try { localStorage.setItem(WC_KEY, t); } catch(_) {} }
+    function _clearWallet() { try { localStorage.removeItem(WC_KEY); } catch(_) {} }
+    function _getSavedWallet() { try { return localStorage.getItem(WC_KEY); } catch(_) { return null; } }
+
     async function connectInjected(name) {
       var raw = null;
       if (name === 'core' && (window.avalanche || (window.core && window.core.ethereum))) { raw = window.avalanche || window.core.ethereum; }
@@ -2566,14 +2557,24 @@ ${diceInitJs}
       }
       if (!raw) { alert(name + ' wallet not detected.'); return; }
       try {
-        var accounts = await raw.request({ method: 'eth_requestAccounts' });
+        var accounts;
+        try { accounts = await raw.request({ method: 'eth_accounts' }); } catch(_) { accounts = []; }
+        if (!accounts || accounts.length === 0) {
+          accounts = await Promise.race([
+            raw.request({ method: 'eth_requestAccounts' }),
+            new Promise(function(_, rej) { setTimeout(function() { rej(new Error('Connection timed out.')); }, 10000); })
+          ]);
+        }
         if (!accounts || accounts.length === 0) throw new Error('No accounts');
-        await switchToAvalanche(raw);
+        try { await switchToAvalanche(raw); } catch(_) {}
         walletProvider = new ethers.providers.Web3Provider(raw);
         walletSigner = walletProvider.getSigner();
+        _saveWallet(name || 'injected');
         onConnected(accounts[0]);
-        raw.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
-        raw.on('chainChanged', function() { window.location.reload(); });
+        try {
+          raw.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
+          raw.on('chainChanged', function() { window.location.reload(); });
+        } catch(_) {}
       } catch (err) { if (err.code !== 4001) alert('Connection failed: ' + (err.message || err)); }
     }
 
@@ -2581,27 +2582,42 @@ ${diceInitJs}
       if (window.WalletConnectEthereumProvider) return Promise.resolve();
       return new Promise(function(resolve, reject) {
         var s = document.createElement('script');
-        s.src = '../../assets/walletconnect-provider.js';
+        s.src = '/assets/walletconnect-provider.js';
         s.onload = resolve; s.onerror = function() { reject(new Error('Failed to load WalletConnect')); };
         document.head.appendChild(s);
       });
     }
 
+    async function _initWc() {
+      await loadWcScript();
+      return window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: READ_RPC } });
+    }
+
+    function _setupWcListeners(wc) {
+      wc.on('accountsChanged', function(accs) { if (accs.length === 0) { _clearWallet(); onDisconnected(); } else onConnected(accs[0]); });
+      wc.on('disconnect', function() { _wcProvider = null; _clearWallet(); onDisconnected(); });
+    }
+
     async function connectWalletConnect() {
       try {
-        await loadWcScript();
-        var wc = await window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: READ_RPC } });
+        var wc = await _initWc();
         await wc.connect();
+        _wcProvider = wc;
         walletProvider = new ethers.providers.Web3Provider(wc);
         walletSigner = walletProvider.getSigner();
+        _saveWallet('walletconnect');
         onConnected(await walletSigner.getAddress());
-        wc.on('accountsChanged', function(accs) { if (accs.length === 0) onDisconnected(); else onConnected(accs[0]); });
-        wc.on('disconnect', onDisconnected);
+        _setupWcListeners(wc);
       } catch (err) { alert('WalletConnect failed. Please try again.'); }
     }
 
     async function connectWallet(name) {
+      // Core mobile has no injected provider — must use WalletConnect
       if (name === 'walletconnect') { await connectWalletConnect(); return; }
+      if (name === 'core' && isMobile()) {
+        var coreInjected = window.avalanche || (window.core && window.core.ethereum) || (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
+        if (!coreInjected) { await connectWalletConnect(); return; }
+      }
       await connectInjected(name);
     }
 
@@ -2707,7 +2723,17 @@ ${diceInitJs}
           var _rXP = Number(e.data.runnerXP);
           _questRunnerXP += _rXP;
           // Record by section ID so this can be replayed to the worker after a page reload
-          if (currentSectionId != null) _runnerScores[currentSectionId] = _rXP;
+          if (currentSectionId != null) {
+            _runnerScores[currentSectionId] = _rXP;
+            // Send runner XP to worker immediately (like dice scores) so it's counted in /session/win
+            if (WORKER_URL && chadId) {
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'runner_' + currentSectionId, sectionXp: _rXP }),
+              }).catch(function() {});
+            }
+          }
         }
         _saveProgress();
         // Advance to next section: check minigame map first, then legacy game map
@@ -2737,14 +2763,28 @@ ${diceInitJs}
       }
     });
 
-    // Auto-reconnect wallet on page load
+    // Auto-reconnect wallet on page load (supports WalletConnect session restore)
     (async function() {
+      var saved = _getSavedWallet();
+      if (saved === 'walletconnect') {
+        try {
+          var wc = await _initWc();
+          if (wc.session) {
+            _wcProvider = wc;
+            walletProvider = new ethers.providers.Web3Provider(wc);
+            walletSigner = walletProvider.getSigner();
+            onConnected(await walletSigner.getAddress());
+            _setupWcListeners(wc);
+            return;
+          }
+        } catch(e) { _clearWallet(); }
+      }
       var raw = window.ethereum || window.avalanche;
       if (raw) {
         try {
           var accounts = await raw.request({ method: 'eth_accounts' });
           if (accounts && accounts.length > 0) {
-            await switchToAvalanche(raw);
+            try { await switchToAvalanche(raw); } catch(_) {}
             walletProvider = new ethers.providers.Web3Provider(raw);
             walletSigner = walletProvider.getSigner();
             onConnected(accounts[0]);
@@ -2832,15 +2872,50 @@ ${diceInitJs}
       var workerCells = null;
       var workerSig = null;
       if (WORKER_URL && chadId) {
+        _setText(statusEl, 'SYNCING CELLS...');
+        try {
+          // Final reconciliation: replay ALL tracked XP sources to the worker before /session/win.
+          // The worker deduplicates by sectionId, so replaying is always safe and ensures
+          // nothing was lost from earlier fire-and-forget calls.
+          var _replayPromises = [];
+          Object.keys(_visitedSections).forEach(function(sid) {
+            if (sectionXpMap[sid] !== undefined) {
+              _replayPromises.push(
+                fetch(WORKER_URL + '/session/visit-section', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: sid, sectionXp: sectionXpMap[sid] }),
+                }).catch(function() {})
+              );
+            }
+          });
+          Object.keys(_runnerScores).forEach(function(sid) {
+            _replayPromises.push(
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'runner_' + sid, sectionXp: _runnerScores[sid] }),
+              }).catch(function() {})
+            );
+          });
+          Object.keys(_scoredDiceSections).forEach(function(sid) {
+            _replayPromises.push(
+              fetch(WORKER_URL + '/session/visit-section', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, sectionId: 'dice_' + sid, sectionXp: _scoredDiceSections[sid] }),
+              }).catch(function() {})
+            );
+          });
+          await Promise.all(_replayPromises);
+        } catch(e) { /* reconciliation failed — proceed with whatever worker has */ }
+
         _setText(statusEl, 'CALCULATING CELLS...');
         try {
-          // All XP sources (sections, runner, dice cargo) are already accumulated in the worker
-          // via /session/visit-section calls made in real-time as they were earned.
-          // Send diceXP: 0 — the worker just adds stat bonus once and returns the signed total.
           var winResp = await fetch(WORKER_URL + '/session/win', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID, diceXP: 0 }),
+            body: JSON.stringify({ tokenId: chadId, questId: QUEST_ID }),
           }).then(function(r) { return r.json(); });
           if (winResp && winResp.ok) {
             workerCells = winResp.xpAmount;

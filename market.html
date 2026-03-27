@@ -830,7 +830,7 @@
 
     /* === Desktop === */
     @media (min-width: 900px) {
-      .main { max-width: 1200px; padding: 100px 40px 80px; }
+      .main { max-width: 100%; padding: 90px 1rem 60px; }
     }
   </style>
 </head>
@@ -898,8 +898,6 @@
         <select id="filterSort">
           <option value="price-asc">Price: Low → High</option>
           <option value="price-desc">Price: High → Low</option>
-          <option value="cells-asc">Locked Cells: Low → High</option>
-          <option value="cells-desc">Locked Cells: High → Low</option>
           <option value="total-asc">Total Cells: Low → High</option>
           <option value="total-desc">Total Cells: High → Low</option>
         </select>
@@ -1117,13 +1115,16 @@
       else openWalletModal();
     });
     disconnectBtn.addEventListener('click', () => {
-      disconnect();
+      disconnect(onDisconnected);
       disconnectDropdown.classList.remove('show');
     });
     document.addEventListener('click', e => {
       if (!e.target.closest('.wallet-wrapper')) disconnectDropdown.classList.remove('show');
     });
-    document.addEventListener('wallet-selected', e => connectWallet(e.detail.wallet, { onConnected, onDisconnected }));
+    document.addEventListener('wallet-selected', e => {
+      connectWallet(e.detail.wallet, { onConnected, onDisconnected })
+        .catch(err => { console.error('Wallet connection error:', err); alert('Connection error: ' + (err.message || err)); });
+    });
 
     // ====================================================================
     // Tabs
@@ -1462,8 +1463,6 @@
       const stat = key => l => (statsCache.get(l.tokenId.toString()) || {})[key] || 0;
       if (sortBy === 'price-asc')   filtered.sort((a, b) => a.price.lt(b.price) ? -1 : 1);
       if (sortBy === 'price-desc')  filtered.sort((a, b) => b.price.lt(a.price) ? -1 : 1);
-      if (sortBy === 'cells-asc')   filtered.sort((a, b) => stat('cells')(a) - stat('cells')(b));
-      if (sortBy === 'cells-desc')  filtered.sort((a, b) => stat('cells')(b) - stat('cells')(a));
       if (sortBy === 'total-asc')   filtered.sort((a, b) => stat('totalCells')(a) - stat('totalCells')(b));
       if (sortBy === 'total-desc')  filtered.sort((a, b) => stat('totalCells')(b) - stat('totalCells')(a));
 
