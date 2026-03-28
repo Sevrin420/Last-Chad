@@ -72,12 +72,19 @@ export class CrapsTable {
     // Hibernation API retains zombie sockets, making socket count unreliable.
     if (url.pathname === '/info') {
       const playerKeys = await this.state.storage.list({ prefix: 'player:' });
-      const count = playerKeys.size;
       const players = [];
-      for (const [, pd] of playerKeys) {
+      const now = Date.now();
+      const STALE_MS = 15 * 60 * 1000; // match idle timeout
+      for (const [key, pd] of playerKeys) {
+        const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
+        if (lastActive > 0 && (now - lastActive) >= STALE_MS) {
+          // Stale player — clean up orphaned key
+          await this.state.storage.delete(key);
+          continue;
+        }
         players.push({ playerId: pd.player, name: pd.tokenId });
       }
-      return new Response(JSON.stringify({ count, players }), {
+      return new Response(JSON.stringify({ count: players.length, players }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -853,22 +860,45 @@ export class CrapsTable {
     }
 
     // ── Idle check: kick players with no activity for 15 minutes ──
+    // Also cleans up orphaned player keys (zombie sockets from Hibernation API)
     const IDLE_MS = 15 * 60 * 1000;
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeys) {
       const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
-      if (lastActive === 0) continue;
-      if ((now - lastActive) < IDLE_MS) continue;
+      if (lastActive > 0 && (now - lastActive) < IDLE_MS) continue;
+      // Player is idle or has no activity timestamp — find their socket
       const idlePlayerId = pd.player + '-' + pd.tokenId;
       const nonce = key.replace('player:', '');
+      let foundSocket = false;
       for (const ws of sockets) {
         try {
           const att = ws.deserializeAttachment();
           if (att && att.nonce === nonce) {
+            foundSocket = true;
+            if (lastActive === 0 && (now - (pd.lastBetTime || 0)) < IDLE_MS) break; // recently registered, not idle yet
             await this._kickPlayer(ws, idlePlayerId, nonce, 'Idle for 15 minutes — removed from table');
             break;
           }
         } catch (_) {}
+      }
+      // No socket found for this player — orphaned storage key (zombie disconnect)
+      // Clean up directly since there's no socket to kick
+      if (!foundSocket && lastActive > 0 && (now - lastActive) >= IDLE_MS) {
+        await this.state.storage.delete(key);
+        this._broadcast({ type: 'leave', playerId: idlePlayerId }, null);
+        // Rotate shooter if this was the shooter
+        const shooter = await this.state.storage.get('shooter');
+        if (shooter === idlePlayerId) {
+          const remaining = await this.state.storage.list({ prefix: 'player:' });
+          if (remaining.size > 0) {
+            const [, nextPd] = [...remaining][0];
+            const nextShooter = nextPd.player + '-' + nextPd.tokenId;
+            await this.state.storage.put('shooter', nextShooter);
+            this._broadcast({ type: 'shooter', playerId: nextShooter }, null);
+          } else {
+            await this.state.storage.deleteAll();
+          }
+        }
       }
     }
 
