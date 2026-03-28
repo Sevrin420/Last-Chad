@@ -992,7 +992,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, truncateAddress, getSigner } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC, MARKET_ADDRESS, MARKET_ABI } from './js/config.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC, MARKET_ADDRESS, MARKET_ABI, LASTCHAD_ABI, ITEMS_ABI } from './js/config.js';
 
     const COLLECTIONS = {
       chads: { label: 'Last Chad', address: CONTRACT_ADDRESS,       imageBase: '/assets/chads/framed/' },
@@ -1003,29 +1003,11 @@
     // ABIs
     // ====================================================================
 
-    const ERC1155_ABI = [
-      'function balanceOf(address account, uint256 id) view returns (uint256)',
-      'function isApprovedForAll(address account, address operator) view returns (bool)',
-      'function setApprovalForAll(address operator, bool approved)',
-    ];
+    const ERC1155_ABI = ITEMS_ABI;
 
     const knownItems = { '1': "Cindy's Code" };
 
-    const ERC721_ABI = [
-      'function balanceOf(address owner) view returns (uint256)',
-      'function totalSupply() view returns (uint256)',
-      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
-      'function isApprovedForAll(address owner, address operator) view returns (bool)',
-      'function setApprovalForAll(address operator, bool approved)',
-      'function getApproved(uint256 tokenId) view returns (address)',
-      'function ownerOf(uint256 tokenId) view returns (address)',
-      'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
-      'function getLevel(uint256 tokenId) view returns (uint256)',
-      'function getClosedCells(uint256 tokenId) view returns (uint256)',
-      'function tokenName(uint256 tokenId) view returns (string)',
-      'function eliminated(uint256 tokenId) view returns (bool)',
-      'function getOpenCells(uint256 tokenId) view returns (uint256)',
-    ];
+    const ERC721_ABI = LASTCHAD_ABI;
 
     // ====================================================================
     // State

@@ -103,6 +103,8 @@ export const ITEMS_ABI = [
   'function batchAirdrop(address[] recipients, uint256 itemId, uint256[] quantities)',
   'function createItem(string name, uint256 maxSupply, uint256 price, bool stackable) returns (uint256)',
   'function setGameContract(address game, bool enabled)',
+  'function isApprovedForAll(address account, address operator) view returns (bool)',
+  'function setApprovalForAll(address operator, bool approved)',
 ];
 
 export const QUEST_REWARDS_ABI = [

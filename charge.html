@@ -623,18 +623,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
 
-    const CONTRACT_ABI = [
-      'function balanceOf(address owner) view returns (uint256)',
-      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
-      'function ownerOf(uint256 tokenId) view returns (address)',
-      'function getOpenCells(uint256 tokenId) view returns (uint256)',
-      'function getClosedCells(uint256 tokenId) view returns (uint256)',
-      'function getPendingStatPoints(uint256 tokenId) view returns (uint256)',
-      'function tokenName(uint256 tokenId) view returns (string)',
-      'function lockCells(uint256 tokenId, uint256 amount) external',
-    ];
+    const CONTRACT_ABI = LASTCHAD_ABI;
 
     const CELLS_PER_LEVEL = 100;
 

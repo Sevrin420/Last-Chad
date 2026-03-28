@@ -818,7 +818,7 @@
       connectWallet, autoReconnect, disconnect,
       getSigner, getUserAddress, truncateAddress
     } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
 
     // ========== CONFIG ==========
     const PRICE = 0.02;
@@ -827,16 +827,8 @@
     const MAX_MINT_PER_WALLET = 5;
     let activePrice = PRICE; // switches to TEAM_PRICE when team selected + eligible
 
-    // Contract ABI — only the functions called in this file
-    const CONTRACT_ABI = [
-      'function mint(uint256 quantity) external payable',
-      'function mintWithTeam(uint256 quantity, uint256 teamId) external payable',
-      'function totalMinted() external view returns (uint256)',
-      'function getTeamCount() external view returns (uint256)',
-      'function getTeam(uint256 teamId) external view returns (string name, address nftContract, bool active, uint256 memberCount)',
-    ];
-
-    const ERC721_BALANCE_ABI = ['function balanceOf(address owner) view returns (uint256)'];
+    const CONTRACT_ABI = LASTCHAD_ABI;
+    const ERC721_BALANCE_ABI = LASTCHAD_ABI;
 
     // ========== DOM ==========
     const slider = document.getElementById('qtySlider');

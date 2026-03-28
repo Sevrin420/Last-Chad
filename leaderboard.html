@@ -192,20 +192,7 @@
   <script type="module">
     import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
 
-    const ABI = [
-      'function totalMinted() view returns (uint256)',
-      'function eliminatedCount() view returns (uint256)',
-      'function getCullCount() view returns (uint256)',
-      'function cullAnnouncedAt() view returns (uint256)',
-      'function cullExecuteAfter() view returns (uint256)',
-      'function cullMode() view returns (uint8)',
-      'function cullValue() view returns (uint256)',
-      'function eliminated(uint256 tokenId) view returns (bool)',
-      'function getOpenCells(uint256 tokenId) view returns (uint256)',
-      'function getClosedCells(uint256 tokenId) view returns (uint256)',
-      'function getLevel(uint256 tokenId) view returns (uint256)',
-      'function tokenName(uint256 tokenId) view returns (string)',
-    ];
+    const ABI = LASTCHAD_ABI;
 
     const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
     const nft = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);

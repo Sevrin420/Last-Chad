@@ -671,20 +671,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC } from './js/config.js';
+    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
 
     const MAX_PER_STAT = 10;
     const CELLS_PER_LEVEL = 100;
 
-    const CONTRACT_ABI = [
-      'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
-      'function getPendingStatPoints(uint256 tokenId) view returns (uint256)',
-      'function spendStatPoint(uint256 tokenId, uint8 statIndex) external',
-      'function tokenName(uint256 tokenId) view returns (string)',
-      'function getLevel(uint256 tokenId) view returns (uint256)',
-      'function getClosedCells(uint256 tokenId) view returns (uint256)',
-      'function ownerOf(uint256 tokenId) view returns (address)',
-    ];
+    const CONTRACT_ABI = LASTCHAD_ABI;
 
     // URL params
     const params = new URLSearchParams(window.location.search);
