@@ -849,7 +849,7 @@ export class CrapsTable {
     }
 
     // ── Disconnected player cleanup: remove after 2 min grace period ──
-    const DISCONNECT_GRACE_MS = 2 * 60 * 1000;
+    const DISCONNECT_GRACE_MS = 10 * 60 * 1000;
     const playerKeysForDisconnect = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeysForDisconnect) {
       if (pd._disconnectedAt && (now - pd._disconnectedAt) >= DISCONNECT_GRACE_MS) {
