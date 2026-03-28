@@ -1225,6 +1225,9 @@
       }, 30);
     }
 
+    // ── Read Provider ──
+    const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+
     // ── State ──
     let selectedTokenId = null;
     let selectedCells   = 0;
@@ -1375,7 +1378,6 @@
       dialogueText.appendChild(loadMsg);
 
       // Fetch owned NFTs
-      const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
       const gambleRead = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, readProvider);
 

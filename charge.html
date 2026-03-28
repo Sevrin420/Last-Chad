@@ -651,6 +651,8 @@
     const chargeBtn        = document.getElementById('chargeBtn');
     const statusMsg        = document.getElementById('statusMsg');
 
+    const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+
     let userAddress = null;
     let selectedTokenId = null;
     let openCells = 0;
@@ -686,7 +688,6 @@
 
       loadMsg.style.display = 'block';
 
-      const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
       let balance;
@@ -738,7 +739,6 @@
 
       // Fetch on-chain data
       try {
-        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
         const [openRes, closedRes, nameRes, pendingRes] = await Promise.all([

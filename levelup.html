@@ -701,6 +701,8 @@
     const confirmText = document.getElementById('confirmText');
     const statusMsg = document.getElementById('statusMsg');
 
+    const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+
     let userAddress = null;
     let pendingPoints = 0;
     let baseStats = { str: 0, int: 0, dex: 0, cha: 0 };
@@ -760,8 +762,7 @@
       if (!tokenId || !CONTRACT_ADDRESS) return;
 
       try {
-        const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
 
         const [statsRes, pendingRes, nameRes, levelRes] = await Promise.all([
           contract.getStats(tokenId),
