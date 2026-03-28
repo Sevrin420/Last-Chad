@@ -679,6 +679,12 @@ export class CrapsTable {
     if (pd._expectedToken !== sessionToken) {
       return jsonResp({ error: 'Invalid session token' }, 403);
     }
+    // Reject expired tokens (24-hour window)
+    const TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+    const storedTs = pd._expectedTokenTs;
+    if (!storedTs || typeof storedTs !== 'number' || Date.now() - storedTs > TOKEN_MAX_AGE_MS) {
+      return jsonResp({ error: 'Session token expired' }, 403);
+    }
 
     // Return clearable bets to stack — pass and passOdds are forfeited (contract bets)
     const lockedCashout = new Set(['pass', 'passOdds']);
