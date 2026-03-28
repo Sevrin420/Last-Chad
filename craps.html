@@ -1325,6 +1325,28 @@ let betsLocked = false;
 let cashingOut = false;
 let _pendingTurnPhase = null; // buffered turn-phase msg during dice animation
 let _pendingShooter = null;   // buffered shooter msg during dice animation
+let _pendingStates = [];      // buffered remote player state msgs during dice animation
+
+function applyRemoteState(data) {
+  for (let s = 1; s <= 3; s++) {
+    if (remotePlayers[s].uid === data.playerId) {
+      if (data.stack !== undefined) {
+        remotePlayers[s].stack = data.stack;
+      }
+      const remoteBetMap = {};
+      if (data.bets) Object.assign(remoteBetMap, data.bets);
+      if (data.comeBets) {
+        for (const [num, amt] of Object.entries(data.comeBets)) {
+          const key = 'place' + num;
+          remoteBetMap[key] = (remoteBetMap[key] || 0) + amt;
+        }
+      }
+      STATE.remoteBets[s] = remoteBetMap;
+      break;
+    }
+  }
+  renderAllBetChips();
+}
 
 function getRemotePlayerCount() {
   let n = 0;
@@ -1674,6 +1696,12 @@ async function handleRollResult(data) {
 
   STATE.isRolling = false;
   _pendingRollData = null;
+
+  // Replay any remote state messages that arrived during the animation
+  if (_pendingStates.length) {
+    const states = _pendingStates.splice(0);
+    for (const s of states) applyRemoteState(s);
+  }
 
   // Replay any shooter message that arrived during the animation
   if (_pendingShooter) {
@@ -2143,25 +2171,11 @@ function handleWsMessage(data) {
 
     case 'state': {
       if (String(data.playerId) === String(STATE.playerId)) break;
-      // Update remote player's bets/stack
-      for (let s = 1; s <= 3; s++) {
-        if (remotePlayers[s].uid === data.playerId) {
-          if (data.stack !== undefined) {
-            remotePlayers[s].stack = data.stack;
-          }
-          const remoteBetMap = {};
-          if (data.bets) Object.assign(remoteBetMap, data.bets);
-          if (data.comeBets) {
-            for (const [num, amt] of Object.entries(data.comeBets)) {
-              const key = 'place' + num;
-              remoteBetMap[key] = (remoteBetMap[key] || 0) + amt;
-            }
-          }
-          STATE.remoteBets[s] = remoteBetMap;
-          break;
-        }
+      if (STATE.isRolling) {
+        _pendingStates.push(data);
+        break;
       }
-      renderAllBetChips();
+      applyRemoteState(data);
       break;
     }
 
