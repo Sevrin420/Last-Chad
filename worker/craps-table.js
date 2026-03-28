@@ -77,6 +77,7 @@ export class CrapsTable {
       const STALE_MS = 15 * 60 * 1000; // match idle timeout
       for (const [key, pd] of playerKeys) {
         const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
+        if (pd._disconnectedAt) continue; // disconnected, awaiting reconnect
         if (lastActive > 0 && (now - lastActive) >= STALE_MS) {
           // Stale player — clean up orphaned key
           await this.state.storage.delete(key);
@@ -282,6 +283,11 @@ export class CrapsTable {
         } else if (playerData._expectedToken !== token) {
           ws.send(JSON.stringify({ type: 'error', message: 'Invalid session token' }));
           break;
+        } else if (playerData._disconnectedAt) {
+          // Reconnecting — clear disconnected flag, restore session
+          delete playerData._disconnectedAt;
+          playerData.lastActivity = Date.now();
+          await this.state.storage.put(`player:${nonce}`, playerData);
         }
 
         // Link this WS connection to the player data
@@ -842,11 +848,36 @@ export class CrapsTable {
       }
     }
 
+    // ── Disconnected player cleanup: remove after 2 min grace period ──
+    const DISCONNECT_GRACE_MS = 2 * 60 * 1000;
+    const playerKeysForDisconnect = await this.state.storage.list({ prefix: 'player:' });
+    for (const [key, pd] of playerKeysForDisconnect) {
+      if (pd._disconnectedAt && (now - pd._disconnectedAt) >= DISCONNECT_GRACE_MS) {
+        const dcPlayerId = pd.player + '-' + pd.tokenId;
+        await this.state.storage.delete(key);
+        // Rotate shooter if needed
+        const shooter = await this.state.storage.get('shooter');
+        if (shooter === dcPlayerId) {
+          const rem = await this.state.storage.list({ prefix: 'player:' });
+          const conn = [...rem].filter(([, p]) => !p._disconnectedAt);
+          if (conn.length > 0) {
+            const [, nextPd] = conn[0];
+            const ns = nextPd.player + '-' + nextPd.tokenId;
+            await this.state.storage.put('shooter', ns);
+            this._broadcast({ type: 'shooter', playerId: ns }, null);
+          } else if (rem.size === 0) {
+            await this.state.storage.deleteAll();
+          }
+        }
+      }
+    }
+
     // ── Idle check: kick players with no activity for 15 minutes ──
     // Also cleans up orphaned player keys (zombie sockets from Hibernation API)
     const IDLE_MS = 15 * 60 * 1000;
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeys) {
+      if (pd._disconnectedAt) continue; // handled by disconnect cleanup above
       const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
       if (lastActive > 0 && (now - lastActive) < IDLE_MS) continue;
       // Player is idle or has no activity timestamp — find their socket
@@ -1023,10 +1054,10 @@ export class CrapsTable {
 
   // ── Single authoritative cleanup when ANY player leaves ──
   // Called by: webSocketClose, webSocketError
-  // 1. Remove player data from storage (instant)
+  // 1. Mark player as disconnected (grace period for reconnect)
   // 2. Broadcast 'leave' to remaining players
   // 3. Rotate shooter if needed (using storage, not sockets)
-  // 4. If table empty → nuke all state
+  // 4. If table empty and no disconnected players → nuke all state
   async _handleDisconnect(ws) {
     let playerId = null;
     let nonce = null;
@@ -1036,25 +1067,35 @@ export class CrapsTable {
     } catch (_) {}
     if (!playerId) return;
 
-    // 1. Remove player from storage immediately
-    if (nonce) await this.state.storage.delete(`player:${nonce}`);
+    // 1. Mark player as disconnected instead of deleting immediately.
+    //    This preserves bets/stack for reconnect within the grace period.
+    //    The idle alarm cleans up players who don't reconnect.
+    if (nonce) {
+      const pd = await this.state.storage.get(`player:${nonce}`);
+      if (pd) {
+        pd._disconnectedAt = Date.now();
+        await this.state.storage.put(`player:${nonce}`, pd);
+      }
+    }
 
     // 2. Notify others
     this._broadcast({ type: 'leave', playerId }, playerId);
 
     // 3. Check remaining players (storage = truth) and handle shooter
     const remaining = await this.state.storage.list({ prefix: 'player:' });
+    // Filter to only connected (non-disconnected) players
+    const connected = [...remaining].filter(([, pd]) => !pd._disconnectedAt);
+
     if (remaining.size === 0) {
-      // Table empty — full reset
+      // Table truly empty — full reset
       await this.state.storage.deleteAll();
       return;
     }
 
-    // Table has players — rotate shooter if needed
+    // Rotate shooter if needed — only pick from connected players
     const shooter = await this.state.storage.get('shooter');
-    if (shooter === playerId) {
-      // Pick first remaining player from storage as new shooter
-      const [, nextPd] = [...remaining][0];
+    if (shooter === playerId && connected.length > 0) {
+      const [, nextPd] = connected[0];
       const nextShooter = nextPd.player + '-' + nextPd.tokenId;
       await this.state.storage.put('shooter', nextShooter);
       this._broadcast({ type: 'shooter', playerId: nextShooter }, null);
