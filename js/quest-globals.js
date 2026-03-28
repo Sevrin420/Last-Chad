@@ -1,14 +1,24 @@
-// Shared contract configuration for all quest pages.
-// Update this file when contracts are redeployed — all quest pages
-// load it at runtime via <script src="../../js/quest-globals.js">,
-// so a single edit here fixes every quest simultaneously.
+// ══════════════════════════════════════════════════════════════════════
+// quest-globals.js — Global vars for non-module quest pages
+// ══════════════════════════════════════════════════════════════════════
+// Quest pages load this via <script src="../../js/quest-globals.js">
+// (non-module), so ES imports are not available.  All values here
+// MUST match js/config.js, which is the single source of truth.
+//
+// Deploy scripts patch both files automatically.
+// If you edit an address or RPC here, update config.js too (or vice-versa).
+// ══════════════════════════════════════════════════════════════════════
 
-var CONTRACT_ADDRESS = '0x04DFED6F15866125b1f6d140bcb1AB90F7614252';
+// ── Contract addresses (mirror config.js) ────────────────────────────
+var CONTRACT_ADDRESS       = '0x04DFED6F15866125b1f6d140bcb1AB90F7614252';
 var ITEMS_CONTRACT_ADDRESS = '0x239066699C706152f6E2Fa5a82a05fC13C9677cD';
-var QUEST_REWARDS_ADDRESS = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
+var QUEST_REWARDS_ADDRESS  = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
 
-var READ_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
+// ── RPC endpoints (mirror config.js) ─────────────────────────────────
+var READ_RPC          = 'https://api.avax-test.network/ext/bc/C/rpc';
 var READ_RPC_FALLBACK = 'https://rpc.ankr.com/avalanche_fuji';
+
+// ── Chain config (mirror config.js) ──────────────────────────────────
 var AVAX_CHAIN_ID = '0xa869';
 var AVAX_CHAIN = {
   chainId: AVAX_CHAIN_ID,
@@ -17,8 +27,11 @@ var AVAX_CHAIN = {
   rpcUrls: ['https://rpc.ankr.com/avalanche_fuji', 'https://api.avax-test.network/ext/bc/C/rpc'],
   blockExplorerUrls: ['https://testnet.snowtrace.io/']
 };
+
+// ── WalletConnect (mirror config.js) ─────────────────────────────────
 var WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 
+// ── ABIs (subsets of config.js — only the functions quest pages need) ─
 var LASTCHAD_ABI = [
   'function ownerOf(uint256 tokenId) external view returns (address)',
   'function balanceOf(address owner) external view returns (uint256)',
@@ -45,25 +58,20 @@ var LASTCHAD_ITEMS_ABI = [
 ];
 
 var QUEST_REWARDS_ABI = [
-  // Player actions
   'function startQuest(uint256 tokenId, uint8 questId) external',
   'function completeQuest(uint256 tokenId, uint8 questId, uint256 cellReward, bytes oracleSig) external',
   'function purchaseItem(uint256 tokenId, uint256 itemId) external',
-  // View — quest sessions
   'function getSession(uint256 tokenId) external view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
   'function isSessionExpired(uint256 tokenId) external view returns (bool)',
   'function questCompleted(uint256 tokenId, uint8 questId) external view returns (bool)',
   'function lastQuestTime(uint256 tokenId, uint8 questId) external view returns (uint256)',
   'function questCooldown() external view returns (uint256)',
   'function getQuestConfig(uint8 questId) external view returns (uint16 cellReward, uint16 itemReward)',
-  // View — arcade sessions
   'function getArcadeSession(uint256 tokenId) external view returns (bytes32 seed, uint8 gameType, uint256 startTime, bool active)',
   'function deathsPaused() external view returns (bool)',
-  // Arcade actions (called by game owner / worker)
   'function startArcade(uint256 tokenId, uint8 gameType, bytes32 seed) external',
   'function confirmSurvival(uint256 tokenId) external',
   'function confirmDeath(uint256 tokenId) external',
-  // Events
   'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
   'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 cellsAwarded, uint256 itemAwarded)',
   'event QuestFailed(uint256 indexed tokenId, uint8 questId)',

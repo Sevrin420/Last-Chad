@@ -1,12 +1,42 @@
-// Contract addresses and RPC config for Last Chad
-// Update these when deploying to mainnet
+// ══════════════════════════════════════════════════════════════════════
+// config.js — SINGLE SOURCE OF TRUTH for Last Chad configuration
+// ══════════════════════════════════════════════════════════════════════
+// All contract addresses, ABIs, RPC endpoints, chain config, and
+// service URLs live here.  Other config files are thin wrappers:
+//
+//   js/quest-globals.js  — sets global `var`s for non-module quest pages
+//   js/builder-config.js — builder-only settings (GitHub, knownItems)
+//
+// When deploying contracts, update THIS file first.  Deploy scripts
+// patch both config.js and quest-globals.js automatically.
+// ══════════════════════════════════════════════════════════════════════
 
+// ── Contract addresses ───────────────────────────────────────────────
 export const CONTRACT_ADDRESS         = '0x04DFED6F15866125b1f6d140bcb1AB90F7614252';
 export const ITEMS_CONTRACT_ADDRESS   = '0x239066699C706152f6E2Fa5a82a05fC13C9677cD';
 export const QUEST_REWARDS_ADDRESS    = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
 export const MARKET_ADDRESS           = '0x204203b3495C940293b87cF1ff4ce7EEf81F1A1A';
 export const GAMBLE_ADDRESS           = '0x42Ae979c86cF4868F8648A1eec16567CbBF19698';
+
+// ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
+export const READ_RPC_FALLBACK        = 'https://rpc.ankr.com/avalanche_fuji';
+
+// ── Chain config ─────────────────────────────────────────────────────
+export const AVAX_CHAIN_ID = '0xa869'; // 43113 Fuji testnet
+export const AVAX_CHAIN = {
+  chainId: AVAX_CHAIN_ID,
+  chainName: 'Avalanche Fuji Testnet',
+  nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+  rpcUrls: ['https://rpc.ankr.com/avalanche_fuji', 'https://api.avax-test.network/ext/bc/C/rpc'],
+  blockExplorerUrls: ['https://testnet.snowtrace.io/']
+};
+
+// ── WalletConnect ────────────────────────────────────────────────────
+export const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
+
+// ── Cloudflare Worker ────────────────────────────────────────────────
+export const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
 
 export const LASTCHAD_ABI = [
   // ERC-721 standard

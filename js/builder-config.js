@@ -1,6 +1,13 @@
-// Builder & publish configuration for quest-builder.html and github-api.js.
-// Centralizes values that were previously hardcoded across multiple files.
-// Update this file when deploying to a new repo, branch, or worker.
+// ══════════════════════════════════════════════════════════════════════
+// builder-config.js — Settings for quest-builder.html & github-api.js
+// ══════════════════════════════════════════════════════════════════════
+// Contains builder-specific values (GitHub target, known items) that
+// are NOT needed by any other page.
+//
+// workerUrl is also stored here for the builder's publish flow (it gets
+// baked into generated quest HTML).  The canonical copy lives in
+// js/config.js — keep them in sync.
+// ══════════════════════════════════════════════════════════════════════
 
 var BUILDER_CONFIG = {
   // GitHub publishing target
@@ -8,7 +15,7 @@ var BUILDER_CONFIG = {
   githubRepo: 'Last-Chad',
   githubBranch: 'main',
 
-  // Cloudflare Worker for quest session tracking & oracle signing
+  // Cloudflare Worker URL (mirror of WORKER_URL in config.js)
   workerUrl: 'https://last-chad-runner.severin20.workers.dev',
 
   // Quest builder limits
