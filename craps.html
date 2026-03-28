@@ -1324,6 +1324,7 @@ let turnPhase = 'betting';
 let betsLocked = false;
 let cashingOut = false;
 let _pendingTurnPhase = null; // buffered turn-phase msg during dice animation
+let _pendingShooter = null;   // buffered shooter msg during dice animation
 
 function getRemotePlayerCount() {
   let n = 0;
@@ -1673,6 +1674,13 @@ async function handleRollResult(data) {
 
   STATE.isRolling = false;
   _pendingRollData = null;
+
+  // Replay any shooter message that arrived during the animation
+  if (_pendingShooter) {
+    const ps = _pendingShooter;
+    _pendingShooter = null;
+    updateShooter(ps);
+  }
 
   // Replay any turn-phase message that arrived during the animation
   // Delay so the dice announcer gets screen time before "Place your bets"
@@ -2233,7 +2241,11 @@ function handleWsMessage(data) {
     }
 
     case 'shooter': {
-      updateShooter(data.playerId);
+      if (STATE.isRolling) {
+        _pendingShooter = data.playerId;
+      } else {
+        updateShooter(data.playerId);
+      }
       break;
     }
 
