@@ -13,11 +13,30 @@
 Transition Last Chad from Fuji testnet to Avalanche mainnet. Deploy all existing contracts + one new Tournament contract. Update all addresses, RPC endpoints, and worker config across the entire project.
 
 **Supply:** 333 NFTs
-**Mint Price:** 2 AVAX (1.5 AVAX for team mint)
+**Mint Price:** 2 AVAX (flat, no discounts)
 
 ---
 
 ## 1. Contract Changes
+
+### LastChad.sol — Minting Changes
+
+**Remove:**
+- `TEAM_MINT_PRICE` constant — no discount pricing
+- `mintWithTeam()` function — removed entirely
+- `tokenTeam` mapping — NFTs are not assigned to teams
+- `teamMemberCount` mapping — not needed
+
+**Modify `_mintInternal()`:**
+- Base cells per mint: **25** (currently 5)
+- Partner bonus: If minter holds an NFT from any registered partner collection, award **100 extra cells** (checked at mint time only, not retroactive)
+- Total possible: **125 cells** per mint (25 base + 100 partner bonus)
+- Partner collections still registered via `createTeam()` (rename to `registerPartner()`) — only used to check `balanceOf > 0` for the bonus
+
+**Keep:**
+- `teams` mapping (rename to `partners`) — still needed to register partner NFT contract addresses
+- `createTeam()` → rename to `registerPartner()` — owner registers partner collection addresses
+- The `balanceOf(partnerContract) > 0` check — used for bonus cell check at mint
 
 ### LastChad.sol — Add Level Freeze
 
@@ -36,8 +55,6 @@ Modify `lockCells()`:
 
 Modify `spendStatPoint()`:
 - Revert if `levelsFrozen == true`
-
-**No other changes to LastChad.sol.** Supply (333) and mint price (2 AVAX) are already set.
 
 ### New Contract: Tournament.sol
 

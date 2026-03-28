@@ -62,29 +62,6 @@
       padding: 0 16px;
     }
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex;
-      gap: 0;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #5c4409;
-    }
-    .tab-btn {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.5rem;
-      padding: 12px 20px;
-      background: transparent;
-      border: none;
-      color: #8a7a5a;
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      margin-bottom: -2px;
-    }
-    .tab-btn.active {
-      color: #c9a84c;
-      border-bottom-color: #c9a84c;
-    }
-
     /* ── Cull Banner ── */
     .cull-banner {
       background: rgba(255,68,68,0.15);
@@ -123,26 +100,26 @@
       color: #c9a84c;
     }
 
-    /* ── Team Leaderboard ── */
-    .team-table, .player-table {
+    /* ── Player Table ── */
+    .player-table {
       width: 100%;
       border-collapse: collapse;
       font-family: 'Press Start 2P', monospace;
       font-size: 0.38rem;
     }
-    .team-table th, .player-table th {
+    .player-table th {
       text-align: left;
       padding: 10px 12px;
       color: #8a7a5a;
       border-bottom: 2px solid #5c4409;
       font-size: 0.34rem;
     }
-    .team-table td, .player-table td {
+    .player-table td {
       padding: 10px 12px;
       border-bottom: 1px solid #3d2e0a;
       color: #f5e6c8;
     }
-    .team-table tr:hover td, .player-table tr:hover td {
+    .player-table tr:hover td {
       background: rgba(92,68,9,0.2);
     }
     .rank-1 td { color: #ffd700; }
@@ -159,8 +136,8 @@
     }
 
     @media (max-width: 600px) {
-      .team-table, .player-table { font-size: 0.32rem; }
-      .team-table th, .player-table th { font-size: 0.28rem; }
+      .player-table { font-size: 0.32rem; }
+      .player-table th { font-size: 0.28rem; }
       .summary-grid { grid-template-columns: 1fr 1fr; }
     }
 
@@ -192,38 +169,14 @@
       <div class="summary-card"><div class="label">CULL TARGET</div><div class="value" id="statCullTarget">—</div></div>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="teams">TEAMS</button>
-      <button class="tab-btn" data-tab="players">TOP PLAYERS</button>
-    </div>
-
-    <!-- Teams Tab -->
-    <div class="tab-panel active" id="tab-teams">
-      <div class="loading-msg" id="teamsLoading">Loading teams...</div>
-      <table class="team-table" id="teamTable" style="display:none;">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>TEAM</th>
-            <th>MEMBERS</th>
-            <th>AVG TOTAL CELLS</th>
-            <th>TOTAL CELLS</th>
-          </tr>
-        </thead>
-        <tbody id="teamBody"></tbody>
-      </table>
-    </div>
-
-    <!-- Players Tab -->
-    <div class="tab-panel" id="tab-players" style="display:none;">
+    <!-- Players Table -->
+    <div id="tab-players">
       <div class="loading-msg" id="playersLoading">Loading players...</div>
       <table class="player-table" id="playerTable" style="display:none;">
         <thead>
           <tr>
             <th>#</th>
             <th>CHAD</th>
-            <th>TEAM</th>
             <th>LOCKED</th>
             <th>TOTAL</th>
             <th>LEVEL</th>
@@ -252,27 +205,13 @@
       'function getClosedCells(uint256 tokenId) view returns (uint256)',
       'function getLevel(uint256 tokenId) view returns (uint256)',
       'function tokenName(uint256 tokenId) view returns (string)',
-      'function getTeamCount() view returns (uint256)',
-      'function getTeam(uint256 teamId) view returns (string name, address nftContract, bool active, uint256 memberCount)',
-      'function tokenTeam(uint256 tokenId) view returns (uint256)',
     ];
 
     const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
     const nft = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
 
-    // ── Tab switching ──
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
-        btn.classList.add('active');
-        document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
-      });
-    });
-
     // ── Data ──
-    let players = [];   // [{ tokenId, name, teamId, openCells, closedCells, totalCells, level, eliminated }]
-    let teamMap = {};    // teamId → { name, nftContract, active, memberCount }
+    let players = [];   // [{ tokenId, name, openCells, closedCells, totalCells, level, eliminated }]
 
     async function loadAll() {
       if (!CONTRACT_ADDRESS) return;
@@ -309,32 +248,23 @@
           cullBanner.style.display = 'block';
         }
 
-        // Load teams
-        const teamCount = await nft.getTeamCount();
-        for (let i = 1; i <= teamCount.toNumber(); i++) {
-          const [name, nftContract, active, memberCount] = await nft.getTeam(i);
-          teamMap[i] = { name, nftContract, active, memberCount: memberCount.toNumber() };
-        }
-
         // Load all players
         players = [];
         const batch = [];
         for (let i = 1; i <= totalNum; i++) {
           batch.push((async (tid) => {
-            const [dead, open, closed, level, name, teamId] = await Promise.all([
+            const [dead, open, closed, level, name] = await Promise.all([
               nft.eliminated(tid),
               nft.getOpenCells(tid),
               nft.getClosedCells(tid),
               nft.getLevel(tid),
               nft.tokenName(tid).catch(() => ''),
-              nft.tokenTeam(tid),
             ]);
             const o = open.toNumber();
             const c = closed.toNumber();
             players.push({
               tokenId: tid,
               name: name || 'CHAD #' + tid,
-              teamId: teamId.toNumber(),
               openCells: o,
               closedCells: c,
               totalCells: o + c,
@@ -345,63 +275,12 @@
         }
         await Promise.all(batch);
 
-        renderTeams();
         renderPlayers();
 
       } catch (err) {
         console.error('Leaderboard load error:', err);
-        document.getElementById('teamsLoading').textContent = 'Failed to load — check contract address';
+        document.getElementById('playersLoading').textContent = 'Failed to load — check contract address';
       }
-    }
-
-    function renderTeams() {
-      document.getElementById('teamsLoading').style.display = 'none';
-      const table = document.getElementById('teamTable');
-      const body  = document.getElementById('teamBody');
-
-      // Compute team stats from player data
-      const teamStats = {}; // teamId → { name, totalCells, memberCount, aliveCells }
-      for (const [id, t] of Object.entries(teamMap)) {
-        teamStats[id] = { name: t.name, totalCells: 0, aliveCount: 0, totalCount: 0 };
-      }
-
-      for (const p of players) {
-        if (p.teamId === 0) continue;
-        if (!teamStats[p.teamId]) continue;
-        teamStats[p.teamId].totalCount++;
-        if (!p.eliminated) {
-          teamStats[p.teamId].totalCells += p.totalCells;
-          teamStats[p.teamId].aliveCount++;
-        }
-      }
-
-      // Sort by average total cells (alive members only)
-      const sorted = Object.entries(teamStats)
-        .map(([id, s]) => ({
-          id, ...s,
-          avg: s.aliveCount > 0 ? s.totalCells / s.aliveCount : 0,
-        }))
-        .sort((a, b) => b.avg - a.avg);
-
-      if (sorted.length === 0) {
-        document.getElementById('teamsLoading').style.display = 'block';
-        document.getElementById('teamsLoading').textContent = 'No teams created yet.';
-        return;
-      }
-
-      body.innerHTML = sorted.map((t, i) => {
-        const rank = i + 1;
-        const cls = rank <= 3 ? ' class="rank-' + rank + '"' : '';
-        return `<tr${cls}>
-          <td>${rank}</td>
-          <td>${t.name}</td>
-          <td>${t.aliveCount} / ${t.totalCount}</td>
-          <td>${t.avg.toFixed(1)}</td>
-          <td>${t.totalCells}</td>
-        </tr>`;
-      }).join('');
-
-      table.style.display = 'table';
     }
 
     function renderPlayers() {
@@ -421,11 +300,9 @@
         if (rank <= 3 && !p.eliminated) cls.push('rank-' + rank);
         if (p.eliminated) cls.push('eliminated-row');
         const classStr = cls.length ? ' class="' + cls.join(' ') + '"' : '';
-        const teamName = p.teamId > 0 && teamMap[p.teamId] ? teamMap[p.teamId].name : '—';
         return `<tr${classStr}>
           <td>${rank}</td>
           <td>${p.name}</td>
-          <td>${teamName}</td>
           <td>${p.closedCells}</td>
           <td>${p.totalCells}</td>
           <td>${p.level}</td>
