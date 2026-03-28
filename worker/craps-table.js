@@ -1155,11 +1155,12 @@ function resolveBets(player, d1, d2, total, isHard, phase, point) {
   const losses = [];
   let message = '';
 
-  // FIELD
+  // FIELD — 1:1 on 3,4,9,10,11; 2:1 on 2 and 12
   if (bets.field) {
     const fieldNums = [2, 3, 4, 9, 10, 11, 12];
     if (fieldNums.includes(total)) {
-      const payout = bets.field;
+      const multiplier = (total === 2 || total === 12) ? 2 : 1;
+      const payout = bets.field * multiplier;
       netWin += payout;
       player.stack += payout;
       wins.push('field');
