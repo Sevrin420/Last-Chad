@@ -598,22 +598,6 @@ export class CrapsTable {
         break;
       }
 
-      // ── Legacy state broadcast (for non-authenticated spectators) ──
-      case 'state': {
-        if (data.stack !== undefined) attachment.stack = Number(data.stack) || 0;
-        if (data.bets) attachment.bets = data.bets;
-        if (data.comeBets) attachment.comeBets = data.comeBets;
-        ws.serializeAttachment(attachment);
-        this._broadcast({
-          type: 'state', playerId,
-          name, chadId: attachment.chadId,
-          stack: attachment.stack,
-          bets: attachment.bets || {},
-          comeBets: attachment.comeBets || {},
-        }, playerId);
-        break;
-      }
-
       default:
         break;
     }

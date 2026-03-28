@@ -62,6 +62,9 @@ const PUBLIC_TABLES = Array.from({ length: MAX_PUBLIC_TABLES }, (_, i) => ({
   name: `public-${i + 1}`,
   label: `PUBLIC TABLE ${i + 1}`,
 }));
+function isValidTable(tableCode) {
+  return PUBLIC_TABLES.some(t => t.name === tableCode) || tableCode.startsWith('priv-');
+}
 const POKER_PAYOUTS = {
   'ROYAL FLUSH':      250,
   'STRAIGHT FLUSH':    50,
@@ -219,14 +222,7 @@ async function handleStart(request, env) {
       if (alreadyStarted) {
         // Allow the session to be re-registered if the chain shows it started
         // (this covers the normal flow: adventure.html starts → quest page registers).
-        // But if a KV session already exists AND is completed, block.
-        const existing = await getSession(env, kvKey(tokenId, questId));
-        if (existing?.completed) {
-          return json({ ok: false, reason: 'quest_already_completed' }, 403);
-        }
-        if (existing?.died) {
-          return json({ ok: false, reason: 'already_died' }, 403);
-        }
+        // The KV session check below (existing?.died / existing?.completed) handles blocking.
       }
     } catch (_) { /* RPC error — let the session proceed */ }
   }
@@ -469,9 +465,6 @@ async function handlePokerDeal(request, env) {
   }
 
   const bet = Math.max(1, Math.min(Number(handWager), session.stack));
-  if (bet > session.stack || bet < 1) {
-    return json({ error: 'Invalid hand wager' }, 400);
-  }
 
   // Shuffle a fresh 52-card deck using crypto-safe RNG
   const deck = shuffleDeckCrypto();
@@ -686,9 +679,7 @@ async function handleCrapsStart(request, env) {
   // happens when the client sends the 'auth' WS message — the DO checks the token.
   // We still pre-register if we have the table so the player data is ready.
   if (tableCode) {
-    const isPublic  = PUBLIC_TABLES.some(t => t.name === tableCode);
-    const isPrivate = tableCode.startsWith('priv-');
-    if (isPublic || isPrivate) {
+    if (isValidTable(tableCode)) {
       try {
         const doId = env.CRAPS_TABLE.idFromName(tableCode);
         const stub = env.CRAPS_TABLE.get(doId);
@@ -730,9 +721,7 @@ async function handleCrapsCashout(request, env) {
 
   // Fetch player state from DO and remove them from the table
   if (!tableCode) return json({ error: 'Missing tableCode' }, 400);
-  const isPublic  = PUBLIC_TABLES.some(t => t.name === tableCode);
-  const isPrivate = tableCode.startsWith('priv-');
-  if (!isPublic && !isPrivate) return json({ error: 'Invalid table' }, 400);
+  if (!isValidTable(tableCode)) return json({ error: 'Invalid table' }, 400);
 
   const doId  = env.CRAPS_TABLE.idFromName(tableCode);
   const stub  = env.CRAPS_TABLE.get(doId);
@@ -926,9 +915,7 @@ async function handleCrapsWebSocket(request, url, env) {
   }
 
   // Validate table name
-  const isPublic  = PUBLIC_TABLES.some(t => t.name === table);
-  const isPrivate = table.startsWith('priv-');
-  if (!isPublic && !isPrivate) {
+  if (!isValidTable(table)) {
     return new Response(JSON.stringify({ error: 'Invalid table name' }), {
       status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
     });
