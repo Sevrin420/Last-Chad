@@ -9,17 +9,10 @@
  *            getSigner, getUserAddress, truncateAddress } from './js/wallet.js';
  */
 
-// ========== CHAIN CONFIG ==========
-export const AVAX_CHAIN_ID = '0xa869'; // 43113 Fuji testnet
-export const AVAX_CHAIN = {
-  chainId: AVAX_CHAIN_ID,
-  chainName: 'Avalanche Fuji Testnet',
-  nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
-  rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'],
-  blockExplorerUrls: ['https://testnet.snowtrace.io/']
-};
+import { AVAX_CHAIN_ID, AVAX_CHAIN, WALLETCONNECT_PROJECT_ID, READ_RPC } from './config.js';
 
-export const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
+// Re-export so existing consumers that import from wallet.js still work
+export { AVAX_CHAIN_ID, AVAX_CHAIN, WALLETCONNECT_PROJECT_ID };
 
 // ========== MODULE STATE ==========
 let _provider = null;
@@ -242,9 +235,9 @@ async function _initWcProvider() {
   const EthereumProvider = window.WalletConnectEthereumProvider.EthereumProvider;
   return EthereumProvider.init({
     projectId: WALLETCONNECT_PROJECT_ID,
-    chains: [43113],
+    chains: [parseInt(AVAX_CHAIN_ID, 16)],
     showQrModal: true,
-    rpcMap: { 43113: 'https://api.avax-test.network/ext/bc/C/rpc' }
+    rpcMap: { [parseInt(AVAX_CHAIN_ID, 16)]: READ_RPC }
   });
 }
 

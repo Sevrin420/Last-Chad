@@ -889,12 +889,14 @@
     const nameInput = document.getElementById('nameInput');
     const nameCounter = document.getElementById('nameCounter');
 
+    // ========== READ PROVIDER ==========
+    const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+
     // ========== STATE ==========
     let userAddress = null;
     let currentTokenId = tokenIds[0] || null;
     let stats = { str: 0, int: 0, dex: 0, cha: 0 };
     let assignedTokens = new Set();
-    // REMOVED: nameAlreadySet — written in loadToken and checkIfAssigned but never read
 
     // ========== STAT ELEMENTS ==========
     const statElements = {
@@ -1014,7 +1016,6 @@
     async function checkIfAssigned(tokenId) {
       if (!CONTRACT_ADDRESS) return;
       try {
-        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
         const [result, existingName] = await Promise.all([
           contract.getStats(tokenId),
@@ -1133,7 +1134,6 @@
         if (tab) tab.classList.add('done');
 
         // Show assigned view after brief delay
-        // REMOVED: empty if (all-assigned) { // All done } branch — find() returns undefined when all assigned, inner if(next) is false
         setTimeout(() => {
           checkIfAssigned(currentTokenId);
 

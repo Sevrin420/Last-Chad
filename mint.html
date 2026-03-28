@@ -848,6 +848,9 @@
     const teamSelect  = document.getElementById('teamSelect');
     const teamStatus  = document.getElementById('teamStatus');
 
+    // ========== READ PROVIDER ==========
+    const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+
     // ========== STATE ==========
     let quantity = 1;
     let minted = 0;
@@ -858,7 +861,6 @@
     async function updateSupply() {
       if (!CONTRACT_ADDRESS) return;
       try {
-        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
         const supply = await contract.totalMinted();
         minted = supply.toNumber();
@@ -888,7 +890,6 @@
         }
 
         // Update contract link
-        // REMOVED: redundant `if (CONTRACT_ADDRESS)` — function already returns early above if falsy
         const contractLink = document.getElementById('contractLink');
         contractLink.textContent = CONTRACT_ADDRESS.slice(0, 6) + '...' + CONTRACT_ADDRESS.slice(-4);
         contractLink.href = 'https://testnet.snowtrace.io/address/' + CONTRACT_ADDRESS;
@@ -902,7 +903,6 @@
     async function loadTeams() {
       if (!CONTRACT_ADDRESS) return;
       try {
-        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
         const count = await contract.getTeamCount();
         teamData = [];
@@ -946,7 +946,6 @@
 
       // Wallet connected — check NFT balance for discount
       try {
-        const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
         const nft = new ethers.Contract(team.nftContract, ERC721_BALANCE_ABI, readProvider);
         const bal = await nft.balanceOf(addr);
         if (bal.toNumber() > 0) {
@@ -1029,7 +1028,6 @@
       mintBtn.disabled = true;
       btnText.textContent = 'MINT';
       mintBtn.classList.remove('ready');
-      // REMOVED: redundant try/catch getElementById — disconnectDropdown const is in scope
       disconnectDropdown.classList.remove('show');
       // Reset team discount info — keep selection but hide eligibility status
       activePrice = PRICE;

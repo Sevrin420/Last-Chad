@@ -105,7 +105,6 @@ var _diceInitIds = QUEST_DATA.diceInitIds || [];
       6: [1,0,1, 1,0,1, 1,0,1]
     };
     // Strip image data from sections — images are served as files in /images/
-    const sectionMap = {};
     let currentSectionId = null;
 
     function escapeHtml(text) {
@@ -900,10 +899,10 @@ function showPanel(id) {
     var _cachedReadProvider = null;
     function _getReadProvider() {
       if (_cachedReadProvider) return _cachedReadProvider;
-      var fuji = { chainId: 43113, name: 'fuji' };
+      var _chainConfig = { chainId: parseInt(AVAX_CHAIN_ID, 16), name: 'avalanche' };
       _cachedReadProvider = new ethers.providers.FallbackProvider([
-        { provider: new ethers.providers.StaticJsonRpcProvider(READ_RPC, fuji), priority: 1, stallTimeout: 3000 },
-        { provider: new ethers.providers.StaticJsonRpcProvider(READ_RPC_FALLBACK, fuji), priority: 2, stallTimeout: 3000 },
+        { provider: new ethers.providers.StaticJsonRpcProvider(READ_RPC, _chainConfig), priority: 1, stallTimeout: 3000 },
+        { provider: new ethers.providers.StaticJsonRpcProvider(READ_RPC_FALLBACK, _chainConfig), priority: 2, stallTimeout: 3000 },
       ], 1);
       return _cachedReadProvider;
     }
