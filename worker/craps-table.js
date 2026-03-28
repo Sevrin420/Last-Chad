@@ -73,16 +73,8 @@ export class CrapsTable {
     if (url.pathname === '/info') {
       const playerKeys = await this.state.storage.list({ prefix: 'player:' });
       const players = [];
-      const now = Date.now();
-      const STALE_MS = 15 * 60 * 1000; // match idle timeout
-      for (const [key, pd] of playerKeys) {
-        const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
+      for (const [, pd] of playerKeys) {
         if (pd._disconnectedAt) continue; // disconnected, awaiting reconnect
-        if (lastActive > 0 && (now - lastActive) >= STALE_MS) {
-          // Stale player — clean up orphaned key
-          await this.state.storage.delete(key);
-          continue;
-        }
         players.push({ playerId: pd.player, name: pd.tokenId });
       }
       return new Response(JSON.stringify({ count: players.length, players }), {
@@ -137,20 +129,31 @@ export class CrapsTable {
       } catch (_) {}
     }
 
-    // Storage = truth. Count other players, clean up own orphaned sessions.
+    // Storage = truth. Count other ACTIVE players, clean up stale sessions.
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
+    const now = Date.now();
+    const STALE_MS = 15 * 60 * 1000;
     let otherCount = 0;
     let selfReconnect = false;
     for (const [key, pd] of playerKeys) {
       if (pd && pd.player && playerId.startsWith(pd.player)) {
         selfReconnect = true;
         // Don't delete — auth handler will reuse the existing session with bets intact
+      } else if (pd._disconnectedAt) {
+        // Disconnected player — clean up
+        await this.state.storage.delete(key);
       } else {
-        otherCount++;
+        // Check if this "connected" player is actually stale (no socket, old timestamp)
+        const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
+        if (lastActive > 0 && (now - lastActive) >= STALE_MS) {
+          await this.state.storage.delete(key);
+        } else {
+          otherCount++;
+        }
       }
     }
 
-    // Truly empty table (no players at all) → fresh start
+    // Truly empty table (no other active players) → fresh start
     if (otherCount === 0 && !selfReconnect) {
       await this.state.storage.put('game', { phase: 'comeout', point: 0, rolling: false, rollCount: 0, turnPhase: 'idle', turnDeadline: 0 });
       await this.state.storage.delete('shooter');
