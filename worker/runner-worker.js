@@ -679,7 +679,7 @@ async function handleCrapsStart(request, env) {
     return json({ error: 'Player mismatch' }, 403);
   }
 
-  const sessionToken = await generateCrapsSessionToken(nonce, player.toLowerCase(), env);
+  const { token: sessionToken, timestamp: sessionTokenTs } = await generateCrapsSessionToken(nonce, player.toLowerCase(), env);
 
   // Register player in the CrapsTable Durable Object (if tableCode provided).
   // If no tableCode yet (player picks table on craps.html), the DO registration
@@ -700,6 +700,7 @@ async function handleCrapsStart(request, env) {
             player:       player.toLowerCase(),
             stack:        wager,
             sessionToken,
+            sessionTokenTs,
             buyIn:        wager,
           }),
         }));
@@ -707,18 +708,20 @@ async function handleCrapsStart(request, env) {
     }
   }
 
-  return json({ ok: true, stack: wager, sessionToken });
+  return json({ ok: true, stack: wager, sessionToken, sessionTokenTs });
 }
 
-// POST /craps/cashout  { tokenId, nonce, sessionToken, tableCode }
+// POST /craps/cashout  { tokenId, nonce, sessionToken, sessionTokenTs, tableCode }
 // Fetches player state from the CrapsTable DO, signs the payout, cleans up.
 async function handleCrapsCashout(request, env) {
-  const { tokenId, nonce, sessionToken, tableCode } = await parseBody(request);
+  const { tokenId, nonce, sessionToken, sessionTokenTs, tableCode } = await parseBody(request);
   if (tokenId == null || nonce == null || !sessionToken) {
     return json({ error: 'Missing tokenId, nonce, or sessionToken' }, 400);
   }
 
-  // Check if already cashed out
+  // Quick-reject if KV already marked (avoids unnecessary DO call).
+  // The DO itself is the true serialization point — it caches the cashout
+  // result so duplicate requests return the same response idempotently.
   const cashoutKey = `craps_done:${nonce}`;
   const alreadyCashedOut = await env.RUNNER_KV.get(cashoutKey);
   if (alreadyCashedOut) {
@@ -735,7 +738,7 @@ async function handleCrapsCashout(request, env) {
   const stub  = env.CRAPS_TABLE.get(doId);
   const doRes = await stub.fetch(new Request('https://do/cashout', {
     method: 'POST',
-    body: JSON.stringify({ nonce: String(nonce), sessionToken }),
+    body: JSON.stringify({ nonce: String(nonce), sessionToken, sessionTokenTs }),
   }));
   const cashoutData = await doRes.json();
 
@@ -750,7 +753,8 @@ async function handleCrapsCashout(request, env) {
     return json({ error: 'Token mismatch' }, 403);
   }
 
-  // Mark nonce as done BEFORE signing to prevent double-cashout races.
+  // Mark nonce in KV as a fast-path reject for future requests.
+  // The DO's idempotency cache is the true guard against double-cashout.
   await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
 
   if (payout === 0) {
@@ -772,6 +776,7 @@ async function handleCrapsCashout(request, env) {
 
 
 async function generateCrapsSessionToken(nonce, player, env) {
+  const timestamp = Date.now();
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(env.ORACLE_PRIVATE_KEY),
@@ -779,9 +784,10 @@ async function generateCrapsSessionToken(nonce, player, env) {
     false,
     ['sign']
   );
-  const data = new TextEncoder().encode(`craps:${nonce}:${player}`);
+  const data = new TextEncoder().encode(`craps:${nonce}:${player}:${timestamp}`);
   const sig = await crypto.subtle.sign('HMAC', key, data);
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const token = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return { token, timestamp };
 }
 
 

@@ -240,6 +240,7 @@ export class CrapsTable {
       case 'auth': {
         const nonce = data.nonce;
         const token = data.sessionToken;
+        const tokenTs = data.sessionTokenTs != null ? Number(data.sessionTokenTs) : null;
         if (!nonce || !token) {
           ws.send(JSON.stringify({ type: 'error', message: 'Missing nonce or sessionToken' }));
           break;
@@ -249,10 +250,10 @@ export class CrapsTable {
 
         // Self-register if not pre-registered (player picked table after /craps/start)
         if (!playerData) {
-          // Verify the session token via HMAC before trusting client-supplied data
-          const verified = await this._verifySessionToken(nonce, data.player, token);
+          // Verify the session token via HMAC (includes timestamp expiry check)
+          const verified = await this._verifySessionToken(nonce, data.player, token, tokenTs);
           if (!verified) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid session token' }));
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid or expired session token' }));
             break;
           }
           if (!data.stack || !data.player || !data.tokenId) {
@@ -268,6 +269,7 @@ export class CrapsTable {
             comeOdds: {},
             buyIn:    Number(data.buyIn) || Number(data.stack) || 0,
             _expectedToken: token,
+            _expectedTokenTs: tokenTs,
           };
           await this.state.storage.put(`player:${nonce}`, playerData);
         } else if (playerData._expectedToken !== token) {
@@ -627,7 +629,7 @@ export class CrapsTable {
   // ═══════════════════════════════════════════════════════════════════════
 
   async _handleRegister(body) {
-    const { nonce, tokenId, player, stack, sessionToken, buyIn } = body;
+    const { nonce, tokenId, player, stack, sessionToken, sessionTokenTs, buyIn } = body;
     if (!nonce || !player || !sessionToken) {
       return jsonResp({ error: 'Missing fields' }, 400);
     }
@@ -650,15 +652,24 @@ export class CrapsTable {
       buyIn:    Number(buyIn) || 0,
       lastBetTime: Date.now(),
       _expectedToken: sessionToken,
+      _expectedTokenTs: sessionTokenTs != null ? Number(sessionTokenTs) : null,
     });
 
     return jsonResp({ ok: true, stack: Number(stack) || 0, phase: game.phase, point: game.point });
   }
 
   async _handleCashout(body) {
-    const { nonce, sessionToken } = body;
+    const { nonce, sessionToken, sessionTokenTs } = body;
     if (!nonce || !sessionToken) {
       return jsonResp({ error: 'Missing nonce or sessionToken' }, 400);
+    }
+
+    // Idempotency: if this nonce was already cashed out, return the cached result.
+    // The DO is single-threaded so this check-then-set is atomic.
+    const doneKey = `cashout_done:${nonce}`;
+    const cached = await this.state.storage.get(doneKey);
+    if (cached) {
+      return jsonResp(cached);
     }
 
     const pd = await this.state.storage.get(`player:${nonce}`);
@@ -679,7 +690,15 @@ export class CrapsTable {
     for (const val of Object.values(pd.comeOdds || {})) betsReturned += val;
     const payout = pd.stack + betsReturned;
 
-    // Remove player from DO storage
+    const result = {
+      ok: true,
+      payout,
+      tokenId:   pd.tokenId,
+      player:    pd.player,
+    };
+
+    // Atomically cache result and remove player in a single storage transaction
+    await this.state.storage.put(doneKey, result);
     await this.state.storage.delete(`player:${nonce}`);
 
     // Close their WebSocket — this triggers webSocketClose → _handleDisconnect
@@ -694,12 +713,7 @@ export class CrapsTable {
       } catch (_) {}
     }
 
-    return jsonResp({
-      ok: true,
-      payout,
-      tokenId:   pd.tokenId,
-      player:    pd.player,
-    });
+    return jsonResp(result);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -1029,8 +1043,13 @@ export class CrapsTable {
     }
   }
 
-  async _verifySessionToken(nonce, player, token) {
+  async _verifySessionToken(nonce, player, token, timestamp) {
     try {
+      // Reject tokens older than 24 hours
+      const TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+      if (!timestamp || typeof timestamp !== 'number' || Date.now() - timestamp > TOKEN_MAX_AGE_MS) {
+        return false;
+      }
       const key = await crypto.subtle.importKey(
         'raw',
         new TextEncoder().encode(this.env.ORACLE_PRIVATE_KEY),
@@ -1038,7 +1057,7 @@ export class CrapsTable {
         false,
         ['sign']
       );
-      const data = new TextEncoder().encode(`craps:${nonce}:${String(player).toLowerCase()}`);
+      const data = new TextEncoder().encode(`craps:${nonce}:${String(player).toLowerCase()}:${timestamp}`);
       const sig = await crypto.subtle.sign('HMAC', key, data);
       const expected = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
       return expected === token;
