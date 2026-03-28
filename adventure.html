@@ -775,7 +775,7 @@
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, truncateAddress, getSigner } from './js/wallet.js';
     import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, READ_RPC,
-             LASTCHAD_ABI, ITEMS_ABI, QUEST_REWARDS_ABI } from './js/config.js';
+             LASTCHAD_ABI, ITEMS_ABI, QUEST_REWARDS_ABI, CELLS_PER_LEVEL } from './js/config.js';
     // ========== CONFIG ==========
     const CONTRACT_ABI = LASTCHAD_ABI;
     const ERC721_APPROVE_ABI = LASTCHAD_ABI;
@@ -901,8 +901,8 @@
         if (cellsEl) cellsEl.textContent = openCells;
 
         const closedCells = Number(closedCellsResult);
-        const level = Math.floor(closedCells / 100) + 1;
-        const cellsIntoLevel = closedCells % 100;
+        const level = Math.floor(closedCells / CELLS_PER_LEVEL) + 1;
+        const cellsIntoLevel = closedCells % CELLS_PER_LEVEL;
         portraitLevel.textContent = 'LVL ' + level;
         xpBarFill.style.width = cellsIntoLevel + '%';
         xpLabel.textContent = cellsIntoLevel + ' / 100 CELLS LOCKED';

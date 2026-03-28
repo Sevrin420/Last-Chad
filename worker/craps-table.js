@@ -465,7 +465,7 @@ export class CrapsTable {
         // Broadcast rolling animation to all players
         this._broadcast({ type: 'rolling', playerId, name }, null);
 
-        let wasPointPhase = false;
+        // prevPhase captured above — used later for seven-out shooter rotation
         try {
           // ── Pass 1: Resolve bets (uses OLD phase/point) & store results ──
           const prevPhase = game.phase;
@@ -487,7 +487,6 @@ export class CrapsTable {
           }
 
           // ── Compute NEW phase/point BEFORE sending results ──
-          wasPointPhase = prevPhase === 'point';
           if (prevPhase === 'comeout') {
             if (total === 7 || total === 11 || total === 2 || total === 3 || total === 12) {
               // Stay in comeout
@@ -540,7 +539,7 @@ export class CrapsTable {
         // so no separate phase-update broadcast needed here.
 
         // Seven-out: was in point phase and rolled a 7 → rotate shooter
-        if (wasPointPhase && total === 7) {
+        if (prevPhase === 'point' && total === 7) {
           await this._advanceShooter(playerId);
         }
 
@@ -859,7 +858,6 @@ export class CrapsTable {
           const att = ws.deserializeAttachment();
           if (att && att.nonce === nonce) {
             foundSocket = true;
-            if (lastActive === 0 && (now - (pd.lastBetTime || 0)) < IDLE_MS) break; // recently registered, not idle yet
             await this._kickPlayer(ws, idlePlayerId, nonce, 'Idle for 15 minutes — removed from table');
             break;
           }

@@ -623,11 +623,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
+    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI, CELLS_PER_LEVEL } from './js/config.js';
 
     const CONTRACT_ABI = LASTCHAD_ABI;
-
-    const CELLS_PER_LEVEL = 100;
 
     // DOM
     const walletBtn        = document.getElementById('walletBtn');

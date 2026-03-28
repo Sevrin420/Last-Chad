@@ -1113,7 +1113,8 @@ function showPanel(id) {
 
     async function _initWc() {
       await loadWcScript();
-      return window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [43113], showQrModal: true, rpcMap: { 43113: READ_RPC } });
+      var _cid = parseInt(AVAX_CHAIN_ID, 16);
+      return window.WalletConnectEthereumProvider.EthereumProvider.init({ projectId: WALLETCONNECT_PROJECT_ID, chains: [_cid], showQrModal: true, rpcMap: { [_cid]: READ_RPC } });
     }
 
     function _setupWcListeners(wc) {

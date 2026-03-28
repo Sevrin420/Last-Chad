@@ -35,6 +35,9 @@ export const AVAX_CHAIN = {
 // ── WalletConnect ────────────────────────────────────────────────────
 export const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 
+// ── Game Constants ──────────────────────────────────────────────────
+export const CELLS_PER_LEVEL = 100;
+
 // ── Cloudflare Worker ────────────────────────────────────────────────
 export const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
 
