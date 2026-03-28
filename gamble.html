@@ -1627,6 +1627,7 @@
 
       try {
         crapsSessionToken = startData.sessionToken || null;
+        var crapsSessionTokenTs = startData.sessionTokenTs || null;
         crapsStack = startData.stack;
 
         // Save session data and redirect to the multiplayer craps table
@@ -1636,6 +1637,7 @@
           chadName: selectedChadName,
           stack: crapsStack,
           sessionToken: crapsSessionToken,
+          sessionTokenTs: crapsSessionTokenTs,
           player: userAddress,
           buyIn: wagerAmount,
         }));

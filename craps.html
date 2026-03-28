@@ -1009,6 +1009,7 @@ const STATE = {
   seat: 0,
   nonce: crapsSession.nonce,
   sessionToken: crapsSession.sessionToken,
+  sessionTokenTs: crapsSession.sessionTokenTs || null,
   tokenId: crapsSession.tokenId,
   player: (crapsSession.player || '').toLowerCase(),
   buyIn: crapsSession ? crapsSession.buyIn : 0,
@@ -1685,7 +1686,7 @@ async function handleRollResult(data) {
       await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tokenId: STATE.tokenId, nonce: STATE.nonce, sessionToken: STATE.sessionToken, tableCode: currentTableCode }),
+        body: JSON.stringify({ tokenId: STATE.tokenId, nonce: STATE.nonce, sessionToken: STATE.sessionToken, sessionTokenTs: STATE.sessionTokenTs, tableCode: currentTableCode }),
       });
     } catch (_) {}
     sessionStorage.removeItem('craps_session');
@@ -1921,6 +1922,7 @@ async function cashOut() {
         tokenId: STATE.tokenId,
         nonce: STATE.nonce,
         sessionToken: STATE.sessionToken,
+        sessionTokenTs: STATE.sessionTokenTs,
         tableCode: currentTableCode,
       }),
     });
@@ -2073,6 +2075,7 @@ function connectTable(tableCode) {
         type: 'auth',
         nonce: STATE.nonce,
         sessionToken: STATE.sessionToken,
+        sessionTokenTs: STATE.sessionTokenTs,
         player: STATE.player,
         tokenId: STATE.tokenId,
         stack: STATE.stack,
