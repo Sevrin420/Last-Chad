@@ -101,9 +101,9 @@ No class is throwaway.
 1. Matchmaking pairs 6 players (or invite codes like private craps tables)
 2. Server assigns classes (1 tank, 1 shooter, 1 healer per team)
 3. 10-second fight cycles with 5-second button phases
-4. Match ends when one team is eliminated or after 90 seconds (team with more surviving HP wins)
+4. Match ends when one team is eliminated or after 150 seconds (team with more surviving HP wins)
 
-### Typical match timeline (45-90 seconds)
+### Typical match timeline (45-150 seconds)
 ```
 0-10s:  Fight at full width
 10-15s: First buttons — both teams press, no squeeze
@@ -144,7 +144,7 @@ No class is throwaway.
 - No position data accepted from client
 
 ### Cost at scale
-- 6 players × 20 ticks/sec × 90 seconds = ~10,800 DO requests per match
+- 6 players × 20 ticks/sec × 150 seconds = ~18,000 DO requests per match
 - 925 matches/month included in $5/month plan
 - 50,000 matches/month ≈ $85/month
 - Traditional game server for same load: $200-500/month
