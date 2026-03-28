@@ -471,11 +471,12 @@ export class CrapsTable {
         // Broadcast rolling animation to all players
         this._broadcast({ type: 'rolling', playerId, name }, null);
 
-        // prevPhase captured above — used later for seven-out shooter rotation
+        // prevPhase/prevPoint — captured before resolution, used after for seven-out check
+        let prevPhase, prevPoint;
         try {
           // ── Pass 1: Resolve bets (uses OLD phase/point) & store results ──
-          const prevPhase = game.phase;
-          const prevPoint = game.point;
+          prevPhase = game.phase;
+          prevPoint = game.point;
           const sockets = this.state.getWebSockets();
           const playerResults = new Map(); // nonce → { resolution, pd }
 
@@ -485,7 +486,7 @@ export class CrapsTable {
             if (!att || !att.authenticated || !att.nonce) continue;
 
             const pd = await this.state.storage.get(`player:${att.nonce}`);
-            if (!pd) continue;
+            if (!pd || pd._disconnectedAt) continue;
 
             const resolution = resolveBets(pd, d1, d2, total, isHard, prevPhase, prevPoint);
             await this.state.storage.put(`player:${att.nonce}`, pd);
@@ -987,7 +988,12 @@ export class CrapsTable {
   // ── Server-authoritative phase transitions ──
 
   async _getPlayerCount() {
-    return (await this.state.storage.list({ prefix: 'player:' })).size;
+    const all = await this.state.storage.list({ prefix: 'player:' });
+    let count = 0;
+    for (const [, pd] of all) {
+      if (!pd._disconnectedAt) count++;
+    }
+    return count;
   }
 
   async _startBetPhase() {
@@ -1089,6 +1095,13 @@ export class CrapsTable {
     if (remaining.size === 0) {
       // Table truly empty — full reset
       await this.state.storage.deleteAll();
+      return;
+    }
+
+    if (connected.length === 0) {
+      // All players disconnected — reset game state but keep player keys
+      // so they can reconnect within the grace period
+      await this.state.storage.put('game', { phase: 'comeout', point: 0, rolling: false, rollCount: 0, turnPhase: 'idle', turnDeadline: 0 });
       return;
     }
 
