@@ -192,6 +192,19 @@ POST /session/start|die|win — quest oracle endpoints
 
 ---
 
+## Going Live Plan
+
+See **`plan.md`** for the complete mainnet deployment plan. Covers:
+- LastChad.sol level freeze modification
+- New Tournament.sol contract (monthly craps tournament, cell airdrops, yield distribution)
+- All files that need address/network updates (Fuji → Avalanche C-Chain)
+- Deploy workflow, tournament payout workflow, endgame activation workflow
+- Full checklist for going live
+
+**Read `plan.md` before working on any mainnet transition or tournament features.**
+
+---
+
 ## Common Commands
 
 ```bash
