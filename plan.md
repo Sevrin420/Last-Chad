@@ -214,6 +214,18 @@ The existing `deploy.yml` already supports network selection (fuji/avalanche). I
 | `CF_API_TOKEN` | Cloudflare API token for worker deployment |
 | `CF_ACCOUNT_ID` | Cloudflare account ID |
 
+### Claude Code GitHub Token
+
+The `GITHUB_TOKEN` used for syncing branches to main and triggering deploys is stored in:
+```
+.claude/settings.local.json
+```
+This file is gitignored and never pushed. To regenerate:
+1. GitHub → Profile → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+2. Scope to `Sevrin420/Last-Chad` only
+3. Permissions: Actions (Read & Write), Contents (Read & Write)
+4. Replace the token in `.claude/settings.local.json`
+
 ### Post-Deploy Verification
 
 The workflow should also run `scripts/validateContracts.js` to verify:
