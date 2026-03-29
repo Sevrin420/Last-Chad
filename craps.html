@@ -1915,19 +1915,33 @@ async function cashOut() {
   dealerSay("Cashing out...", 'neutral');
 
   try {
-    const res = await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tokenId: STATE.tokenId,
-        nonce: STATE.nonce,
-        sessionToken: STATE.sessionToken,
-        sessionTokenTs: STATE.sessionTokenTs,
-        tableCode: currentTableCode,
-      }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Cashout failed');
+    // Retry cashout up to 3 times (mobile browsers can drop requests)
+    let data = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tokenId: STATE.tokenId,
+            nonce: STATE.nonce,
+            sessionToken: STATE.sessionToken,
+            sessionTokenTs: STATE.sessionTokenTs,
+            tableCode: currentTableCode,
+          }),
+        });
+        data = await res.json();
+        break; // success
+      } catch (fetchErr) {
+        if (attempt < 2) {
+          dealerSay("Connection issue, retrying...", 'neutral');
+          await new Promise(r => setTimeout(r, 2000));
+        } else {
+          throw fetchErr; // final attempt failed
+        }
+      }
+    }
+    if (!data || !data.ok) throw new Error((data && data.error) || 'Cashout failed');
 
     if (data.payout === 0) {
       dealerSay("Better luck next time.", 'sad');
