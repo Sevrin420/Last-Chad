@@ -24,7 +24,7 @@
       '<div class="nav-dropdown" id="navDropdown">' +
         link('/mint.html',     'MINT', 'mint') +
         link('/chadbase.html', 'BASE', 'base') +
-        link('/leaderboard.html', 'RANKS', 'leaderboard') +
+        link('/leaderboard.html', 'LEADERBOARD', 'leaderboard') +
         link('/docs.html',     'DOCS', 'docs') +
       '</div>' +
     '</div>';
