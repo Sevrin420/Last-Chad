@@ -22,8 +22,8 @@
     '<div class="nav-wrapper">' +
       '<button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>' +
       '<div class="nav-dropdown" id="navDropdown">' +
-        link('/mint.html',     'MINT', 'mint') +
         link('/chadbase.html', 'BASE', 'base') +
+        link('/mint.html',     'MINT', 'mint') +
         link('/leaderboard.html', 'LEADERBOARD', 'leaderboard') +
         link('/docs.html',     'DOCS', 'docs') +
       '</div>' +
