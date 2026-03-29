@@ -2147,6 +2147,51 @@
         } catch (_) { localStorage.removeItem('lc_poker_cashout'); }
       }
 
+      // ── Craps recovery: unclaimed on-chain payout from a failed cashout ──
+      const crapsSaved = localStorage.getItem('lc_craps_cashout');
+      if (crapsSaved) {
+        try {
+          const crapsData = JSON.parse(crapsSaved);
+          const origShowIntro = showIntro;
+          showIntro = async function() {
+            const cellCount = crapsData.payout || 0;
+            const chadLabel = crapsData.chadName || ('Chad #' + crapsData.tokenId);
+            await showNpcText([
+              "Hey, hold on a sec...",
+              `${chadLabel} has ${cellCount} unclaimed cells from a craps table.`,
+              "Let me get those for ya."
+            ]);
+            showChoices([{
+              label: `CLAIM ${cellCount} CELLS`, action: async () => {
+                choicesDiv.innerHTML = '';
+                try {
+                  const signer = await ensureSigner();
+                  if (!signer) throw new Error('Wallet not connected');
+                  const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+                  const tx = await gamble.claimWinnings(crapsData.tokenId, crapsData.payout, crapsData.nonce, crapsData.signature);
+                  await showNpcText(["Confirming on-chain..."]);
+                  await tx.wait();
+                  localStorage.removeItem('lc_craps_cashout');
+                  await showNpcText([`${cellCount} cells claimed! You're all square.`]);
+                  showIntro = origShowIntro;
+                  await showPlayAgain();
+                } catch (err) {
+                  console.error('Craps recovery claim failed:', err);
+                  await showNpcText(["Hmm, that didn't work. Try again or it might already be claimed."]);
+                  showChoices([
+                    { label: 'TRY AGAIN', action: async () => { await showIntro(); } },
+                    { label: 'SKIP', action: async () => { localStorage.removeItem('lc_craps_cashout'); showIntro = origShowIntro; await origShowIntro(); } },
+                  ]);
+                }
+              }
+            }, {
+              label: 'SKIP', action: async () => { localStorage.removeItem('lc_craps_cashout'); showIntro = origShowIntro; await origShowIntro(); }
+            }]);
+          };
+          return;
+        } catch (_) { localStorage.removeItem('lc_craps_cashout'); }
+      }
+
       const session = localStorage.getItem('lc_poker_session');
       if (session) {
         try {

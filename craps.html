@@ -1946,10 +1946,22 @@ async function cashOut() {
     if (data.payout === 0) {
       dealerSay("Better luck next time.", 'sad');
       sessionStorage.removeItem('craps_session');
+      localStorage.removeItem('lc_craps_cashout');
       STATE.nonce = null;
       setTimeout(() => { window.location.href = 'chadbase.html'; }, 2000);
       return;
     }
+
+    // Save signed payout to localStorage in case on-chain claim fails.
+    // Recovery check on gamble.html will let the player retry.
+    localStorage.setItem('lc_craps_cashout', JSON.stringify({
+      tokenId: STATE.tokenId,
+      payout: data.payout,
+      nonce: data.nonce,
+      signature: data.signature,
+      buyIn: STATE.buyIn,
+      chadName: STATE.nftName || 'Chad #' + STATE.tokenId,
+    }));
 
     dealerSay("Claiming cells on-chain...", 'neutral');
     const signer = await ensureSigner();
@@ -1958,6 +1970,9 @@ async function cashOut() {
     const tx = await gamble.claimWinnings(STATE.tokenId, data.payout, data.nonce, data.signature);
     dealerSay("Confirming transaction...", 'neutral');
     await tx.wait();
+
+    // On-chain claim succeeded — clear recovery data
+    localStorage.removeItem('lc_craps_cashout');
 
     const profit = data.payout - STATE.buyIn;
     if (profit > 0) {
