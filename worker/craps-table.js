@@ -370,6 +370,7 @@ export class CrapsTable {
         }
 
         pData.lastBetTime = Date.now();
+        pData._idleWarned = false;
         await this.state.storage.put(`player:${attachment.nonce}`, pData);
 
         ws.send(JSON.stringify({
@@ -873,46 +874,60 @@ export class CrapsTable {
       }
     }
 
-    // ── Idle check: kick players with no activity for 15 minutes ──
-    // Also cleans up orphaned player keys (zombie sockets from Hibernation API)
-    const IDLE_MS = 15 * 60 * 1000;
+    // ── Idle check: warn at 5 min, kick at 10 min of no bets ──
+    // Uses lastBetTime only — pong/heartbeat does NOT reset the idle timer.
+    // Players can use other apps (socket disconnects are handled by grace period above).
+    const WARN_MS = 5 * 60 * 1000;
+    const KICK_MS = 10 * 60 * 1000;
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeys) {
       if (pd._disconnectedAt) continue; // handled by disconnect cleanup above
-      const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
-      if (lastActive > 0 && (now - lastActive) < IDLE_MS) continue;
-      // Player is idle or has no activity timestamp — find their socket
+      const lastBet = pd.lastBetTime || 0;
+      if (lastBet <= 0) continue; // just registered, skip
+      const idleTime = now - lastBet;
+      if (idleTime < WARN_MS) continue; // active, skip
+
       const idlePlayerId = pd.player + '-' + pd.tokenId;
       const nonce = key.replace('player:', '');
-      let foundSocket = false;
+
+      // Find their socket
+      let playerSocket = null;
       for (const ws of sockets) {
         try {
           const att = ws.deserializeAttachment();
-          if (att && att.nonce === nonce) {
-            foundSocket = true;
-            await this._kickPlayer(ws, idlePlayerId, nonce, 'Idle for 15 minutes — removed from table');
-            break;
-          }
+          if (att && att.nonce === nonce) { playerSocket = ws; break; }
         } catch (_) {}
       }
-      // No socket found for this player — orphaned storage key (zombie disconnect)
-      // Clean up directly since there's no socket to kick
-      if (!foundSocket && lastActive > 0 && (now - lastActive) >= IDLE_MS) {
-        await this.state.storage.delete(key);
-        this._broadcast({ type: 'leave', playerId: idlePlayerId }, null);
-        // Rotate shooter if this was the shooter
-        const shooter = await this.state.storage.get('shooter');
-        if (shooter === idlePlayerId) {
-          const remaining = await this.state.storage.list({ prefix: 'player:' });
-          if (remaining.size > 0) {
-            const [, nextPd] = [...remaining][0];
-            const nextShooter = nextPd.player + '-' + nextPd.tokenId;
-            await this.state.storage.put('shooter', nextShooter);
-            this._broadcast({ type: 'shooter', playerId: nextShooter }, null);
-          } else {
-            await this.state.storage.deleteAll();
+
+      if (idleTime >= KICK_MS) {
+        // 10 minutes — kick
+        if (playerSocket) {
+          await this._kickPlayer(playerSocket, idlePlayerId, nonce, 'No bets for 10 minutes — removed from table');
+        } else {
+          // Orphaned key (no socket) — delete directly
+          await this.state.storage.delete(key);
+          this._broadcast({ type: 'leave', playerId: idlePlayerId }, null);
+          const shooter = await this.state.storage.get('shooter');
+          if (shooter === idlePlayerId) {
+            const remaining = await this.state.storage.list({ prefix: 'player:' });
+            const conn = [...remaining].filter(([, p]) => !p._disconnectedAt);
+            if (conn.length > 0) {
+              const [, nextPd] = conn[0];
+              const ns = nextPd.player + '-' + nextPd.tokenId;
+              await this.state.storage.put('shooter', ns);
+              this._broadcast({ type: 'shooter', playerId: ns }, null);
+            } else if (remaining.size === 0) {
+              await this.state.storage.deleteAll();
+            }
           }
         }
+      } else if (!pd._idleWarned && playerSocket) {
+        // 5 minutes — send warning (once)
+        try {
+          playerSocket.send(JSON.stringify({ type: 'idle-warning', message: 'Place a bet in the next 5 minutes or you will be removed from the table' }));
+        } catch (_) {}
+        pd._idleWarned = true;
+        await this.state.storage.put(key, pd);
       }
     }
 
