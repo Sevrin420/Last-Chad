@@ -129,10 +129,10 @@ export class CrapsTable {
       } catch (_) {}
     }
 
-    // Storage = truth. Count other ACTIVE players, clean up stale sessions.
+    // Storage = truth. Count other ACTIVE players, clean up disconnected sessions only.
+    // NOTE: Do NOT delete "stale" connected players here — the alarm handles idle kicks.
+    // Deleting during WS upgrade kills active players who haven't bet recently.
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
-    const now = Date.now();
-    const STALE_MS = 15 * 60 * 1000;
     let otherCount = 0;
     let selfReconnect = false;
     for (const [key, pd] of playerKeys) {
@@ -140,16 +140,10 @@ export class CrapsTable {
         selfReconnect = true;
         // Don't delete — auth handler will reuse the existing session with bets intact
       } else if (pd._disconnectedAt) {
-        // Disconnected player — clean up
+        // Disconnected player — clean up so they don't block table reset
         await this.state.storage.delete(key);
       } else {
-        // Check if this "connected" player is actually stale (no socket, old timestamp)
-        const lastActive = Math.max(pd.lastBetTime || 0, pd.lastActivity || 0);
-        if (lastActive > 0 && (now - lastActive) >= STALE_MS) {
-          await this.state.storage.delete(key);
-        } else {
-          otherCount++;
-        }
+        otherCount++;
       }
     }
 
@@ -279,6 +273,8 @@ export class CrapsTable {
             comeBets: {},
             comeOdds: {},
             buyIn:    Number(data.buyIn) || Number(data.stack) || 0,
+            lastBetTime: Date.now(),
+            lastActivity: Date.now(),
             _expectedToken: token,
             _expectedTokenTs: tokenTs,
           };
@@ -651,6 +647,7 @@ export class CrapsTable {
       comeOdds: {},
       buyIn:    Number(buyIn) || 0,
       lastBetTime: Date.now(),
+      lastActivity: Date.now(),
       _expectedToken: sessionToken,
       _expectedTokenTs: sessionTokenTs != null ? Number(sessionTokenTs) : null,
     });
