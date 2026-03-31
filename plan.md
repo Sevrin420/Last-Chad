@@ -103,6 +103,14 @@ freeMint(string passcode)
 - Wallet limit still enforced — can't use 6 codes from one wallet
 - Codes can be revoked before use via `removePasscode()`
 
+**Automation:**
+- Claude generates 20 random passcodes (e.g. `CHAD-A7X9-K2M4`)
+- Claude hashes each with keccak256 and writes a deploy script
+- Deploy script calls `addPasscodes([hash1, hash2, ...])` on-chain via GitHub workflow
+- Claude outputs the plain text codes for the owner to distribute
+- All done in one step — no manual hashing or contract interaction needed
+- mint.html gets a "Have a code?" input field that calls `freeMint(passcode)`
+
 ### New Contract: Tournament.sol
 
 Manages the monthly endgame craps tournament cycle.
