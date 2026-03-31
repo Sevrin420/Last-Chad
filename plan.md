@@ -56,6 +56,53 @@ Modify `lockCells()`:
 Modify `spendStatPoint()`:
 - Revert if `levelsFrozen == true`
 
+### LastChad.sol — Free Mint Passcodes
+
+Add a passcode-based free mint system for giveaways.
+
+**State:**
+```
+mapping(bytes32 => bool) public passcodeUsed;    // hash → already redeemed
+mapping(bytes32 => bool) public passcodeValid;   // hash → is a real code
+```
+
+**Owner Functions:**
+```
+addPasscodes(bytes32[] hashes)
+  — Owner loads hashed passcodes into the contract
+  — Can be called multiple times to add more codes
+  — Hashes are keccak256(abi.encodePacked(plainTextCode))
+
+removePasscode(bytes32 hash)
+  — Owner can invalidate a code before it's used
+```
+
+**Player Function:**
+```
+freeMint(string passcode)
+  — Hashes the passcode: keccak256(abi.encodePacked(passcode))
+  — Requires: hash exists in passcodeValid
+  — Requires: hash not in passcodeUsed
+  — Requires: totalMinted + 1 <= MAX_SUPPLY
+  — Requires: mintedPerWallet[msg.sender] + 1 <= MAX_MINT_PER_WALLET
+  — Marks passcodeUsed[hash] = true
+  — Mints 1 NFT (no payment required)
+  — Awards 25 base cells (same as paid mint)
+  — Checks partner bonus (same as paid mint)
+```
+
+**Code Generation (done by Claude in a script):**
+- Generate 20 random codes (e.g. `CHAD-A7X9-K2M4`)
+- Hash each with keccak256
+- Script calls `addPasscodes([hash1, hash2, ...])` via GitHub workflow
+- Plain text codes given to owner to distribute
+
+**Security:**
+- Codes are stored as hashes on-chain — can't be reverse-engineered
+- One use per code — `passcodeUsed` prevents replay
+- Wallet limit still enforced — can't use 6 codes from one wallet
+- Codes can be revoked before use via `removePasscode()`
+
 ### New Contract: Tournament.sol
 
 Manages the monthly endgame craps tournament cycle.
