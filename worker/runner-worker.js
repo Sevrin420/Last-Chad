@@ -1178,7 +1178,7 @@ async function handleFreeplayScore(request, env) {
 // ══════════════════════════════════════════════════════════════════════════
 
 // POST /hashcash/join  { username }
-// Checks 24h cooldown, generates HMAC session token, returns token + tables.
+// Checks username ownership, 24h cooldown, generates session token.
 async function handleHashCashJoin(request, env) {
   const body = await parseBody(request);
   let username = (body.username || '').trim();
@@ -1187,6 +1187,23 @@ async function handleHashCashJoin(request, env) {
   // Sanitize: alphanumeric + spaces only, strip unicode tricks
   username = username.replace(/[^a-zA-Z0-9 _-]/g, '');
   if (!username) return json({ error: 'Invalid username — letters and numbers only' }, 400);
+
+  const userKey = `hashcash:user:${username.toLowerCase()}`;
+  const existingUser = await env.RUNNER_KV.get(userKey);
+  const clientSecret = body.secret || null;
+
+  if (existingUser) {
+    // Username already registered — verify ownership
+    try {
+      const userData = JSON.parse(existingUser);
+      if (!clientSecret || clientSecret !== userData.secret) {
+        return json({ error: 'Username already taken', taken: true }, 403);
+      }
+      // Verified owner — continue to cooldown check
+    } catch (e) {
+      return json({ error: 'Username already taken', taken: true }, 403);
+    }
+  }
 
   // Check 24h cooldown
   const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
@@ -1199,9 +1216,20 @@ async function handleHashCashJoin(request, env) {
       const mins = Math.floor((remaining % 3600) / 60);
       return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
     } catch (e) {
-      // Corrupted KV data — delete and allow
       await env.RUNNER_KV.delete(cooldownKey);
     }
+  }
+
+  // Generate unique secret for this username (only on first registration)
+  let secret;
+  if (existingUser) {
+    secret = JSON.parse(existingUser).secret;
+  } else {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    secret = btoa(String.fromCharCode(...arr));
+    // Store permanently — username is now reserved
+    await env.RUNNER_KV.put(userKey, JSON.stringify({ username, secret, registeredAt: Date.now() }));
   }
 
   // Generate HMAC session token (deterministic per username+key so DO can verify)
@@ -1212,7 +1240,7 @@ async function handleHashCashJoin(request, env) {
   const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(tokenData));
   const sessionToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
 
-  // Set cooldown AFTER token generation (starts NOW at join time)
+  // Set cooldown (starts NOW at join time)
   await env.RUNNER_KV.put(cooldownKey, JSON.stringify({
     username,
     joinedAt: Date.now(),
@@ -1220,7 +1248,7 @@ async function handleHashCashJoin(request, env) {
     sessionToken,
   }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
 
-  return json({ ok: true, username, sessionToken, stack: 100 });
+  return json({ ok: true, username, sessionToken, secret, stack: 100 });
 }
 
 // GET /hashcash/ws?table=X&username=Y&sessionToken=Z  (WebSocket upgrade)
