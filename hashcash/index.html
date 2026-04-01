@@ -627,74 +627,79 @@
     .lobby-table-name{font-size:0.3rem;color:#ccc}
     .lobby-table-players{font-size:0.25rem;color:#4caf50}
 
-    /* ── Desktop: side-by-side layout ── */
+    /* ── Tablet & Desktop: side-by-side layout ── */
     @media(min-width:601px){
+      body{overflow:auto}
       .table-wrapper{
         flex-direction:row;
-        overflow:hidden;
+        flex-wrap:wrap;
+        height:auto;
+        min-height:calc(100vh - 40px);
+        max-width:1200px;
+        margin:0 auto;
       }
       .table-area{
-        flex:1;
+        flex:1 1 60%;
         min-width:0;
-        max-height:calc(100vh - 40px);
-        overflow:hidden;
+        max-height:none;
+        overflow:visible;
       }
       .felt-container{
-        max-height:calc(100vh - 40px);
+        max-height:none;
+        margin:0 4px 2px 4px;
       }
       .table-image-wrap > .table-bg{
-        max-height:calc(100vh - 50px);
         width:100%;
+        height:auto;
         object-fit:contain;
       }
-      /* Right sidebar: chat + players stacked vertically */
+      /* Right sidebar: chat */
       .chat-box{
-        flex:0 0 clamp(200px, 20vw, 340px);
-        width:clamp(200px, 20vw, 340px);
+        flex:0 0 280px;
+        width:280px;
         height:calc(100vh - 40px);
         max-height:calc(100vh - 40px);
+        position:sticky;
+        top:40px;
         border-top:none;
         border-left:2px solid #2a3a1a;
         border-bottom:none;
         overflow:hidden;
       }
-      .player-bar{
-        flex:0 0 clamp(60px, 5.5vw, 100px);
-        flex-direction:column;
-        width:clamp(60px, 5.5vw, 100px);
-        height:calc(100vh - 40px);
-        border-left:2px solid #2a3a1a;
-        border-top:none;
-      }
-      .remote-card{
-        border-right:none;
-        border-bottom:1px solid #1a2a0a;
-        padding:8px 4px;
-      }
-      .remote-avatar{
-        aspect-ratio:3/4;
-      }
-      .remote-name{
-        font-size:0.18rem;
-      }
+      .chat-messages{font-size:0.3rem}
+      .chat-input{font-size:0.28rem}
+      /* Header full width */
+      .game-header{padding:6px 20px}
+      .header-action-btn{font-size:0.4rem;padding:8px 16px}
+      .header-label{font-size:0.4rem;padding:8px 16px}
+      /* Bigger stack display */
+      .table-stack-value{font-size:1.6rem}
+      /* Bigger announcer */
+      .announcer-portrait{width:120px;height:140px}
+      .announcer-call{font-size:0.9rem}
+      .announcer-sub{font-size:0.45rem}
+      .announcer-die{width:50px;height:50px}
+      /* Bigger result toast */
+      .result-toast{font-size:1.1rem;padding:24px 44px}
+      .result-toast .toast-sub{font-size:0.4rem}
+      /* Lobby */
+      .lobby-box{max-width:600px}
+      .lobby-title{font-size:0.8rem}
     }
 
-    /* ── Portrait frame override: revert 601px horizontal layout ── */
-    @media(min-width:900px){
-      .game-header{width:min(56vh,500px);max-width:100%;left:50%;right:auto;transform:translateX(-50%)}
-      .table-wrapper{flex-direction:column;overflow:auto;height:auto;min-height:calc(100vh - 40px)}
-      .table-area{max-height:none;overflow:visible}
-      .felt-container{max-height:none}
-      .table-image-wrap > .table-bg{max-height:none}
+    /* ── Large Desktop: wider chat, centered content ── */
+    @media(min-width:1024px){
+      .table-wrapper{max-width:1400px}
       .chat-box{
-        flex:initial;width:100%;height:auto;max-height:none;
-        border-left:none;border-top:2px solid #2a3a1a;border-bottom:2px solid #2a3a1a;
+        flex:0 0 340px;
+        width:340px;
       }
-      .player-bar{
-        flex:initial;width:100%;height:auto;flex-direction:row;
-        border-left:none;border-top:2px solid #2a3a1a;
-      }
-      .remote-card{border-bottom:none;border-right:1px solid #1a2a0a}
+      .chat-msg{font-size:0.35rem}
+      .chat-input{font-size:0.32rem;padding:10px}
+      .chat-send{font-size:1rem;padding:10px 20px}
+      .table-chip-tray .chip{width:56px;height:56px}
+      .die{width:80px;height:80px}
+      .bet-chip-token{width:32px;height:32px;font-size:0.2rem}
     }
 
     /* ── Responsive (mobile) ── */
@@ -740,19 +745,19 @@
     <source src="../assets/hashcash/hashcashvideo.mp4" type="video/mp4">
   </video>
   <div id="enterWorldPrompt" style="display:flex;flex-direction:column;align-items:center;gap:20px">
-    <button onclick="playIntroVideo()" style="font-family:'Press Start 2P',monospace;font-size:1.2rem;padding:40px 80px;background:linear-gradient(180deg,#d0d0d0 0%,#888 50%,#555 100%);color:#fff;border:4px solid #aaa;cursor:pointer;border-radius:10px;text-shadow:2px 2px 0 #000;box-shadow:0 6px 0 #333;line-height:1.6">ENTER</button>
+    <button onclick="playIntroVideo()" style="font-family:'Press Start 2P',monospace;font-size:clamp(1.2rem,3vw,2.4rem);padding:clamp(40px,6vh,80px) clamp(80px,12vw,160px);background:linear-gradient(180deg,#d0d0d0 0%,#888 50%,#555 100%);color:#fff;border:4px solid #aaa;cursor:pointer;border-radius:10px;text-shadow:2px 2px 0 #000;box-shadow:0 6px 0 #333;line-height:1.6">ENTER</button>
   </div>
   <button id="skipBtn" onclick="skipIntro()" style="display:none;position:absolute;bottom:40px;right:30px;font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:10px 20px;background:rgba(0,0,0,0.6);color:#c9a84c;border:2px solid #5c4409;cursor:pointer;border-radius:6px;z-index:10001">SKIP</button>
 </div>
 
 <!-- ── Name Entry ── -->
 <div id="nameOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:9999;align-items:center;justify-content:center;flex-direction:column;font-family:'Press Start 2P',monospace;background-image:url('../assets/chazzyp/chazzypgamble.jpg');background-size:cover;background-position:center;background-repeat:no-repeat">
-  <div style="background:rgba(0,0,0,0.8);padding:28px 32px;border-radius:10px;border:2px solid #5c4409;display:flex;flex-direction:column;align-items:center;max-width:420px;width:90%">
-  <h2 style="font-size:0.6rem;color:#c9a84c;margin-bottom:24px;text-shadow:0 0 12px rgba(201,168,76,0.4)">LAST CHAD CRAPS</h2>
-  <p style="font-size:0.35rem;color:#8a7a5a;margin-bottom:20px;line-height:1.8">100 chips — play to bust or lock in. Once per 24h.</p>
-  <input type="text" id="nameInput" placeholder="Grotto username" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:0.5rem;padding:10px 14px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:260px;margin-bottom:10px;border-radius:4px">
-  <input type="text" id="passInput" placeholder="Password" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:10px 14px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:260px;margin-bottom:16px;border-radius:4px">
-  <button onclick="startHashCash()" style="font-family:'Press Start 2P',monospace;font-size:0.35rem;padding:14px 24px;background:linear-gradient(180deg,#c9a84c 0%,#8b6914 50%,#5c4409 100%);color:#fff;border:3px solid #d4a017;cursor:pointer;border-radius:6px;text-shadow:1px 1px 0 #000;box-shadow:0 4px 0 #3d2e0a;line-height:1.6">HAND ME THE BONES CHAZZY</button>
+  <div style="background:rgba(0,0,0,0.8);padding:28px 32px;border-radius:10px;border:2px solid #5c4409;display:flex;flex-direction:column;align-items:center;max-width:520px;width:90%">
+  <h2 style="font-size:clamp(0.6rem,2vw,1.2rem);color:#c9a84c;margin-bottom:24px;text-shadow:0 0 12px rgba(201,168,76,0.4)">LAST CHAD CRAPS</h2>
+  <p style="font-size:clamp(0.35rem,1.2vw,0.55rem);color:#8a7a5a;margin-bottom:20px;line-height:1.8">100 chips — play to bust or lock in. Once per 24h.</p>
+  <input type="text" id="nameInput" placeholder="Grotto username" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:clamp(0.5rem,1.5vw,0.8rem);padding:12px 16px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:min(300px,85%);margin-bottom:10px;border-radius:4px">
+  <input type="text" id="passInput" placeholder="Password" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:clamp(0.4rem,1.3vw,0.7rem);padding:12px 16px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:min(300px,85%);margin-bottom:16px;border-radius:4px">
+  <button onclick="startHashCash()" style="font-family:'Press Start 2P',monospace;font-size:clamp(0.35rem,1.2vw,0.55rem);padding:14px 24px;background:linear-gradient(180deg,#c9a84c 0%,#8b6914 50%,#5c4409 100%);color:#fff;border:3px solid #d4a017;cursor:pointer;border-radius:6px;text-shadow:1px 1px 0 #000;box-shadow:0 4px 0 #3d2e0a;line-height:1.6">HAND ME THE BONES CHAZZY</button>
   <button onclick="document.getElementById('htpOverlay').style.display='flex'" style="font-family:'Press Start 2P',monospace;font-size:0.32rem;padding:8px 16px;background:#4caf50;border:2px solid #66bb6a;color:#fff;cursor:pointer;margin-top:10px;border-radius:4px;text-shadow:1px 1px 0 #1b5e20">HOW TO PLAY</button>
   <div style="margin-top:20px;width:100%;max-width:380px">
     <h3 style="font-size:0.45rem;color:#c9a84c;text-align:center;margin-bottom:10px">LEADERBOARD</h3>
