@@ -39,6 +39,7 @@
 
 import { ethers } from 'ethers';
 export { CrapsTable } from './craps-table.js';
+export { HashCashTable } from './hashcash-table.js';
 
 const ALLOWED_ORIGINS = ['https://lastchad.xyz', 'https://enterthegrotto.xyz'];
 function getCors(request) {
@@ -80,6 +81,20 @@ const POKER_PAYOUTS = {
   'TWO PAIR':           2,
   'JACKS OR BETTER':    1,
 };
+
+// ── HashCash Craps config ──
+const HASHCASH_PUBLIC_TABLES = [
+  { name: 'hashcash-1', label: 'HASHCASH TABLE 1' },
+  { name: 'hashcash-2', label: 'HASHCASH TABLE 2' },
+  { name: 'hashcash-3', label: 'HASHCASH TABLE 3' },
+];
+const HASHCASH_PRIVATE_TABLES = 5;
+const HASHCASH_COOLDOWN_TTL = 86_400; // 24 hours
+const HASHCASH_LB_KEY = 'hashcash:leaderboard';
+const HASHCASH_LB_MAX = 50;
+function isValidHashCashTable(tableCode) {
+  return HASHCASH_PUBLIC_TABLES.some(t => t.name === tableCode) || tableCode.startsWith('hcpriv-');
+}
 
 const GAMBLE_ABI = [
   'function wagerAmounts(uint256 nonce) view returns (uint256)',
@@ -151,6 +166,23 @@ export default {
       // Table list (queries Durable Objects for player counts)
       if (request.method === 'GET' && url.pathname === '/tables/list') {
         return await handleTableList(env);
+      }
+
+      // ── HashCash Craps ──
+      if (request.method === 'POST' && url.pathname === '/hashcash/join') {
+        return await handleHashCashJoin(request, env);
+      }
+      if (url.pathname === '/hashcash/ws') {
+        return await handleHashCashWebSocket(request, url, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/hashcash/lockin') {
+        return await handleHashCashLockin(request, env);
+      }
+      if (request.method === 'GET' && url.pathname === '/hashcash/tables') {
+        return await handleHashCashTableList(env);
+      }
+      if (request.method === 'GET' && url.pathname === '/hashcash/leaderboard') {
+        return await handleHashCashLeaderboard(env);
       }
 
       // Freeplay leaderboard
@@ -1138,4 +1170,105 @@ async function handleFreeplayScore(request, env) {
   lb.sort((a, b) => b.chips - a.chips);
   await env.RUNNER_KV.put(FREEPLAY_LB_KEY, JSON.stringify(lb.slice(0, FREEPLAY_LB_MAX)));
   return json({ ok: true, rank: lb.findIndex(e => e.name === name.trim() && e.chips === chips) + 1 });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  HASHCASH CRAPS — No crypto, multiplayer, 24h cooldown
+// ══════════════════════════════════════════════════════════════════════════
+
+// POST /hashcash/join  { username }
+// Checks 24h cooldown, generates HMAC session token, returns token + tables.
+async function handleHashCashJoin(request, env) {
+  const body = await parseBody(request);
+  const username = (body.username || '').trim();
+  if (!username || username.length > 32) return json({ error: 'Invalid username' }, 400);
+
+  // Check 24h cooldown
+  const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
+  const existing = await env.RUNNER_KV.get(cooldownKey);
+  if (existing) {
+    const data = JSON.parse(existing);
+    const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
+    const hours = Math.floor(remaining / 3600);
+    const mins = Math.floor((remaining % 3600) / 60);
+    return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
+  }
+
+  // Set cooldown (starts NOW at join time)
+  await env.RUNNER_KV.put(cooldownKey, JSON.stringify({
+    username,
+    joinedAt: Date.now(),
+    expiresAt: Date.now() + HASHCASH_COOLDOWN_TTL * 1000,
+  }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
+
+  // Generate HMAC session token
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const tokenData = `hashcash:${username.toLowerCase()}:${Date.now()}`;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', encoder.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(tokenData));
+  const sessionToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
+
+  return json({ ok: true, username, sessionToken, stack: 100 });
+}
+
+// GET /hashcash/ws?table=X&username=Y&sessionToken=Z  (WebSocket upgrade)
+async function handleHashCashWebSocket(request, url, env) {
+  const table = url.searchParams.get('table');
+  if (!table) return json({ error: 'Missing table' }, 400);
+  if (!isValidHashCashTable(table)) return json({ error: 'Invalid table' }, 400);
+
+  const id = env.HASHCASH_TABLE.idFromName(table);
+  const stub = env.HASHCASH_TABLE.get(id);
+
+  // Reset empty tables to clear zombie state
+  try {
+    const infoRes = await stub.fetch(new Request('https://do/info'));
+    const info = await infoRes.json();
+    if ((info.count || 0) === 0) {
+      await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
+    }
+  } catch (_) {}
+
+  return stub.fetch(request);
+}
+
+// POST /hashcash/lockin  { username, sessionToken, score }
+async function handleHashCashLockin(request, env) {
+  const body = await parseBody(request);
+  const { username, score } = body;
+  if (!username || typeof username !== 'string') return json({ error: 'Invalid username' }, 400);
+  if (!score || typeof score !== 'number' || score <= 100) return json({ error: 'Score must beat 100' }, 400);
+
+  // Save to leaderboard
+  const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
+  lb.push({ name: username.trim(), chips: score, date: new Date().toISOString().slice(0, 10) });
+  lb.sort((a, b) => b.chips - a.chips);
+  await env.RUNNER_KV.put(HASHCASH_LB_KEY, JSON.stringify(lb.slice(0, HASHCASH_LB_MAX)));
+
+  const rank = lb.findIndex(e => e.name === username.trim() && e.chips === score) + 1;
+  return json({ ok: true, rank });
+}
+
+// GET /hashcash/tables — public table player counts
+async function handleHashCashTableList(env) {
+  const queries = HASHCASH_PUBLIC_TABLES.map(async (t) => {
+    try {
+      const id = env.HASHCASH_TABLE.idFromName(t.name);
+      const stub = env.HASHCASH_TABLE.get(id);
+      const res = await stub.fetch(new Request('https://do/info'));
+      const data = await res.json();
+      return { name: t.name, label: t.label, players: data.count || 0, maxPlayers: MAX_PLAYERS_PER_TABLE };
+    } catch (_) {
+      return { name: t.name, label: t.label, players: 0, maxPlayers: MAX_PLAYERS_PER_TABLE };
+    }
+  });
+  const tables = await Promise.all(queries);
+  return json({ tables });
+}
+
+// GET /hashcash/leaderboard
+async function handleHashCashLeaderboard(env) {
+  const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
+  return json({ ok: true, leaderboard: lb.slice(0, 20) });
 }
