@@ -589,6 +589,16 @@ export class HashCashTable {
 
       // ── Chat ──
       case 'chat': {
+        // Rate limit: max 5 messages per 3 seconds
+        const chatNow = Date.now();
+        if (!attachment._chatTimes) attachment._chatTimes = [];
+        attachment._chatTimes = attachment._chatTimes.filter(t => chatNow - t < 3000);
+        if (attachment._chatTimes.length >= 5) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Slow down — chat rate limited' }));
+          break;
+        }
+        attachment._chatTimes.push(chatNow);
+        ws.serializeAttachment(attachment);
         const text = String(data.text || '').slice(0, 120);
         this._broadcast({ type: 'chat', playerId, name, text }, playerId);
         break;
@@ -842,9 +852,9 @@ export class HashCashTable {
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeys) {
       if (pd._disconnectedAt) continue; // handled by disconnect cleanup above
-      const lastBet = pd.lastBetTime || 0;
-      if (lastBet <= 0) continue; // just registered, skip
-      const idleTime = now - lastBet;
+      const lastActivity = pd.lastBetTime || pd.lastActivity || 0;
+      if (lastActivity <= 0) continue; // no timestamp at all, skip
+      const idleTime = now - lastActivity;
       if (idleTime < WARN_MS) continue; // active, skip
 
       const idlePlayerId = pd.username || pd.player;

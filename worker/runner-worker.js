@@ -1181,8 +1181,12 @@ async function handleFreeplayScore(request, env) {
 // Checks 24h cooldown, generates HMAC session token, returns token + tables.
 async function handleHashCashJoin(request, env) {
   const body = await parseBody(request);
-  const username = (body.username || '').trim();
+  let username = (body.username || '').trim();
   if (!username || username.length > 32) return json({ error: 'Invalid username' }, 400);
+
+  // Sanitize: alphanumeric + spaces only, strip unicode tricks
+  username = username.replace(/[^a-zA-Z0-9 _-]/g, '');
+  if (!username) return json({ error: 'Invalid username — letters and numbers only' }, 400);
 
   // Check 24h cooldown
   const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
@@ -1200,20 +1204,21 @@ async function handleHashCashJoin(request, env) {
     }
   }
 
-  // Set cooldown (starts NOW at join time)
-  await env.RUNNER_KV.put(cooldownKey, JSON.stringify({
-    username,
-    joinedAt: Date.now(),
-    expiresAt: Date.now() + HASHCASH_COOLDOWN_TTL * 1000,
-  }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
-
-  // Generate HMAC session token
+  // Generate HMAC session token (deterministic per username+key so DO can verify)
   const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
-  const tokenData = `hashcash:${username.toLowerCase()}:${Date.now()}`;
+  const tokenData = `hashcash:${username.toLowerCase()}`;
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(tokenData));
   const sessionToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
+
+  // Set cooldown AFTER token generation (starts NOW at join time)
+  await env.RUNNER_KV.put(cooldownKey, JSON.stringify({
+    username,
+    joinedAt: Date.now(),
+    expiresAt: Date.now() + HASHCASH_COOLDOWN_TTL * 1000,
+    sessionToken,
+  }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
 
   return json({ ok: true, username, sessionToken, stack: 100 });
 }
@@ -1242,9 +1247,19 @@ async function handleHashCashWebSocket(request, url, env) {
 // POST /hashcash/lockin  { username, sessionToken, table }
 async function handleHashCashLockin(request, env) {
   const body = await parseBody(request);
-  const { username, table } = body;
+  const { username, sessionToken, table } = body;
   if (!username || typeof username !== 'string') return json({ error: 'Invalid username' }, 400);
   if (!table || !isValidHashCashTable(table)) return json({ error: 'Invalid table' }, 400);
+
+  // Verify sessionToken matches — regenerate HMAC and compare
+  if (!sessionToken) return json({ error: 'Missing sessionToken' }, 403);
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const tokenData = `hashcash:${username.toLowerCase()}`;
+  const encoder = new TextEncoder();
+  const hmacKey = await crypto.subtle.importKey('raw', encoder.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(tokenData));
+  const expectedToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
+  if (sessionToken !== expectedToken) return json({ error: 'Unauthorized' }, 403);
 
   // Forward to DO — it calculates score from stack+bets and removes the player
   const id = env.HASHCASH_TABLE.idFromName(table);
