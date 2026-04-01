@@ -288,20 +288,16 @@
     .bet-chip-token{
       position:absolute;
       width:28px;height:28px;border-radius:50%;
-      font-size:0.18rem;display:flex;align-items:center;justify-content:center;
+      font-size:0.22rem;display:flex;align-items:center;justify-content:center;
       font-family:'Press Start 2P',monospace;
       box-shadow:0 0 6px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.15);
       border:3px solid;
       z-index:11;
     }
-    .bet-chip-token.p0{background:#1a1a1a;border-color:var(--p1-color);color:var(--p1-color)}
-    .bet-chip-token.cv-red{background:#c0392b;border-color:#e74c3c;color:#fff}
-    .bet-chip-token.cv-green{background:#27ae60;border-color:#2ecc71;color:#fff}
-    .bet-chip-token.cv-yellow{background:#d4a017;border-color:#f1c40f;color:#1a1005}
-    .bet-chip-token.cv-blue{background:#2471a3;border-color:#3498db;color:#fff}
-    .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
-    .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
-    .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
+    .bet-chip-token.p0{background:#e8e8e8;border-color:#fff;color:#111}
+    .bet-chip-token.p1{background:#1a3a6b;border-color:var(--p2-color);color:#fff}
+    .bet-chip-token.p2{background:#5a2a6b;border-color:var(--p3-color);color:#fff}
+    .bet-chip-token.p3{background:#6b1a1a;border-color:var(--p4-color);color:#fff}
     .bet-chip-token.off{opacity:0.35;filter:grayscale(0.6)}
     /* ── Place Bets chip positions — inside boxes ──
        p0 (local): top-left, p1 (remote1): top-right, p2 (remote2): bottom-left */
@@ -659,7 +655,7 @@
       .result-toast .toast-sub{font-size:0.4rem}
       .lobby-box{max-width:600px}
       .lobby-title{font-size:0.8rem}
-      .bet-chip-token{width:32px;height:32px;font-size:0.2rem}
+      .bet-chip-token{width:32px;height:32px;font-size:0.24rem}
     }
 
     /* ── Large Desktop: wider column ── */
@@ -1150,7 +1146,7 @@ function renderAllBetChips() {
     const isOff = isComeout && offZones.has(zone);
     if (STATE.bets[betKey] && STATE.bets[betKey] > 0) {
       const chip = document.createElement('div');
-      chip.className = 'bet-chip-token ' + (_chipColorClass ? _chipColorClass(STATE.bets[betKey]) : 'p0') + ' pos-0' + (isOff ? ' off' : '');
+      chip.className = 'bet-chip-token p0 pos-0' + (isOff ? ' off' : '');
       chip.textContent = STATE.bets[betKey];
       container.appendChild(chip);
     }
@@ -1158,7 +1154,7 @@ function renderAllBetChips() {
       const rb = STATE.remoteBets[s];
       if (rb && rb[betKey] && rb[betKey] > 0) {
         const chip = document.createElement('div');
-        chip.className = 'bet-chip-token ' + (_chipColorClass ? _chipColorClass(rb[betKey]) : 'p' + s) + ' pos-' + s + (isOff ? ' off' : '');
+        chip.className = 'bet-chip-token p' + s + ' pos-' + s + (isOff ? ' off' : '');
         chip.textContent = rb[betKey];
         container.appendChild(chip);
       }
@@ -2466,11 +2462,7 @@ window.enterTable = enterTable;
 window.exitTable = exitTable;
 window.pressBet = pressBet;
 // ── Chip Color by Value ──
-function _chipColorClass(amount) {
-  if (amount >= 25) return 'cv-blue';
-  if (amount >= 10) return 'cv-yellow';
-  if (amount >= 5)  return 'cv-green';
-  return 'cv-red';
+// Chip colors are fixed per seat (no value-based coloring)
 }
 
 // ── Background Music ──
