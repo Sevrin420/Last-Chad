@@ -750,7 +750,8 @@
   <div style="background:rgba(0,0,0,0.8);padding:28px 32px;border-radius:10px;border:2px solid #5c4409;display:flex;flex-direction:column;align-items:center;max-width:420px;width:90%">
   <h2 style="font-size:0.6rem;color:#c9a84c;margin-bottom:24px;text-shadow:0 0 12px rgba(201,168,76,0.4)">LAST CHAD CRAPS</h2>
   <p style="font-size:0.35rem;color:#8a7a5a;margin-bottom:20px;line-height:1.8">100 chips — play to bust or lock in. Once per 24h.</p>
-  <input type="text" id="nameInput" placeholder="Grotto username" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:0.5rem;padding:10px 14px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:260px;margin-bottom:16px;border-radius:4px">
+  <input type="text" id="nameInput" placeholder="Grotto username" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:0.5rem;padding:10px 14px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:260px;margin-bottom:10px;border-radius:4px">
+  <input type="text" id="passInput" placeholder="Password" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:10px 14px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:260px;margin-bottom:16px;border-radius:4px">
   <button onclick="startHashCash()" style="font-family:'Press Start 2P',monospace;font-size:0.35rem;padding:14px 24px;background:linear-gradient(180deg,#c9a84c 0%,#8b6914 50%,#5c4409 100%);color:#fff;border:3px solid #d4a017;cursor:pointer;border-radius:6px;text-shadow:1px 1px 0 #000;box-shadow:0 4px 0 #3d2e0a;line-height:1.6">HAND ME THE BONES CHAZZY</button>
   <button onclick="document.getElementById('htpOverlay').style.display='flex'" style="font-family:'Press Start 2P',monospace;font-size:0.32rem;padding:8px 16px;background:#4caf50;border:2px solid #66bb6a;color:#fff;cursor:pointer;margin-top:10px;border-radius:4px;text-shadow:1px 1px 0 #1b5e20">HOW TO PLAY</button>
   <div style="margin-top:20px;width:100%;max-width:380px">
@@ -2377,20 +2378,12 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ── HashCash Join Flow ──
-function _getStoredSecret(username) {
-  try { return localStorage.getItem('hc_secret_' + username.toLowerCase()) || null; } catch(_) { return null; }
-}
-function _storeSecret(username, secret) {
-  try { localStorage.setItem('hc_secret_' + username.toLowerCase(), secret); } catch(_) {}
-}
-
-async function hashcashJoin(username) {
+async function hashcashJoin(username, password) {
   try {
-    var secret = _getStoredSecret(username);
     var res = await fetchWithTimeout(WORKER_URL + '/hashcash/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username, secret: secret }),
+      body: JSON.stringify({ username: username, password: password }),
     });
     var data = await res.json();
     if (!data.ok) {
@@ -2401,14 +2394,14 @@ async function hashcashJoin(username) {
         var timeStr = h > 0 ? h + 'h ' + m + 'm' : m + ' minutes';
         showCooldownPopup(timeStr);
       } else if (data.taken) {
-        showTakenPopup(username);
+        showErrorPopup('USERNAME TAKEN', '"' + username + '" is already registered.<br><br>Pick a different name.');
+      } else if (data.wrongPass) {
+        showErrorPopup('WRONG PASSWORD', 'Incorrect password for "' + username + '".<br><br>Try again.');
       } else {
         dealerSay(data.error || 'Join failed', 'sad');
       }
       return null;
     }
-    // Save the secret for future sessions
-    if (data.secret) _storeSecret(username, data.secret);
     return data;
   } catch (err) {
     dealerSay('Server error: ' + (err.message || 'try again'), 'sad');
@@ -2416,15 +2409,15 @@ async function hashcashJoin(username) {
   }
 }
 
-function showTakenPopup(username) {
+function showErrorPopup(title, message) {
   var old = document.getElementById('cooldownPopup');
   if (old) old.remove();
   var overlay = document.createElement('div');
   overlay.id = 'cooldownPopup';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = '<div style="background:#1a1a2e;border:3px solid #e53935;border-radius:12px;padding:30px 40px;text-align:center;max-width:380px;font-family:\'Press Start 2P\',monospace">' +
-    '<div style="font-size:0.5rem;color:#e53935;margin-bottom:16px">USERNAME TAKEN</div>' +
-    '<div style="font-size:0.35rem;color:#f5e6c8;line-height:1.8;margin-bottom:20px">"' + username + '" is already registered by another player.<br><br>Pick a different name.</div>' +
+    '<div style="font-size:0.5rem;color:#e53935;margin-bottom:16px">' + title + '</div>' +
+    '<div style="font-size:0.35rem;color:#f5e6c8;line-height:1.8;margin-bottom:20px">' + message + '</div>' +
     '<button onclick="document.getElementById(\'cooldownPopup\').remove()" style="font-family:\'Press Start 2P\',monospace;font-size:0.3rem;padding:10px 30px;background:linear-gradient(180deg,#c9a84c,#5c4409);color:#fff;border:2px solid #d4a017;border-radius:6px;cursor:pointer">OK</button>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -2447,12 +2440,16 @@ function showCooldownPopup(timeStr) {
 
 async function startHashCash() {
   var nameInput = document.getElementById('nameInput');
+  var passInput = document.getElementById('passInput');
   var username = nameInput.value.trim();
+  var password = passInput.value;
   if (!username) { nameInput.style.borderColor = '#e53935'; return; }
+  if (!password || password.length < 4) { passInput.style.borderColor = '#e53935'; dealerSay('Password must be at least 4 characters', 'sad'); return; }
 
   nameInput.disabled = true;
-  var joinData = await hashcashJoin(username);
-  if (!joinData) { nameInput.disabled = false; return; }
+  passInput.disabled = true;
+  var joinData = await hashcashJoin(username, password);
+  if (!joinData) { nameInput.disabled = false; passInput.disabled = false; return; }
 
   STATE.nftName = username;
   STATE.playerName = username;

@@ -1188,21 +1188,32 @@ async function handleHashCashJoin(request, env) {
   username = username.replace(/[^a-zA-Z0-9 _-]/g, '');
   if (!username) return json({ error: 'Invalid username — letters and numbers only' }, 400);
 
+  const password = (body.password || '').toString();
+  if (!password || password.length < 4) return json({ error: 'Password must be at least 4 characters' }, 400);
+
+  // Hash password with HMAC so we never store plaintext
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const enc = new TextEncoder();
+  const pwKey = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const pwSig = await crypto.subtle.sign('HMAC', pwKey, enc.encode(`pw:${username.toLowerCase()}:${password}`));
+  const passHash = btoa(String.fromCharCode(...new Uint8Array(pwSig)));
+
   const userKey = `hashcash:user:${username.toLowerCase()}`;
   const existingUser = await env.RUNNER_KV.get(userKey);
-  const clientSecret = body.secret || null;
 
   if (existingUser) {
-    // Username already registered — verify ownership
+    // Username already registered — verify password
     try {
       const userData = JSON.parse(existingUser);
-      if (!clientSecret || clientSecret !== userData.secret) {
-        return json({ error: 'Username already taken', taken: true }, 403);
+      if (passHash !== userData.passHash) {
+        return json({ error: 'Wrong password', wrongPass: true }, 403);
       }
-      // Verified owner — continue to cooldown check
     } catch (e) {
       return json({ error: 'Username already taken', taken: true }, 403);
     }
+  } else {
+    // New registration — store username + hashed password permanently
+    await env.RUNNER_KV.put(userKey, JSON.stringify({ username, passHash, registeredAt: Date.now() }));
   }
 
   // Check 24h cooldown
@@ -1218,18 +1229,6 @@ async function handleHashCashJoin(request, env) {
     } catch (e) {
       await env.RUNNER_KV.delete(cooldownKey);
     }
-  }
-
-  // Generate unique secret for this username (only on first registration)
-  let secret;
-  if (existingUser) {
-    secret = JSON.parse(existingUser).secret;
-  } else {
-    const arr = new Uint8Array(16);
-    crypto.getRandomValues(arr);
-    secret = btoa(String.fromCharCode(...arr));
-    // Store permanently — username is now reserved
-    await env.RUNNER_KV.put(userKey, JSON.stringify({ username, secret, registeredAt: Date.now() }));
   }
 
   // Generate HMAC session token (deterministic per username+key so DO can verify)
@@ -1248,7 +1247,7 @@ async function handleHashCashJoin(request, env) {
     sessionToken,
   }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
 
-  return json({ ok: true, username, sessionToken, secret, stack: 100 });
+  return json({ ok: true, username, sessionToken, stack: 100 });
 }
 
 // GET /hashcash/ws?table=X&username=Y&sessionToken=Z  (WebSocket upgrade)
