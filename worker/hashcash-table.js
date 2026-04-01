@@ -74,7 +74,8 @@ export class HashCashTable {
       const players = [];
       for (const [, pd] of playerKeys) {
         if (pd._disconnectedAt) continue; // disconnected, awaiting reconnect
-        players.push({ playerId: pd.player, name: pd.tokenId });
+        if (pd.spectator) continue; // spectators don't count
+        players.push({ playerId: pd.username || pd.player, name: pd.username || pd.player });
       }
       return new Response(JSON.stringify({ count: players.length, players }), {
         headers: { 'Content-Type': 'application/json' },
@@ -131,7 +132,7 @@ export class HashCashTable {
     let otherCount = 0;
     let selfReconnect = false;
     for (const [key, pd] of playerKeys) {
-      if (pd && pd.player && playerId.startsWith(pd.player)) {
+      if (pd && pd.player && playerId.toLowerCase() === pd.player) {
         selfReconnect = true;
         // Don't delete — auth handler will reuse the existing session with bets intact
       } else if (pd._disconnectedAt) {
@@ -640,25 +641,43 @@ export class HashCashTable {
     for (const val of Object.values(pd.comeBets || {})) total += val;
     for (const val of Object.values(pd.comeOdds || {})) total += val;
 
-    // Mark as spectator instead of removing — they can keep watching
-    pd.spectator = true;
-    pd.lockedScore = total;
-    pd.stack = 0;
-    pd.bets = {};
-    pd.comeBets = {};
-    pd.comeOdds = {};
-    await this.state.storage.put(`player:${nonce}`, pd);
+    const displayName = pd.username || username;
+    const playerId = pd.username || pd.player;
 
-    // Broadcast that player locked in
-    this._broadcast({ type: 'chat', playerId: 'system', name: 'System', text: `${pd.username || username} locked in ${total} chips!` });
-
-    // If they were the shooter, rotate
+    // If they were the shooter, rotate before removal
     const shooter = await this.state.storage.get('shooter');
-    if (shooter === nonce) {
-      await this._advanceShooter(nonce);
+    if (shooter === playerId) {
+      await this._advanceShooter(playerId);
     }
 
-    return jsonResp({ ok: true, score: total, username: pd.username || username });
+    // Remove player from table entirely
+    await this.state.storage.delete(`player:${nonce}`);
+
+    // Broadcast lock-in message and leave
+    this._broadcast({ type: 'chat', playerId: 'system', name: 'System', text: `${displayName} locked in ${total} chips!` });
+    this._broadcast({ type: 'leave', playerId }, null);
+
+    // Close their WebSocket
+    const sockets = this.state.getWebSockets();
+    for (const ws of sockets) {
+      try {
+        const att = ws.deserializeAttachment();
+        if (att && att.playerId === playerId) {
+          ws.close(1000, 'Locked in');
+        }
+      } catch (_) {}
+    }
+
+    // If table is now empty, full reset
+    const remaining = await this.state.storage.list({ prefix: 'player:' });
+    const connected = [...remaining].filter(([, p]) => !p._disconnectedAt);
+    if (remaining.size === 0) {
+      await this.state.storage.deleteAll();
+    } else if (connected.length === 0) {
+      await this.state.storage.put('game', { phase: 'comeout', point: 0, rolling: false, rollCount: 0, turnPhase: 'idle', turnDeadline: 0 });
+    }
+
+    return jsonResp({ ok: true, score: total, username: displayName });
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -815,11 +834,11 @@ export class HashCashTable {
       }
     }
 
-    // ── Idle check: warn at 5 min, kick at 10 min of no bets ──
+    // ── Idle check: warn at 10 min, kick at 15 min of no bets ──
     // Uses lastBetTime only — pong/heartbeat does NOT reset the idle timer.
     // Players can use other apps (socket disconnects are handled by grace period above).
-    const WARN_MS = 5 * 60 * 1000;
-    const KICK_MS = 10 * 60 * 1000;
+    const WARN_MS = 10 * 60 * 1000;
+    const KICK_MS = 15 * 60 * 1000;
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeys) {
       if (pd._disconnectedAt) continue; // handled by disconnect cleanup above
@@ -841,9 +860,9 @@ export class HashCashTable {
       }
 
       if (idleTime >= KICK_MS) {
-        // 10 minutes — kick
+        // 15 minutes — kick
         if (playerSocket) {
-          await this._kickPlayer(playerSocket, idlePlayerId, nonce, 'No bets for 10 minutes — removed from table');
+          await this._kickPlayer(playerSocket, idlePlayerId, nonce, 'No bets for 15 minutes — removed from table');
         } else {
           // Orphaned key (no socket) — delete directly
           await this.state.storage.delete(key);
@@ -863,7 +882,7 @@ export class HashCashTable {
           }
         }
       } else if (!pd._idleWarned && playerSocket) {
-        // 5 minutes — send warning (once)
+        // 10 minutes — send warning (once)
         try {
           playerSocket.send(JSON.stringify({ type: 'idle-warning', message: 'Place a bet in the next 5 minutes or you will be removed from the table' }));
         } catch (_) {}

@@ -1187,11 +1187,16 @@ async function handleHashCashJoin(request, env) {
   const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
   const existing = await env.RUNNER_KV.get(cooldownKey);
   if (existing) {
-    const data = JSON.parse(existing);
-    const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
-    const hours = Math.floor(remaining / 3600);
-    const mins = Math.floor((remaining % 3600) / 60);
-    return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
+    try {
+      const data = JSON.parse(existing);
+      const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
+      const hours = Math.floor(remaining / 3600);
+      const mins = Math.floor((remaining % 3600) / 60);
+      return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
+    } catch (e) {
+      // Corrupted KV data — delete and allow
+      await env.RUNNER_KV.delete(cooldownKey);
+    }
   }
 
   // Set cooldown (starts NOW at join time)
@@ -1238,7 +1243,7 @@ async function handleHashCashLockin(request, env) {
   const body = await parseBody(request);
   const { username, score } = body;
   if (!username || typeof username !== 'string') return json({ error: 'Invalid username' }, 400);
-  if (!score || typeof score !== 'number' || score <= 100) return json({ error: 'Score must beat 100' }, 400);
+  if (!score || typeof score !== 'number' || !isFinite(score) || score <= 100 || score > 100000) return json({ error: 'Score must beat 100' }, 400);
 
   // Save to leaderboard
   const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];

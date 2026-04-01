@@ -6,7 +6,7 @@
   <title>HashCash Craps | Last Chad</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="nav.css" />
+
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{
@@ -42,20 +42,13 @@
       white-space:nowrap;
     }
     .header-action-btn:hover{background:linear-gradient(180deg,#66bb6a 0%,#388e3c 100%)}
-    .header-action-btn.cashout-mode{
-      border-color:#e53935;
-      background:linear-gradient(180deg,#e53935 0%,#b71c1c 100%);
-      color:#fff;
-    }
-    .header-action-btn.cashout-mode:hover{background:linear-gradient(180deg,#ef5350 0%,#c62828 100%)}
-    .wallet-btn{
+    .header-label{
       font-family:'Press Start 2P',monospace;font-size:0.35rem;
-      padding:6px 12px;border-radius:5px;cursor:pointer;
+      padding:6px 12px;border-radius:5px;
       border:2px solid #5c4409;color:#1a1005;
       background:linear-gradient(180deg,#c9a84c 0%,#8b6914 100%);
       box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
     }
-    .wallet-btn:hover{background:linear-gradient(180deg,#dabb5e 0%,#a07d1e 100%)}
     .nav-wrapper{position:static}
 
     /* ── Main Layout ── */
@@ -725,9 +718,9 @@
   <div class="header-left">
     <button class="header-action-btn" id="clearBetsBtn" onclick="clearBets()">CLEAR</button>
     <button class="header-action-btn" id="muteBtn" onclick="toggleMute()">MUTE</button>
-    <button class="header-action-btn cashout-mode" id="cashOutBtn" onclick="lockInScore()">LOCK IN</button>
+    <button class="header-action-btn" id="cashOutBtn" onclick="lockInScore()">LOCK IN</button>
   </div>
-  <button class="wallet-btn" id="walletBtn" style="pointer-events:none">HASHCASH</button>
+  <div class="header-label" id="walletBtn">HASHCASH</div>
 </div>
 
 <!-- ── Custom Confirm Dialog ── -->
@@ -1121,11 +1114,11 @@ function resetPuckPosition() {
 
 function syncPuck() {
   if (STATE.phase === 'point' && STATE.point) {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jipton.png';
+    document.getElementById('puckImg').src = '../assets/Oldjipt/Craps/jipton.png';
     document.getElementById('puck').classList.add('on-glow');
     movePuckToPoint(STATE.point);
   } else {
-    document.getElementById('puckImg').src = 'assets/Oldjipt/Craps/jiptoff.png';
+    document.getElementById('puckImg').src = '../assets/Oldjipt/Craps/jiptoff.png';
     document.getElementById('puck').classList.remove('on-glow');
     resetPuckPosition();
   }
@@ -1694,19 +1687,12 @@ async function handleRollResult(data) {
     });
   }, 1500);
 
-  // Auto-cashout on bust
+  // Bust — player is out, no cashout endpoint for HashCash
   if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
     dealerSay("You're busted! Better luck next time.", 'sad');
     STATE.isRolling = false;
     _pendingRollData = null;
-    _pendingTurnPhase = null; // don't replay — player is leaving
-    try {
-      await fetchWithTimeout(WORKER_URL + '/craps/cashout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tokenId: STATE.tokenId, nonce: STATE.nonce, sessionToken: STATE.sessionToken, sessionTokenTs: STATE.sessionTokenTs, tableCode: currentTableCode }),
-      });
-    } catch (_) {}
+    _pendingTurnPhase = null;
     STATE.nonce = null;
     setTimeout(() => { window.location.href = 'chadbase.html'; }, 3000);
     return;
@@ -1819,7 +1805,7 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint, isPointMade) {
   const subEl = document.getElementById('announcerSub');
   const diceContainer = document.getElementById('announcerDice');
 
-  img.src = 'assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
+  img.src = '../assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
   call.textContent = callText;
   subEl.textContent = sub || '';
 
@@ -1859,7 +1845,7 @@ function dealerSay(text, mood) {
   const subEl = document.getElementById('announcerSub');
   const diceContainer = document.getElementById('announcerDice');
 
-  img.src = 'assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
+  img.src = '../assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
   call.textContent = text;
   subEl.textContent = '';
   diceContainer.innerHTML = '';
@@ -1931,28 +1917,16 @@ async function lockInScore() {
     var data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Lock-in failed');
 
-    // Submit to leaderboard if score beats 100
-    if (total > 100) {
-      try {
-        await fetch(WORKER_URL + '/hashcash/lockin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: STATE.nftName, score: total }),
-        });
-      } catch (_) {}
-    }
-
-    STATE.spectator = true;
-    STATE.stack = 0;
-    STATE.bets = {};
-    renderAllBetChips();
-    updateLocalPlayerUI();
-    dealerSay('Score locked: ' + total + ' chips! You are now spectating.', 'happy');
+    dealerSay('Score locked: ' + total + ' chips!', 'happy');
     showToast('+' + total, 'win', 'Locked In!');
 
-    // Show spectator UI
-    document.getElementById('cashOutBtn').textContent = 'LEAVE';
-    document.getElementById('cashOutBtn').onclick = function() { exitTable(); };
+    // Close WebSocket — server already removed us from the table
+    if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
+    currentTableCode = null; // prevent auto-reconnect
+    if (_tableWs) { try { _tableWs.close(1000, 'Locked in'); } catch(_){} _tableWs = null; }
+
+    // Return to start screen after a short delay
+    setTimeout(function() { location.reload(); }, 3000);
 
   } catch (err) {
     cashingOut = false;
@@ -2399,12 +2373,10 @@ setInterval(refreshLobbyTables, 10_000);
 
 // Heartbeat: DO pings every 30s, client responds with pong (handled in handleWsMessage).
 window.addEventListener('beforeunload', (e) => {
-  // Skip warning during cashout — WalletConnect may trigger navigation for signing
   if (!cashingOut && STATE.nonce && STATE.stack > 0) {
     e.preventDefault();
-    e.returnValue = 'You have cells on the table! Cash out first or they will be lost.';
+    e.returnValue = 'You have chips on the table! Lock in your score first or they will be lost.';
   }
-  // Always close the WS so the DO fires _handleDisconnect and cleans up player:* data
   if (!cashingOut) disconnectTable();
 });
 
