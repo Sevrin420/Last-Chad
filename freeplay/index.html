@@ -1967,17 +1967,19 @@ function escapeHtml(str) { const d=document.createElement('div'); d.textContent=
 
 // ── Cash Out ──
 async function lockInScore() {
-  if (STATE.stack <= 0) { dealerSay('Nothing to lock in!', 'sad'); return; }
-  if (!(await gameConfirm('Lock in score of ' + _freeplayPeakChips + ' chips?'))) return;
-  dealerSay('Score locked: ' + _freeplayPeakChips + ' chips!', 'happy');
-  addChatMsg('system', STATE.nftName + ' locked in ' + _freeplayPeakChips + ' chips!');
+  let total = STATE.stack;
+  for (const v of Object.values(STATE.bets)) total += v;
+  if (total <= 0) { dealerSay('Nothing to lock in!', 'sad'); return; }
+  if (!(await gameConfirm('Lock in ' + total + ' chips to the leaderboard?'))) return;
+  dealerSay('Score locked: ' + total + ' chips!', 'happy');
+  addChatMsg('system', STATE.nftName + ' locked in ' + total + ' chips!');
   // Submit to global leaderboard (only if they beat the starting 100)
-  if (_freeplayPeakChips > 100) {
+  if (total > 100) {
     try {
       await fetch(WORKER_URL + '/freeplay/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: STATE.nftName, chips: _freeplayPeakChips }),
+        body: JSON.stringify({ name: STATE.nftName, chips: total }),
       });
     } catch (_) { /* non-critical */ }
   }
