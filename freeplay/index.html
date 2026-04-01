@@ -520,6 +520,14 @@
       font-family:'Press Start 2P',monospace;font-size:0.9rem;
       padding:9px 18px;background:#2e7d32;border:1px solid #4caf50;border-radius:3px;color:#fff;cursor:pointer;
     }
+    .quick-bet-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.32rem;
+      padding:8px 14px;background:rgba(30,22,8,0.8);border:2px solid #5c4409;border-radius:4px;
+      color:#c9a84c;cursor:pointer;transition:all 0.15s;letter-spacing:0.05em;
+      box-shadow:inset -1px -1px 0 #1a1200,inset 1px 1px 0 #3d2e0a,1px 1px 0 #000;
+    }
+    .quick-bet-btn:hover{border-color:#c9a84c;background:rgba(50,36,10,0.85)}
+    .quick-bet-btn:active{transform:translateY(1px)}
 
     /* ── Custom Confirm Dialog (dApp browser safe) ── */
     .confirm-overlay{
@@ -907,42 +915,26 @@
 
   </div><!-- /table-area -->
 
-  <!-- CHAT BOX -->
-  <div class="chat-box">
-    <div class="chat-messages" id="chatMessages">
-      <div class="chat-msg system-msg" id="welcomeMsg">Welcome!</div>
+  <!-- QUICK BET PANEL (replaces chat + player bar for single-player) -->
+  <div class="chat-box" style="padding:8px 12px;display:flex;flex-direction:column;gap:6px;min-height:auto">
+    <div style="font-size:0.32rem;color:#8a7a5a;text-align:center;letter-spacing:0.1em;margin-bottom:2px">QUICK BETS</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+      <button class="quick-bet-btn" onclick="quickBet27Across()">27 ACROSS</button>
+      <button class="quick-bet-btn" onclick="quickBetIronCross()">IRON CROSS</button>
+      <button class="quick-bet-btn" onclick="quickBetWorld()">WORLD</button>
     </div>
-    <div class="chat-input-area">
-      <input class="chat-input" id="chatInput" placeholder="Type..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()" />
-      <button class="chat-send" onclick="sendChat()">></button>
+    <div class="chat-messages" id="chatMessages" style="max-height:60px;min-height:30px">
+      <div class="chat-msg system-msg" id="welcomeMsg">Welcome!</div>
     </div>
   </div>
 
-  <!-- Player Bar (below chat) -->
+  <!-- Local Player Only -->
   <div class="player-bar">
     <div class="remote-card local-card" id="slot-0" data-seat="0">
       <div class="remote-avatar" id="avatar-0">
         <img id="avatarImg-0" src="" alt="" />
       </div>
       <div class="remote-name" id="name-0">You</div>
-    </div>
-    <div class="remote-card" id="slot-1" data-seat="1">
-      <div class="remote-avatar" id="avatar-1">
-        <img id="avatarImg-1" src="" alt="" />
-      </div>
-      <div class="remote-name" id="name-1">Waiting</div>
-    </div>
-    <div class="remote-card" id="slot-2" data-seat="2">
-      <div class="remote-avatar" id="avatar-2">
-        <img id="avatarImg-2" src="" alt="" />
-      </div>
-      <div class="remote-name" id="name-2">Waiting</div>
-    </div>
-    <div class="remote-card" id="slot-3" data-seat="3">
-      <div class="remote-avatar" id="avatar-3">
-        <img id="avatarImg-3" src="" alt="" />
-      </div>
-      <div class="remote-name" id="name-3">Waiting</div>
     </div>
   </div>
 
@@ -2461,6 +2453,52 @@ function showLeaderboard() {
   document.getElementById('lbOverlay').style.display = 'flex';
 }
 
+// ── Quick Bet Combos ──
+
+// 27 Across: place bets on all 6 numbers (4,5,6,8,9,10)
+// Classic spread: 5 on 4, 5 on 5, 6 on 6, 6 on 8, 5 on 9, 5 on 10 = 32 total
+// Scaled version: 4 on 4, 4 on 5, 5 on 6, 5 on 8, 4 on 9, 4 on 10 = 26 total (fits 100 chip start)
+function quickBet27Across() {
+  if (STATE.isRolling) return;
+  const cost = 26;
+  if (STATE.stack < cost) { dealerSay("Not enough chips for 27 Across!", 'sad'); return; }
+  placeBet('place4', 4);
+  placeBet('place5', 4);
+  placeBet('place6', 5);
+  placeBet('place8', 5);
+  placeBet('place9', 4);
+  placeBet('place10', 4);
+  dealerSay("Across the board! Let's see some numbers!", 'happy');
+}
+
+// Iron Cross: field + place 5, 6, 8 (covers every number except 7)
+// 5 on field, 5 on place5, 6 on place6, 6 on place8 = 22 total
+function quickBetIronCross() {
+  if (STATE.isRolling) return;
+  const cost = 22;
+  if (STATE.stack < cost) { dealerSay("Not enough chips for the Iron Cross!", 'sad'); return; }
+  placeBet('field', 5);
+  placeBet('place5', 5);
+  placeBet('place6', 6);
+  placeBet('place8', 6);
+  dealerSay("Iron Cross! Everything hits except the 7!", 'neutral');
+}
+
+// World: pass + field + hardways (4,6,8,10) — a bit of everything
+// 5 on pass, 5 on field, 2 on each hardway = 18 total
+function quickBetWorld() {
+  if (STATE.isRolling) return;
+  const cost = 18;
+  if (STATE.stack < cost) { dealerSay("Not enough chips for a World bet!", 'sad'); return; }
+  placeBet('pass', 5);
+  placeBet('field', 5);
+  placeBet('hard4', 2);
+  placeBet('hard6', 2);
+  placeBet('hard8', 2);
+  placeBet('hard10', 2);
+  dealerSay("World bet! A little bit of everything!", 'happy');
+}
+
 window.rollDice = rollDice;
 window.lockInScore = lockInScore;
 window.startFreeplay = startFreeplay;
@@ -2469,6 +2507,9 @@ window.placeBet = placeBet;
 window.selectChip = selectChip;
 window.clearBets = clearBets;
 window.sendChat = sendChat;
+window.quickBet27Across = quickBet27Across;
+window.quickBetIronCross = quickBetIronCross;
+window.quickBetWorld = quickBetWorld;
 window.copyInviteCode = copyInviteCode;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
