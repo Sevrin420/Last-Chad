@@ -1178,7 +1178,7 @@ function renderAllBetChips() {
       chip.textContent = STATE.bets[betKey];
       container.appendChild(chip);
     }
-    for (let s = 1; s <= 2; s++) {
+    for (let s = 1; s <= 3; s++) {
       const rb = STATE.remoteBets[s];
       if (rb && rb[betKey] && rb[betKey] > 0) {
         const chip = document.createElement('div');
