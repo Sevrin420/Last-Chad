@@ -2374,14 +2374,27 @@ renderDie(document.getElementById('face2'), 5);
 // startFreeplay() is called when they enter their name.
 
 // ── Freeplay turn phase management ──
+let _freeplayBetTimerDone = false;
+
 function _freeplayStartBetPhase() {
   turnPhase = 'betting';
   betsLocked = false;
+  _freeplayBetTimerDone = false;
   const diceEl = document.getElementById('tableDice');
   diceEl.classList.remove('can-roll');
   diceEl.classList.add('locked');
   document.getElementById('rollPrompt').style.display = 'none';
   updateLocalPlayerUI();
+  startTimer(10, 'PLACE BETS', () => {
+    _freeplayBetTimerDone = true;
+    // If a bet already exists, enable dice
+    if (Object.values(STATE.bets).reduce((s,v) => s+v, 0) > 0) {
+      turnPhase = 'rolling';
+      diceEl.classList.add('can-roll');
+      diceEl.classList.remove('locked');
+      document.getElementById('rollPrompt').style.display = '';
+    }
+  });
 }
 
 function _freeplayStartRollPhase() {
@@ -2393,18 +2406,17 @@ function _freeplayStartRollPhase() {
   document.getElementById('rollPrompt').style.display = '';
 }
 
-// Override placeBet: enable dice once a bet exists, but keep bets open (unlimited bets)
+// Override placeBet: enable dice only after 10s bet timer expires
 const _origPlaceBet = placeBet;
 placeBet = function(zone, amt) {
   _origPlaceBet(zone, amt);
-  // Enable dice click as soon as any bet exists, without locking bet zones
-  if (Object.values(STATE.bets).reduce((s,v) => s+v, 0) > 0 && turnPhase === 'betting') {
+  // Only enable dice if bet timer has finished and bets exist
+  if (_freeplayBetTimerDone && Object.values(STATE.bets).reduce((s,v) => s+v, 0) > 0 && turnPhase === 'betting') {
     turnPhase = 'rolling';
     const diceEl = document.getElementById('tableDice');
     diceEl.classList.add('can-roll');
     diceEl.classList.remove('locked');
     document.getElementById('rollPrompt').style.display = '';
-    // betsLocked stays false — player can keep adding bets before rolling
   }
 };
 
