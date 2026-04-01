@@ -300,12 +300,11 @@
       border:3px solid;
       z-index:11;
     }
-    /* Chip colors by value: white <5, red 5-24, green 25-99, black 100-499, purple 500+ */
-    .bet-chip-token.cv-white {background:#e8e8e8;border-color:#aaa;color:#222}
+    /* Chip colors by value: red 1-4, green 5-9, yellow 10-24, blue 25+ */
     .bet-chip-token.cv-red   {background:#c0392b;border-color:#e74c3c;color:#fff}
     .bet-chip-token.cv-green {background:#27ae60;border-color:#2ecc71;color:#fff}
-    .bet-chip-token.cv-black {background:#1a1a1a;border-color:#888;color:#eee}
-    .bet-chip-token.cv-purple{background:#6c3483;border-color:#9b59b6;color:#fff}
+    .bet-chip-token.cv-yellow{background:#d4a017;border-color:#f1c40f;color:#1a1005}
+    .bet-chip-token.cv-blue  {background:#2471a3;border-color:#3498db;color:#fff}
     .bet-chip-token.off{opacity:0.35;filter:grayscale(0.6)}
     /* ── Place Bets chip positions — inside boxes ──
        p0 (local): top-left, p1 (remote1): top-right, p2 (remote2): bottom-left */
@@ -1119,11 +1118,10 @@ function startDiceSpin() {
 }
 
 function _chipColorClass(amount) {
-  if (amount >= 500) return 'cv-purple';
-  if (amount >= 100) return 'cv-black';
-  if (amount >= 25)  return 'cv-green';
-  if (amount >= 5)   return 'cv-red';
-  return 'cv-white';
+  if (amount >= 25) return 'cv-blue';
+  if (amount >= 10) return 'cv-yellow';
+  if (amount >= 5)  return 'cv-green';
+  return 'cv-red';
 }
 
 function renderAllBetChips() {
