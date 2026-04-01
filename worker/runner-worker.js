@@ -87,6 +87,7 @@ const HASHCASH_PUBLIC_TABLES = [
   { name: 'hashcash-1', label: 'HASHCASH TABLE 1' },
   { name: 'hashcash-2', label: 'HASHCASH TABLE 2' },
   { name: 'hashcash-3', label: 'HASHCASH TABLE 3' },
+  { name: 'hashcash-4', label: 'HASHCASH TABLE 4' },
 ];
 const HASHCASH_PRIVATE_TABLES = 5;
 const HASHCASH_COOLDOWN_TTL = 86_400; // 24 hours
