@@ -148,6 +148,14 @@ export default {
         return await handleTableList(env);
       }
 
+      // Freeplay leaderboard
+      if (request.method === 'GET' && url.pathname === '/freeplay/leaderboard') {
+        return await handleFreeplayLeaderboard(env);
+      }
+      if (request.method === 'POST' && url.pathname === '/freeplay/score') {
+        return await handleFreeplayScore(request, env);
+      }
+
       // Admin: view kick log (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
       if (request.method === 'GET' && url.pathname === '/craps/kick-log') {
         const auth = request.headers.get('Authorization') || '';
@@ -1100,4 +1108,28 @@ async function buildAgoraToken006(appId, appCert, channelName, uidStr, privilege
   const b64 = btoa(String.fromCharCode(...packed));
 
   return '006' + appId + b64;
+}
+
+
+// ── Freeplay Leaderboard ──
+const FREEPLAY_LB_KEY = 'freeplay:leaderboard';
+const FREEPLAY_LB_MAX = 50;
+
+async function handleFreeplayLeaderboard(env) {
+  const lb = await env.RUNNER_KV.get(FREEPLAY_LB_KEY, { type: 'json' }) || [];
+  return json({ ok: true, leaderboard: lb.slice(0, 20) });
+}
+
+async function handleFreeplayScore(request, env) {
+  let body;
+  try { body = await request.json(); } catch (_) { return json({ error: 'bad json' }, 400); }
+  const { name, chips } = body;
+  if (!name || typeof name !== 'string' || name.length > 32) return json({ error: 'invalid name' }, 400);
+  if (!chips || typeof chips !== 'number' || chips <= 100) return json({ error: 'score must beat 100' }, 400);
+
+  const lb = await env.RUNNER_KV.get(FREEPLAY_LB_KEY, { type: 'json' }) || [];
+  lb.push({ name: name.trim(), chips, date: new Date().toISOString().slice(0, 10) });
+  lb.sort((a, b) => b.chips - a.chips);
+  await env.RUNNER_KV.put(FREEPLAY_LB_KEY, JSON.stringify(lb.slice(0, FREEPLAY_LB_MAX)));
+  return json({ ok: true, rank: lb.findIndex(e => e.name === name.trim() && e.chips === chips) + 1 });
 }
