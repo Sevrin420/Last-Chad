@@ -697,8 +697,8 @@ export class HashCashTable {
     for (const [key, pd] of playerKeys) {
       const nonce = key.replace('player:', '');
       players.push({
-        playerId: pd.player + '-' + pd.tokenId,
-        name:     pd.tokenId,
+        playerId: pd.username || pd.player,
+        name:     pd.username || pd.player,
         chadId:   Number(pd.tokenId) || 0,
         stack:    pd.stack || 0,
         bets:     pd.bets || {},
@@ -749,7 +749,7 @@ export class HashCashTable {
         if (shooter) {
           const playerKeys = await this.state.storage.list({ prefix: 'player:' });
           for (const [, pd] of playerKeys) {
-            const pid = (pd.player || '') + '-' + (pd.tokenId || '');
+            const pid = pd.username || pd.player || '';
             if (pid === shooter && pd.bets && pd.bets.pass > 0) {
               shooterHasBet = true;
               break;
@@ -796,7 +796,7 @@ export class HashCashTable {
     const playerKeysForDisconnect = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeysForDisconnect) {
       if (pd._disconnectedAt && (now - pd._disconnectedAt) >= DISCONNECT_GRACE_MS) {
-        const dcPlayerId = pd.player + '-' + pd.tokenId;
+        const dcPlayerId = pd.username || pd.player;
         await this.state.storage.delete(key);
         // Rotate shooter if needed
         const shooter = await this.state.storage.get('shooter');
@@ -805,7 +805,7 @@ export class HashCashTable {
           const conn = [...rem].filter(([, p]) => !p._disconnectedAt);
           if (conn.length > 0) {
             const [, nextPd] = conn[0];
-            const ns = nextPd.player + '-' + nextPd.tokenId;
+            const ns = nextPd.username || nextPd.player;
             await this.state.storage.put('shooter', ns);
             this._broadcast({ type: 'shooter', playerId: ns }, null);
           } else if (rem.size === 0) {
@@ -828,7 +828,7 @@ export class HashCashTable {
       const idleTime = now - lastBet;
       if (idleTime < WARN_MS) continue; // active, skip
 
-      const idlePlayerId = pd.player + '-' + pd.tokenId;
+      const idlePlayerId = pd.username || pd.player;
       const nonce = key.replace('player:', '');
 
       // Find their socket
@@ -854,7 +854,7 @@ export class HashCashTable {
             const conn = [...remaining].filter(([, p]) => !p._disconnectedAt);
             if (conn.length > 0) {
               const [, nextPd] = conn[0];
-              const ns = nextPd.player + '-' + nextPd.tokenId;
+              const ns = nextPd.username || nextPd.player;
               await this.state.storage.put('shooter', ns);
               this._broadcast({ type: 'shooter', playerId: ns }, null);
             } else if (remaining.size === 0) {
@@ -930,7 +930,7 @@ export class HashCashTable {
     const playerIds = [];
     for (const [, pd] of remaining) {
       if (pd._disconnectedAt || pd.spectator) continue;
-      playerIds.push(pd.player + '-' + pd.tokenId);
+      playerIds.push(pd.username || pd.player);
     }
     if (playerIds.length === 0) return;
 
@@ -1067,7 +1067,7 @@ export class HashCashTable {
     const shooter = await this.state.storage.get('shooter');
     if (shooter === playerId && connected.length > 0) {
       const [, nextPd] = connected[0];
-      const nextShooter = nextPd.player + '-' + nextPd.tokenId;
+      const nextShooter = nextPd.username || nextPd.player;
       await this.state.storage.put('shooter', nextShooter);
       this._broadcast({ type: 'shooter', playerId: nextShooter }, null);
     }
