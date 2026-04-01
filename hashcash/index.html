@@ -627,79 +627,49 @@
     .lobby-table-name{font-size:0.3rem;color:#ccc}
     .lobby-table-players{font-size:0.25rem;color:#4caf50}
 
-    /* ── Tablet & Desktop: side-by-side layout ── */
+    /* ── Tablet & Desktop: single column, centered, scaled up ── */
     @media(min-width:601px){
       body{overflow:auto}
       .table-wrapper{
-        flex-direction:row;
-        flex-wrap:wrap;
+        flex-direction:column;
         height:auto;
         min-height:calc(100vh - 40px);
-        max-width:1200px;
+        max-width:700px;
         margin:0 auto;
       }
-      .table-area{
-        flex:1 1 60%;
-        min-width:0;
-        max-height:none;
-        overflow:visible;
-      }
-      .felt-container{
-        max-height:none;
-        margin:0 4px 2px 4px;
-      }
-      .table-image-wrap > .table-bg{
-        width:100%;
-        height:auto;
-        object-fit:contain;
-      }
-      /* Right sidebar: chat */
+      .table-area{max-height:none;overflow:visible}
+      .felt-container{max-height:none}
+      .table-image-wrap > .table-bg{width:100%;height:auto}
       .chat-box{
-        flex:0 0 280px;
-        width:280px;
-        height:calc(100vh - 40px);
-        max-height:calc(100vh - 40px);
-        position:sticky;
-        top:40px;
-        border-top:none;
-        border-left:2px solid #2a3a1a;
-        border-bottom:none;
-        overflow:hidden;
+        flex:0 0 220px;height:220px;width:100%;
+        border-top:2px solid #2a3a1a;border-bottom:2px solid #2a3a1a;
       }
-      .chat-messages{font-size:0.3rem}
-      .chat-input{font-size:0.28rem}
-      /* Header full width */
+      .chat-messages{font-size:0.32rem}
+      .chat-input{font-size:0.3rem}
+      .chat-send{font-size:1rem;padding:10px 20px}
       .game-header{padding:6px 20px}
       .header-action-btn{font-size:0.4rem;padding:8px 16px}
       .header-label{font-size:0.4rem;padding:8px 16px}
-      /* Bigger stack display */
       .table-stack-value{font-size:1.6rem}
-      /* Bigger announcer */
       .announcer-portrait{width:120px;height:140px}
       .announcer-call{font-size:0.9rem}
       .announcer-sub{font-size:0.45rem}
       .announcer-die{width:50px;height:50px}
-      /* Bigger result toast */
       .result-toast{font-size:1.1rem;padding:24px 44px}
       .result-toast .toast-sub{font-size:0.4rem}
-      /* Lobby */
       .lobby-box{max-width:600px}
       .lobby-title{font-size:0.8rem}
+      .bet-chip-token{width:32px;height:32px;font-size:0.2rem}
     }
 
-    /* ── Large Desktop: wider chat, centered content ── */
+    /* ── Large Desktop: wider column ── */
     @media(min-width:1024px){
-      .table-wrapper{max-width:1400px}
-      .chat-box{
-        flex:0 0 340px;
-        width:340px;
-      }
+      .table-wrapper{max-width:900px}
+      .chat-box{flex:0 0 260px;height:260px}
       .chat-msg{font-size:0.35rem}
       .chat-input{font-size:0.32rem;padding:10px}
-      .chat-send{font-size:1rem;padding:10px 20px}
       .table-chip-tray .chip{width:56px;height:56px}
       .die{width:80px;height:80px}
-      .bet-chip-token{width:32px;height:32px;font-size:0.2rem}
     }
 
     /* ── Responsive (mobile) ── */
