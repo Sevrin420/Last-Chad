@@ -1912,7 +1912,7 @@ async function lockInScore() {
     var res = await fetchWithTimeout(WORKER_URL + '/hashcash/lockin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: STATE.nftName, sessionToken: STATE.sessionToken }),
+      body: JSON.stringify({ username: STATE.nftName, sessionToken: STATE.sessionToken, table: currentTableCode }),
     });
     var data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Lock-in failed');
@@ -2390,7 +2390,16 @@ async function hashcashJoin(username) {
     });
     var data = await res.json();
     if (!data.ok) {
-      dealerSay(data.error || 'Join failed', 'sad');
+      if (data.cooldown) {
+        // Show cooldown popup
+        var remaining = data.remaining || 0;
+        var h = Math.floor(remaining / 3600);
+        var m = Math.floor((remaining % 3600) / 60);
+        var timeStr = h > 0 ? h + 'h ' + m + 'm' : m + ' minutes';
+        showCooldownPopup(timeStr);
+      } else {
+        dealerSay(data.error || 'Join failed', 'sad');
+      }
       return null;
     }
     return data;
@@ -2398,6 +2407,21 @@ async function hashcashJoin(username) {
     dealerSay('Server error: ' + (err.message || 'try again'), 'sad');
     return null;
   }
+}
+
+function showCooldownPopup(timeStr) {
+  // Remove existing popup if any
+  var old = document.getElementById('cooldownPopup');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'cooldownPopup';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="background:#1a1a2e;border:3px solid #d4a017;border-radius:12px;padding:30px 40px;text-align:center;max-width:380px;font-family:\'Press Start 2P\',monospace">' +
+    '<div style="font-size:0.5rem;color:#ffd700;margin-bottom:16px">COOLDOWN ACTIVE</div>' +
+    '<div style="font-size:0.35rem;color:#f5e6c8;line-height:1.8;margin-bottom:20px">You already played today!<br>Come back in <span style="color:#ffe96a">' + timeStr + '</span></div>' +
+    '<button onclick="document.getElementById(\'cooldownPopup\').remove()" style="font-family:\'Press Start 2P\',monospace;font-size:0.3rem;padding:10px 30px;background:linear-gradient(180deg,#c9a84c,#5c4409);color:#fff;border:2px solid #d4a017;border-radius:6px;cursor:pointer">OK</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
 }
 
 async function startHashCash() {

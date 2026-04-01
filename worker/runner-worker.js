@@ -1238,21 +1238,35 @@ async function handleHashCashWebSocket(request, url, env) {
   return stub.fetch(request);
 }
 
-// POST /hashcash/lockin  { username, sessionToken, score }
+// POST /hashcash/lockin  { username, sessionToken, table }
 async function handleHashCashLockin(request, env) {
   const body = await parseBody(request);
-  const { username, score } = body;
+  const { username, table } = body;
   if (!username || typeof username !== 'string') return json({ error: 'Invalid username' }, 400);
-  if (!score || typeof score !== 'number' || !isFinite(score) || score <= 100) return json({ error: 'Score must beat 100' }, 400);
+  if (!table || !isValidHashCashTable(table)) return json({ error: 'Invalid table' }, 400);
 
-  // Save to leaderboard
-  const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
-  lb.push({ name: username.trim(), chips: score, date: new Date().toISOString().slice(0, 10) });
-  lb.sort((a, b) => b.chips - a.chips);
-  await env.RUNNER_KV.put(HASHCASH_LB_KEY, JSON.stringify(lb.slice(0, HASHCASH_LB_MAX)));
+  // Forward to DO — it calculates score from stack+bets and removes the player
+  const id = env.HASHCASH_TABLE.idFromName(table);
+  const stub = env.HASHCASH_TABLE.get(id);
+  const doRes = await stub.fetch(new Request('https://do/lockin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  }));
+  const doData = await doRes.json();
+  if (!doData.ok) return json(doData, doRes.status);
 
-  const rank = lb.findIndex(e => e.name === username.trim() && e.chips === score) + 1;
-  return json({ ok: true, rank });
+  const score = doData.score;
+
+  // Save to leaderboard if score beats starting chips
+  if (score > 100) {
+    const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
+    lb.push({ name: username.trim(), chips: score, date: new Date().toISOString().slice(0, 10) });
+    lb.sort((a, b) => b.chips - a.chips);
+    await env.RUNNER_KV.put(HASHCASH_LB_KEY, JSON.stringify(lb.slice(0, HASHCASH_LB_MAX)));
+  }
+
+  return json({ ok: true, score });
 }
 
 // GET /hashcash/tables — public table player counts
