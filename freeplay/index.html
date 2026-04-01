@@ -728,8 +728,19 @@
   <video id="introVideo" playsinline preload="auto" style="display:none;width:100%;height:100%;object-fit:contain">
     <source src="../assets/chazzyp/freecrapsvideo.mp4" type="video/mp4">
   </video>
-  <div id="enterWorldPrompt" style="display:flex;flex-direction:column;align-items:center;gap:20px">
+  <div id="enterWorldPrompt" style="display:flex;flex-direction:column;align-items:center;gap:20px;max-width:500px;width:90%">
     <button onclick="playIntroVideo()" style="font-family:'Press Start 2P',monospace;font-size:1.2rem;padding:40px 80px;background:linear-gradient(180deg,#c9a84c 0%,#8b6914 50%,#5c4409 100%);color:#fff;border:4px solid #d4a017;cursor:pointer;border-radius:10px;text-shadow:2px 2px 0 #000;box-shadow:0 6px 0 #3d2e0a;line-height:1.6">ENTER</button>
+    <div style="background:rgba(0,0,0,0.8);padding:18px 22px;border-radius:8px;border:1px solid #5c4409;font-family:'Press Start 2P',monospace;font-size:0.28rem;color:#f5e6c8;line-height:2.2;text-align:left">
+      <div style="color:#c9a84c;text-align:center;font-size:0.35rem;margin-bottom:12px">HOW TO PLAY</div>
+      Place your bet on the <span style="color:#4caf50">PASS LINE</span> to begin.<br><br>
+      On the first roll (the Come Out roll):<br>
+      <span style="color:#4caf50">7 or 11</span> = Instant Winner!<br>
+      <span style="color:#e74c3c">2, 3, or 12</span> = Instant Loss.<br><br>
+      If any other number is rolled — <span style="color:#c9a84c">4, 5, 6, 8, 9, 10</span> — it becomes the <span style="color:#4caf50">POINT</span>.<br><br>
+      Now roll your <span style="color:#4caf50">POINT</span> to win.<br>
+      Roll a <span style="color:#e74c3c">7</span> before your POINT and all bets are lost.<br><br>
+      Upon a <span style="color:#e74c3c">7-out</span> or making the POINT, the game resets with a new Come Out roll.
+    </div>
   </div>
   <button id="skipBtn" onclick="skipIntro()" style="display:none;position:absolute;bottom:40px;right:30px;font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:10px 20px;background:rgba(0,0,0,0.6);color:#c9a84c;border:2px solid #5c4409;cursor:pointer;border-radius:6px;z-index:10001">SKIP</button>
 </div>
