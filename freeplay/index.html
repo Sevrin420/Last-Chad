@@ -1032,9 +1032,9 @@ function selectChip(value) {
 }
 
 // ── Bet Placement ──
-async function placeBet(zone) {
+async function placeBet(zone, overrideAmount) {
   if (STATE.isRolling || betsLocked) return;
-  const amount = STATE.selectedChip;
+  const amount = overrideAmount || STATE.selectedChip;
   if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
   // Client-side phase validation (fast feedback; DO re-validates server-side)
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
