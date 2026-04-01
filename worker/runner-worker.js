@@ -40,11 +40,15 @@
 import { ethers } from 'ethers';
 export { CrapsTable } from './craps-table.js';
 
-const CORS = {
-  'Access-Control-Allow-Origin': 'https://lastchad.xyz',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+const ALLOWED_ORIGINS = ['https://lastchad.xyz', 'https://enterthegrotto.xyz'];
+function getCors(request) {
+  const origin = request?.headers?.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+}
 
 const WIN_THRESHOLD_MS  = 110_000; // runner: 2 min map, 10s buffer
 const MAX_XP_PER_QUEST  = 9999999;  // effectively uncapped
@@ -93,9 +97,10 @@ const QUESTREWARDS_ABI = [
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS });
+      return new Response(null, { status: 204, headers: getCors(request) });
     }
 
+    _currentCors = getCors(request);
     const url = new URL(request.url);
 
     try {
@@ -901,10 +906,11 @@ async function parseBody(request) {
   try { return await request.json(); } catch { return {}; }
 }
 
+let _currentCors = {};
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS },
+    headers: { 'Content-Type': 'application/json', ..._currentCors },
   });
 }
 
@@ -918,14 +924,14 @@ async function handleCrapsWebSocket(request, url, env) {
   const table = url.searchParams.get('table');
   if (!table) {
     return new Response(JSON.stringify({ error: 'Missing table' }), {
-      status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
+      status: 400, headers: { 'Content-Type': 'application/json', ..._currentCors },
     });
   }
 
   // Validate table name
   if (!isValidTable(table)) {
     return new Response(JSON.stringify({ error: 'Invalid table name' }), {
-      status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
+      status: 400, headers: { 'Content-Type': 'application/json', ..._currentCors },
     });
   }
 
