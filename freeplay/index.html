@@ -723,8 +723,14 @@
   </style>
 </head>
 <body>
+<!-- Intro Video Overlay -->
+<div id="videoOverlay" style="display:flex;position:fixed;inset:0;background:#000;z-index:10000;align-items:center;justify-content:center;flex-direction:column">
+  <video id="introVideo" autoplay playsinline style="width:100%;height:100%;object-fit:contain" src="../assets/freecrapsvideo.mp4"></video>
+  <button id="skipBtn" onclick="skipIntro()" style="position:absolute;bottom:40px;right:30px;font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:10px 20px;background:rgba(0,0,0,0.6);color:#c9a84c;border:2px solid #5c4409;cursor:pointer;border-radius:6px;z-index:10001">SKIP</button>
+</div>
+
 <!-- Name Entry Overlay -->
-<div id="nameOverlay" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:9999;align-items:center;justify-content:center;flex-direction:column;font-family:'Press Start 2P',monospace;background-image:url('../assets/chazzyp/chazzypgamble.jpg');background-size:cover;background-position:center;background-repeat:no-repeat">
+<div id="nameOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:9999;align-items:center;justify-content:center;flex-direction:column;font-family:'Press Start 2P',monospace;background-image:url('../assets/chazzyp/chazzypgamble.jpg');background-size:cover;background-position:center;background-repeat:no-repeat">
   <div style="background:rgba(0,0,0,0.8);padding:28px 32px;border-radius:10px;border:2px solid #5c4409;display:flex;flex-direction:column;align-items:center;max-width:420px;width:90%">
   <h2 style="font-size:0.85rem;color:#c9a84c;margin-bottom:24px;text-shadow:0 0 12px rgba(201,168,76,0.4)">CRAPS</h2>
   <p style="font-size:0.4rem;color:#8a7a5a;margin-bottom:20px;line-height:1.8">Free Play — 100 chips to start</p>
@@ -2545,6 +2551,16 @@ function quickBetWorld() {
 
 window.rollDice = rollDice;
 window.lockInScore = lockInScore;
+function skipIntro() {
+  const overlay = document.getElementById('videoOverlay');
+  const video = document.getElementById('introVideo');
+  if (video) { video.pause(); video.src = ''; }
+  overlay.style.display = 'none';
+  document.getElementById('nameOverlay').style.display = 'flex';
+}
+document.getElementById('introVideo').addEventListener('ended', skipIntro);
+
+window.skipIntro = skipIntro;
 window.startFreeplay = startFreeplay;
 window.showLeaderboard = showLeaderboard;
 window.placeBet = placeBet;
