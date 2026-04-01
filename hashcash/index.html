@@ -1867,8 +1867,7 @@ function escapeHtml(str) { const d=document.createElement('div'); d.textContent=
 // ── Lock In (HashCash) ──
 async function lockInScore() {
   let total = STATE.stack;
-  for (var v of Object.values(STATE.bets)) total += v;
-  if (total <= 0) { dealerSay('Nothing to lock in!', 'sad'); return; }
+  if (total <= 0) { dealerSay('Nothing to lock in! Bets on the table are at risk.', 'sad'); return; }
   if (!(await gameConfirm('Lock in ' + total + ' chips to the leaderboard?'))) return;
 
   hideTimer();

@@ -645,11 +645,8 @@ export class HashCashTable {
       return jsonResp({ error: 'No player session' }, 404);
     }
 
-    // Calculate total: stack + all active bets
+    // Calculate total: stack only — bets on the table are at risk and can't be withdrawn
     let total = pd.stack;
-    for (const val of Object.values(pd.bets || {})) total += val;
-    for (const val of Object.values(pd.comeBets || {})) total += val;
-    for (const val of Object.values(pd.comeOdds || {})) total += val;
 
     const displayName = pd.username || username;
     const playerId = pd.username || pd.player;
