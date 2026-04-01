@@ -724,9 +724,12 @@
 </head>
 <body>
 <!-- Intro Video Overlay -->
-<div id="videoOverlay" style="display:flex;position:fixed;inset:0;background:#000;z-index:10000;align-items:center;justify-content:center;flex-direction:column">
-  <video id="introVideo" autoplay playsinline style="width:100%;height:100%;object-fit:contain" src="../assets/chazzyp/freecrapsvideo.mp4"></video>
-  <button id="skipBtn" onclick="skipIntro()" style="position:absolute;bottom:40px;right:30px;font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:10px 20px;background:rgba(0,0,0,0.6);color:#c9a84c;border:2px solid #5c4409;cursor:pointer;border-radius:6px;z-index:10001">SKIP</button>
+<div id="videoOverlay" style="display:flex;position:fixed;inset:0;background:#000;z-index:10000;align-items:center;justify-content:center;flex-direction:column;cursor:pointer" onclick="document.getElementById('introVideo').play()">
+  <video id="introVideo" autoplay muted playsinline preload="auto" style="width:100%;height:100%;object-fit:contain">
+    <source src="../assets/chazzyp/freecrapsvideo.mp4" type="video/mp4">
+  </video>
+  <div id="tapToPlay" style="display:none;position:absolute;font-family:'Press Start 2P',monospace;font-size:0.5rem;color:#c9a84c;text-shadow:0 0 12px rgba(201,168,76,0.4)">TAP TO PLAY</div>
+  <button id="skipBtn" onclick="event.stopPropagation();skipIntro()" style="position:absolute;bottom:40px;right:30px;font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:10px 20px;background:rgba(0,0,0,0.6);color:#c9a84c;border:2px solid #5c4409;cursor:pointer;border-radius:6px;z-index:10001">SKIP</button>
 </div>
 
 <!-- Name Entry Overlay -->
@@ -2558,7 +2561,12 @@ function skipIntro() {
   overlay.style.display = 'none';
   document.getElementById('nameOverlay').style.display = 'flex';
 }
-document.getElementById('introVideo').addEventListener('ended', skipIntro);
+var _introVideo = document.getElementById('introVideo');
+_introVideo.addEventListener('ended', skipIntro);
+// If autoplay fails (browser policy), show tap prompt
+_introVideo.play().catch(function() {
+  document.getElementById('tapToPlay').style.display = 'block';
+});
 
 window.skipIntro = skipIntro;
 window.startFreeplay = startFreeplay;
