@@ -1243,7 +1243,7 @@ async function handleHashCashLockin(request, env) {
   const body = await parseBody(request);
   const { username, score } = body;
   if (!username || typeof username !== 'string') return json({ error: 'Invalid username' }, 400);
-  if (!score || typeof score !== 'number' || !isFinite(score) || score <= 100 || score > 100000) return json({ error: 'Score must beat 100' }, 400);
+  if (!score || typeof score !== 'number' || !isFinite(score) || score <= 100) return json({ error: 'Score must beat 100' }, 400);
 
   // Save to leaderboard
   const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
