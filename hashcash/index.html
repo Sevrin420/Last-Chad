@@ -2377,32 +2377,57 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ── HashCash Join Flow ──
+function _getStoredSecret(username) {
+  try { return localStorage.getItem('hc_secret_' + username.toLowerCase()) || null; } catch(_) { return null; }
+}
+function _storeSecret(username, secret) {
+  try { localStorage.setItem('hc_secret_' + username.toLowerCase(), secret); } catch(_) {}
+}
+
 async function hashcashJoin(username) {
   try {
+    var secret = _getStoredSecret(username);
     var res = await fetchWithTimeout(WORKER_URL + '/hashcash/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username }),
+      body: JSON.stringify({ username: username, secret: secret }),
     });
     var data = await res.json();
     if (!data.ok) {
       if (data.cooldown) {
-        // Show cooldown popup
         var remaining = data.remaining || 0;
         var h = Math.floor(remaining / 3600);
         var m = Math.floor((remaining % 3600) / 60);
         var timeStr = h > 0 ? h + 'h ' + m + 'm' : m + ' minutes';
         showCooldownPopup(timeStr);
+      } else if (data.taken) {
+        showTakenPopup(username);
       } else {
         dealerSay(data.error || 'Join failed', 'sad');
       }
       return null;
     }
+    // Save the secret for future sessions
+    if (data.secret) _storeSecret(username, data.secret);
     return data;
   } catch (err) {
     dealerSay('Server error: ' + (err.message || 'try again'), 'sad');
     return null;
   }
+}
+
+function showTakenPopup(username) {
+  var old = document.getElementById('cooldownPopup');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'cooldownPopup';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="background:#1a1a2e;border:3px solid #e53935;border-radius:12px;padding:30px 40px;text-align:center;max-width:380px;font-family:\'Press Start 2P\',monospace">' +
+    '<div style="font-size:0.5rem;color:#e53935;margin-bottom:16px">USERNAME TAKEN</div>' +
+    '<div style="font-size:0.35rem;color:#f5e6c8;line-height:1.8;margin-bottom:20px">"' + username + '" is already registered by another player.<br><br>Pick a different name.</div>' +
+    '<button onclick="document.getElementById(\'cooldownPopup\').remove()" style="font-family:\'Press Start 2P\',monospace;font-size:0.3rem;padding:10px 30px;background:linear-gradient(180deg,#c9a84c,#5c4409);color:#fff;border:2px solid #d4a017;border-radius:6px;cursor:pointer">OK</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
 }
 
 function showCooldownPopup(timeStr) {
