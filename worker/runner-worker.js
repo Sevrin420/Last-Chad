@@ -1235,12 +1235,10 @@ async function handleHashCashJoin(request, env) {
   }
 
   // Generate HMAC session token (deterministic per username+key so DO can verify)
-  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
   const tokenData = `hashcash:${username.toLowerCase()}`;
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey('raw', encoder.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(tokenData));
-  const sessionToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
+  const stKey = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const stSig = await crypto.subtle.sign('HMAC', stKey, enc.encode(tokenData));
+  const sessionToken = btoa(String.fromCharCode(...new Uint8Array(stSig))).slice(0, 32);
 
   // Set cooldown (starts NOW at join time)
   await env.RUNNER_KV.put(cooldownKey, JSON.stringify({
