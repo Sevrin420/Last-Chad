@@ -1205,7 +1205,12 @@ async function handleHashCashJoin(request, env) {
     // Username already registered — verify password
     try {
       const userData = JSON.parse(existingUser);
-      if (passHash !== userData.passHash) {
+      if (!userData.passHash) {
+        // Legacy registration (pre-password) — upgrade to password auth
+        userData.passHash = passHash;
+        delete userData.secret;
+        await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
+      } else if (passHash !== userData.passHash) {
         return json({ error: 'Wrong password', wrongPass: true }, 403);
       }
     } catch (e) {
