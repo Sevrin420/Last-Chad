@@ -300,10 +300,12 @@
       border:3px solid;
       z-index:11;
     }
-    .bet-chip-token.p0{background:#1a1a1a;border-color:var(--p1-color);color:var(--p1-color)}
-    .bet-chip-token.p1{background:#1a1a1a;border-color:var(--p2-color);color:var(--p2-color)}
-    .bet-chip-token.p2{background:#1a1a1a;border-color:var(--p3-color);color:var(--p3-color)}
-    .bet-chip-token.p3{background:#1a1a1a;border-color:var(--p4-color);color:var(--p4-color)}
+    /* Chip colors by value: white <5, red 5-24, green 25-99, black 100-499, purple 500+ */
+    .bet-chip-token.cv-white {background:#e8e8e8;border-color:#aaa;color:#222}
+    .bet-chip-token.cv-red   {background:#c0392b;border-color:#e74c3c;color:#fff}
+    .bet-chip-token.cv-green {background:#27ae60;border-color:#2ecc71;color:#fff}
+    .bet-chip-token.cv-black {background:#1a1a1a;border-color:#888;color:#eee}
+    .bet-chip-token.cv-purple{background:#6c3483;border-color:#9b59b6;color:#fff}
     .bet-chip-token.off{opacity:0.35;filter:grayscale(0.6)}
     /* ── Place Bets chip positions — inside boxes ──
        p0 (local): top-left, p1 (remote1): top-right, p2 (remote2): bottom-left */
@@ -1116,6 +1118,14 @@ function startDiceSpin() {
   }, 15000);
 }
 
+function _chipColorClass(amount) {
+  if (amount >= 500) return 'cv-purple';
+  if (amount >= 100) return 'cv-black';
+  if (amount >= 25)  return 'cv-green';
+  if (amount >= 5)   return 'cv-red';
+  return 'cv-white';
+}
+
 function renderAllBetChips() {
   const zones = ['pass','field','place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10'];
   const offZones = new Set(['place4','place5','place6','place8','place9','place10','hard4','hard6','hard8','hard10']);
@@ -1124,20 +1134,19 @@ function renderAllBetChips() {
     const container = document.getElementById('chips-' + zone);
     if (!container) continue;
     container.innerHTML = '';
-    const betKey = zone;
     const isOff = isComeout && offZones.has(zone);
-    if (STATE.bets[betKey] && STATE.bets[betKey] > 0) {
+    if (STATE.bets[zone] && STATE.bets[zone] > 0) {
       const chip = document.createElement('div');
-      chip.className = 'bet-chip-token p0 pos-0' + (isOff ? ' off' : '');
-      chip.textContent = STATE.bets[betKey];
+      chip.className = 'bet-chip-token ' + _chipColorClass(STATE.bets[zone]) + ' pos-0' + (isOff ? ' off' : '');
+      chip.textContent = STATE.bets[zone];
       container.appendChild(chip);
     }
     for (let s = 1; s <= 2; s++) {
       const rb = STATE.remoteBets[s];
-      if (rb && rb[betKey] && rb[betKey] > 0) {
+      if (rb && rb[zone] && rb[zone] > 0) {
         const chip = document.createElement('div');
-        chip.className = 'bet-chip-token p' + s + ' pos-' + s + (isOff ? ' off' : '');
-        chip.textContent = rb[betKey];
+        chip.className = 'bet-chip-token ' + _chipColorClass(rb[zone]) + ' pos-' + s + (isOff ? ' off' : '');
+        chip.textContent = rb[zone];
         container.appendChild(chip);
       }
     }
@@ -1194,7 +1203,7 @@ function clearBets() {
     dealerSay("Can't clear bets while dice are rolling!", 'neutral');
     return;
   }
-  if (turnPhase !== 'betting') {
+  if (betsLocked) {
     dealerSay("Bets are locked — wait for next betting round.", 'neutral');
     return;
   }
@@ -2394,13 +2403,18 @@ function _freeplayStartRollPhase() {
   document.getElementById('rollPrompt').style.display = '';
 }
 
-// Override placeBet to auto-transition to rolling when a bet is placed
+// Override placeBet: enable dice once a bet exists, but keep bets open (unlimited bets)
 const _origPlaceBet = placeBet;
 placeBet = function(zone, amt) {
   _origPlaceBet(zone, amt);
-  // After a bet, enable roll phase
+  // Enable dice click as soon as any bet exists, without locking bet zones
   if (Object.values(STATE.bets).reduce((s,v) => s+v, 0) > 0 && turnPhase === 'betting') {
-    _freeplayStartRollPhase();
+    turnPhase = 'rolling';
+    const diceEl = document.getElementById('tableDice');
+    diceEl.classList.add('can-roll');
+    diceEl.classList.remove('locked');
+    document.getElementById('rollPrompt').style.display = '';
+    // betsLocked stays false — player can keep adding bets before rolling
   }
 };
 
