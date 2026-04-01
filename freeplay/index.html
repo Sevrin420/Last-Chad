@@ -905,7 +905,7 @@
   <div class="chat-box" style="padding:8px 12px;display:flex;flex-direction:column;gap:6px;min-height:auto">
     <div style="font-size:0.32rem;color:#8a7a5a;text-align:center;letter-spacing:0.1em;margin-bottom:2px">QUICK BETS</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
-      <button class="quick-bet-btn" onclick="quickBet27Across()">27 ACROSS</button>
+      <button class="quick-bet-btn" onclick="quickBet32Across()">32 ACROSS</button>
       <button class="quick-bet-btn" onclick="quickBetIronCross()">IRON CROSS</button>
       <button class="quick-bet-btn" onclick="quickBetWorld()">WORLD</button>
     </div>
@@ -2467,19 +2467,17 @@ async function showLeaderboard() {
 
 // ── Quick Bet Combos ──
 
-// 27 Across: place bets on all 6 numbers (4,5,6,8,9,10)
-// Classic spread: 5 on 4, 5 on 5, 6 on 6, 6 on 8, 5 on 9, 5 on 10 = 32 total
-// Scaled version: 4 on 4, 4 on 5, 5 on 6, 5 on 8, 4 on 9, 4 on 10 = 26 total (fits 100 chip start)
-function quickBet27Across() {
+// 32 Across: 5 on 4/5/9/10, 6 on 6/8 = 32 total
+function quickBet32Across() {
   if (STATE.isRolling) return;
-  const cost = 26;
-  if (STATE.stack < cost) { dealerSay("Not enough chips for 27 Across!", 'sad'); return; }
-  placeBet('place4', 4);
-  placeBet('place5', 4);
-  placeBet('place6', 5);
-  placeBet('place8', 5);
-  placeBet('place9', 4);
-  placeBet('place10', 4);
+  const cost = 32;
+  if (STATE.stack < cost) { dealerSay("Not enough chips for 32 Across!", 'sad'); return; }
+  placeBet('place4', 5);
+  placeBet('place5', 5);
+  placeBet('place6', 6);
+  placeBet('place8', 6);
+  placeBet('place9', 5);
+  placeBet('place10', 5);
   dealerSay("Across the board! Let's see some numbers!", 'happy');
 }
 
@@ -2519,7 +2517,7 @@ window.placeBet = placeBet;
 window.selectChip = selectChip;
 window.clearBets = clearBets;
 window.sendChat = sendChat;
-window.quickBet27Across = quickBet27Across;
+window.quickBet32Across = quickBet32Across;
 window.quickBetIronCross = quickBetIronCross;
 window.quickBetWorld = quickBetWorld;
 window.copyInviteCode = copyInviteCode;
