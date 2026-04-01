@@ -784,6 +784,7 @@
   <div class="header-left">
     <button class="header-action-btn" id="clearBetsBtn" onclick="clearBets()">CLEAR</button>
     <button class="header-action-btn" onclick="showLeaderboard()">LB</button>
+    <button class="header-action-btn" id="muteBtn" onclick="toggleMute()">MUTE</button>
     <button class="header-action-btn cashout-mode" id="cashOutBtn" onclick="lockInScore()">LOCK IN</button>
   </div>
   <button class="wallet-btn" id="walletBtn" style="pointer-events:none" id="playerLabel">FREE PLAY</button>
@@ -958,6 +959,10 @@
   </div>
 
 </div><!-- /table-wrapper -->
+
+<audio id="bgMusic" loop preload="auto">
+  <source src="../assets/chazzyp/In da Club [8 Bit Tribute to 50 Cent] - 8 Bit Universe.mp3" type="audio/mpeg">
+</audio>
 
 <!-- Result toast -->
 <div class="result-toast" id="resultToast">
@@ -2449,10 +2454,29 @@ function _freeplayStartRollPhase() {
   document.getElementById('rollPrompt').style.display = '';
 }
 
+// ── Background Music ──
+let _musicStarted = false;
+let _musicMuted = false;
+var _bgMusic = document.getElementById('bgMusic');
+_bgMusic.volume = 0.5;
+
+function _startMusicOnFirstBet() {
+  if (_musicStarted) return;
+  _musicStarted = true;
+  _bgMusic.play().catch(function() {});
+}
+
+function toggleMute() {
+  _musicMuted = !_musicMuted;
+  _bgMusic.muted = _musicMuted;
+  document.getElementById('muteBtn').textContent = _musicMuted ? 'UNMUTE' : 'MUTE';
+}
+
 // Override placeBet: enable dice only after 10s bet timer expires
 const _origPlaceBet = placeBet;
 placeBet = function(zone, amt) {
   _origPlaceBet(zone, amt);
+  _startMusicOnFirstBet();
   // Only enable dice if bet timer has finished and bets exist
   if (_freeplayBetTimerDone && Object.values(STATE.bets).reduce((s,v) => s+v, 0) > 0 && turnPhase === 'betting') {
     turnPhase = 'rolling';
@@ -2575,6 +2599,7 @@ function quickBetWorld() {
 
 window.rollDice = rollDice;
 window.lockInScore = lockInScore;
+window.toggleMute = toggleMute;
 function playIntroVideo() {
   document.getElementById('enterWorldPrompt').style.display = 'none';
   var video = document.getElementById('introVideo');
