@@ -10,12 +10,17 @@ preview_id = "9b1944233e4d44f7a55389daf3048e67"
 
 [durable_objects]
 bindings = [
-  { name = "CRAPS_TABLE", class_name = "CrapsTable" }
+  { name = "CRAPS_TABLE", class_name = "CrapsTable" },
+  { name = "HASHCASH_TABLE", class_name = "HashCashTable" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["CrapsTable"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["HashCashTable"]
 
 [vars]
 LASTCHAD_ADDRESS      = "0x04DFED6F15866125b1f6d140bcb1AB90F7614252"
