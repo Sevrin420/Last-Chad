@@ -766,21 +766,6 @@
     <div class="lobby-title">CRAPS TABLE</div>
     <div class="lobby-subtitle">Choose how you want to play</div>
     <div class="lobby-public-tables" id="publicTableGrid"></div>
-    <div class="lobby-btns">
-      <div class="lobby-divider">— or —</div>
-      <button class="lobby-btn private" onclick="createPrivateTable()">CREATE PRIVATE TABLE</button>
-      <button class="lobby-btn join" onclick="showJoinPrivate()">JOIN PRIVATE TABLE</button>
-    </div>
-    <div class="lobby-invite-area" id="inviteArea">
-      <div class="lobby-invite-label">INVITE CODE (click to copy)</div>
-      <div class="lobby-invite-link" id="inviteCode" onclick="copyInviteCode()"></div>
-      <div class="lobby-copied" id="copiedMsg">Copied!</div>
-      <button class="lobby-btn public" style="margin-top:10px" onclick="enterTable()">ENTER TABLE</button>
-    </div>
-    <div class="lobby-invite-area" id="joinPrivateArea">
-      <input class="lobby-join-input" id="privateCodeInput" placeholder="Enter invite code..." />
-      <button class="lobby-join-go" onclick="joinPrivateTable()">JOIN</button>
-    </div>
   </div>
 </div>
 
@@ -2026,6 +2011,7 @@ function startFreeplay() {
   STATE.isRolling = false;
   _freeplayPeakChips = 100;
   document.getElementById('nameOverlay').style.display = 'none';
+  enterTable();
   var btn = document.getElementById('walletBtn');
   btn.textContent = name;
   btn.classList.add('connected');
