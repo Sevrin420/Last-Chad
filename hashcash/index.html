@@ -1687,15 +1687,9 @@ async function handleRollResult(data) {
     });
   }, 1500);
 
-  // Bust — player is out, no cashout endpoint for HashCash
+  // Bust — player is out but stays at the table to watch
   if (STATE.stack <= 0 && Object.keys(STATE.bets).length === 0) {
     dealerSay("You're busted! Better luck next time.", 'sad');
-    STATE.isRolling = false;
-    _pendingRollData = null;
-    _pendingTurnPhase = null;
-    STATE.nonce = null;
-    setTimeout(() => { window.location.href = 'chadbase.html'; }, 3000);
-    return;
   }
 
   STATE.isRolling = false;
