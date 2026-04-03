@@ -689,10 +689,9 @@
   <div class="header-left">
     <button class="header-action-btn" id="clearBetsBtn" onclick="clearBets()">CLEAR</button>
     <button class="header-action-btn" id="muteBtn" onclick="toggleMute()">MUTE</button>
-    <button class="header-action-btn" id="cashOutBtn" onclick="lockInScore()">LOCK IN</button>
+    <button class="header-action-btn" id="cashOutBtn" onclick="lockInScore()">LOCK CHIPS</button>
     <button class="header-action-btn" id="exitBtn" onclick="exitTable()" style="background:linear-gradient(180deg,#ef5350,#b71c1c);border-color:#e53935">EXIT</button>
   </div>
-  <div class="header-label" id="walletBtn">HASHCASH</div>
 </div>
 
 <!-- ── Custom Confirm Dialog ── -->
@@ -936,7 +935,7 @@
         <tbody id="gameLbBody"><tr><td colspan="3" style="text-align:center;color:#8a7a5a;padding:8px;font-size:0.25rem">Loading...</td></tr></tbody>
       </table>
     </div>
-    <button onclick="lockInScore()" style="font-family:'Press Start 2P',monospace;font-size:0.35rem;padding:10px 24px;background:linear-gradient(180deg,#c9a84c,#5c4409);color:#fff;border:2px solid #d4a017;cursor:pointer;border-radius:6px;margin-top:12px">LOCK IN CHIPS</button>
+    <button onclick="lockInScore()" style="font-family:'Press Start 2P',monospace;font-size:0.35rem;padding:10px 24px;background:linear-gradient(180deg,#c9a84c,#5c4409);color:#fff;border:2px solid #d4a017;cursor:pointer;border-radius:6px;margin-top:12px">LOCK CHIPS</button>
   </div>
 
 <img src="../assets/hashcash/lastchadbanner.jpg" alt="Last Chad" style="width:100%;max-width:600px;display:block;margin:10px auto 0" />
@@ -1910,7 +1909,7 @@ async function lockInScore() {
     if (_tableWs) { try { _tableWs.close(1000, 'Locked in'); } catch(_){} _tableWs = null; }
 
     // Return to start screen after a short delay
-    setTimeout(function() { location.reload(); }, 4000);
+    setTimeout(function() { _returnToLogin(); }, 4000);
 
   } catch (err) {
     cashingOut = false;
@@ -1943,7 +1942,19 @@ async function exitTable() {
     await new Promise(function(r) { setTimeout(r, 1500); });
   }
   disconnectTable();
-  location.reload();
+  _returnToLogin();
+}
+
+function _returnToLogin() {
+  document.getElementById('tableWrapper').style.display = 'none';
+  document.getElementById('tableLobby').classList.add('hidden');
+  document.getElementById('videoOverlay').style.display = 'none';
+  var nameOv = document.getElementById('nameOverlay');
+  nameOv.style.display = 'flex';
+  document.getElementById('nameInput').disabled = false;
+  document.getElementById('passInput').disabled = false;
+  document.getElementById('nameInput').value = '';
+  document.getElementById('passInput').value = '';
 }
 
 // ── No wallet needed — username auth ──
