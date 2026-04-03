@@ -339,7 +339,29 @@ Tournament page reads from Tournament contract view functions. No backend needed
 
 ---
 
-## 7. Checklist — Going Live
+## 7. Future Features (Discuss Before Executing)
+
+> ⚠️ These ideas have been approved in concept but need full design discussion before any code is written.
+
+### Stat-Based Quest Gating
+Certain quests require minimum stats to attempt. High level Chads access higher yield quests. This makes the RPG phase matter even more — grinding stats isn't just cosmetic, it unlocks better earning potential in Phase 3.
+
+**Questions to resolve before building:**
+- What are the stat thresholds per quest?
+- Does gating apply during Phase 2, Phase 3, or both?
+- How is this communicated to the player on the quest selection screen?
+
+### Public Xphar Treasury Dashboard
+A dedicated page showing the live Xphar position, yield accumulating in real time, and projected prize pool for the next tournament round. Turns the financial engine into a marketing tool — every time yield grows it's a reason to post.
+
+**Questions to resolve before building:**
+- Which on-chain data sources feed the dashboard (Xphar contract, Tournament.sol)?
+- Does this live on a new page or as a section of tournament.html?
+- How often does it refresh?
+
+---
+
+## 8. Checklist — Going Live
 
 - [ ] Finalize LastChad.sol changes (freezeLevels)
 - [ ] Write Tournament.sol
