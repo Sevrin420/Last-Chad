@@ -359,6 +359,31 @@ A dedicated page showing the live Xphar position, yield accumulating in real tim
 - Does this live on a new page or as a section of tournament.html?
 - How often does it refresh?
 
+### Spectator Mode
+Watch live craps tables without playing. Builds atmosphere, lets newcomers learn the game before buying in, and adds social energy to active tables.
+
+**Questions to resolve before building:**
+- Does spectator mode require a wallet connection or is it fully public?
+- Can spectators see player chip stacks or just the dice/bets?
+- Is there a chat for spectators or read-only?
+
+### Rival System
+Players can mark another Chad as a rival. The game tracks head-to-head craps outcomes between rivals. Personal beef, bragging rights, and a retention mechanic that makes every session feel personal.
+
+**Questions to resolve before building:**
+- Is rivalry one-sided (you mark them) or mutual (both must agree)?
+- Where does the head-to-head record live — on-chain or off?
+- How is it displayed in the UI?
+
+### The Final Chad
+When supply reaches 1 surviving Chad, that wallet owns the entire Xphar treasury forever. Every elimination across the entire game was progress toward one player owning everything. The endgame has a literal winner.
+
+**Questions to resolve before building:**
+- Is this the intended endgame or an optional outcome?
+- What triggers "final Chad" — last survivor of Phase 2, or last active player in Phase 3?
+- How is the treasury transfer handled on-chain?
+- Does this replace or complement the bi-weekly yield split?
+
 ---
 
 ## 8. Checklist — Going Live
