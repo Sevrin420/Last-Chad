@@ -1231,63 +1231,39 @@ async function handleHashCashJoin(request, env) {
   const stSig = await crypto.subtle.sign('HMAC', stKey, enc.encode(tokenData));
   const sessionToken = btoa(String.fromCharCode(...new Uint8Array(stSig))).slice(0, 32);
 
-  // Check for saved chips from a previous session
+  // Load saved chips (permanent)
   const chipsKey = `hashcash:chips:${username.toLowerCase()}`;
-  const savedChips = await env.RUNNER_KV.get(chipsKey);
-  let stack = 100; // default for new players
-  let returning = false;
+  const savedRaw = await env.RUNNER_KV.get(chipsKey);
+  let chipData = null;
+  try { chipData = savedRaw ? JSON.parse(savedRaw) : null; } catch (_) {}
 
-  if (savedChips) {
-    // Returning player — restore their chips
-    try {
-      const chipData = JSON.parse(savedChips);
-      stack = chipData.stack || 0;
-      returning = true;
-    } catch (_) {}
-    // Delete saved chips — they're now "in play"
-    await env.RUNNER_KV.delete(chipsKey);
+  let stack = 0;
+  let dailyBonus = false;
+  const BONUS_INTERVAL = HASHCASH_COOLDOWN_TTL * 1000; // 24h in ms
+
+  if (chipData) {
+    // Returning player — restore saved chips
+    stack = chipData.stack || 0;
+    const lastBonus = chipData.lastBonusAt || 0;
+    // Check if 24h+ since last bonus
+    if (Date.now() - lastBonus >= BONUS_INTERVAL) {
+      stack += 100;
+      dailyBonus = true;
+    }
   } else {
-    // No saved chips — check 24h cooldown (only applies to fresh 100-chip starts)
-    const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
-    const existing = await env.RUNNER_KV.get(cooldownKey);
-    if (existing) {
-      try {
-        const data = JSON.parse(existing);
-        const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
-        const hours = Math.floor(remaining / 3600);
-        const mins = Math.floor((remaining % 3600) / 60);
-        return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
-      } catch (e) {
-        await env.RUNNER_KV.delete(cooldownKey);
-      }
-    }
-
-    // Set cooldown for fresh start
-    const cooldownKey2 = `hashcash:played:${username.toLowerCase()}`;
-    await env.RUNNER_KV.put(cooldownKey2, JSON.stringify({
-      username,
-      joinedAt: Date.now(),
-      expiresAt: Date.now() + HASHCASH_COOLDOWN_TTL * 1000,
-    }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
+    // Brand new player — first 100 chips
+    stack = 100;
+    dailyBonus = true;
   }
 
-  // If returning with 0 chips, they're busted — enforce cooldown
-  if (returning && stack <= 0) {
-    const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
-    const existing = await env.RUNNER_KV.get(cooldownKey);
-    if (existing) {
-      try {
-        const data = JSON.parse(existing);
-        const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
-        const hours = Math.floor(remaining / 3600);
-        const mins = Math.floor((remaining % 3600) / 60);
-        return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
-      } catch (_) {}
-    }
-    return json({ error: 'You busted! Come back tomorrow for fresh chips.', cooldown: true, remaining: 0 }, 429);
-  }
+  // Save updated chips with bonus timestamp
+  await env.RUNNER_KV.put(chipsKey, JSON.stringify({
+    stack,
+    lastBonusAt: dailyBonus ? Date.now() : (chipData?.lastBonusAt || Date.now()),
+    savedAt: Date.now(),
+  }));
 
-  return json({ ok: true, username, sessionToken, stack, returning });
+  return json({ ok: true, username, sessionToken, stack, dailyBonus });
 }
 
 // GET /hashcash/ws?table=X&username=Y&sessionToken=Z  (WebSocket upgrade)
@@ -1358,8 +1334,15 @@ async function handleHashCashLockin(request, env) {
     }
   }
 
-  // Clear saved chips — player has locked in
-  await env.RUNNER_KV.delete(`hashcash:chips:${username.toLowerCase()}`);
+  // Reset saved chips to 0 but keep lastBonusAt for daily bonus tracking
+  const chipsKeyLock = `hashcash:chips:${username.toLowerCase()}`;
+  const existingChipsRaw = await env.RUNNER_KV.get(chipsKeyLock);
+  let lockLastBonus = Date.now();
+  try {
+    const ec = existingChipsRaw ? JSON.parse(existingChipsRaw) : null;
+    if (ec?.lastBonusAt) lockLastBonus = ec.lastBonusAt;
+  } catch (_) {}
+  await env.RUNNER_KV.put(chipsKeyLock, JSON.stringify({ stack: 0, lastBonusAt: lockLastBonus, savedAt: Date.now() }));
 
   return json({ ok: true, score, rank, onLeaderboard });
 }
@@ -1404,12 +1387,20 @@ async function handleHashCashSaveChips(request, env) {
   const expectedToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
   if (sessionToken !== expectedToken) return json({ error: 'Unauthorized' }, 403);
 
-  // Save chips with 24h TTL (matches cooldown window)
+  // Save chips permanently — preserve lastBonusAt from existing data
   const chipsKey = `hashcash:chips:${username.toLowerCase()}`;
+  const existingRaw = await env.RUNNER_KV.get(chipsKey);
+  let lastBonusAt = Date.now();
+  try {
+    const existing = existingRaw ? JSON.parse(existingRaw) : null;
+    if (existing?.lastBonusAt) lastBonusAt = existing.lastBonusAt;
+  } catch (_) {}
+
   await env.RUNNER_KV.put(chipsKey, JSON.stringify({
     stack: Math.floor(stack),
+    lastBonusAt,
     savedAt: Date.now(),
-  }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
+  }));
 
   return json({ ok: true, saved: Math.floor(stack) });
 }
