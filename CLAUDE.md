@@ -13,23 +13,15 @@
 The Claude user **cannot code or run code locally**. All scripts, deployments, and commands must be:
 1. Written into a script file by Claude
 2. Committed to the repo
-3. Executed via a **GitHub Actions workflow** triggered using the syncpush method (see below)
+3. Executed via a **GitHub Actions workflow**
 
 Never tell the user to "run this command" — put it in a workflow and push it.
 
-## Syncing Changes to Main
+## Pushing Changes
 
-All changes must be synced to `main` immediately after pushing to the feature branch. Use the GitHub Actions workflow described in `syncpush.md`:
+All changes must be pushed **directly to `main`**. Do NOT sync via the create-main.yml workflow — it overwrites main with a force push and will delete any images or files the user has uploaded directly to main.
 
-```bash
-curl -s -X POST \
-  -H "Authorization: token $GITHUB_TOKEN" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/Sevrin420/Last-Chad/actions/workflows/create-main.yml/dispatches" \
-  -d '{"ref":"<source-branch>","inputs":{"source_branch":"<source-branch>"}}'
-```
-
-HTTP 204 = success. Always sync after every push.
+Use: `git push -u origin main`
 
 ---
 
