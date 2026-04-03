@@ -42,6 +42,10 @@ Use: `git push -u origin main`
 
 **Last Chad** is a multiplayer Web3 RPG with NFT characters, quests, and cell-wagering casino games on Avalanche. Hosted on GitHub Pages at lastchad.xyz.
 
+### Elevator Pitch
+
+Last Chad is a **skill-filtered yield tournament**. 15 weeks of RPG gameplay eliminates unskilled Chads. Survivors enter an *ongoing bi-weekly craps tournament*. Your endgame level determines your chips each round. Lock 1111 chips to claim a share of **prize money**. _The better you played, the more you earn forever._
+
 **Tech Stack:** Hardhat v2.28.5, Solidity v0.8.26, OpenZeppelin v5.0.0, Web3.js + WalletConnect, Cloudflare Workers + Durable Objects.
 
 ---
