@@ -41,7 +41,7 @@ import { ethers } from 'ethers';
 export { CrapsTable } from './craps-table.js';
 export { HashCashTable } from './hashcash-table.js';
 
-const ALLOWED_ORIGINS = ['https://lastchad.xyz', 'https://enterthegrotto.xyz'];
+const ALLOWED_ORIGINS = ['https://lastchad.xyz', 'https://enterthegrotto.xyz', 'https://api.enterthegrotto.xyz'];
 function getCors(request) {
   const origin = request?.headers?.get('Origin') || '';
   return {
