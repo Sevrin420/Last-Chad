@@ -92,7 +92,7 @@ const HASHCASH_PUBLIC_TABLES = [
 const HASHCASH_PRIVATE_TABLES = 5;
 const HASHCASH_COOLDOWN_TTL = 86_400; // 24 hours
 const HASHCASH_LB_KEY = 'hashcash:leaderboard';
-const HASHCASH_LB_MAX = 50;
+const HASHCASH_LB_MAX = 10;
 function isValidHashCashTable(tableCode) {
   return HASHCASH_PUBLIC_TABLES.some(t => t.name === tableCode) || tableCode.startsWith('hcpriv-');
 }
@@ -184,6 +184,12 @@ export default {
       }
       if (request.method === 'GET' && url.pathname === '/hashcash/leaderboard') {
         return await handleHashCashLeaderboard(env);
+      }
+      if (request.method === 'POST' && url.pathname === '/hashcash/save-chips') {
+        return await handleHashCashSaveChips(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/hashcash/admin/reset-leaderboard') {
+        return await handleHashCashResetLeaderboard(request, env);
       }
 
       // Freeplay leaderboard
@@ -1219,36 +1225,69 @@ async function handleHashCashJoin(request, env) {
     await env.RUNNER_KV.put(userKey, JSON.stringify({ username, passHash, registeredAt: Date.now() }));
   }
 
-  // Check 24h cooldown
-  const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
-  const existing = await env.RUNNER_KV.get(cooldownKey);
-  if (existing) {
-    try {
-      const data = JSON.parse(existing);
-      const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
-      const hours = Math.floor(remaining / 3600);
-      const mins = Math.floor((remaining % 3600) / 60);
-      return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
-    } catch (e) {
-      await env.RUNNER_KV.delete(cooldownKey);
-    }
-  }
-
   // Generate HMAC session token (deterministic per username+key so DO can verify)
   const tokenData = `hashcash:${username.toLowerCase()}`;
   const stKey = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const stSig = await crypto.subtle.sign('HMAC', stKey, enc.encode(tokenData));
   const sessionToken = btoa(String.fromCharCode(...new Uint8Array(stSig))).slice(0, 32);
 
-  // Set cooldown (starts NOW at join time)
-  await env.RUNNER_KV.put(cooldownKey, JSON.stringify({
-    username,
-    joinedAt: Date.now(),
-    expiresAt: Date.now() + HASHCASH_COOLDOWN_TTL * 1000,
-    sessionToken,
-  }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
+  // Check for saved chips from a previous session
+  const chipsKey = `hashcash:chips:${username.toLowerCase()}`;
+  const savedChips = await env.RUNNER_KV.get(chipsKey);
+  let stack = 100; // default for new players
+  let returning = false;
 
-  return json({ ok: true, username, sessionToken, stack: 100 });
+  if (savedChips) {
+    // Returning player — restore their chips
+    try {
+      const chipData = JSON.parse(savedChips);
+      stack = chipData.stack || 0;
+      returning = true;
+    } catch (_) {}
+    // Delete saved chips — they're now "in play"
+    await env.RUNNER_KV.delete(chipsKey);
+  } else {
+    // No saved chips — check 24h cooldown (only applies to fresh 100-chip starts)
+    const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
+    const existing = await env.RUNNER_KV.get(cooldownKey);
+    if (existing) {
+      try {
+        const data = JSON.parse(existing);
+        const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
+        const hours = Math.floor(remaining / 3600);
+        const mins = Math.floor((remaining % 3600) / 60);
+        return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
+      } catch (e) {
+        await env.RUNNER_KV.delete(cooldownKey);
+      }
+    }
+
+    // Set cooldown for fresh start
+    const cooldownKey2 = `hashcash:played:${username.toLowerCase()}`;
+    await env.RUNNER_KV.put(cooldownKey2, JSON.stringify({
+      username,
+      joinedAt: Date.now(),
+      expiresAt: Date.now() + HASHCASH_COOLDOWN_TTL * 1000,
+    }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
+  }
+
+  // If returning with 0 chips, they're busted — enforce cooldown
+  if (returning && stack <= 0) {
+    const cooldownKey = `hashcash:played:${username.toLowerCase()}`;
+    const existing = await env.RUNNER_KV.get(cooldownKey);
+    if (existing) {
+      try {
+        const data = JSON.parse(existing);
+        const remaining = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
+        const hours = Math.floor(remaining / 3600);
+        const mins = Math.floor((remaining % 3600) / 60);
+        return json({ error: `Come back in ${hours}h ${mins}m`, cooldown: true, remaining }, 429);
+      } catch (_) {}
+    }
+    return json({ error: 'You busted! Come back tomorrow for fresh chips.', cooldown: true, remaining: 0 }, 429);
+  }
+
+  return json({ ok: true, username, sessionToken, stack, returning });
 }
 
 // GET /hashcash/ws?table=X&username=Y&sessionToken=Z  (WebSocket upgrade)
@@ -1301,16 +1340,28 @@ async function handleHashCashLockin(request, env) {
   if (!doData.ok) return json(doData, doRes.status);
 
   const score = doData.score;
+  let rank = null;
+  let onLeaderboard = false;
 
-  // Save to leaderboard if score beats starting chips
-  if (score > 100) {
+  // Save to leaderboard if score > 0
+  if (score > 0) {
     const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
-    lb.push({ name: username.trim(), chips: score, date: new Date().toISOString().slice(0, 10) });
-    lb.sort((a, b) => b.chips - a.chips);
-    await env.RUNNER_KV.put(HASHCASH_LB_KEY, JSON.stringify(lb.slice(0, HASHCASH_LB_MAX)));
+    // Check if score qualifies for top 10
+    const qualifies = lb.length < HASHCASH_LB_MAX || score > (lb[lb.length - 1]?.chips || 0);
+    if (qualifies) {
+      lb.push({ name: username.trim(), chips: score, date: new Date().toISOString().slice(0, 10) });
+      lb.sort((a, b) => b.chips - a.chips);
+      const trimmed = lb.slice(0, HASHCASH_LB_MAX);
+      await env.RUNNER_KV.put(HASHCASH_LB_KEY, JSON.stringify(trimmed));
+      rank = trimmed.findIndex(e => e.name === username.trim() && e.chips === score) + 1;
+      onLeaderboard = true;
+    }
   }
 
-  return json({ ok: true, score });
+  // Clear saved chips — player has locked in
+  await env.RUNNER_KV.delete(`hashcash:chips:${username.toLowerCase()}`);
+
+  return json({ ok: true, score, rank, onLeaderboard });
 }
 
 // GET /hashcash/tables — public table player counts
@@ -1333,5 +1384,43 @@ async function handleHashCashTableList(env) {
 // GET /hashcash/leaderboard
 async function handleHashCashLeaderboard(env) {
   const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
-  return json({ ok: true, leaderboard: lb.slice(0, 20) });
+  return json({ ok: true, leaderboard: lb.slice(0, HASHCASH_LB_MAX) });
+}
+
+// POST /hashcash/save-chips  { username, sessionToken, stack }
+// Called when player leaves the table without locking in
+async function handleHashCashSaveChips(request, env) {
+  const body = await parseBody(request);
+  const { username, sessionToken, stack } = body;
+  if (!username || typeof username !== 'string') return json({ error: 'Invalid username' }, 400);
+  if (typeof stack !== 'number' || stack < 0) return json({ error: 'Invalid stack' }, 400);
+
+  // Verify sessionToken
+  if (!sessionToken) return json({ error: 'Missing sessionToken' }, 403);
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const enc = new TextEncoder();
+  const hmacKey = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', hmacKey, enc.encode(`hashcash:${username.toLowerCase()}`));
+  const expectedToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
+  if (sessionToken !== expectedToken) return json({ error: 'Unauthorized' }, 403);
+
+  // Save chips with 24h TTL (matches cooldown window)
+  const chipsKey = `hashcash:chips:${username.toLowerCase()}`;
+  await env.RUNNER_KV.put(chipsKey, JSON.stringify({
+    stack: Math.floor(stack),
+    savedAt: Date.now(),
+  }), { expirationTtl: HASHCASH_COOLDOWN_TTL });
+
+  return json({ ok: true, saved: Math.floor(stack) });
+}
+
+// POST /hashcash/admin/reset-leaderboard  { key }
+async function handleHashCashResetLeaderboard(request, env) {
+  const body = await parseBody(request);
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  // Use first 16 chars of oracle key as admin secret
+  const adminSecret = oracleKey.slice(0, 16);
+  if (!body.key || body.key !== adminSecret) return json({ error: 'Unauthorized' }, 403);
+  await env.RUNNER_KV.delete(HASHCASH_LB_KEY);
+  return json({ ok: true, message: 'Leaderboard reset' });
 }
