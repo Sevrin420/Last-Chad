@@ -92,7 +92,7 @@ const HASHCASH_PUBLIC_TABLES = [
 const HASHCASH_PRIVATE_TABLES = 5;
 const HASHCASH_COOLDOWN_TTL = 86_400; // 24 hours
 const HASHCASH_LB_KEY = 'hashcash:leaderboard';
-const HASHCASH_LB_MAX = 10;
+const HASHCASH_LB_MAX = 20;
 function isValidHashCashTable(tableCode) {
   return HASHCASH_PUBLIC_TABLES.some(t => t.name === tableCode) || tableCode.startsWith('hcpriv-');
 }
@@ -190,6 +190,9 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/hashcash/admin/reset-leaderboard') {
         return await handleHashCashResetLeaderboard(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/hashcash/admin/delete-entry') {
+        return await handleHashCashDeleteEntry(request, env);
       }
 
       // Freeplay leaderboard
@@ -1409,9 +1412,26 @@ async function handleHashCashSaveChips(request, env) {
 async function handleHashCashResetLeaderboard(request, env) {
   const body = await parseBody(request);
   const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
-  // Use first 16 chars of oracle key as admin secret
   const adminSecret = oracleKey.slice(0, 16);
   if (!body.key || body.key !== adminSecret) return json({ error: 'Unauthorized' }, 403);
   await env.RUNNER_KV.delete(HASHCASH_LB_KEY);
   return json({ ok: true, message: 'Leaderboard reset' });
+}
+
+// POST /hashcash/admin/delete-entry  { key, name, index? }
+// Deletes a specific player's entry (or all entries by that name)
+async function handleHashCashDeleteEntry(request, env) {
+  const body = await parseBody(request);
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const adminSecret = oracleKey.slice(0, 16);
+  if (!body.key || body.key !== adminSecret) return json({ error: 'Unauthorized' }, 403);
+  if (!body.name) return json({ error: 'Missing name' }, 400);
+
+  const lb = await env.RUNNER_KV.get(HASHCASH_LB_KEY, { type: 'json' }) || [];
+  const before = lb.length;
+  const filtered = typeof body.index === 'number'
+    ? lb.filter((_, i) => i !== body.index)
+    : lb.filter(e => e.name.toLowerCase() !== body.name.toLowerCase());
+  await env.RUNNER_KV.put(HASHCASH_LB_KEY, JSON.stringify(filtered));
+  return json({ ok: true, removed: before - filtered.length, remaining: filtered.length });
 }
