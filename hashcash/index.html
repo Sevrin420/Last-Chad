@@ -721,7 +721,7 @@
 <div id="nameOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:9999;align-items:center;justify-content:center;flex-direction:column;font-family:'Press Start 2P',monospace;background-image:url('../assets/chazzyp/chazzypgamble.jpg');background-size:cover;background-position:center;background-repeat:no-repeat">
   <div style="background:rgba(0,0,0,0.8);padding:28px 32px;border-radius:10px;border:2px solid #5c4409;display:flex;flex-direction:column;align-items:center;max-width:520px;width:90%">
   <h2 style="font-size:clamp(0.6rem,2vw,1.2rem);color:#c9a84c;margin-bottom:24px;text-shadow:0 0 12px rgba(201,168,76,0.4)">LAST CHAD CRAPS</h2>
-  <p style="font-size:clamp(0.35rem,1.2vw,0.55rem);color:#8a7a5a;margin-bottom:20px;line-height:1.8">100 chips — play to bust or lock in. Once per 24h.</p>
+  <p style="font-size:clamp(0.35rem,1.2vw,0.55rem);color:#8a7a5a;margin-bottom:20px;line-height:1.8">+100 chips daily. Save your stack or lock in for the leaderboard.</p>
   <input type="text" id="nameInput" placeholder="Grotto username" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:clamp(0.5rem,1.5vw,0.8rem);padding:12px 16px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:min(300px,85%);margin-bottom:10px;border-radius:4px">
   <input type="text" id="passInput" placeholder="Password" maxlength="32" autocomplete="off" style="font-family:'Press Start 2P',monospace;font-size:clamp(0.4rem,1.3vw,0.7rem);padding:12px 16px;background:#1a1208;border:2px solid #5c4409;color:#f5e6c8;text-align:center;width:min(300px,85%);margin-bottom:16px;border-radius:4px">
   <button onclick="startHashCash()" style="font-family:'Press Start 2P',monospace;font-size:clamp(0.35rem,1.2vw,0.55rem);padding:14px 24px;background:linear-gradient(180deg,#c9a84c 0%,#8b6914 50%,#5c4409 100%);color:#fff;border:3px solid #d4a017;cursor:pointer;border-radius:6px;text-shadow:1px 1px 0 #000;box-shadow:0 4px 0 #3d2e0a;line-height:1.6">HAND ME THE BONES CHAZZY</button>
@@ -1919,20 +1919,24 @@ var cashOut = lockInScore;
 
 // ── Exit Table ──
 async function exitTable() {
-  if (STATE.stack > 0 && STATE.nonce) {
+  if (STATE.nonce) {
     var betsOnTable = 0;
     for (var val of Object.values(STATE.bets)) betsOnTable += val;
-    var msg = 'Leave with ' + STATE.stack + ' chips saved?';
+    var msg = STATE.stack + ' chips will be saved to your account.';
     if (betsOnTable > 0) msg += '\n\n' + betsOnTable + ' chips on the table will be LOST (pass line, bets).';
+    msg += '\n\nLeave the table?';
     if (!(await gameConfirm(msg))) return;
-    // Save stack to server (bets on table are lost)
+    // Save stack to server permanently (bets on table are lost)
     try {
       await fetchWithTimeout(WORKER_URL + '/hashcash/save-chips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: STATE.nftName, sessionToken: STATE.sessionToken, stack: STATE.stack }),
       });
+      dealerSay(STATE.stack + ' chips saved! Come back anytime.', 'happy');
     } catch(_) {}
+    // Brief delay so they see the message
+    await new Promise(function(r) { setTimeout(r, 1500); });
   }
   disconnectTable();
   location.reload();
@@ -2417,6 +2421,21 @@ function showErrorPopup(title, message) {
   document.body.appendChild(overlay);
 }
 
+function showBonusPopup(totalStack) {
+  var old = document.getElementById('cooldownPopup');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'cooldownPopup';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="background:#1a1a2e;border:3px solid #4caf50;border-radius:12px;padding:30px 40px;text-align:center;max-width:380px;font-family:\'Press Start 2P\',monospace">' +
+    '<div style="font-size:0.5rem;color:#4caf50;margin-bottom:16px">DAILY BONUS!</div>' +
+    '<div style="font-size:0.35rem;color:#f5e6c8;line-height:1.8;margin-bottom:12px">+100 chips added to your account!</div>' +
+    '<div style="font-size:0.6rem;color:#ffe96a;margin-bottom:20px">' + totalStack + ' CHIPS</div>' +
+    '<button onclick="document.getElementById(\'cooldownPopup\').remove()" style="font-family:\'Press Start 2P\',monospace;font-size:0.3rem;padding:10px 30px;background:linear-gradient(180deg,#4caf50,#2e7d32);color:#fff;border:2px solid #66bb6a;border-radius:6px;cursor:pointer">LET\'S GO!</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
 function showCooldownPopup(timeStr) {
   // Remove existing popup if any
   var old = document.getElementById('cooldownPopup');
@@ -2451,10 +2470,19 @@ async function startHashCash() {
   STATE.nonce = username;
   STATE.sessionToken = joinData.sessionToken;
   STATE.stack = joinData.stack || 100;
-  STATE.buyIn = 100;
+  STATE.buyIn = STATE.stack;
   STATE.chadId = Math.floor(Math.random() * 20) + 1;
   STATE.player = username.toLowerCase();
   STATE.tokenId = STATE.chadId;
+
+  // Show daily bonus or welcome message
+  if (joinData.dailyBonus && joinData.stack > 100) {
+    showBonusPopup(joinData.stack);
+  } else if (joinData.dailyBonus) {
+    // First time player — no special popup needed
+  } else {
+    // Returning within 24h — no bonus
+  }
 
   document.getElementById('nameOverlay').style.display = 'none';
   // Show the table lobby
