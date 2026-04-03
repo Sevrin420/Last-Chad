@@ -250,16 +250,17 @@ export class HashCashTable {
         let playerData = await this.state.storage.get(`player:${nonce}`);
 
         if (!playerData) {
-          // New player — create with 100 chips
+          // New player — use stack from join endpoint (may be saved chips or fresh 100)
+          const startStack = Math.max(0, Math.floor(Number(data.stack) || 100));
           playerData = {
             tokenId:  String(Math.floor(Math.random() * 20) + 1),
             player:   username.toLowerCase(),
             username: username,
-            stack:    100,
+            stack:    startStack,
             bets:     {},
             comeBets: {},
             comeOdds: {},
-            buyIn:    100,
+            buyIn:    startStack,
             lastBetTime: Date.now(),
             lastActivity: Date.now(),
             _expectedToken: token,

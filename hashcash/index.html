@@ -690,6 +690,7 @@
     <button class="header-action-btn" id="clearBetsBtn" onclick="clearBets()">CLEAR</button>
     <button class="header-action-btn" id="muteBtn" onclick="toggleMute()">MUTE</button>
     <button class="header-action-btn" id="cashOutBtn" onclick="lockInScore()">LOCK IN</button>
+    <button class="header-action-btn" id="exitBtn" onclick="exitTable()" style="background:linear-gradient(180deg,#ef5350,#b71c1c);border-color:#e53935">EXIT</button>
   </div>
   <div class="header-label" id="walletBtn">HASHCASH</div>
 </div>
@@ -924,7 +925,15 @@
     </div>
   </div>
 
-
+  <!-- In-game leaderboard + lock-in -->
+  <div style="background:rgba(10,10,15,0.95);border-top:2px solid #2a3a1a;padding:12px 8px;text-align:center">
+    <h3 style="font-size:0.4rem;color:#c9a84c;margin-bottom:8px">LEADERBOARD</h3>
+    <table style="width:100%;max-width:400px;margin:0 auto;border-collapse:collapse;font-size:0.3rem">
+      <thead><tr><th style="color:#8a7a5a;text-align:left;padding:4px 6px;border-bottom:2px solid #5c4409">#</th><th style="color:#8a7a5a;text-align:left;padding:4px 6px;border-bottom:2px solid #5c4409">NAME</th><th style="color:#8a7a5a;text-align:left;padding:4px 6px;border-bottom:2px solid #5c4409">CHIPS</th></tr></thead>
+      <tbody id="gameLbBody"><tr><td colspan="3" style="text-align:center;color:#8a7a5a;padding:8px;font-size:0.25rem">Loading...</td></tr></tbody>
+    </table>
+    <button onclick="lockInScore()" style="font-family:'Press Start 2P',monospace;font-size:0.35rem;padding:10px 24px;background:linear-gradient(180deg,#c9a84c,#5c4409);color:#fff;border:2px solid #d4a017;cursor:pointer;border-radius:6px;margin-top:12px">LOCK IN CHIPS</button>
+  </div>
 
 <img src="../assets/hashcash/lastchadbanner.jpg" alt="Last Chad" style="width:100%;max-width:600px;display:block;margin:10px auto 0" />
 
@@ -1884,8 +1893,12 @@ async function lockInScore() {
     var data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Lock-in failed');
 
-    dealerSay('Score locked: ' + total + ' chips!', 'happy');
-    showToast('+' + total, 'win', 'Locked In!');
+    var lbMsg = '';
+    if (data.onLeaderboard) {
+      lbMsg = ' #' + data.rank + ' on the leaderboard!';
+    }
+    dealerSay('Score locked: ' + data.score + ' chips!' + lbMsg, 'happy');
+    showToast('+' + data.score, 'win', data.onLeaderboard ? 'LEADERBOARD #' + data.rank : 'Locked In!');
 
     // Close WebSocket — server already removed us from the table
     if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
@@ -1893,7 +1906,7 @@ async function lockInScore() {
     if (_tableWs) { try { _tableWs.close(1000, 'Locked in'); } catch(_){} _tableWs = null; }
 
     // Return to start screen after a short delay
-    setTimeout(function() { location.reload(); }, 3000);
+    setTimeout(function() { location.reload(); }, 4000);
 
   } catch (err) {
     cashingOut = false;
@@ -1906,17 +1919,23 @@ var cashOut = lockInScore;
 
 // ── Exit Table ──
 async function exitTable() {
-  if (!STATE.spectator && STATE.nonce) {
+  if (STATE.stack > 0 && STATE.nonce) {
     var betsOnTable = 0;
     for (var val of Object.values(STATE.bets)) betsOnTable += val;
-    var totalCells = STATE.stack + betsOnTable;
-    if (totalCells > 0) {
-      if (!(await gameConfirm('You have ' + totalCells + ' chips! Leaving = LOST. Are you sure?'))) return;
-    }
+    var msg = 'Leave with ' + STATE.stack + ' chips saved?';
+    if (betsOnTable > 0) msg += '\n\n' + betsOnTable + ' chips on the table will be LOST (pass line, bets).';
+    if (!(await gameConfirm(msg))) return;
+    // Save stack to server (bets on table are lost)
+    try {
+      await fetchWithTimeout(WORKER_URL + '/hashcash/save-chips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: STATE.nftName, sessionToken: STATE.sessionToken, stack: STATE.stack }),
+      });
+    } catch(_) {}
   }
   disconnectTable();
-  document.getElementById('tableLobby').classList.remove('hidden');
-  document.getElementById('tableWrapper').style.display = 'none';
+  location.reload();
 }
 
 // ── No wallet needed — username auth ──
@@ -2341,8 +2360,13 @@ setInterval(refreshLobbyTables, 10_000);
 // Heartbeat: DO pings every 30s, client responds with pong (handled in handleWsMessage).
 window.addEventListener('beforeunload', (e) => {
   if (!cashingOut && STATE.nonce && STATE.stack > 0) {
+    // Save chips before leaving
+    try {
+      var blob = new Blob([JSON.stringify({ username: STATE.nftName, sessionToken: STATE.sessionToken, stack: STATE.stack })], { type: 'application/json' });
+      navigator.sendBeacon(WORKER_URL + '/hashcash/save-chips', blob);
+    } catch(_) {}
     e.preventDefault();
-    e.returnValue = 'You have chips on the table! Lock in your score first or they will be lost.';
+    e.returnValue = 'Your chips will be saved. Bets on the table will be lost.';
   }
   if (!cashingOut) disconnectTable();
 });
@@ -2519,17 +2543,35 @@ function _renderLbRows(body, lb) {
   if (lb.length === 0) {
     body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#8a7a5a;padding:12px;font-size:0.3rem">No scores yet</td></tr>';
   } else {
-    body.innerHTML = lb.slice(0, 20).map(function(e, i) {
+    body.innerHTML = lb.slice(0, 10).map(function(e, i) {
       var gold = i === 0 ? 'color:#ffd700' : i === 1 ? 'color:#c0c0c0' : i === 2 ? 'color:#cd7f32' : 'color:#f5e6c8';
       return '<tr><td style="padding:6px;border-bottom:1px solid #3d2e0a;' + gold + '">' + (i+1) + '</td><td style="padding:6px;border-bottom:1px solid #3d2e0a;' + gold + '">' + e.name + '</td><td style="padding:6px;border-bottom:1px solid #3d2e0a;' + gold + '">' + e.chips + '</td></tr>';
     }).join('');
   }
 }
 
+async function refreshGameLeaderboard() {
+  var lb = await _fetchHCLeaderboard();
+  var gameBody = document.getElementById('gameLbBody');
+  if (gameBody) _renderLbRows(gameBody, lb);
+  // Check if player's stack qualifies
+  if (STATE.stack > 0 && lb.length > 0) {
+    var lowestScore = lb.length < 10 ? 0 : (lb[lb.length - 1]?.chips || 0);
+    if (STATE.stack > lowestScore) {
+      dealerSay('Your stack qualifies for the leaderboard! Lock in to claim your spot.', 'happy');
+    }
+  }
+}
+
+// Refresh game leaderboard every 30 seconds
+setInterval(refreshGameLeaderboard, 30000);
+
 (async function() {
   var lb = await _fetchHCLeaderboard();
   var startBody = document.getElementById('startLbBody');
   if (startBody) _renderLbRows(startBody, lb);
+  var gameBody = document.getElementById('gameLbBody');
+  if (gameBody) _renderLbRows(gameBody, lb);
 })();
 
 console.log('[hashcash] module loaded OK');
