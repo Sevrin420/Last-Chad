@@ -337,9 +337,8 @@
      SCREEN 1: LOGIN
 ════════════════════════════════════════ -->
 <div id="screen-login" class="screen active">
-  <h1>AVAX<br/>PIE FACE</h1>
   <div style="font-size:0.65rem; color:#ff6666; border:1px solid #ff444466; border-radius:6px; padding:10px 14px; margin-bottom:18px; text-align:center; line-height:2.2; width:100%;">
-    📋 RULES: Don't pie Emin
+    RULE: Don't pie Emin
   </div>
   <input type="text" id="login-user" placeholder="Twitter Handle" autocomplete="off" maxlength="20" />
   <input type="text" id="login-pass" placeholder="Password" autocomplete="off" maxlength="40" />
@@ -484,7 +483,8 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+    let data;
+    try { data = await res.json(); } catch { data = { error: `Server error (HTTP ${res.status})` }; }
     return { status: res.status, data };
   }
 
@@ -580,8 +580,8 @@
       } else {
         setLoginError(data.error || 'Login failed. Please try again.');
       }
-    } catch {
-      setLoginError('Network error. Please try again.');
+    } catch (e) {
+      setLoginError('Connection failed: ' + (e?.message || 'unknown error'));
     } finally {
       setButtonLoading(btn, false, 'Login');
     }
@@ -604,8 +604,8 @@
       } else {
         setLoginError(data.error || 'Could not create account. Please try again.');
       }
-    } catch {
-      setLoginError('Network error. Please try again.');
+    } catch (e) {
+      setLoginError('Connection failed: ' + (e?.message || 'unknown error'));
     } finally {
       setButtonLoading(btn, false, 'Create Account');
     }
