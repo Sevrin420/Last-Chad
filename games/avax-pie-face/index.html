@@ -573,6 +573,10 @@
       const { status, data } = await apiPost('/pieface/login', { username: uInput, password: pInput });
       if (status === 200 && data.ok) {
         loginSuccess(data);
+      } else if (status === 404) {
+        setLoginError('Twitter handle not found. Did you mean to create an account?');
+      } else if (status === 401) {
+        setLoginError('Wrong password. Please try again.');
       } else {
         setLoginError(data.error || 'Login failed. Please try again.');
       }
@@ -595,8 +599,10 @@
       const { status, data } = await apiPost('/pieface/register', { username: uInput, password: pInput });
       if (status === 200 && data.ok) {
         loginSuccess(data);
+      } else if (status === 409) {
+        setLoginError('That handle is already taken. Try logging in instead.');
       } else {
-        setLoginError(data.error || 'Registration failed. Please try again.');
+        setLoginError(data.error || 'Could not create account. Please try again.');
       }
     } catch {
       setLoginError('Network error. Please try again.');
