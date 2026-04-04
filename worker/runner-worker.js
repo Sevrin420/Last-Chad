@@ -203,6 +203,23 @@ export default {
         return await handleFreeplayScore(request, env);
       }
 
+      // ── Avax Pie Face ──
+      if (request.method === 'POST' && url.pathname === '/pieface/register') {
+        return await handlePieFaceRegister(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/pieface/login') {
+        return await handlePieFaceLogin(request, env);
+      }
+      if (request.method === 'GET' && url.pathname === '/pieface/leaderboard') {
+        return await handlePieFaceLeaderboard(env);
+      }
+      if (request.method === 'POST' && url.pathname === '/pieface/score') {
+        return await handlePieFaceScore(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/pieface/use-attempt') {
+        return await handlePieFaceUseAttempt(request, env);
+      }
+
       // Admin: view kick log (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
       if (request.method === 'GET' && url.pathname === '/craps/kick-log') {
         const auth = request.headers.get('Authorization') || '';
@@ -1434,4 +1451,180 @@ async function handleHashCashDeleteEntry(request, env) {
     : lb.filter(e => e.name.toLowerCase() !== body.name.toLowerCase());
   await env.RUNNER_KV.put(HASHCASH_LB_KEY, JSON.stringify(filtered));
   return json({ ok: true, removed: before - filtered.length, remaining: filtered.length });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  AVAX PIE FACE — Shared leaderboard + accounts
+// ══════════════════════════════════════════════════════════════════════════
+
+const PIEFACE_LB_KEY  = 'pieface:leaderboard';
+const PIEFACE_LB_MAX  = 10;
+const PIEFACE_MAX_SCORE = 670; // theoretical max (every face clicked at peak speed)
+const PIEFACE_ATTEMPTS  = 3;
+
+// Returns the timestamp (ms) of the most recent Sunday 17:00 UTC (= 9am PST)
+function getPieFaceLastReset() {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0 = Sunday
+  const lastSunday = new Date(now);
+  lastSunday.setUTCDate(now.getUTCDate() - day);
+  lastSunday.setUTCHours(17, 0, 0, 0);
+  if (lastSunday > now) lastSunday.setUTCDate(lastSunday.getUTCDate() - 7);
+  return lastSunday.getTime();
+}
+
+async function pfHashPw(username, password, oracleKey) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`pieface:pw:${username.toLowerCase()}:${password}`));
+  return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+async function pfSessionToken(username, oracleKey) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`pieface:session:${username.toLowerCase()}`));
+  return btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
+}
+
+// POST /pieface/register  { username, password }
+async function handlePieFaceRegister(request, env) {
+  const body = await parseBody(request);
+  let username = (body.username || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '');
+  const password = (body.password || '').toString();
+  if (!username || username.length < 2 || username.length > 24)
+    return json({ error: 'Username must be 2–24 characters (letters, numbers, spaces)' }, 400);
+  if (!password || password.length < 4)
+    return json({ error: 'Password must be at least 4 characters' }, 400);
+
+  const userKey = `pieface:user:${username.toLowerCase()}`;
+  const existing = await env.RUNNER_KV.get(userKey);
+  if (existing) return json({ error: 'Username already taken' }, 409);
+
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const passHash = await pfHashPw(username, password, oracleKey);
+  const sessionToken = await pfSessionToken(username, oracleKey);
+
+  const user = { passHash, attempts: PIEFACE_ATTEMPTS, lastReset: getPieFaceLastReset(), highScore: 0 };
+  await env.RUNNER_KV.put(userKey, JSON.stringify(user));
+
+  return json({ ok: true, sessionToken, username, attempts: PIEFACE_ATTEMPTS, highScore: 0 });
+}
+
+// POST /pieface/login  { username, password }
+async function handlePieFaceLogin(request, env) {
+  const body = await parseBody(request);
+  let username = (body.username || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '');
+  const password = (body.password || '').toString();
+  if (!username) return json({ error: 'Username required' }, 400);
+  if (!password) return json({ error: 'Password required' }, 400);
+
+  const userKey = `pieface:user:${username.toLowerCase()}`;
+  const userData = await env.RUNNER_KV.get(userKey, { type: 'json' });
+  if (!userData) return json({ error: 'Username not found' }, 404);
+
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const passHash = await pfHashPw(username, password, oracleKey);
+  if (passHash !== userData.passHash) return json({ error: 'Incorrect password' }, 401);
+
+  // Check weekly reset
+  const lastReset = getPieFaceLastReset();
+  if ((userData.lastReset || 0) < lastReset) {
+    userData.attempts = PIEFACE_ATTEMPTS;
+    userData.lastReset = lastReset;
+    await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
+  }
+
+  const sessionToken = await pfSessionToken(username, oracleKey);
+  return json({ ok: true, sessionToken, username, attempts: userData.attempts, highScore: userData.highScore || 0 });
+}
+
+// GET /pieface/leaderboard
+async function handlePieFaceLeaderboard(env) {
+  const lb = await env.RUNNER_KV.get(PIEFACE_LB_KEY, { type: 'json' }) || [];
+  return json({ ok: true, leaderboard: lb });
+}
+
+// POST /pieface/use-attempt  { username, sessionToken }
+async function handlePieFaceUseAttempt(request, env) {
+  const body = await parseBody(request);
+  const { username, sessionToken } = body;
+  if (!username || !sessionToken) return json({ error: 'Missing auth' }, 403);
+
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const expected = await pfSessionToken(username, oracleKey);
+  if (sessionToken !== expected) return json({ error: 'Unauthorized' }, 403);
+
+  const userKey = `pieface:user:${username.toLowerCase()}`;
+  const userData = await env.RUNNER_KV.get(userKey, { type: 'json' });
+  if (!userData) return json({ error: 'User not found' }, 404);
+
+  // Weekly reset check
+  const lastReset = getPieFaceLastReset();
+  if ((userData.lastReset || 0) < lastReset) {
+    userData.attempts = PIEFACE_ATTEMPTS;
+    userData.lastReset = lastReset;
+  }
+
+  if (userData.attempts <= 0) return json({ error: 'No attempts remaining. Resets Sunday 9am PST.', attempts: 0 }, 400);
+
+  userData.attempts -= 1;
+  await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
+  return json({ ok: true, attempts: userData.attempts });
+}
+
+// POST /pieface/score  { username, sessionToken, score, clickCount }
+async function handlePieFaceScore(request, env) {
+  const body = await parseBody(request);
+  const { username, sessionToken, score, clickCount } = body;
+  if (!username || !sessionToken) return json({ error: 'Missing auth' }, 403);
+  if (typeof score !== 'number' || score < 0) return json({ error: 'Invalid score' }, 400);
+
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  const expected = await pfSessionToken(username, oracleKey);
+  if (sessionToken !== expected) return json({ error: 'Unauthorized' }, 403);
+
+  // Anti-cheat: score must equal clickCount × 10
+  if (typeof clickCount === 'number' && score !== clickCount * 10)
+    return json({ error: 'Score validation failed' }, 400);
+
+  const cappedScore = Math.min(score, PIEFACE_MAX_SCORE);
+
+  // Update user high score
+  const userKey = `pieface:user:${username.toLowerCase()}`;
+  const userData = await env.RUNNER_KV.get(userKey, { type: 'json' });
+  if (!userData) return json({ error: 'User not found' }, 404);
+
+  const prevHigh = userData.highScore || 0;
+  if (cappedScore > prevHigh) {
+    userData.highScore = cappedScore;
+    await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
+  }
+
+  // Only update leaderboard if this is a new personal best
+  let onLeaderboard = false;
+  let rank = -1;
+
+  if (cappedScore > prevHigh || cappedScore === prevHigh) {
+    const lb = await env.RUNNER_KV.get(PIEFACE_LB_KEY, { type: 'json' }) || [];
+    const existingIdx = lb.findIndex(e => e.username.toLowerCase() === username.toLowerCase());
+
+    if (existingIdx >= 0) {
+      if (cappedScore > lb[existingIdx].score) {
+        lb[existingIdx].score = cappedScore;
+        lb[existingIdx].date = new Date().toISOString().slice(0, 10);
+      }
+    } else {
+      lb.push({ username: username.trim(), score: cappedScore, date: new Date().toISOString().slice(0, 10) });
+    }
+
+    lb.sort((a, b) => b.score - a.score);
+    const trimmed = lb.slice(0, PIEFACE_LB_MAX);
+    await env.RUNNER_KV.put(PIEFACE_LB_KEY, JSON.stringify(trimmed));
+
+    rank = trimmed.findIndex(e => e.username.toLowerCase() === username.toLowerCase()) + 1;
+    onLeaderboard = rank > 0;
+  }
+
+  return json({ ok: true, score: cappedScore, onLeaderboard, rank });
 }
