@@ -39,9 +39,59 @@
     .screen.active { display: flex; }
 
     /* Dark overlay on non-game screens so text stays readable over the bg */
-    .screen:not(#screen-game).active {
+    .screen:not(#screen-game):not(#screen-intro).active {
       background: rgba(10, 10, 15, 0.82);
       border-radius: 10px;
+    }
+
+    /* ── INTRO SCREEN ── */
+    #screen-intro {
+      position: fixed;
+      inset: 0;
+      max-width: none;
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      z-index: 100;
+      background: transparent;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 12vh;
+    }
+    #screen-intro.active { display: flex; }
+    #btn-begin {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 1.1rem;
+      background: #f5c842;
+      color: #111;
+      border: none;
+      border-radius: 8px;
+      padding: 18px 48px;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      box-shadow: 0 4px 0 #a07a00, 0 6px 18px #0008;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    #btn-begin:active { transform: translateY(3px); box-shadow: 0 1px 0 #a07a00; }
+
+    /* ── VIDEO OVERLAY ── */
+    #video-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #video-overlay.show { display: flex; }
+    #video-overlay.visible { opacity: 1; }
+    #intro-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
     /* ── TABLET / DESKTOP ── */
@@ -336,7 +386,36 @@
 <!-- ════════════════════════════════════════
      SCREEN 1: LOGIN
 ════════════════════════════════════════ -->
-<div id="screen-login" class="screen active">
+<!-- ════════════════════════════════════════
+     AUDIO
+════════════════════════════════════════ -->
+<audio id="audio-morning" loop preload="auto">
+  <source src="../../assets/Avaxpieface/Morning_Mood,_Chiptune_(8_Bit).mp3" type="audio/mpeg" />
+</audio>
+<audio id="audio-circus" loop preload="auto">
+  <source src="../../assets/Avaxpieface/Entry_of_The_Gladiators_(8-Bit_Remix).mp3" type="audio/mpeg" />
+</audio>
+
+<!-- ════════════════════════════════════════
+     VIDEO OVERLAY
+════════════════════════════════════════ -->
+<div id="video-overlay">
+  <video id="intro-video" playsinline>
+    <source src="../../assets/Avaxpieface/piefaceintro.mp4" type="video/mp4" />
+  </video>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 0: INTRO
+════════════════════════════════════════ -->
+<div id="screen-intro" class="screen active">
+  <button id="btn-begin">BEGIN</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 1: LOGIN
+════════════════════════════════════════ -->
+<div id="screen-login" class="screen">
   <div style="font-size:0.65rem; color:#ff6666; border:1px solid #ff444466; border-radius:6px; padding:10px 14px; margin-bottom:18px; text-align:center; line-height:2.2; width:100%;">
     Don't Pie Emin
   </div>
@@ -410,6 +489,63 @@
 <script>
 (function () {
   'use strict';
+
+  // ── Audio ──────────────────────────────────────────────────────
+  const audioMorning = document.getElementById('audio-morning');
+  const audioCircus  = document.getElementById('audio-circus');
+  audioMorning.volume = 0.5;
+  audioCircus.volume  = 1.0;
+
+  function playMorning() {
+    audioCircus.pause();
+    audioCircus.currentTime = 0;
+    audioMorning.play().catch(() => {});
+  }
+  function stopMorning() {
+    audioMorning.pause();
+    audioMorning.currentTime = 0;
+  }
+  function playCircus() {
+    audioMorning.pause();
+    audioCircus.play().catch(() => {});
+  }
+  function stopCircus() {
+    audioCircus.pause();
+    audioCircus.currentTime = 0;
+  }
+
+  // ── Intro screen ───────────────────────────────────────────────
+  const videoOverlay = document.getElementById('video-overlay');
+  const introVideo   = document.getElementById('intro-video');
+
+  document.getElementById('btn-begin').addEventListener('click', () => {
+    // Unlock audio on this user gesture
+    audioMorning.play().then(() => audioMorning.pause()).catch(() => {});
+    audioCircus.play().then(() => audioCircus.pause()).catch(() => {});
+
+    // Try to play intro video
+    const src = introVideo.querySelector('source')?.src;
+    if (src) {
+      videoOverlay.classList.add('show');
+      requestAnimationFrame(() => requestAnimationFrame(() => videoOverlay.classList.add('visible')));
+      introVideo.play().catch(() => {
+        // Video failed (file missing etc) — skip straight to login
+        showLoginFromIntro();
+      });
+      introVideo.addEventListener('ended', showLoginFromIntro, { once: true });
+    } else {
+      showLoginFromIntro();
+    }
+  });
+
+  function showLoginFromIntro() {
+    // Fade out video overlay
+    videoOverlay.classList.remove('visible');
+    setTimeout(() => videoOverlay.classList.remove('show'), 500);
+    // Show login screen and start morning mood
+    showScreen('screen-login');
+    playMorning();
+  }
 
   // ── Constants ──────────────────────────────────────────────────
   const WORKER_URL   = 'https://last-chad-runner.severin20.workers.dev';
@@ -733,6 +869,7 @@
   // ── GAME LOGIC ─────────────────────────────────────────────────
   function startGame() {
     if (!gameStartedViaUI) return;  // anti-cheat: must go through UI
+    playCircus();
     gameScore     = 0;
     clickCount    = 0;
     gameStartTime = Date.now();
@@ -994,6 +1131,8 @@
   });
 
   function doLogout() {
+    stopCircus();
+    playMorning();
     sessionToken     = null;
     currentUser      = null;
     currentAttempts  = 0;
