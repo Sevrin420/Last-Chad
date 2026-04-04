@@ -243,8 +243,8 @@
       overflow: hidden;
     }
     .face-front img {
-      width: 100%;
-      height: 100%;
+      width: 85%;
+      height: 85%;
       object-fit: cover;
       pointer-events: none;
       user-select: none;
@@ -393,12 +393,12 @@
 
   // Square layout (% of image dimensions)
   const SLOTS = [
-    { left: '16%', top: '22%', width: '31%', height: '23%' },
-    { left: '53%', top: '22%', width: '31%', height: '23%' },
-    { left: '16%', top: '46%', width: '31%', height: '23%' },
-    { left: '53%', top: '46%', width: '31%', height: '23%' },
-    { left: '16%', top: '69%', width: '31%', height: '23%' },
-    { left: '53%', top: '69%', width: '31%', height: '23%' },
+    { left: '16%', top: '18%', width: '31%', height: '23%' },
+    { left: '53%', top: '18%', width: '31%', height: '23%' },
+    { left: '16%', top: '42%', width: '31%', height: '23%' },
+    { left: '53%', top: '42%', width: '31%', height: '23%' },
+    { left: '16%', top: '72%', width: '31%', height: '23%' },
+    { left: '53%', top: '72%', width: '31%', height: '23%' },
   ];
 
   const FACES = [
@@ -729,7 +729,7 @@
     if (!gameActive) return;
     const empty = [];
     for (let i = 0; i < 6; i++) {
-      if (slotState[i] === null) empty.push(i);
+      if (slotState[i] === null) empty.push(i);  // null = free; '__busy__' = animating, skip
     }
     if (empty.length === 0) return;
 
@@ -771,12 +771,12 @@
     const face = slotState[slotIdx];
     if (!face) return;
 
-    // Cancel auto-hide timer and lock slot so it can't be clicked again
+    // Cancel auto-hide timer; mark slot busy so nothing spawns during animation
     if (faceTimers[slotIdx]) {
       clearTimeout(faceTimers[slotIdx]);
       delete faceTimers[slotIdx];
     }
-    slotState[slotIdx] = null;
+    slotState[slotIdx] = '__busy__';
 
     // Swap to the grossed-out reaction image
     const img = document.getElementById(`face-img-${slotIdx}`);
@@ -789,6 +789,7 @@
         card.classList.remove('flipped-up');
         card.classList.add('flipped-down');
       }
+      slotState[slotIdx] = null;  // free slot only after animation fully done
       if (face === EMIN_FACE) {
         triggerEmin();
       } else {
@@ -812,7 +813,7 @@
       'object-fit:contain',
       'z-index:20',
       'pointer-events:none',
-      'transition:top 1s ease-in',
+      'transition:top 0.5s ease-in',
     ].join(';');
     slot.appendChild(pieEl);
 
@@ -823,7 +824,7 @@
     setTimeout(() => {
       pieEl.remove();
       onComplete();
-    }, 1100);
+    }, 600);
   }
 
   function triggerEmin() {
