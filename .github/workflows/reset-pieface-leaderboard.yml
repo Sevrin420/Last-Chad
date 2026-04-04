@@ -1,0 +1,16 @@
+name: Reset Pie Face Leaderboard
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clear leaderboard
+        env:
+          ORACLE_KEY: ${{ secrets.ORACLE_PRIVATE_KEY }}
+        run: |
+          curl -sf "https://last-chad-runner.severin20.workers.dev/pieface/reset-leaderboard?secret=${ORACLE_KEY}" \
+            && echo "✅ Leaderboard cleared" \
+            || echo "❌ Failed"
