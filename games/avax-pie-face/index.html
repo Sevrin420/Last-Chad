@@ -71,6 +71,7 @@
       transition: transform 0.1s, filter 0.1s;
     }
     button:active { transform: scale(0.96); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
 
     .btn-primary {
       background: #f5c842;
@@ -80,7 +81,7 @@
       width: 100%;
       margin-bottom: 10px;
     }
-    .btn-primary:hover { filter: brightness(1.15); }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.15); }
 
     .btn-secondary {
       background: transparent;
@@ -91,7 +92,7 @@
       width: 100%;
       margin-bottom: 10px;
     }
-    .btn-secondary:hover { background: #f5c84222; }
+    .btn-secondary:hover:not(:disabled) { background: #f5c84222; }
 
     .btn-small {
       background: transparent;
@@ -101,7 +102,7 @@
       font-size: 0.45rem;
       margin-top: 6px;
     }
-    .btn-small:hover { color: #f5c842; border-color: #f5c842; }
+    .btn-small:hover:not(:disabled) { color: #f5c842; border-color: #f5c842; }
 
     .error-msg {
       color: #ff5555;
@@ -118,6 +119,24 @@
       margin-bottom: 12px;
       line-height: 1.8;
     }
+
+    /* ── SPINNER ── */
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #0a0a0f44;
+      border-top-color: #0a0a0f;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    .spinner-gold {
+      border-color: #f5c84244;
+      border-top-color: #f5c842;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── LEADERBOARD ── */
     .leaderboard-panel {
@@ -142,6 +161,7 @@
     .lb-row .name { flex: 1; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lb-row .score { color: #ffe066; }
     .lb-empty { font-size: 0.45rem; color: #666; text-align: center; padding: 8px 0; }
+    .lb-loading { font-size: 0.45rem; color: #aaa; text-align: center; padding: 8px 0; }
 
     /* ── PRE-GAME ── */
     .pregame-info {
@@ -199,7 +219,6 @@
       position: absolute;
       perspective: 600px;
       cursor: pointer;
-      /* slots are invisible containers — faces appear inside */
     }
 
     .face-card {
@@ -207,7 +226,7 @@
       height: 100%;
       position: relative;
       transform-style: preserve-3d;
-      transform: rotateX(90deg); /* starts hidden (flipped down) */
+      transform: rotateX(90deg);
       transition: transform 0.35s ease;
     }
     .face-card.flipped-up   { transform: rotateX(0deg); }
@@ -364,12 +383,9 @@
   'use strict';
 
   // ── Constants ──────────────────────────────────────────────────
-  const USERS_KEY       = 'apf_users';
-  const LB_KEY          = 'apf_leaderboard';
+  const WORKER_URL      = 'https://last-chad-runner.severin20.workers.dev';
   const GAME_DURATION   = 60;          // seconds
-  const MAX_ATTEMPTS    = 3;
-  const MAX_LB_ENTRIES  = 10;
-  const THEORETICAL_MAX = Math.floor(GAME_DURATION / 0.9) * 10;  // 666
+  const THEORETICAL_MAX = Math.floor(GAME_DURATION / 0.9) * 10;  // ~666
 
   // Spawn/duration ramp  t=0 → t=60
   const SPAWN_START  = 2000; const SPAWN_END  = 600;
@@ -390,76 +406,61 @@
     'avery.png','cg777.png','emin.png',
     'hillbilly.png','jonycsarker.png','vanho.png','vanya.png',
   ];
-  const EMIN_FACE = 'emin.png';
+  const EMIN_FACE  = 'emin.png';
   const ASSET_BASE = '../../assets/Avaxpieface/';
 
-  // ── State ──────────────────────────────────────────────────────
-  let currentUser  = null;
-  let gameActive   = false;
-  let gameScore    = 0;
-  let clickCount   = 0;
-  let gameStartTime = null;
-  let timerInterval = null;
-  let spawnTimeout  = null;
-  let faceTimers    = {};    // slotIndex → timeout id
-  let slotState     = new Array(6).fill(null);  // null or face filename
+  // ── Session state (in memory only — no localStorage) ───────────
+  let sessionToken  = null;
+  let currentUser   = null;
+  let currentAttempts  = 0;
+  let currentHighScore = 0;
+
+  // ── Game state ─────────────────────────────────────────────────
+  let gameActive       = false;
+  let gameScore        = 0;
+  let clickCount       = 0;
+  let gameStartTime    = null;
+  let timerInterval    = null;
+  let spawnTimeout     = null;
+  let faceTimers       = {};
+  let slotState        = new Array(6).fill(null);
   let gameStartedViaUI = false;  // anti-console-cheat flag
 
+  // ── API helpers ────────────────────────────────────────────────
+  async function apiPost(path, body) {
+    const res = await fetch(WORKER_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    return { status: res.status, data };
+  }
+
+  async function apiGet(path) {
+    const res = await fetch(WORKER_URL + path);
+    const data = await res.json();
+    return { status: res.status, data };
+  }
+
   // ── Utility ────────────────────────────────────────────────────
-  function hashPw(username, password) {
-    return btoa(username + ':' + password);
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
   }
 
-  function getUsers() {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }
-    catch { return {}; }
-  }
-  function saveUsers(u) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(u));
-  }
-
-  function getLeaderboard() {
-    try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; }
-    catch { return []; }
-  }
-  function saveLeaderboard(lb) {
-    localStorage.setItem(LB_KEY, JSON.stringify(lb));
-  }
-
-  // Returns next Sunday 17:00 UTC (= 9am PST UTC-8) after a given date
-  function nextWeeklyReset(from) {
-    const d = new Date(from);
-    const day = d.getUTCDay();  // 0=Sun
-    // days until next Sunday
-    const daysUntilSun = day === 0 ? 7 : 7 - day;
-    const next = new Date(d);
-    next.setUTCDate(d.getUTCDate() + daysUntilSun);
-    next.setUTCHours(17, 0, 0, 0);
-    return next.getTime();
-  }
-
-  // Returns the most recent past Sunday 17:00 UTC
-  function lastWeeklyReset() {
-    const now = new Date();
-    const day = now.getUTCDay();
-    const daysSinceSun = day === 0 ? 0 : day;
-    const last = new Date(now);
-    last.setUTCDate(now.getUTCDate() - daysSinceSun);
-    last.setUTCHours(17, 0, 0, 0);
-    // if today is Sunday but before 17:00 UTC, go back one week
-    if (last > now) {
-      last.setUTCDate(last.getUTCDate() - 7);
+  function setButtonLoading(btn, loading, originalText) {
+    if (loading) {
+      btn.disabled = true;
+      btn.dataset.origText = btn.textContent;
+      btn.innerHTML = '<span class="spinner"></span>Loading...';
+    } else {
+      btn.disabled = false;
+      btn.textContent = originalText || btn.dataset.origText || btn.textContent;
     }
-    return last.getTime();
-  }
-
-  function refreshAttempts(userData) {
-    const resetTs = lastWeeklyReset();
-    if (!userData.lastReset || userData.lastReset < resetTs) {
-      userData.attempts = MAX_ATTEMPTS;
-      userData.lastReset = resetTs;
-    }
-    return userData;
   }
 
   // ── Screen helpers ─────────────────────────────────────────────
@@ -468,12 +469,27 @@
     document.getElementById(id).classList.add('active');
   }
 
-  function renderLeaderboard(containerId) {
-    const lb = getLeaderboard();
+  // ── Leaderboard rendering ──────────────────────────────────────
+  async function loadAndRenderLeaderboard(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    let html = '<div class="leaderboard-panel">'
-             + '<h2>🏆 LEADERBOARD</h2>';
+
+    container.innerHTML = '<div class="leaderboard-panel"><h2>LEADERBOARD</h2>'
+      + '<div class="lb-loading"><span class="spinner spinner-gold"></span>Loading...</div></div>';
+
+    try {
+      const { status, data } = await apiGet('/pieface/leaderboard');
+      const lb = (status === 200 && data.ok) ? (data.leaderboard || []) : [];
+      renderLeaderboardData(containerId, lb);
+    } catch {
+      renderLeaderboardData(containerId, []);
+    }
+  }
+
+  function renderLeaderboardData(containerId, lb) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    let html = '<div class="leaderboard-panel"><h2>LEADERBOARD</h2>';
     if (lb.length === 0) {
       html += '<div class="lb-empty">No scores yet!</div>';
     } else {
@@ -489,123 +505,131 @@
     container.innerHTML = html;
   }
 
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;');
-  }
-
   // ── LOGIN SCREEN ───────────────────────────────────────────────
   function setLoginError(msg) {
     document.getElementById('login-error').textContent = msg;
   }
 
-  document.getElementById('btn-login').addEventListener('click', () => {
+  document.getElementById('btn-login').addEventListener('click', async () => {
     const uInput = document.getElementById('login-user').value.trim();
     const pInput = document.getElementById('login-pass').value;
     setLoginError('');
     if (!uInput || !pInput) { setLoginError('Enter username and password.'); return; }
-    const users = getUsers();
-    if (!users[uInput]) { setLoginError('Username not found.'); return; }
-    const expected = hashPw(uInput, pInput);
-    if (users[uInput].passwordHash !== expected) { setLoginError('Wrong password.'); return; }
-    loginSuccess(uInput);
-  });
 
-  document.getElementById('btn-create').addEventListener('click', () => {
-    const uInput = document.getElementById('login-user').value.trim();
-    const pInput = document.getElementById('login-pass').value;
-    setLoginError('');
-    if (!uInput || !pInput) { setLoginError('Enter username and password.'); return; }
-    if (uInput.length < 2) { setLoginError('Username must be at least 2 characters.'); return; }
-    const users = getUsers();
-    if (users[uInput]) { setLoginError('Username already taken.'); return; }
-    const resetTs = lastWeeklyReset();
-    users[uInput] = {
-      passwordHash: hashPw(uInput, pInput),
-      attempts: MAX_ATTEMPTS,
-      lastReset: resetTs,
-      highScore: 0,
-    };
-    saveUsers(users);
-    loginSuccess(uInput);
-  });
-
-  document.getElementById('btn-show-lb-login').addEventListener('click', () => {
-    const panel = document.getElementById('login-lb-panel');
-    if (panel.style.display === 'none') {
-      renderLeaderboard('login-lb-panel');
-      panel.style.display = 'block';
-      document.getElementById('btn-show-lb-login').textContent = 'Hide Leaderboard';
-    } else {
-      panel.style.display = 'none';
-      document.getElementById('btn-show-lb-login').textContent = 'View Leaderboard';
+    const btn = document.getElementById('btn-login');
+    setButtonLoading(btn, true);
+    try {
+      const { status, data } = await apiPost('/pieface/login', { username: uInput, password: pInput });
+      if (status === 200 && data.ok) {
+        loginSuccess(data);
+      } else {
+        setLoginError(data.error || 'Login failed. Please try again.');
+      }
+    } catch {
+      setLoginError('Network error. Please try again.');
+    } finally {
+      setButtonLoading(btn, false, 'Login');
     }
   });
 
-  function loginSuccess(username) {
-    let users = getUsers();
-    users[username] = refreshAttempts(users[username]);
-    saveUsers(users);
-    currentUser = username;
+  document.getElementById('btn-create').addEventListener('click', async () => {
+    const uInput = document.getElementById('login-user').value.trim();
+    const pInput = document.getElementById('login-pass').value;
+    setLoginError('');
+    if (!uInput || !pInput) { setLoginError('Enter username and password.'); return; }
+
+    const btn = document.getElementById('btn-create');
+    setButtonLoading(btn, true);
+    try {
+      const { status, data } = await apiPost('/pieface/register', { username: uInput, password: pInput });
+      if (status === 200 && data.ok) {
+        loginSuccess(data);
+      } else {
+        setLoginError(data.error || 'Registration failed. Please try again.');
+      }
+    } catch {
+      setLoginError('Network error. Please try again.');
+    } finally {
+      setButtonLoading(btn, false, 'Create Account');
+    }
+  });
+
+  document.getElementById('btn-show-lb-login').addEventListener('click', async () => {
+    const panel = document.getElementById('login-lb-panel');
+    const btn   = document.getElementById('btn-show-lb-login');
+    if (panel.style.display === 'none') {
+      panel.style.display = 'block';
+      btn.textContent = 'Hide Leaderboard';
+      await loadAndRenderLeaderboard('login-lb-panel');
+    } else {
+      panel.style.display = 'none';
+      btn.textContent = 'View Leaderboard';
+    }
+  });
+
+  function loginSuccess(data) {
+    sessionToken       = data.sessionToken;
+    currentUser        = data.username;
+    currentAttempts    = data.attempts;
+    currentHighScore   = data.highScore || 0;
     showPreGame();
   }
 
   // ── PRE-GAME SCREEN ────────────────────────────────────────────
   function showPreGame() {
-    const users = getUsers();
-    const userData = users[currentUser];
     document.getElementById('pg-username').textContent  = currentUser;
-    document.getElementById('pg-attempts').textContent  = userData.attempts;
-    document.getElementById('pg-highscore').textContent = userData.highScore || 0;
+    document.getElementById('pg-attempts').textContent  = currentAttempts;
+    document.getElementById('pg-highscore').textContent = currentHighScore;
     document.getElementById('pregame-error').textContent = '';
     document.getElementById('pg-lb-panel').style.display = 'none';
     document.getElementById('btn-show-lb-pg').textContent = 'View Leaderboard';
     showScreen('screen-pregame');
   }
 
-  document.getElementById('btn-start').addEventListener('click', () => {
-    const users = getUsers();
-    let userData = refreshAttempts(users[currentUser]);
-    if (userData.attempts <= 0) {
-      document.getElementById('pregame-error').textContent =
-        'No attempts remaining. Resets Sunday 9am PST.';
-      return;
+  document.getElementById('btn-start').addEventListener('click', async () => {
+    document.getElementById('pregame-error').textContent = '';
+    const btn = document.getElementById('btn-start');
+    setButtonLoading(btn, true);
+    try {
+      const { status, data } = await apiPost('/pieface/use-attempt', {
+        username: currentUser,
+        sessionToken: sessionToken,
+      });
+      if (status === 200 && data.ok) {
+        currentAttempts = data.attempts;
+        gameStartedViaUI = true;
+        startGame();
+      } else {
+        document.getElementById('pregame-error').textContent =
+          data.error || 'Could not start game. Please try again.';
+      }
+    } catch {
+      document.getElementById('pregame-error').textContent = 'Network error. Please try again.';
+    } finally {
+      setButtonLoading(btn, false, 'Start Game');
     }
-    userData.attempts -= 1;
-    users[currentUser] = userData;
-    saveUsers(users);
-    gameStartedViaUI = true;
-    startGame();
   });
 
   document.getElementById('btn-back-login').addEventListener('click', () => {
-    currentUser = null;
-    gameStartedViaUI = false;
-    document.getElementById('login-user').value = '';
-    document.getElementById('login-pass').value = '';
-    setLoginError('');
-    showScreen('screen-login');
+    doLogout();
   });
 
-  document.getElementById('btn-show-lb-pg').addEventListener('click', () => {
+  document.getElementById('btn-show-lb-pg').addEventListener('click', async () => {
     const panel = document.getElementById('pg-lb-panel');
+    const btn   = document.getElementById('btn-show-lb-pg');
     if (panel.style.display === 'none') {
-      renderLeaderboard('pg-lb-panel');
       panel.style.display = 'block';
-      document.getElementById('btn-show-lb-pg').textContent = 'Hide Leaderboard';
+      btn.textContent = 'Hide Leaderboard';
+      await loadAndRenderLeaderboard('pg-lb-panel');
     } else {
       panel.style.display = 'none';
-      document.getElementById('btn-show-lb-pg').textContent = 'View Leaderboard';
+      btn.textContent = 'View Leaderboard';
     }
   });
 
   // ── BUILD BOARD SLOTS ──────────────────────────────────────────
   function buildBoard() {
     const wrap = document.getElementById('board-wrap');
-    // remove old slots
     wrap.querySelectorAll('.face-slot').forEach(el => el.remove());
 
     SLOTS.forEach((pos, i) => {
@@ -655,15 +679,14 @@
     buildBoard();
     showScreen('screen-game');
 
-    // Countdown timer
     timerInterval = setInterval(() => {
       if (!gameActive) return;
-      const elapsed = (Date.now() - gameStartTime) / 1000;
+      const elapsed   = (Date.now() - gameStartTime) / 1000;
       const remaining = Math.max(0, GAME_DURATION - elapsed);
-      const timerEl = document.getElementById('hud-timer');
+      const timerEl   = document.getElementById('hud-timer');
       timerEl.textContent = Math.ceil(remaining) + 's';
       if (remaining <= 10) timerEl.classList.add('urgent');
-      if (remaining <= 0) endGame(false);
+      if (remaining <= 0)  endGame();
     }, 100);
 
     scheduleNextSpawn();
@@ -692,7 +715,6 @@
 
   function spawnFace() {
     if (!gameActive) return;
-    // find empty slots
     const empty = [];
     for (let i = 0; i < 6; i++) {
       if (slotState[i] === null) empty.push(i);
@@ -700,30 +722,24 @@
     if (empty.length === 0) return;
 
     const slotIdx = empty[Math.floor(Math.random() * empty.length)];
-    const face = FACES[Math.floor(Math.random() * FACES.length)];
-
+    const face    = FACES[Math.floor(Math.random() * FACES.length)];
     showFace(slotIdx, face);
   }
 
   function showFace(slotIdx, face) {
     slotState[slotIdx] = face;
-    const img = document.getElementById(`face-img-${slotIdx}`);
+    const img  = document.getElementById(`face-img-${slotIdx}`);
     const card = document.getElementById(`card-${slotIdx}`);
     if (!img || !card) return;
 
     img.src = ASSET_BASE + face;
-
-    // flip up
     card.classList.remove('flipped-down');
     void card.offsetWidth;  // reflow
     card.classList.add('flipped-up');
 
-    // auto-hide after duration
     const dur = currentFaceDuration();
     if (faceTimers[slotIdx]) clearTimeout(faceTimers[slotIdx]);
-    faceTimers[slotIdx] = setTimeout(() => {
-      hideFace(slotIdx);
-    }, dur);
+    faceTimers[slotIdx] = setTimeout(() => hideFace(slotIdx), dur);
   }
 
   function hideFace(slotIdx) {
@@ -741,36 +757,31 @@
   function onSlotClick(slotIdx) {
     if (!gameActive) return;
     const face = slotState[slotIdx];
-    if (!face) return;  // no face up, miss
+    if (!face) return;
 
-    // cancel auto-hide
     if (faceTimers[slotIdx]) {
       clearTimeout(faceTimers[slotIdx]);
       delete faceTimers[slotIdx];
     }
 
     if (face === EMIN_FACE) {
-      // Special: end game with emin message
       hideFace(slotIdx);
       triggerEmin();
       return;
     }
 
-    // Score the hit
     hideFace(slotIdx);
-    gameScore += 10;
+    gameScore  += 10;
     clickCount += 1;
     document.getElementById('hud-score').textContent = gameScore + ' pts';
   }
 
   function triggerEmin() {
-    // stop game
     gameActive = false;
     clearInterval(timerInterval);
     clearTimeout(spawnTimeout);
     Object.values(faceTimers).forEach(clearTimeout);
     faceTimers = {};
-
     document.getElementById('emin-overlay').classList.add('show');
   }
 
@@ -779,7 +790,7 @@
     finishGame();
   });
 
-  function endGame(fromEmin) {
+  function endGame() {
     if (!gameActive) return;
     gameActive = false;
     clearInterval(timerInterval);
@@ -789,97 +800,65 @@
     finishGame();
   }
 
-  function finishGame() {
-    // Anti-cheat validation
+  async function finishGame() {
+    // Anti-cheat: score must equal clickCount × 10, cap at theoretical max
     let finalScore = gameScore;
+    if (finalScore !== clickCount * 10) finalScore = 0;
+    if (finalScore > THEORETICAL_MAX)   finalScore = THEORETICAL_MAX;
+    gameScore        = finalScore;
+    gameStartedViaUI = false;
 
-    // Score must equal clickCount × 10
-    if (finalScore !== clickCount * 10) {
-      finalScore = 0;
-    }
-
-    // Cap at theoretical max
-    if (finalScore > THEORETICAL_MAX) {
-      finalScore = THEORETICAL_MAX;
-    }
-
-    gameScore = finalScore;
-    gameStartedViaUI = false;  // reset gate
-
-    // Update high score
-    const users = getUsers();
-    const userData = users[currentUser];
-    if (finalScore > (userData.highScore || 0)) {
-      userData.highScore = finalScore;
-      users[currentUser] = userData;
-      saveUsers(users);
-    }
-
-    // Leaderboard
-    const lb = getLeaderboard();
-    const isTopTen = updateLeaderboard(lb, currentUser, finalScore);
-
-    // Show end screen
+    // Show end screen immediately with score while API calls happen
+    showScreen('screen-end');
     document.getElementById('end-score').textContent = finalScore + ' pts';
 
     const announceEl = document.getElementById('end-announce');
-    if (finalScore === 0 && gameScore === 0 && clickCount === 0) {
-      // Emin path or zero score — no special message
-      announceEl.className = 'end-announce nope';
-      announceEl.textContent = isTopTen
-        ? '🏆 New Leaderboard Score! You\'ve entered the Top 10!'
-        : 'Better luck next time!';
-    } else if (isTopTen) {
-      announceEl.className = 'end-announce top10';
-      announceEl.textContent = '🏆 New Leaderboard Score! You\'ve entered the Top 10!';
-    } else {
-      announceEl.className = 'end-announce nope';
-      announceEl.textContent = 'Not quite top 10 this time. Keep trying!';
-    }
+    announceEl.className = 'end-announce nope';
+    announceEl.textContent = '';
 
-    renderLeaderboard('end-lb-panel');
+    const endLbPanel     = document.getElementById('end-lb-panel');
+    endLbPanel.innerHTML = '<div class="leaderboard-panel"><h2>LEADERBOARD</h2>'
+      + '<div class="lb-loading"><span class="spinner spinner-gold"></span>Submitting score...</div></div>';
 
-    // Show play again only if attempts remain
-    const freshUsers = getUsers();
-    const freshData = refreshAttempts(freshUsers[currentUser]);
     const playAgainBtn = document.getElementById('btn-play-again');
-    if (freshData.attempts > 0) {
+    playAgainBtn.style.display = 'none';
+
+    // Submit score
+    try {
+      const { status, data } = await apiPost('/pieface/score', {
+        username:   currentUser,
+        sessionToken: sessionToken,
+        score:      finalScore,
+        clickCount: clickCount,
+      });
+
+      if (status === 200 && data.ok) {
+        if (data.onLeaderboard && data.rank > 0) {
+          announceEl.className     = 'end-announce top10';
+          announceEl.textContent   = `You're #${data.rank} on the leaderboard!`;
+        } else {
+          announceEl.className   = 'end-announce nope';
+          announceEl.textContent = 'Not quite top 10 this time. Keep trying!';
+        }
+        // Update local high score tracking
+        if (finalScore > currentHighScore) currentHighScore = finalScore;
+      } else {
+        announceEl.className   = 'end-announce nope';
+        announceEl.textContent = data.error || 'Score could not be submitted.';
+      }
+    } catch {
+      announceEl.className   = 'end-announce nope';
+      announceEl.textContent = 'Network error submitting score.';
+    }
+
+    // Load fresh leaderboard
+    await loadAndRenderLeaderboard('end-lb-panel');
+
+    // Show play again if attempts remain
+    if (currentAttempts > 0) {
       playAgainBtn.style.display = 'block';
-      playAgainBtn.textContent = `Play Again (${freshData.attempts} left)`;
-    } else {
-      playAgainBtn.style.display = 'none';
+      playAgainBtn.textContent   = `Play Again (${currentAttempts} left)`;
     }
-
-    showScreen('screen-end');
-  }
-
-  function updateLeaderboard(lb, username, score) {
-    // Find existing entry
-    const idx = lb.findIndex(e => e.username === username);
-    let qualified = false;
-
-    if (idx !== -1) {
-      if (score > lb[idx].score) {
-        lb[idx].score = score;
-        qualified = true;
-      }
-    } else {
-      // Check if qualifies for top 10
-      if (lb.length < MAX_LB_ENTRIES || score > lb[lb.length - 1].score) {
-        lb.push({ username, score });
-        qualified = true;
-      }
-    }
-
-    if (qualified || lb.length > MAX_LB_ENTRIES) {
-      // Re-sort and trim
-      lb.sort((a, b) => b.score - a.score);
-      while (lb.length > MAX_LB_ENTRIES) lb.pop();
-      saveLeaderboard(lb);
-    }
-
-    // Return whether this user is now on the board
-    return lb.findIndex(e => e.username === username) !== -1 && qualified;
   }
 
   // ── END SCREEN BUTTONS ─────────────────────────────────────────
@@ -888,13 +867,22 @@
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
-    currentUser = null;
+    doLogout();
+  });
+
+  function doLogout() {
+    sessionToken     = null;
+    currentUser      = null;
+    currentAttempts  = 0;
+    currentHighScore = 0;
     gameStartedViaUI = false;
     document.getElementById('login-user').value = '';
     document.getElementById('login-pass').value = '';
-    setLoginError('');
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('login-lb-panel').style.display = 'none';
+    document.getElementById('btn-show-lb-login').textContent = 'View Leaderboard';
     showScreen('screen-login');
-  });
+  }
 
   // ── KEYBOARD ENTER SUPPORT ─────────────────────────────────────
   ['login-user', 'login-pass'].forEach(id => {
@@ -902,10 +890,6 @@
       if (e.key === 'Enter') document.getElementById('btn-login').click();
     });
   });
-
-  // ── PREVENT CONSOLE START ──────────────────────────────────────
-  // startGame checks gameStartedViaUI which is only set by the UI button
-  // Expose nothing on window that would allow bypassing
 
 })();
 </script>
