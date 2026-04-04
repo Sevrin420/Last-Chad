@@ -11,7 +11,12 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0a0a0f;
+      background-color: #0a0a0f;
+      background-image: url('../../assets/Avaxpieface/piefacemain.jpg');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-attachment: fixed;
       color: #f5c842;
       font-family: 'Press Start 2P', monospace;
       min-height: 100vh;
@@ -32,6 +37,24 @@
       padding: 16px;
     }
     .screen.active { display: flex; }
+
+    /* Dark overlay on non-game screens so text stays readable over the bg */
+    .screen:not(#screen-game).active {
+      background: rgba(10, 10, 15, 0.82);
+      border-radius: 10px;
+    }
+
+    /* ── TABLET / DESKTOP ── */
+    @media (min-width: 768px) {
+      .screen                       { max-width: 580px; }
+      #screen-game                  { max-width: 580px; }
+      .game-hud, .board-wrap        { max-width: 580px; }
+    }
+    @media (min-width: 1100px) {
+      .screen                       { max-width: 720px; }
+      #screen-game                  { max-width: 720px; }
+      .game-hud, .board-wrap        { max-width: 720px; }
+    }
 
     h1 {
       font-size: 1.1rem;
