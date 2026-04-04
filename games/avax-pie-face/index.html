@@ -372,6 +372,27 @@
       margin-bottom: 20px;
     }
 
+    /* ── MUTE BUTTON ── */
+    #btn-mute {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 9999;
+      background: rgba(10,10,15,0.75);
+      border: 1px solid #f5c84255;
+      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+    }
+    #btn-mute:active { transform: scale(0.9); }
+
     /* divider */
     .divider {
       width: 100%;
@@ -395,6 +416,9 @@
 <audio id="audio-circus" loop preload="auto">
   <source src="../../assets/Avaxpieface/circus.mp3" type="audio/mpeg" />
 </audio>
+
+<!-- Fixed mute button -->
+<button id="btn-mute" title="Mute / Unmute">🔊</button>
 
 <!-- ════════════════════════════════════════
      VIDEO OVERLAY
@@ -496,6 +520,15 @@
   const audioCircus  = document.getElementById('audio-circus');
   audioMorning.volume = 0.5;
   audioCircus.volume  = 1.0;
+
+  let muted = false;
+  const btnMute = document.getElementById('btn-mute');
+  btnMute.addEventListener('click', () => {
+    muted = !muted;
+    audioMorning.muted = muted;
+    audioCircus.muted  = muted;
+    btnMute.textContent = muted ? '🔇' : '🔊';
+  });
 
   function playMorning() {
     audioCircus.pause();
