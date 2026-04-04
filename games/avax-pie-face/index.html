@@ -389,8 +389,8 @@
   const THEORETICAL_MAX = Math.floor(GAME_DURATION / 0.9) * 10;  // ~666
 
   // Spawn/duration ramp  t=0 → t=60
-  const SPAWN_START  = 2000; const SPAWN_END  = 600;
-  const DUR_START    = 2500; const DUR_END    = 900;
+  const SPAWN_START  = 1500; const SPAWN_END  = 280;
+  const DUR_START    = 2000; const DUR_END    = 650;
 
   // Square layout (% of image dimensions)
   const SLOTS = [
@@ -728,15 +728,20 @@
 
   function spawnFace() {
     if (!gameActive) return;
-    const empty = [];
-    for (let i = 0; i < 6; i++) {
-      if (slotState[i] === null) empty.push(i);  // null = free; '__busy__' = animating, skip
-    }
-    if (empty.length === 0) return;
+    const elapsed = (Date.now() - gameStartTime) / 1000;
+    // After 30s spawn 2 at once, after 45s spawn 3 at once
+    const count = elapsed >= 45 ? 3 : elapsed >= 30 ? 2 : 1;
 
-    const slotIdx = empty[Math.floor(Math.random() * empty.length)];
-    const face    = FACES[Math.floor(Math.random() * FACES.length)];
-    showFace(slotIdx, face);
+    for (let n = 0; n < count; n++) {
+      const empty = [];
+      for (let i = 0; i < 6; i++) {
+        if (slotState[i] === null) empty.push(i);
+      }
+      if (empty.length === 0) break;
+      const slotIdx = empty[Math.floor(Math.random() * empty.length)];
+      const face    = FACES[Math.floor(Math.random() * FACES.length)];
+      showFace(slotIdx, face);
+    }
   }
 
   function showFace(slotIdx, face) {
@@ -756,7 +761,6 @@
   }
 
   function hideFace(slotIdx) {
-    slotState[slotIdx] = null;
     const card = document.getElementById(`card-${slotIdx}`);
     if (!card) return;
     card.classList.remove('flipped-up');
@@ -765,6 +769,9 @@
       clearTimeout(faceTimers[slotIdx]);
       delete faceTimers[slotIdx];
     }
+    // 1.2s rest before slot is available again
+    slotState[slotIdx] = '__busy__';
+    setTimeout(() => { slotState[slotIdx] = null; }, 1200);
   }
 
   function onSlotClick(slotIdx) {
@@ -783,21 +790,24 @@
     const img = document.getElementById(`face-img-${slotIdx}`);
     if (img && PIE_FACES[face]) img.src = ASSET_BASE + PIE_FACES[face];
 
-    // Play pie-drop animation, then resolve
+    // Play pie-drop animation, then hold 0.5s, then flip down and rest 1.2s
     showPieAnimation(slotIdx, () => {
-      const card = document.getElementById(`card-${slotIdx}`);
-      if (card) {
-        card.classList.remove('flipped-up');
-        card.classList.add('flipped-down');
-      }
-      slotState[slotIdx] = null;  // free slot only after animation fully done
-      if (face === EMIN_FACE) {
-        triggerEmin();
-      } else {
-        gameScore  += 10;
-        clickCount += 1;
-        document.getElementById('hud-score').textContent = gameScore + ' pts';
-      }
+      setTimeout(() => {
+        const card = document.getElementById(`card-${slotIdx}`);
+        if (card) {
+          card.classList.remove('flipped-up');
+          card.classList.add('flipped-down');
+        }
+        if (face === EMIN_FACE) {
+          triggerEmin();
+        } else {
+          gameScore  += 10;
+          clickCount += 1;
+          document.getElementById('hud-score').textContent = gameScore + ' pts';
+        }
+        // 1.2s rest before slot is available again
+        setTimeout(() => { slotState[slotIdx] = null; }, 1200);
+      }, 500);
     });
   }
 
