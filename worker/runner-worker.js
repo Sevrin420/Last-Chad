@@ -219,6 +219,9 @@ export default {
       if (request.method === 'POST' && url.pathname === '/pieface/use-attempt') {
         return await handlePieFaceUseAttempt(request, env);
       }
+      if (request.method === 'GET' && url.pathname === '/pieface/reset-leaderboard') {
+        return await handlePieFaceResetLeaderboard(request, env);
+      }
 
       // Admin: view kick log (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
       if (request.method === 'GET' && url.pathname === '/craps/kick-log') {
@@ -1457,21 +1460,11 @@ async function handleHashCashDeleteEntry(request, env) {
 //  AVAX PIE FACE — Shared leaderboard + accounts
 // ══════════════════════════════════════════════════════════════════════════
 
-const PIEFACE_LB_KEY  = 'pieface:leaderboard';
-const PIEFACE_LB_MAX  = 10;
+const PIEFACE_LB_KEY    = 'pieface:leaderboard';
+const PIEFACE_LB_MAX    = 5;
 const PIEFACE_MAX_SCORE = 670; // theoretical max (every face clicked at peak speed)
-const PIEFACE_ATTEMPTS  = 3;
-
-// Returns the timestamp (ms) of the most recent Sunday 17:00 UTC (= 9am PST)
-function getPieFaceLastReset() {
-  const now = new Date();
-  const day = now.getUTCDay(); // 0 = Sunday
-  const lastSunday = new Date(now);
-  lastSunday.setUTCDate(now.getUTCDate() - day);
-  lastSunday.setUTCHours(17, 0, 0, 0);
-  if (lastSunday > now) lastSunday.setUTCDate(lastSunday.getUTCDate() - 7);
-  return lastSunday.getTime();
-}
+const PIEFACE_INITIAL_ATTEMPTS = 2;   // given on account creation
+const PIEFACE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24-hour cooldown then 1 attempt
 
 async function pfHashPw(username, password, oracleKey) {
   const enc = new TextEncoder();
@@ -1505,10 +1498,10 @@ async function handlePieFaceRegister(request, env) {
   const passHash = await pfHashPw(username, password, oracleKey);
   const sessionToken = await pfSessionToken(username, oracleKey);
 
-  const user = { passHash, attempts: PIEFACE_ATTEMPTS, lastReset: getPieFaceLastReset(), highScore: 0 };
+  const user = { passHash, attempts: PIEFACE_INITIAL_ATTEMPTS, lastAttemptUsed: 0, highScore: 0 };
   await env.RUNNER_KV.put(userKey, JSON.stringify(user));
 
-  return json({ ok: true, sessionToken, username, attempts: PIEFACE_ATTEMPTS, highScore: 0 });
+  return json({ ok: true, sessionToken, username, attempts: PIEFACE_INITIAL_ATTEMPTS, highScore: 0 });
 }
 
 // POST /pieface/login  { username, password }
@@ -1527,22 +1520,25 @@ async function handlePieFaceLogin(request, env) {
   const passHash = await pfHashPw(username, password, oracleKey);
   if (passHash !== userData.passHash) return json({ error: 'Incorrect password' }, 401);
 
-  // Check weekly reset
-  const lastReset = getPieFaceLastReset();
-  if ((userData.lastReset || 0) < lastReset) {
-    userData.attempts = PIEFACE_ATTEMPTS;
-    userData.lastReset = lastReset;
-    await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
-  }
+  // Compute effective available attempts (banked + cooldown-refreshed)
+  const availableAttempts = pfGetAvailableAttempts(userData);
 
   const sessionToken = await pfSessionToken(username, oracleKey);
-  return json({ ok: true, sessionToken, username, attempts: userData.attempts, highScore: userData.highScore || 0 });
+  return json({ ok: true, sessionToken, username, attempts: availableAttempts, highScore: userData.highScore || 0 });
 }
 
 // GET /pieface/leaderboard
 async function handlePieFaceLeaderboard(env) {
   const lb = await env.RUNNER_KV.get(PIEFACE_LB_KEY, { type: 'json' }) || [];
   return json({ ok: true, leaderboard: lb });
+}
+
+// Returns how many attempts the user currently has (banked + possible cooldown refresh)
+function pfGetAvailableAttempts(userData) {
+  if ((userData.attempts || 0) > 0) return userData.attempts;
+  // No banked attempts — check if 24h cooldown has elapsed
+  const elapsed = Date.now() - (userData.lastAttemptUsed || 0);
+  return elapsed >= PIEFACE_COOLDOWN_MS ? 1 : 0;
 }
 
 // POST /pieface/use-attempt  { username, sessionToken }
@@ -1559,18 +1555,30 @@ async function handlePieFaceUseAttempt(request, env) {
   const userData = await env.RUNNER_KV.get(userKey, { type: 'json' });
   if (!userData) return json({ error: 'User not found' }, 404);
 
-  // Weekly reset check
-  const lastReset = getPieFaceLastReset();
-  if ((userData.lastReset || 0) < lastReset) {
-    userData.attempts = PIEFACE_ATTEMPTS;
-    userData.lastReset = lastReset;
+  const available = pfGetAvailableAttempts(userData);
+  if (available <= 0) {
+    const elapsed = Date.now() - (userData.lastAttemptUsed || 0);
+    const remaining = Math.ceil((PIEFACE_COOLDOWN_MS - elapsed) / 1000 / 60); // minutes
+    return json({ error: `No attempts remaining. Next attempt in ${remaining} minute${remaining !== 1 ? 's' : ''}.`, attempts: 0, minutesLeft: remaining }, 400);
   }
 
-  if (userData.attempts <= 0) return json({ error: 'No attempts remaining. Resets Sunday 9am PST.', attempts: 0 }, 400);
-
-  userData.attempts -= 1;
+  // If the available attempt came from cooldown (not banked), don't decrement — it's 0 already
+  if ((userData.attempts || 0) > 0) {
+    userData.attempts -= 1;
+  }
+  userData.lastAttemptUsed = Date.now();
   await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
-  return json({ ok: true, attempts: userData.attempts });
+  return json({ ok: true, attempts: Math.max(0, userData.attempts || 0) });
+}
+
+// GET /pieface/reset-leaderboard?secret=<ORACLE_PRIVATE_KEY>
+async function handlePieFaceResetLeaderboard(request, env) {
+  const url = new URL(request.url);
+  const secret = url.searchParams.get('secret');
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  if (!secret || secret !== oracleKey) return json({ error: 'Unauthorized' }, 403);
+  await env.RUNNER_KV.put(PIEFACE_LB_KEY, JSON.stringify([]));
+  return json({ ok: true, message: 'Leaderboard cleared' });
 }
 
 // POST /pieface/score  { username, sessionToken, score, clickCount }
