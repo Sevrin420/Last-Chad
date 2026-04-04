@@ -28,9 +28,10 @@ Transition Last Chad from Fuji testnet to Avalanche mainnet. Deploy all existing
 - `teamMemberCount` mapping — not needed
 
 **Modify `_mintInternal()`:**
-- Base cells per mint: **25** (currently 5)
-- Partner bonus: If minter holds an NFT from any registered partner collection, award **100 extra cells** (checked at mint time only, not retroactive)
-- Total possible: **125 cells** per mint (25 base + 100 partner bonus)
+- Base cells per mint: **50**
+- Partner bonus: If minter holds an NFT from any registered partner collection, award **+100 cells per NFT minted** (checked at mint time only, not retroactive)
+- Code bonus: If minter supplies a valid partner code, award **+100 cells per NFT minted** (one code covers all NFTs in the same transaction)
+- Total possible: **250 cells** per mint (50 base + 100 partner + 100 code)
 - Partner collections still registered via `createTeam()` (rename to `registerPartner()`) — only used to check `balanceOf > 0` for the bonus
 
 **Keep:**
@@ -56,60 +57,64 @@ Modify `lockCells()`:
 Modify `spendStatPoint()`:
 - Revert if `levelsFrozen == true`
 
-### LastChad.sol — Free Mint Passcodes
+### LastChad.sol — Partner Mint Codes (Bonus Cells)
 
-Add a passcode-based free mint system for giveaways.
+Partner codes give **+100 cells per NFT minted** in the same transaction. Mint 5 NFTs with a code = +500 bonus cells total. Codes are reusable (not one-per-wallet) — they're partner-specific and can be given to communities to use at launch.
 
 **State:**
 ```
-mapping(bytes32 => bool) public passcodeUsed;    // hash → already redeemed
-mapping(bytes32 => bool) public passcodeValid;   // hash → is a real code
+mapping(bytes32 => bool) public mintCodeValid;   // hash → is a real code
 ```
 
 **Owner Functions:**
 ```
-addPasscodes(bytes32[] hashes)
-  — Owner loads hashed passcodes into the contract
-  — Can be called multiple times to add more codes
+addMintCodes(bytes32[] hashes)
+  — Owner loads hashed codes into the contract
   — Hashes are keccak256(abi.encodePacked(plainTextCode))
+  — Can be called multiple times to add more
 
-removePasscode(bytes32 hash)
-  — Owner can invalidate a code before it's used
+removeMintCode(bytes32 hash)
+  — Owner can retire a code
 ```
 
-**Player Function:**
-```
-freeMint(string passcode)
-  — Hashes the passcode: keccak256(abi.encodePacked(passcode))
-  — Requires: hash exists in passcodeValid
-  — Requires: hash not in passcodeUsed
-  — Requires: totalMinted + 1 <= MAX_SUPPLY
-  — Requires: mintedPerWallet[msg.sender] + 1 <= MAX_MINT_PER_WALLET
-  — Marks passcodeUsed[hash] = true
-  — Mints 1 NFT (no payment required)
-  — Awards 25 base cells (same as paid mint)
-  — Checks partner bonus (same as paid mint)
-```
+**Modified `mint(uint256 quantity, string code)`:**
+- If `code` is non-empty: hash it, check `mintCodeValid[hash]`
+- If valid: award `+100 cells × quantity` in addition to base + partner bonus
+- If invalid: revert with "Invalid code" (don't silently ignore — prevents typos)
+- Code is NOT marked used — it's reusable for all minters
+
+**Cell breakdown per NFT:**
+| Source | Cells | Condition |
+|--------|-------|-----------|
+| Base | 50 | Always |
+| Partner NFT | +100 | Minter holds a registered partner collection NFT |
+| Mint code | +100 | Valid code entered at mint |
+| **Total max** | **250** | All three |
+
+**UI — mint.html breakdown (show before minting):**
+- Display a live cell preview as the user fills in quantity and code
+- Each bonus line appears/disappears based on eligibility:
+  ```
+  ✅ Base cells:        50 × 3 = 150
+  ✅ Partner NFT bonus: 100 × 3 = 300   (shown if partner NFT detected)
+  ✅ Code bonus:        100 × 3 = 300   (shown if valid code entered)
+  ─────────────────────────────────────
+  Total cells:          750
+  ```
+- Partner detection: check `balanceOf(partnerContracts)` for minter's wallet when they connect
+- Code validation: call a read function `isMintCodeValid(bytes32 hash)` client-side before showing the bonus line (hash the code in JS before checking)
 
 **Code Generation (done by Claude in a script):**
-- Generate 20 random codes (e.g. `CHAD-A7X9-K2M4`)
+- Generate codes in format `CHAD-A7X9-K2M4` (easy to share, paste-friendly)
 - Hash each with keccak256
-- Script calls `addPasscodes([hash1, hash2, ...])` via GitHub workflow
-- Plain text codes given to owner to distribute
+- Script calls `addMintCodes([hash1, hash2, ...])` via GitHub workflow
+- Plain text codes given to owner to distribute to partner communities
 
 **Security:**
-- Codes are stored as hashes on-chain — can't be reverse-engineered
-- One use per code — `passcodeUsed` prevents replay
-- Wallet limit still enforced — can't use 6 codes from one wallet
-- Codes can be revoked before use via `removePasscode()`
-
-**Automation:**
-- Claude generates 20 random passcodes (e.g. `CHAD-A7X9-K2M4`)
-- Claude hashes each with keccak256 and writes a deploy script
-- Deploy script calls `addPasscodes([hash1, hash2, ...])` on-chain via GitHub workflow
-- Claude outputs the plain text codes for the owner to distribute
-- All done in one step — no manual hashing or contract interaction needed
-- mint.html gets a "Have a code?" input field that calls `freeMint(passcode)`
+- Codes stored as hashes on-chain — can't be reverse-engineered from contract
+- Codes are reusable by design (meant for community-wide sharing)
+- Partner detection is at mint time only — not retroactive
+- Wallet limit still enforced — can't mint more than 5 per wallet regardless of code
 
 ### New Contract: Tournament.sol
 
@@ -388,7 +393,8 @@ When supply reaches 1 surviving Chad, that wallet owns the entire Xphar treasury
 
 ## 8. Checklist — Going Live
 
-- [ ] Finalize LastChad.sol changes (freezeLevels)
+- [ ] Finalize LastChad.sol changes (freezeLevels, mint codes, 50 base cells, 250 max)
+- [ ] Generate partner mint codes and load them via workflow
 - [ ] Write Tournament.sol
 - [ ] Write tests for both
 - [ ] Update deploy.yml to include Tournament
