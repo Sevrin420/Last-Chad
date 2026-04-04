@@ -730,7 +730,7 @@
     if (!gameActive) return;
     const elapsed = (Date.now() - gameStartTime) / 1000;
     // After 30s spawn 2 at once, after 45s spawn 3 at once
-    const count = elapsed >= 45 ? 3 : elapsed >= 30 ? 2 : 1;
+    const count = elapsed >= 45 ? 3 : elapsed >= 30 ? 2 : (Math.random() < 0.35 ? 2 : 1);
 
     for (let n = 0; n < count; n++) {
       const empty = [];
