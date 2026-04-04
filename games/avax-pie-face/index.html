@@ -410,12 +410,8 @@
   'use strict';
 
   // ── Constants ──────────────────────────────────────────────────
-  const WORKER_URL      = 'https://last-chad-runner.severin20.workers.dev';
-  const GAME_DURATION   = 60;          // seconds
-  // Max possible clicks = 6 slots × (game duration / min slot cycle)
-  // Min slot cycle = DUR_END(650ms visible) + 1200ms rest = 1850ms
-  const SLOT_MIN_CYCLE_MS = DUR_END + 1200;
-  const THEORETICAL_MAX   = SLOTS.length * Math.ceil(GAME_DURATION * 1000 / SLOT_MIN_CYCLE_MS) * 10; // ~1980
+  const WORKER_URL   = 'https://last-chad-runner.severin20.workers.dev';
+  const GAME_DURATION = 60;          // seconds
 
   // Spawn/duration ramp  t=0 → t=60
   const SPAWN_START  = 1500; const SPAWN_END  = 280;
@@ -430,6 +426,8 @@
     { left: '16%', top: '70%', width: '31%', height: '23%' },
     { left: '53%', top: '70%', width: '31%', height: '23%' },
   ];
+  // Max possible: 6 slots × ceil(60000ms / 1850ms min cycle) × 10pts ≈ 1980
+  const THEORETICAL_MAX = SLOTS.length * Math.ceil(GAME_DURATION * 1000 / (DUR_END + 1200)) * 10;
 
   const FACES = [
     'Dominic.png','Jason.png','brandon.png',
