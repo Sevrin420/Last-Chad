@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Avax Pie Face</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0f;
+      color: #f5c842;
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 480px;
+      padding: 16px;
+    }
+    .screen.active { display: flex; }
+
+    h1 {
+      font-size: 1.1rem;
+      color: #f5c842;
+      text-align: center;
+      margin-bottom: 24px;
+      text-shadow: 0 0 12px #f5c84288;
+      line-height: 1.8;
+    }
+    h2 {
+      font-size: 0.75rem;
+      color: #f5c842;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: #1a1a2e;
+      border: 2px solid #f5c842;
+      color: #f5c842;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      outline: none;
+      border-radius: 4px;
+    }
+    input::placeholder { color: #7a6a20; }
+    input:focus { border-color: #ffe066; box-shadow: 0 0 8px #f5c84244; }
+
+    button {
+      font-family: 'Press Start 2P', monospace;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      transition: transform 0.1s, filter 0.1s;
+    }
+    button:active { transform: scale(0.96); }
+
+    .btn-primary {
+      background: #f5c842;
+      color: #0a0a0f;
+      padding: 10px 20px;
+      font-size: 0.6rem;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .btn-primary:hover { filter: brightness(1.15); }
+
+    .btn-secondary {
+      background: transparent;
+      color: #f5c842;
+      border: 2px solid #f5c842;
+      padding: 8px 16px;
+      font-size: 0.5rem;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .btn-secondary:hover { background: #f5c84222; }
+
+    .btn-small {
+      background: transparent;
+      color: #aaa;
+      border: 1px solid #555;
+      padding: 6px 12px;
+      font-size: 0.45rem;
+      margin-top: 6px;
+    }
+    .btn-small:hover { color: #f5c842; border-color: #f5c842; }
+
+    .error-msg {
+      color: #ff5555;
+      font-size: 0.45rem;
+      text-align: center;
+      margin-bottom: 10px;
+      min-height: 1em;
+      line-height: 1.6;
+    }
+    .info-msg {
+      color: #aaffaa;
+      font-size: 0.5rem;
+      text-align: center;
+      margin-bottom: 12px;
+      line-height: 1.8;
+    }
+
+    /* ── LEADERBOARD ── */
+    .leaderboard-panel {
+      width: 100%;
+      background: #111122;
+      border: 2px solid #f5c84255;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .leaderboard-panel h2 { margin-bottom: 10px; }
+    .lb-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.45rem;
+      padding: 4px 0;
+      border-bottom: 1px solid #f5c84222;
+      color: #ddd;
+    }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row .rank { color: #f5c842; min-width: 2em; }
+    .lb-row .name { flex: 1; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-row .score { color: #ffe066; }
+    .lb-empty { font-size: 0.45rem; color: #666; text-align: center; padding: 8px 0; }
+
+    /* ── PRE-GAME ── */
+    .pregame-info {
+      font-size: 0.55rem;
+      text-align: center;
+      line-height: 2.2;
+      color: #ddd;
+      margin-bottom: 20px;
+    }
+    .pregame-info span { color: #f5c842; }
+
+    /* ── GAME SCREEN ── */
+    #screen-game {
+      padding: 0;
+      max-width: 420px;
+      width: 100%;
+    }
+
+    .game-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      padding: 8px 12px;
+      background: #111122;
+    }
+    .hud-timer {
+      font-size: 0.7rem;
+      color: #f5c842;
+      transition: color 0.3s;
+    }
+    .hud-timer.urgent { color: #ff4444; animation: pulse 0.5s infinite alternate; }
+    @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+    .hud-score {
+      font-size: 0.7rem;
+      color: #ffe066;
+    }
+
+    /* ── BOARD ── */
+    .board-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+    }
+    .board-bg {
+      width: 100%;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* Face slots absolutely positioned over the background */
+    .face-slot {
+      position: absolute;
+      perspective: 600px;
+      cursor: pointer;
+      /* slots are invisible containers — faces appear inside */
+    }
+
+    .face-card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: rotateX(90deg); /* starts hidden (flipped down) */
+      transition: transform 0.35s ease;
+    }
+    .face-card.flipped-up   { transform: rotateX(0deg); }
+    .face-card.flipped-down { transform: rotateX(90deg); }
+
+    .face-front {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .face-front img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      border-radius: 4px;
+    }
+
+    /* ── END SCREEN ── */
+    .end-score-display {
+      font-size: 1.2rem;
+      color: #ffe066;
+      margin: 16px 0;
+      text-align: center;
+    }
+    .end-announce {
+      font-size: 0.5rem;
+      text-align: center;
+      margin-bottom: 16px;
+      line-height: 2;
+      padding: 0 8px;
+    }
+    .end-announce.top10 { color: #ffe066; }
+    .end-announce.nope  { color: #aaa; }
+
+    /* emin overlay */
+    #emin-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000000cc;
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 32px;
+    }
+    #emin-overlay.show { display: flex; }
+    #emin-overlay p {
+      font-size: 0.65rem;
+      color: #ff6666;
+      text-align: center;
+      margin-bottom: 24px;
+      line-height: 2;
+    }
+    #emin-overlay img {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 4px solid #ff4444;
+      margin-bottom: 20px;
+    }
+
+    /* divider */
+    .divider {
+      width: 100%;
+      border: none;
+      border-top: 1px solid #f5c84233;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     SCREEN 1: LOGIN
+════════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <h1>AVAX<br/>PIE FACE</h1>
+  <input type="text" id="login-user" placeholder="Username" autocomplete="off" maxlength="20" />
+  <input type="password" id="login-pass" placeholder="Password" autocomplete="off" maxlength="40" />
+  <div class="error-msg" id="login-error"></div>
+  <button class="btn-primary" id="btn-login">Login</button>
+  <button class="btn-secondary" id="btn-create">Create Account</button>
+  <hr class="divider" />
+  <button class="btn-small" id="btn-show-lb-login">View Leaderboard</button>
+  <div id="login-lb-panel" style="display:none; width:100%;"></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 2: PRE-GAME
+════════════════════════════════════════ -->
+<div id="screen-pregame" class="screen">
+  <h1>AVAX<br/>PIE FACE</h1>
+  <div class="pregame-info">
+    Welcome, <span id="pg-username">—</span><br/>
+    Attempts remaining: <span id="pg-attempts">—</span><br/>
+    High Score: <span id="pg-highscore">—</span>
+  </div>
+  <div class="error-msg" id="pregame-error"></div>
+  <button class="btn-primary" id="btn-start">Start Game</button>
+  <button class="btn-small" id="btn-show-lb-pg">View Leaderboard</button>
+  <div id="pg-lb-panel" style="display:none; width:100%;"></div>
+  <hr class="divider" />
+  <button class="btn-secondary" id="btn-back-login">Logout</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 3: GAME
+════════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+  <div class="game-hud">
+    <div class="hud-timer" id="hud-timer">60s</div>
+    <div class="hud-score" id="hud-score">0 pts</div>
+  </div>
+  <div class="board-wrap" id="board-wrap">
+    <img class="board-bg" src="../../assets/Avaxpieface/piefacemain.jpg" alt="Pie Face Board" id="board-bg-img" draggable="false" />
+    <!-- Face slots injected by JS -->
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 4: END
+════════════════════════════════════════ -->
+<div id="screen-end" class="screen">
+  <h1>GAME OVER</h1>
+  <div class="end-score-display" id="end-score">0</div>
+  <div class="end-announce" id="end-announce"></div>
+  <div id="end-lb-panel" style="width:100%;"></div>
+  <hr class="divider" />
+  <button class="btn-primary" id="btn-play-again" style="display:none;">Play Again</button>
+  <button class="btn-secondary" id="btn-logout">Logout</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     EMIN OVERLAY
+════════════════════════════════════════ -->
+<div id="emin-overlay">
+  <img src="../../assets/Avaxpieface/emin.png" alt="Emin" />
+  <p>You have pied Emin...<br/>Where's your sense of respect!</p>
+  <button class="btn-primary" id="btn-emin-ok" style="max-width:260px;">Accept Your Fate</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Constants ──────────────────────────────────────────────────
+  const USERS_KEY       = 'apf_users';
+  const LB_KEY          = 'apf_leaderboard';
+  const GAME_DURATION   = 60;          // seconds
+  const MAX_ATTEMPTS    = 3;
+  const MAX_LB_ENTRIES  = 10;
+  const THEORETICAL_MAX = Math.floor(GAME_DURATION / 0.9) * 10;  // 666
+
+  // Spawn/duration ramp  t=0 → t=60
+  const SPAWN_START  = 2000; const SPAWN_END  = 600;
+  const DUR_START    = 2500; const DUR_END    = 900;
+
+  // Square layout (% of image dimensions)
+  const SLOTS = [
+    { left: '16%', top: '22%', width: '31%', height: '23%' },
+    { left: '53%', top: '22%', width: '31%', height: '23%' },
+    { left: '16%', top: '46%', width: '31%', height: '23%' },
+    { left: '53%', top: '46%', width: '31%', height: '23%' },
+    { left: '16%', top: '69%', width: '31%', height: '23%' },
+    { left: '53%', top: '69%', width: '31%', height: '23%' },
+  ];
+
+  const FACES = [
+    'Dominic.png','Jason.png','Picsart_26-04-03_14-28-55-103.png',
+    'avery.png','cg777.png','emin.png',
+    'hillbilly.png','jonycsarker.png','vanho.png','vanya.png',
+  ];
+  const EMIN_FACE = 'emin.png';
+  const ASSET_BASE = '../../assets/Avaxpieface/';
+
+  // ── State ──────────────────────────────────────────────────────
+  let currentUser  = null;
+  let gameActive   = false;
+  let gameScore    = 0;
+  let clickCount   = 0;
+  let gameStartTime = null;
+  let timerInterval = null;
+  let spawnTimeout  = null;
+  let faceTimers    = {};    // slotIndex → timeout id
+  let slotState     = new Array(6).fill(null);  // null or face filename
+  let gameStartedViaUI = false;  // anti-console-cheat flag
+
+  // ── Utility ────────────────────────────────────────────────────
+  function hashPw(username, password) {
+    return btoa(username + ':' + password);
+  }
+
+  function getUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }
+    catch { return {}; }
+  }
+  function saveUsers(u) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(u));
+  }
+
+  function getLeaderboard() {
+    try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; }
+    catch { return []; }
+  }
+  function saveLeaderboard(lb) {
+    localStorage.setItem(LB_KEY, JSON.stringify(lb));
+  }
+
+  // Returns next Sunday 17:00 UTC (= 9am PST UTC-8) after a given date
+  function nextWeeklyReset(from) {
+    const d = new Date(from);
+    const day = d.getUTCDay();  // 0=Sun
+    // days until next Sunday
+    const daysUntilSun = day === 0 ? 7 : 7 - day;
+    const next = new Date(d);
+    next.setUTCDate(d.getUTCDate() + daysUntilSun);
+    next.setUTCHours(17, 0, 0, 0);
+    return next.getTime();
+  }
+
+  // Returns the most recent past Sunday 17:00 UTC
+  function lastWeeklyReset() {
+    const now = new Date();
+    const day = now.getUTCDay();
+    const daysSinceSun = day === 0 ? 0 : day;
+    const last = new Date(now);
+    last.setUTCDate(now.getUTCDate() - daysSinceSun);
+    last.setUTCHours(17, 0, 0, 0);
+    // if today is Sunday but before 17:00 UTC, go back one week
+    if (last > now) {
+      last.setUTCDate(last.getUTCDate() - 7);
+    }
+    return last.getTime();
+  }
+
+  function refreshAttempts(userData) {
+    const resetTs = lastWeeklyReset();
+    if (!userData.lastReset || userData.lastReset < resetTs) {
+      userData.attempts = MAX_ATTEMPTS;
+      userData.lastReset = resetTs;
+    }
+    return userData;
+  }
+
+  // ── Screen helpers ─────────────────────────────────────────────
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function renderLeaderboard(containerId) {
+    const lb = getLeaderboard();
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    let html = '<div class="leaderboard-panel">'
+             + '<h2>🏆 LEADERBOARD</h2>';
+    if (lb.length === 0) {
+      html += '<div class="lb-empty">No scores yet!</div>';
+    } else {
+      lb.forEach((entry, i) => {
+        html += `<div class="lb-row">
+          <span class="rank">#${i + 1}</span>
+          <span class="name">${escHtml(entry.username)}</span>
+          <span class="score">${entry.score}</span>
+        </div>`;
+      });
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  // ── LOGIN SCREEN ───────────────────────────────────────────────
+  function setLoginError(msg) {
+    document.getElementById('login-error').textContent = msg;
+  }
+
+  document.getElementById('btn-login').addEventListener('click', () => {
+    const uInput = document.getElementById('login-user').value.trim();
+    const pInput = document.getElementById('login-pass').value;
+    setLoginError('');
+    if (!uInput || !pInput) { setLoginError('Enter username and password.'); return; }
+    const users = getUsers();
+    if (!users[uInput]) { setLoginError('Username not found.'); return; }
+    const expected = hashPw(uInput, pInput);
+    if (users[uInput].passwordHash !== expected) { setLoginError('Wrong password.'); return; }
+    loginSuccess(uInput);
+  });
+
+  document.getElementById('btn-create').addEventListener('click', () => {
+    const uInput = document.getElementById('login-user').value.trim();
+    const pInput = document.getElementById('login-pass').value;
+    setLoginError('');
+    if (!uInput || !pInput) { setLoginError('Enter username and password.'); return; }
+    if (uInput.length < 2) { setLoginError('Username must be at least 2 characters.'); return; }
+    const users = getUsers();
+    if (users[uInput]) { setLoginError('Username already taken.'); return; }
+    const resetTs = lastWeeklyReset();
+    users[uInput] = {
+      passwordHash: hashPw(uInput, pInput),
+      attempts: MAX_ATTEMPTS,
+      lastReset: resetTs,
+      highScore: 0,
+    };
+    saveUsers(users);
+    loginSuccess(uInput);
+  });
+
+  document.getElementById('btn-show-lb-login').addEventListener('click', () => {
+    const panel = document.getElementById('login-lb-panel');
+    if (panel.style.display === 'none') {
+      renderLeaderboard('login-lb-panel');
+      panel.style.display = 'block';
+      document.getElementById('btn-show-lb-login').textContent = 'Hide Leaderboard';
+    } else {
+      panel.style.display = 'none';
+      document.getElementById('btn-show-lb-login').textContent = 'View Leaderboard';
+    }
+  });
+
+  function loginSuccess(username) {
+    let users = getUsers();
+    users[username] = refreshAttempts(users[username]);
+    saveUsers(users);
+    currentUser = username;
+    showPreGame();
+  }
+
+  // ── PRE-GAME SCREEN ────────────────────────────────────────────
+  function showPreGame() {
+    const users = getUsers();
+    const userData = users[currentUser];
+    document.getElementById('pg-username').textContent  = currentUser;
+    document.getElementById('pg-attempts').textContent  = userData.attempts;
+    document.getElementById('pg-highscore').textContent = userData.highScore || 0;
+    document.getElementById('pregame-error').textContent = '';
+    document.getElementById('pg-lb-panel').style.display = 'none';
+    document.getElementById('btn-show-lb-pg').textContent = 'View Leaderboard';
+    showScreen('screen-pregame');
+  }
+
+  document.getElementById('btn-start').addEventListener('click', () => {
+    const users = getUsers();
+    let userData = refreshAttempts(users[currentUser]);
+    if (userData.attempts <= 0) {
+      document.getElementById('pregame-error').textContent =
+        'No attempts remaining. Resets Sunday 9am PST.';
+      return;
+    }
+    userData.attempts -= 1;
+    users[currentUser] = userData;
+    saveUsers(users);
+    gameStartedViaUI = true;
+    startGame();
+  });
+
+  document.getElementById('btn-back-login').addEventListener('click', () => {
+    currentUser = null;
+    gameStartedViaUI = false;
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    setLoginError('');
+    showScreen('screen-login');
+  });
+
+  document.getElementById('btn-show-lb-pg').addEventListener('click', () => {
+    const panel = document.getElementById('pg-lb-panel');
+    if (panel.style.display === 'none') {
+      renderLeaderboard('pg-lb-panel');
+      panel.style.display = 'block';
+      document.getElementById('btn-show-lb-pg').textContent = 'Hide Leaderboard';
+    } else {
+      panel.style.display = 'none';
+      document.getElementById('btn-show-lb-pg').textContent = 'View Leaderboard';
+    }
+  });
+
+  // ── BUILD BOARD SLOTS ──────────────────────────────────────────
+  function buildBoard() {
+    const wrap = document.getElementById('board-wrap');
+    // remove old slots
+    wrap.querySelectorAll('.face-slot').forEach(el => el.remove());
+
+    SLOTS.forEach((pos, i) => {
+      const slot = document.createElement('div');
+      slot.className = 'face-slot';
+      slot.id = `slot-${i}`;
+      slot.style.left   = pos.left;
+      slot.style.top    = pos.top;
+      slot.style.width  = pos.width;
+      slot.style.height = pos.height;
+
+      const card = document.createElement('div');
+      card.className = 'face-card';
+      card.id = `card-${i}`;
+
+      const front = document.createElement('div');
+      front.className = 'face-front';
+
+      const img = document.createElement('img');
+      img.id = `face-img-${i}`;
+      img.src = '';
+      img.alt = 'face';
+
+      front.appendChild(img);
+      card.appendChild(front);
+      slot.appendChild(card);
+
+      slot.addEventListener('click', () => onSlotClick(i));
+      wrap.appendChild(slot);
+    });
+  }
+
+  // ── GAME LOGIC ─────────────────────────────────────────────────
+  function startGame() {
+    if (!gameStartedViaUI) return;  // anti-cheat: must go through UI
+    gameScore     = 0;
+    clickCount    = 0;
+    gameStartTime = Date.now();
+    gameActive    = true;
+    slotState     = new Array(6).fill(null);
+    faceTimers    = {};
+
+    document.getElementById('hud-score').textContent = '0 pts';
+    document.getElementById('hud-timer').textContent = '60s';
+    document.getElementById('hud-timer').classList.remove('urgent');
+
+    buildBoard();
+    showScreen('screen-game');
+
+    // Countdown timer
+    timerInterval = setInterval(() => {
+      if (!gameActive) return;
+      const elapsed = (Date.now() - gameStartTime) / 1000;
+      const remaining = Math.max(0, GAME_DURATION - elapsed);
+      const timerEl = document.getElementById('hud-timer');
+      timerEl.textContent = Math.ceil(remaining) + 's';
+      if (remaining <= 10) timerEl.classList.add('urgent');
+      if (remaining <= 0) endGame(false);
+    }, 100);
+
+    scheduleNextSpawn();
+  }
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  function currentSpawnInterval() {
+    const t = Math.min(1, (Date.now() - gameStartTime) / (GAME_DURATION * 1000));
+    return lerp(SPAWN_START, SPAWN_END, t);
+  }
+
+  function currentFaceDuration() {
+    const t = Math.min(1, (Date.now() - gameStartTime) / (GAME_DURATION * 1000));
+    return lerp(DUR_START, DUR_END, t);
+  }
+
+  function scheduleNextSpawn() {
+    if (!gameActive) return;
+    const interval = currentSpawnInterval();
+    spawnTimeout = setTimeout(() => {
+      spawnFace();
+      scheduleNextSpawn();
+    }, interval);
+  }
+
+  function spawnFace() {
+    if (!gameActive) return;
+    // find empty slots
+    const empty = [];
+    for (let i = 0; i < 6; i++) {
+      if (slotState[i] === null) empty.push(i);
+    }
+    if (empty.length === 0) return;
+
+    const slotIdx = empty[Math.floor(Math.random() * empty.length)];
+    const face = FACES[Math.floor(Math.random() * FACES.length)];
+
+    showFace(slotIdx, face);
+  }
+
+  function showFace(slotIdx, face) {
+    slotState[slotIdx] = face;
+    const img = document.getElementById(`face-img-${slotIdx}`);
+    const card = document.getElementById(`card-${slotIdx}`);
+    if (!img || !card) return;
+
+    img.src = ASSET_BASE + face;
+
+    // flip up
+    card.classList.remove('flipped-down');
+    void card.offsetWidth;  // reflow
+    card.classList.add('flipped-up');
+
+    // auto-hide after duration
+    const dur = currentFaceDuration();
+    if (faceTimers[slotIdx]) clearTimeout(faceTimers[slotIdx]);
+    faceTimers[slotIdx] = setTimeout(() => {
+      hideFace(slotIdx);
+    }, dur);
+  }
+
+  function hideFace(slotIdx) {
+    slotState[slotIdx] = null;
+    const card = document.getElementById(`card-${slotIdx}`);
+    if (!card) return;
+    card.classList.remove('flipped-up');
+    card.classList.add('flipped-down');
+    if (faceTimers[slotIdx]) {
+      clearTimeout(faceTimers[slotIdx]);
+      delete faceTimers[slotIdx];
+    }
+  }
+
+  function onSlotClick(slotIdx) {
+    if (!gameActive) return;
+    const face = slotState[slotIdx];
+    if (!face) return;  // no face up, miss
+
+    // cancel auto-hide
+    if (faceTimers[slotIdx]) {
+      clearTimeout(faceTimers[slotIdx]);
+      delete faceTimers[slotIdx];
+    }
+
+    if (face === EMIN_FACE) {
+      // Special: end game with emin message
+      hideFace(slotIdx);
+      triggerEmin();
+      return;
+    }
+
+    // Score the hit
+    hideFace(slotIdx);
+    gameScore += 10;
+    clickCount += 1;
+    document.getElementById('hud-score').textContent = gameScore + ' pts';
+  }
+
+  function triggerEmin() {
+    // stop game
+    gameActive = false;
+    clearInterval(timerInterval);
+    clearTimeout(spawnTimeout);
+    Object.values(faceTimers).forEach(clearTimeout);
+    faceTimers = {};
+
+    document.getElementById('emin-overlay').classList.add('show');
+  }
+
+  document.getElementById('btn-emin-ok').addEventListener('click', () => {
+    document.getElementById('emin-overlay').classList.remove('show');
+    finishGame();
+  });
+
+  function endGame(fromEmin) {
+    if (!gameActive) return;
+    gameActive = false;
+    clearInterval(timerInterval);
+    clearTimeout(spawnTimeout);
+    Object.values(faceTimers).forEach(clearTimeout);
+    faceTimers = {};
+    finishGame();
+  }
+
+  function finishGame() {
+    // Anti-cheat validation
+    let finalScore = gameScore;
+
+    // Score must equal clickCount × 10
+    if (finalScore !== clickCount * 10) {
+      finalScore = 0;
+    }
+
+    // Cap at theoretical max
+    if (finalScore > THEORETICAL_MAX) {
+      finalScore = THEORETICAL_MAX;
+    }
+
+    gameScore = finalScore;
+    gameStartedViaUI = false;  // reset gate
+
+    // Update high score
+    const users = getUsers();
+    const userData = users[currentUser];
+    if (finalScore > (userData.highScore || 0)) {
+      userData.highScore = finalScore;
+      users[currentUser] = userData;
+      saveUsers(users);
+    }
+
+    // Leaderboard
+    const lb = getLeaderboard();
+    const isTopTen = updateLeaderboard(lb, currentUser, finalScore);
+
+    // Show end screen
+    document.getElementById('end-score').textContent = finalScore + ' pts';
+
+    const announceEl = document.getElementById('end-announce');
+    if (finalScore === 0 && gameScore === 0 && clickCount === 0) {
+      // Emin path or zero score — no special message
+      announceEl.className = 'end-announce nope';
+      announceEl.textContent = isTopTen
+        ? '🏆 New Leaderboard Score! You\'ve entered the Top 10!'
+        : 'Better luck next time!';
+    } else if (isTopTen) {
+      announceEl.className = 'end-announce top10';
+      announceEl.textContent = '🏆 New Leaderboard Score! You\'ve entered the Top 10!';
+    } else {
+      announceEl.className = 'end-announce nope';
+      announceEl.textContent = 'Not quite top 10 this time. Keep trying!';
+    }
+
+    renderLeaderboard('end-lb-panel');
+
+    // Show play again only if attempts remain
+    const freshUsers = getUsers();
+    const freshData = refreshAttempts(freshUsers[currentUser]);
+    const playAgainBtn = document.getElementById('btn-play-again');
+    if (freshData.attempts > 0) {
+      playAgainBtn.style.display = 'block';
+      playAgainBtn.textContent = `Play Again (${freshData.attempts} left)`;
+    } else {
+      playAgainBtn.style.display = 'none';
+    }
+
+    showScreen('screen-end');
+  }
+
+  function updateLeaderboard(lb, username, score) {
+    // Find existing entry
+    const idx = lb.findIndex(e => e.username === username);
+    let qualified = false;
+
+    if (idx !== -1) {
+      if (score > lb[idx].score) {
+        lb[idx].score = score;
+        qualified = true;
+      }
+    } else {
+      // Check if qualifies for top 10
+      if (lb.length < MAX_LB_ENTRIES || score > lb[lb.length - 1].score) {
+        lb.push({ username, score });
+        qualified = true;
+      }
+    }
+
+    if (qualified || lb.length > MAX_LB_ENTRIES) {
+      // Re-sort and trim
+      lb.sort((a, b) => b.score - a.score);
+      while (lb.length > MAX_LB_ENTRIES) lb.pop();
+      saveLeaderboard(lb);
+    }
+
+    // Return whether this user is now on the board
+    return lb.findIndex(e => e.username === username) !== -1 && qualified;
+  }
+
+  // ── END SCREEN BUTTONS ─────────────────────────────────────────
+  document.getElementById('btn-play-again').addEventListener('click', () => {
+    showPreGame();
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    currentUser = null;
+    gameStartedViaUI = false;
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    setLoginError('');
+    showScreen('screen-login');
+  });
+
+  // ── KEYBOARD ENTER SUPPORT ─────────────────────────────────────
+  ['login-user', 'login-pass'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-login').click();
+    });
+  });
+
+  // ── PREVENT CONSOLE START ──────────────────────────────────────
+  // startGame checks gameStartedViaUI which is only set by the UI button
+  // Expose nothing on window that would allow bypassing
+
+})();
+</script>
+</body>
+</html>
