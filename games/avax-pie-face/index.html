@@ -402,10 +402,22 @@
   ];
 
   const FACES = [
-    'Dominic.png','Jason.png','Picsart_26-04-03_14-28-55-103.png',
+    'Dominic.png','Jason.png','brandon.png',
     'avery.png','cg777.png','emin.png',
     'hillbilly.png','jonycsarker.png','vanho.png','vanya.png',
   ];
+  const PIE_FACES = {
+    'Dominic.png':     'dominicpie.png',
+    'Jason.png':       'jasonpie.png',
+    'brandon.png':     'brandonpie.png',
+    'avery.png':       'averypie.png',
+    'cg777.png':       'cg777pie.png',
+    'emin.png':        'eminpie.png',
+    'hillbilly.png':   'hillbillypie.png',
+    'jonycsarker.png': 'sarkerpie.png',
+    'vanho.png':       'vanhopie.png',
+    'vanya.png':       'vanyapie.png',
+  };
   const EMIN_FACE  = 'emin.png';
   const ASSET_BASE = '../../assets/Avaxpieface/';
 
@@ -759,21 +771,59 @@
     const face = slotState[slotIdx];
     if (!face) return;
 
+    // Cancel auto-hide timer and lock slot so it can't be clicked again
     if (faceTimers[slotIdx]) {
       clearTimeout(faceTimers[slotIdx]);
       delete faceTimers[slotIdx];
     }
+    slotState[slotIdx] = null;
 
-    if (face === EMIN_FACE) {
-      hideFace(slotIdx);
-      triggerEmin();
-      return;
-    }
+    // Swap to the grossed-out reaction image
+    const img = document.getElementById(`face-img-${slotIdx}`);
+    if (img && PIE_FACES[face]) img.src = ASSET_BASE + PIE_FACES[face];
 
-    hideFace(slotIdx);
-    gameScore  += 10;
-    clickCount += 1;
-    document.getElementById('hud-score').textContent = gameScore + ' pts';
+    // Play pie-drop animation, then resolve
+    showPieAnimation(slotIdx, () => {
+      const card = document.getElementById(`card-${slotIdx}`);
+      if (card) {
+        card.classList.remove('flipped-up');
+        card.classList.add('flipped-down');
+      }
+      if (face === EMIN_FACE) {
+        triggerEmin();
+      } else {
+        gameScore  += 10;
+        clickCount += 1;
+        document.getElementById('hud-score').textContent = gameScore + ' pts';
+      }
+    });
+  }
+
+  function showPieAnimation(slotIdx, onComplete) {
+    const slot = document.getElementById(`slot-${slotIdx}`);
+    if (!slot) { onComplete(); return; }
+
+    const pieEl = document.createElement('img');
+    pieEl.src = ASSET_BASE + 'pie.png';
+    pieEl.style.cssText = [
+      'position:absolute',
+      'left:0', 'top:-100%',
+      'width:100%', 'height:100%',
+      'object-fit:contain',
+      'z-index:20',
+      'pointer-events:none',
+      'transition:top 1s ease-in',
+    ].join(';');
+    slot.appendChild(pieEl);
+
+    // Force reflow then drop
+    void pieEl.offsetWidth;
+    pieEl.style.top = '0';
+
+    setTimeout(() => {
+      pieEl.remove();
+      onComplete();
+    }, 1100);
   }
 
   function triggerEmin() {
