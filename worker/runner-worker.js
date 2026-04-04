@@ -222,6 +222,9 @@ export default {
       if (request.method === 'GET' && url.pathname === '/pieface/reset-leaderboard') {
         return await handlePieFaceResetLeaderboard(request, env);
       }
+      if (request.method === 'GET' && url.pathname === '/pieface/delete-entry') {
+        return await handlePieFaceDeleteEntry(request, env);
+      }
 
       // Admin: view kick log (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
       if (request.method === 'GET' && url.pathname === '/craps/kick-log') {
@@ -1579,6 +1582,22 @@ async function handlePieFaceResetLeaderboard(request, env) {
   if (!secret || secret !== oracleKey) return json({ error: 'Unauthorized' }, 403);
   await env.RUNNER_KV.put(PIEFACE_LB_KEY, JSON.stringify([]));
   return json({ ok: true, message: 'Leaderboard cleared' });
+}
+
+// GET /pieface/delete-entry?secret=<key>&username=<username>
+async function handlePieFaceDeleteEntry(request, env) {
+  const url = new URL(request.url);
+  const secret = url.searchParams.get('secret');
+  const target = (url.searchParams.get('username') || '').toLowerCase().trim();
+  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
+  if (!secret || secret !== oracleKey) return json({ error: 'Unauthorized' }, 403);
+  if (!target) return json({ error: 'username param required' }, 400);
+
+  const lb = await env.RUNNER_KV.get(PIEFACE_LB_KEY, { type: 'json' }) || [];
+  const before = lb.length;
+  const updated = lb.filter(e => e.username.toLowerCase() !== target);
+  await env.RUNNER_KV.put(PIEFACE_LB_KEY, JSON.stringify(updated));
+  return json({ ok: true, removed: before - updated.length, leaderboard: updated });
 }
 
 // POST /pieface/score  { username, sessionToken, score, clickCount }
