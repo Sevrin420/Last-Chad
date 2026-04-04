@@ -1465,7 +1465,7 @@ async function handleHashCashDeleteEntry(request, env) {
 
 const PIEFACE_LB_KEY    = 'pieface:leaderboard';
 const PIEFACE_LB_MAX    = 5;
-const PIEFACE_MAX_SCORE = 670; // theoretical max (every face clicked at peak speed)
+const PIEFACE_MAX_SCORE = 2000; // max possible: 6 slots × ceil(60000/1850ms) × 10pts ≈ 1980
 const PIEFACE_INITIAL_ATTEMPTS = 2;   // given on account creation
 const PIEFACE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24-hour cooldown then 1 attempt
 
@@ -1525,9 +1525,10 @@ async function handlePieFaceLogin(request, env) {
 
   // Compute effective available attempts (banked + cooldown-refreshed)
   const availableAttempts = pfGetAvailableAttempts(userData);
+  const secondsLeft = pfSecondsLeft(userData);
 
   const sessionToken = await pfSessionToken(username, oracleKey);
-  return json({ ok: true, sessionToken, username, attempts: availableAttempts, highScore: userData.highScore || 0 });
+  return json({ ok: true, sessionToken, username, attempts: availableAttempts, secondsLeft, highScore: userData.highScore || 0 });
 }
 
 // GET /pieface/leaderboard
@@ -1542,6 +1543,20 @@ function pfGetAvailableAttempts(userData) {
   // No banked attempts — check if 24h cooldown has elapsed
   const elapsed = Date.now() - (userData.lastAttemptUsed || 0);
   return elapsed >= PIEFACE_COOLDOWN_MS ? 1 : 0;
+}
+
+// Returns seconds until next attempt (0 if attempts available)
+function pfSecondsLeft(userData) {
+  if (pfGetAvailableAttempts(userData) > 0) return 0;
+  const elapsed = Date.now() - (userData.lastAttemptUsed || 0);
+  return Math.max(0, Math.ceil((PIEFACE_COOLDOWN_MS - elapsed) / 1000));
+}
+
+function pfFormatCooldown(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.ceil((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
 // POST /pieface/use-attempt  { username, sessionToken }
@@ -1560,9 +1575,8 @@ async function handlePieFaceUseAttempt(request, env) {
 
   const available = pfGetAvailableAttempts(userData);
   if (available <= 0) {
-    const elapsed = Date.now() - (userData.lastAttemptUsed || 0);
-    const remaining = Math.ceil((PIEFACE_COOLDOWN_MS - elapsed) / 1000 / 60); // minutes
-    return json({ error: `No attempts remaining. Next attempt in ${remaining} minute${remaining !== 1 ? 's' : ''}.`, attempts: 0, minutesLeft: remaining }, 400);
+    const sLeft = pfSecondsLeft(userData);
+    return json({ error: `No attempts remaining. Next attempt in ${pfFormatCooldown(sLeft)}.`, attempts: 0, secondsLeft: sLeft }, 400);
   }
 
   // If the available attempt came from cooldown (not banked), don't decrement — it's 0 already
@@ -1571,7 +1585,10 @@ async function handlePieFaceUseAttempt(request, env) {
   }
   userData.lastAttemptUsed = Date.now();
   await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
-  return json({ ok: true, attempts: Math.max(0, userData.attempts || 0) });
+  // secondsLeft after using last attempt = full cooldown duration
+  const remainingAttempts = Math.max(0, userData.attempts || 0);
+  const secondsLeft = remainingAttempts > 0 ? 0 : PIEFACE_COOLDOWN_MS / 1000;
+  return json({ ok: true, attempts: remainingAttempts, secondsLeft });
 }
 
 // GET /pieface/reset-leaderboard?secret=<ORACLE_PRIVATE_KEY>

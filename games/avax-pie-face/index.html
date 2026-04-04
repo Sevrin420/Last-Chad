@@ -393,6 +393,7 @@
   <div id="end-lb-panel" style="width:100%;"></div>
   <hr class="divider" />
   <button class="btn-primary" id="btn-play-again" style="display:none;">Play Again</button>
+  <div id="end-cooldown" class="info-msg" style="display:none; text-align:center; margin-bottom:12px;"></div>
   <button class="btn-secondary" id="btn-logout">Logout</button>
 </div>
 
@@ -412,7 +413,10 @@
   // ── Constants ──────────────────────────────────────────────────
   const WORKER_URL      = 'https://last-chad-runner.severin20.workers.dev';
   const GAME_DURATION   = 60;          // seconds
-  const THEORETICAL_MAX = Math.floor(GAME_DURATION / 0.9) * 10;  // ~666
+  // Max possible clicks = 6 slots × (game duration / min slot cycle)
+  // Min slot cycle = DUR_END(650ms visible) + 1200ms rest = 1850ms
+  const SLOT_MIN_CYCLE_MS = DUR_END + 1200;
+  const THEORETICAL_MAX   = SLOTS.length * Math.ceil(GAME_DURATION * 1000 / SLOT_MIN_CYCLE_MS) * 10; // ~1980
 
   // Spawn/duration ramp  t=0 → t=60
   const SPAWN_START  = 1500; const SPAWN_END  = 280;
@@ -449,10 +453,18 @@
   const ASSET_BASE = '../../assets/Avaxpieface/';
 
   // ── Session state (in memory only — no localStorage) ───────────
-  let sessionToken  = null;
-  let currentUser   = null;
+  let sessionToken     = null;
+  let currentUser      = null;
   let currentAttempts  = 0;
   let currentHighScore = 0;
+  let currentSecondsLeft = 0;  // cooldown seconds until next attempt
+
+  function formatCooldown(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.ceil((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  }
 
   // ── Game state ─────────────────────────────────────────────────
   let gameActive       = false;
@@ -607,10 +619,11 @@
   });
 
   function loginSuccess(data) {
-    sessionToken       = data.sessionToken;
-    currentUser        = data.username;
-    currentAttempts    = data.attempts;
-    currentHighScore   = data.highScore || 0;
+    sessionToken         = data.sessionToken;
+    currentUser          = data.username;
+    currentAttempts      = data.attempts;
+    currentHighScore     = data.highScore || 0;
+    currentSecondsLeft   = data.secondsLeft || 0;
     showPreGame();
   }
 
@@ -619,9 +632,18 @@
     document.getElementById('pg-username').textContent  = currentUser;
     document.getElementById('pg-attempts').textContent  = currentAttempts;
     document.getElementById('pg-highscore').textContent = currentHighScore;
-    document.getElementById('pregame-error').textContent = '';
     document.getElementById('pg-lb-panel').style.display = 'none';
     document.getElementById('btn-show-lb-pg').textContent = 'View Leaderboard';
+
+    const startBtn  = document.getElementById('btn-start');
+    const errorEl   = document.getElementById('pregame-error');
+    if (currentAttempts <= 0 && currentSecondsLeft > 0) {
+      startBtn.style.display = 'none';
+      errorEl.textContent    = `No attempts remaining. Next attempt in ${formatCooldown(currentSecondsLeft)}.`;
+    } else {
+      startBtn.style.display = '';
+      errorEl.textContent    = '';
+    }
     showScreen('screen-pregame');
   }
 
@@ -635,8 +657,9 @@
         sessionToken: sessionToken,
       });
       if (status === 200 && data.ok) {
-        currentAttempts = data.attempts;
-        gameStartedViaUI = true;
+        currentAttempts    = data.attempts;
+        currentSecondsLeft = data.secondsLeft || 0;
+        gameStartedViaUI   = true;
         startGame();
       } else {
         document.getElementById('pregame-error').textContent =
@@ -899,6 +922,7 @@
     // Show end screen immediately with score while API calls happen
     showScreen('screen-end');
     document.getElementById('end-score').textContent = finalScore + ' pts';
+    document.getElementById('end-cooldown').style.display = 'none';
 
     const announceEl = document.getElementById('end-announce');
     announceEl.className = 'end-announce nope';
@@ -942,10 +966,15 @@
     // Load fresh leaderboard
     await loadAndRenderLeaderboard('end-lb-panel');
 
-    // Show play again if attempts remain
+    // Show play again or cooldown message
     if (currentAttempts > 0) {
       playAgainBtn.style.display = 'block';
       playAgainBtn.textContent   = `Play Again (${currentAttempts} left)`;
+    } else if (currentSecondsLeft > 0) {
+      playAgainBtn.style.display = 'none';
+      const cooldownEl = document.getElementById('end-cooldown');
+      cooldownEl.textContent = `Next attempt in ${formatCooldown(currentSecondsLeft)}`;
+      cooldownEl.style.display = 'block';
     }
   }
 
