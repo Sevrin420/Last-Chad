@@ -250,17 +250,29 @@
 
         const locked = await tc.getLockedChads(currentMonth);
         const listEl = document.getElementById('lockedList');
+        listEl.textContent = '';
         if (locked.length === 0) {
-          listEl.innerHTML = '<div style="font-size:0.35rem;color:#8a7a5a;padding:8px 0;">No chads locked yet</div>';
+          const empty = document.createElement('div');
+          empty.style.cssText = 'font-size:0.35rem;color:#8a7a5a;padding:8px 0;';
+          empty.textContent = 'No chads locked yet';
+          listEl.appendChild(empty);
         } else {
           const lc = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
-          let html = '';
           for (const id of locked) {
             const owner = await lc.ownerOf(id);
             const name = await lc.tokenName(id);
-            html += '<div class="locked-item"><span class="chad-id">#' + id + (name ? ' ' + name : '') + '</span><span class="owner">' + owner.slice(0, 6) + '...' + owner.slice(-4) + '</span></div>';
+            const row = document.createElement('div');
+            row.className = 'locked-item';
+            const idSpan = document.createElement('span');
+            idSpan.className = 'chad-id';
+            idSpan.textContent = '#' + id + (name ? ' ' + name : '');
+            const ownerSpan = document.createElement('span');
+            ownerSpan.className = 'owner';
+            ownerSpan.textContent = owner.slice(0, 6) + '...' + owner.slice(-4);
+            row.appendChild(idSpan);
+            row.appendChild(ownerSpan);
+            listEl.appendChild(row);
           }
-          listEl.innerHTML = html;
         }
       } catch (err) {
         console.error('Failed to load tournament state:', err);

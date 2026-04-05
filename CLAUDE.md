@@ -54,17 +54,18 @@ HTTP 204 = success. Always sync after every push.
 
 ---
 
-## Smart Contracts (5 total, in `/contracts`)
+## Smart Contracts (6 total, in `/contracts`)
 
 | Contract | Purpose |
 |----------|---------|
-| `LastChad.sol` | ERC-721 NFT characters (70 max, 0.02 AVAX, 4 stats, XP/leveling, cells) |
+| `LastChad.sol` | ERC-721 NFT characters (333 max, 2 AVAX, 4 stats, XP/leveling, cells, partner bonus, mint codes) |
 | `LastChadItems.sol` | ERC-1155 items (stackable/non-stackable, dynamic creation) |
 | `QuestRewards.sol` | Quest sessions, oracle-signed rewards, arcade death/survival |
 | `Gamble.sol` | Cell wagering: commitWager/claimWinnings (craps), flip (coin), resolveGame (oracle) |
 | `Market.sol` | Player-to-player NFT trading |
+| `Tournament.sol` | Monthly craps tournament: lock 1111 cells, claim tier cells, AVAX distribution |
 
-**Authorization chain:** Owner must call `setGameContract(address, true)` on LastChad and LastChadItems to authorize QuestRewards and Gamble.
+**Authorization chain:** Owner must call `setGameContract(address, true)` on LastChad and LastChadItems to authorize QuestRewards, Gamble, and Tournament.
 
 **Deployed (Fuji testnet):**
 - LastChad: `0x04DFED6F15866125b1f6d140bcb1AB90F7614252`

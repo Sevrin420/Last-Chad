@@ -443,7 +443,7 @@
       text-shadow: 0 0 10px rgba(245, 230, 200, 0.2);
     }
 
-    /* --- Team selection --- */
+    /* --- Mint code & cell breakdown --- */
     .code-section { margin-bottom: 16px; }
     .code-header { margin-bottom: 8px; }
     .code-input {
@@ -757,9 +757,6 @@
     </div>
   </header>
 
-  <!-- Testnet Banner -->
-  <div style="position:fixed;top:56px;left:0;right:0;z-index:99;background:#e53935;padding:8px 0;text-align:center;font-family:'Press Start 2P',monospace;font-size:clamp(0.6rem,2vw,0.85rem);color:#fff;letter-spacing:0.15em;text-shadow:2px 2px 0 #000;border-bottom:3px solid #c0392b;">TESTNET ONLY</div>
-
   <!-- Main -->
   <main class="main">
     <div class="mint-card">
@@ -769,7 +766,7 @@
       <div class="supply-section">
         <div class="supply-label">
           <span>MINTED</span>
-          <span id="supplyText">— / 10,000</span>
+          <span id="supplyText">— / 333</span>
         </div>
         <div class="supply-bar">
           <div class="supply-fill" id="supplyFill"></div>
@@ -921,8 +918,16 @@
         supplyText.textContent = minted.toLocaleString() + ' / ' + MAX_SUPPLY.toLocaleString();
         supplyFill.style.width = (minted / MAX_SUPPLY * 100) + '%';
 
-        // Update max quantity slider
-        maxQty = Math.min(remaining, MAX_MINT_PER_WALLET);
+        // Update max quantity slider (account for per-wallet limit)
+        let walletLimit = MAX_MINT_PER_WALLET;
+        const addr = getUserAddress();
+        if (addr) {
+          try {
+            const alreadyMinted = await contract.mintedPerWallet(addr);
+            walletLimit = MAX_MINT_PER_WALLET - alreadyMinted.toNumber();
+          } catch (_) {}
+        }
+        maxQty = Math.min(remaining, walletLimit);
         if (maxQty < 1) maxQty = 0;
         slider.max = maxQty > 0 ? maxQty : 1;
         if (quantity > maxQty) {
