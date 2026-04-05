@@ -30,7 +30,7 @@ Transition Last Chad from Fuji testnet to Avalanche mainnet. Deploy all existing
 **Modify `_mintInternal()`:**
 - Base cells per mint: **50**
 - Partner bonus: If minter holds an NFT from any registered partner collection, award **+100 cells per NFT minted** (checked at mint time only, not retroactive)
-- Code bonus: If minter supplies a valid partner code, award **+100 cells per NFT minted** (one code covers all NFTs in the same transaction)
+**Code bonus: If minter supplies a valid partner code, award **+100 cells per NFT minted** (one-time use — each code can only be redeemed once across all minters)
 - Total possible: **250 cells** per mint (50 base + 100 partner + 100 code)
 - Partner collections still registered via `createTeam()` (rename to `registerPartner()`) — only used to check `balanceOf > 0` for the bonus
 
@@ -80,8 +80,8 @@ removeMintCode(bytes32 hash)
 **Modified `mint(uint256 quantity, string code)`:**
 - If `code` is non-empty: hash it, check `mintCodeValid[hash]`
 - If valid: award `+100 cells × quantity` in addition to base + partner bonus
-- If invalid: revert with "Invalid code" (don't silently ignore — prevents typos)
-- Code is NOT marked used — it's reusable for all minters
+- If invalid or already used: revert with clear error
+- Code IS marked used after redemption — one-time use only
 
 **Cell breakdown per NFT:**
 | Source | Cells | Condition |
@@ -112,7 +112,7 @@ removeMintCode(bytes32 hash)
 
 **Security:**
 - Codes stored as hashes on-chain — can't be reverse-engineered from contract
-- Codes are reusable by design (meant for community-wide sharing)
+- One-time use — `mintCodeUsed[hash] = true` after redemption
 - Partner detection is at mint time only — not retroactive
 - Wallet limit still enforced — can't mint more than 5 per wallet regardless of code
 
