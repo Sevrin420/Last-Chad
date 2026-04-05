@@ -1,8 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const PRICE = ethers.parseEther("0.02");
-const TEAM_PRICE = ethers.parseEther("0.015");
+const PRICE = ethers.parseEther("2");
 const BASE_URI = "https://lastchad.xyz/metadata/";
 
 describe("LastChad", function () {
@@ -33,16 +32,17 @@ describe("LastChad", function () {
     });
 
     it("has correct constants", async function () {
-      expect(await contract.MAX_SUPPLY()).to.equal(10000);
+      expect(await contract.MAX_SUPPLY()).to.equal(333);
       expect(await contract.MINT_PRICE()).to.equal(PRICE);
-      expect(await contract.TEAM_MINT_PRICE()).to.equal(TEAM_PRICE);
       expect(await contract.MAX_MINT_PER_WALLET()).to.equal(5);
       expect(await contract.TOTAL_STAT_POINTS()).to.equal(2);
       expect(await contract.CELLS_PER_LEVEL()).to.equal(100);
+      expect(await contract.BASE_CELLS()).to.equal(50);
+      expect(await contract.PARTNER_BONUS_CELLS()).to.equal(100);
+      expect(await contract.CODE_BONUS_CELLS()).to.equal(100);
     });
 
     it("supports ERC721Enumerable interface", async function () {
-      // ERC721Enumerable interface ID: 0x780e9d63
       expect(await contract.supportsInterface("0x780e9d63")).to.be.true;
     });
   });
@@ -59,10 +59,10 @@ describe("LastChad", function () {
       expect(await contract.balanceOf(addr1.address)).to.equal(1);
     });
 
-    it("starts with 5 open cells", async function () {
+    it("starts with 50 open cells (base)", async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
-      expect(await contract.getOpenCells(1)).to.equal(5);
-      expect(await contract.getCells(1)).to.equal(5);
+      expect(await contract.getOpenCells(1)).to.equal(50);
+      expect(await contract.getCells(1)).to.equal(50);
       expect(await contract.getClosedCells(1)).to.equal(0);
     });
 
@@ -99,7 +99,7 @@ describe("LastChad", function () {
 
     it("reverts when exceeding max per wallet", async function () {
       await expect(
-        contract.connect(addr1).mint(51, { value: PRICE * 51n })
+        contract.connect(addr1).mint(6, { value: PRICE * 6n })
       ).to.be.revertedWith("Exceeds max per wallet");
     });
 
@@ -119,6 +119,186 @@ describe("LastChad", function () {
       await contract.connect(addr1).mint(5, { value: PRICE * 5n });
       await contract.connect(addr2).mint(5, { value: PRICE * 5n });
       expect(await contract.totalSupply()).to.equal(10);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Mint Codes (one-time use, +100 cells per NFT)
+  // ──────────────────────────────────────────────────────────
+  describe("Mint Codes", function () {
+    const code1 = "X5BS-7A5U-ZRNY";
+    const code2 = "94BQ-2QNF-DPQC";
+    let hash1, hash2;
+
+    beforeEach(async function () {
+      hash1 = ethers.keccak256(ethers.toUtf8Bytes(code1));
+      hash2 = ethers.keccak256(ethers.toUtf8Bytes(code2));
+      await contract.addMintCodes([hash1, hash2]);
+    });
+
+    it("owner can add mint codes", async function () {
+      expect(await contract.mintCodeValid(hash1)).to.be.true;
+      expect(await contract.mintCodeValid(hash2)).to.be.true;
+    });
+
+    it("mintWithCode gives 150 cells (50 base + 100 code)", async function () {
+      await contract.connect(addr1).mintWithCode(1, code1, { value: PRICE });
+      expect(await contract.getOpenCells(1)).to.equal(150);
+    });
+
+    it("mintWithCode gives 150 cells per NFT in batch", async function () {
+      await contract.connect(addr1).mintWithCode(3, code1, { value: PRICE * 3n });
+      expect(await contract.getOpenCells(1)).to.equal(150);
+      expect(await contract.getOpenCells(2)).to.equal(150);
+      expect(await contract.getOpenCells(3)).to.equal(150);
+    });
+
+    it("code is one-time use", async function () {
+      await contract.connect(addr1).mintWithCode(1, code1, { value: PRICE });
+      await expect(
+        contract.connect(addr2).mintWithCode(1, code1, { value: PRICE })
+      ).to.be.revertedWith("Code already used");
+    });
+
+    it("emits MintCodeUsed event", async function () {
+      await expect(contract.connect(addr1).mintWithCode(1, code1, { value: PRICE }))
+        .to.emit(contract, "MintCodeUsed").withArgs(hash1, addr1.address);
+    });
+
+    it("reverts with invalid code", async function () {
+      await expect(
+        contract.connect(addr1).mintWithCode(1, "FAKE-CODE-XXXX", { value: PRICE })
+      ).to.be.revertedWith("Invalid code");
+    });
+
+    it("reverts with empty code in mintWithCode", async function () {
+      await expect(
+        contract.connect(addr1).mintWithCode(1, "", { value: PRICE })
+      ).to.be.revertedWith("Empty code");
+    });
+
+    it("owner can remove a mint code", async function () {
+      await contract.removeMintCode(hash1);
+      expect(await contract.mintCodeValid(hash1)).to.be.false;
+      await expect(
+        contract.connect(addr1).mintWithCode(1, code1, { value: PRICE })
+      ).to.be.revertedWith("Invalid code");
+    });
+
+    it("non-owner cannot add mint codes", async function () {
+      const fakeHash = ethers.keccak256(ethers.toUtf8Bytes("TEST"));
+      await expect(
+        contract.connect(addr1).addMintCodes([fakeHash])
+      ).to.be.reverted;
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Partner System (+100 cells per NFT if wallet holds partner NFT)
+  // ──────────────────────────────────────────────────────────
+  describe("Partner System", function () {
+    let mockNft;
+
+    beforeEach(async function () {
+      // Deploy a second LastChad as a mock partner NFT
+      const Factory = await ethers.getContractFactory("LastChad");
+      mockNft = await Factory.deploy(BASE_URI);
+      await mockNft.connect(addr1).mint(1, { value: PRICE });
+    });
+
+    it("owner can register a partner", async function () {
+      const tx = await contract.registerPartner("Apes", await mockNft.getAddress());
+      await expect(tx).to.emit(contract, "PartnerRegistered").withArgs(1, "Apes", await mockNft.getAddress());
+      expect(await contract.getPartnerCount()).to.equal(1);
+    });
+
+    it("minter with partner NFT gets 150 cells (50 base + 100 partner)", async function () {
+      await contract.registerPartner("Apes", await mockNft.getAddress());
+      await contract.connect(addr1).mint(1, { value: PRICE });
+      expect(await contract.getOpenCells(1)).to.equal(150);
+    });
+
+    it("minter without partner NFT gets 50 base cells only", async function () {
+      await contract.registerPartner("Apes", await mockNft.getAddress());
+      await contract.connect(addr2).mint(1, { value: PRICE });
+      expect(await contract.getOpenCells(1)).to.equal(50);
+    });
+
+    it("partner bonus + code bonus = 250 cells", async function () {
+      await contract.registerPartner("Apes", await mockNft.getAddress());
+      const code = "X5BS-7A5U-ZRNY";
+      const hash = ethers.keccak256(ethers.toUtf8Bytes(code));
+      await contract.addMintCodes([hash]);
+      await contract.connect(addr1).mintWithCode(1, code, { value: PRICE });
+      expect(await contract.getOpenCells(1)).to.equal(250);
+    });
+
+    it("hasPartnerNFT returns correct values", async function () {
+      await contract.registerPartner("Apes", await mockNft.getAddress());
+      expect(await contract.hasPartnerNFT(addr1.address)).to.be.true;
+      expect(await contract.hasPartnerNFT(addr2.address)).to.be.false;
+    });
+
+    it("inactive partner does not give bonus", async function () {
+      await contract.registerPartner("Apes", await mockNft.getAddress());
+      await contract.setPartnerActive(1, false);
+      await contract.connect(addr1).mint(1, { value: PRICE });
+      expect(await contract.getOpenCells(1)).to.equal(50);
+    });
+
+    it("getPartner returns correct data", async function () {
+      await contract.registerPartner("Apes", await mockNft.getAddress());
+      const [name, nftAddr, active] = await contract.getPartner(1);
+      expect(name).to.equal("Apes");
+      expect(nftAddr).to.equal(await mockNft.getAddress());
+      expect(active).to.be.true;
+    });
+
+    it("non-owner cannot register partner", async function () {
+      await expect(
+        contract.connect(addr1).registerPartner("Hack", await mockNft.getAddress())
+      ).to.be.reverted;
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Level Freeze
+  // ──────────────────────────────────────────────────────────
+  describe("Level Freeze", function () {
+    beforeEach(async function () {
+      await contract.connect(addr1).mint(1, { value: PRICE });
+    });
+
+    it("owner can freeze levels", async function () {
+      await expect(contract.freezeLevels())
+        .to.emit(contract, "LevelsFrozen");
+      expect(await contract.levelsFrozen()).to.be.true;
+    });
+
+    it("lockCells still works when frozen but no stat points awarded", async function () {
+      await contract.awardCells(1, 50);
+      await contract.freezeLevels();
+      await contract.connect(addr1).lockCells(1, 100);
+      expect(await contract.getLevel(1)).to.equal(2);
+      expect(await contract.getPendingStatPoints(1)).to.equal(0);
+    });
+
+    it("spendStatPoint reverts when frozen", async function () {
+      // Earn stat point before freeze
+      await contract.awardCells(1, 50);
+      await contract.connect(addr1).lockCells(1, 100);
+      expect(await contract.getPendingStatPoints(1)).to.equal(1);
+      // Freeze
+      await contract.freezeLevels();
+      await expect(
+        contract.connect(addr1).spendStatPoint(1, 0)
+      ).to.be.revertedWith("Levels are frozen");
+    });
+
+    it("non-owner cannot freeze levels", async function () {
+      await expect(
+        contract.connect(addr1).freezeLevels()
+      ).to.be.reverted;
     });
   });
 
@@ -176,7 +356,6 @@ describe("LastChad", function () {
     it("owner can set per-token URI override", async function () {
       await contract.setTokenURI(1, "https://custom.com/token1");
       expect(await contract.tokenURI(1)).to.equal("https://custom.com/token1");
-      // Token 2 still uses base URI
       expect(await contract.tokenURI(2)).to.equal(BASE_URI + "2");
     });
 
@@ -326,19 +505,19 @@ describe("LastChad", function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
     });
 
-    it("starts at level 1 with 5 open cells and 0 closed cells", async function () {
+    it("starts at level 1 with 50 open cells and 0 closed cells", async function () {
       expect(await contract.getLevel(1)).to.equal(1);
-      expect(await contract.getOpenCells(1)).to.equal(5);
+      expect(await contract.getOpenCells(1)).to.equal(50);
       expect(await contract.getClosedCells(1)).to.equal(0);
     });
 
     it("owner can award open cells", async function () {
       await contract.awardCells(1, 50);
-      expect(await contract.getOpenCells(1)).to.equal(55);
+      expect(await contract.getOpenCells(1)).to.equal(100);
     });
 
     it("token owner can lock cells to level up", async function () {
-      await contract.awardCells(1, 95);
+      await contract.awardCells(1, 50);
       await expect(contract.connect(addr1).lockCells(1, 100))
         .to.emit(contract, "LevelUp").withArgs(1, 2, 1)
         .and.to.emit(contract, "CellsLocked").withArgs(1, 100, 100, 2);
@@ -348,13 +527,13 @@ describe("LastChad", function () {
     });
 
     it("awards pending stat points on level up", async function () {
-      await contract.awardCells(1, 95);
+      await contract.awardCells(1, 50);
       await contract.connect(addr1).lockCells(1, 100);
       expect(await contract.getPendingStatPoints(1)).to.equal(1);
     });
 
     it("awards multiple stat points on multi-level jump", async function () {
-      await contract.awardCells(1, 295);
+      await contract.awardCells(1, 250);
       await contract.connect(addr1).lockCells(1, 300);
       expect(await contract.getPendingStatPoints(1)).to.equal(3);
       expect(await contract.getLevel(1)).to.equal(4);
@@ -381,7 +560,7 @@ describe("LastChad", function () {
   describe("spendStatPoint", function () {
     beforeEach(async function () {
       await contract.connect(addr1).mint(1, { value: PRICE });
-      await contract.awardCells(1, 95);
+      await contract.awardCells(1, 50);
       await contract.connect(addr1).lockCells(1, 100);
     });
 
@@ -525,63 +704,6 @@ describe("LastChad", function () {
   });
 
   // ──────────────────────────────────────────────────────────
-  // Team System
-  // ──────────────────────────────────────────────────────────
-  describe("Team System", function () {
-    let mockNft;
-
-    beforeEach(async function () {
-      const Factory = await ethers.getContractFactory("LastChad");
-      mockNft = await Factory.deploy(BASE_URI);
-      await mockNft.connect(addr1).mint(1, { value: PRICE });
-    });
-
-    it("owner can create a team", async function () {
-      const tx = await contract.createTeam("Apes", await mockNft.getAddress());
-      await expect(tx).to.emit(contract, "TeamCreated").withArgs(1, "Apes", await mockNft.getAddress());
-      expect(await contract.getTeamCount()).to.equal(1);
-    });
-
-    it("player with team NFT can mint with team", async function () {
-      await contract.createTeam("Apes", await mockNft.getAddress());
-      await contract.connect(addr1).mintWithTeam(1, 1, { value: PRICE });
-      expect(await contract.tokenTeam(1)).to.equal(1);
-      expect(await contract.teamMemberCount(1)).to.equal(1);
-    });
-
-    it("player without team NFT cannot mint with team", async function () {
-      await contract.createTeam("Apes", await mockNft.getAddress());
-      await expect(
-        contract.connect(addr2).mintWithTeam(1, 1, { value: PRICE })
-      ).to.be.revertedWith("Must hold team NFT");
-    });
-
-    it("player can mint without team (regular mint)", async function () {
-      await contract.createTeam("Apes", await mockNft.getAddress());
-      await contract.connect(addr2).mint(1, { value: PRICE });
-      expect(await contract.tokenTeam(1)).to.equal(0);
-    });
-
-    it("reverts for inactive team", async function () {
-      await contract.createTeam("Apes", await mockNft.getAddress());
-      await contract.setTeamActive(1, false);
-      await expect(
-        contract.connect(addr1).mintWithTeam(1, 1, { value: PRICE })
-      ).to.be.revertedWith("Team not active");
-    });
-
-    it("getTeam returns correct data", async function () {
-      await contract.createTeam("Apes", await mockNft.getAddress());
-      await contract.connect(addr1).mintWithTeam(2, 1, { value: PRICE * 2n });
-      const [name, nftAddr, active, count] = await contract.getTeam(1);
-      expect(name).to.equal("Apes");
-      expect(nftAddr).to.equal(await mockNft.getAddress());
-      expect(active).to.be.true;
-      expect(count).to.equal(2);
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
   // Cull System
   // ──────────────────────────────────────────────────────────
   describe("Cull System", function () {
@@ -658,9 +780,9 @@ describe("LastChad", function () {
 
     it("batchAwardCells awards to multiple tokens", async function () {
       await contract.batchAwardCells([1, 2, 3], [10, 20, 30]);
-      expect(await contract.getOpenCells(1)).to.equal(15);
-      expect(await contract.getOpenCells(2)).to.equal(25);
-      expect(await contract.getOpenCells(3)).to.equal(35);
+      expect(await contract.getOpenCells(1)).to.equal(60);
+      expect(await contract.getOpenCells(2)).to.equal(70);
+      expect(await contract.getOpenCells(3)).to.equal(80);
     });
 
     it("batchAwardCells reverts on array mismatch", async function () {
@@ -670,9 +792,8 @@ describe("LastChad", function () {
     });
 
     it("getClosedCellsBatch returns correct values", async function () {
-      await contract.awardCells(1, 95);
       await contract.connect(addr1).lockCells(1, 50);
-      await contract.awardCells(2, 195);
+      await contract.awardCells(2, 150);
       await contract.connect(addr1).lockCells(2, 200);
       const result = await contract.getClosedCellsBatch([1, 2, 3]);
       expect(result[0]).to.equal(50);
@@ -681,9 +802,8 @@ describe("LastChad", function () {
     });
 
     it("getTotalCells returns open + closed", async function () {
-      await contract.awardCells(1, 95);
       await contract.connect(addr1).lockCells(1, 50);
-      expect(await contract.getTotalCells(1)).to.equal(100);
+      expect(await contract.getTotalCells(1)).to.equal(50);
     });
   });
 });
