@@ -1,0 +1,41 @@
+name: Activate Endgame
+
+# IRREVERSIBLE — Freezes levels and snapshots endgame cell counts
+# Run ONCE after the cull is complete and survivors are finalized
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'Network'
+        required: true
+        default: 'avalanche'
+        type: choice
+        options:
+          - fuji
+          - avalanche
+      confirm:
+        description: 'Type ACTIVATE to confirm (irreversible!)'
+        required: true
+        type: string
+
+jobs:
+  activate:
+    name: Freeze Levels & Snapshot (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.confirm == 'ACTIVATE'
+    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Activate endgame
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/activateEndgame.js --network ${{ inputs.network }}

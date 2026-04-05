@@ -20,11 +20,18 @@ function extract(name) {
   return m[1];
 }
 
+function extractOptional(name) {
+  const re = new RegExp(`export\\s+const\\s+${name}\\s*=\\s*'([^']+)'`);
+  const m = src.match(re);
+  return m ? m[1] : '';
+}
+
 module.exports = {
   LAST_CHAD:     extract('CONTRACT_ADDRESS'),
   ITEMS:         extract('ITEMS_CONTRACT_ADDRESS'),
   QUEST_REWARDS: extract('QUEST_REWARDS_ADDRESS'),
   MARKET:        extract('MARKET_ADDRESS'),
   GAMBLE:        extract('GAMBLE_ADDRESS'),
+  TOURNAMENT:    extractOptional('TOURNAMENT_ADDRESS'),
   READ_RPC:      extract('READ_RPC'),
 };

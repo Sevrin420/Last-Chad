@@ -11,10 +11,12 @@ on:
         default: 'all-contracts'
         type: choice
         options:
+          - everything       # Deploy ALL 6 contracts + Tournament + mint codes (mainnet launch)
           - all-contracts    # Deploy LastChad + LastChadItems + QuestRewards (full redeploy)
           - lastchad-only    # Re-deploy LastChad only (e.g. stat point changes), re-auth QuestRewards
           - quest-only       # Deploy QuestRewards only (LastChad + Items already deployed)
           - gamble           # Deploy Gamble only (LastChad already deployed)
+          - load-mintcodes   # Load mint code hashes into already-deployed LastChad
           - worker           # Cloudflare Worker only
           - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
           - verify           # Verify all contracts on Snowtrace (no deploy)
@@ -58,7 +60,7 @@ jobs:
   deploy-contract:
     name: Deploy Contracts (${{ inputs.network }})
     runs-on: ubuntu-latest
-    if: inputs.target == 'all-contracts' || inputs.target == 'lastchad-only' || inputs.target == 'quest-only' || inputs.target == 'gamble'
+    if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'lastchad-only' || inputs.target == 'quest-only' || inputs.target == 'gamble' || inputs.target == 'load-mintcodes'
     environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
 
     steps:
@@ -72,6 +74,20 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Deploy EVERYTHING (6 contracts + mint codes + wiring)
+        if: inputs.target == 'everything'
+        env:
+          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
+        run: npx hardhat run scripts/deployEverything.js --network ${{ inputs.network }}
+
+      - name: Load mint codes into deployed LastChad
+        if: inputs.target == 'load-mintcodes'
+        env:
+          PRIVATE_KEY:        ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          LASTCHAD_ADDRESS:   ${{ env.LASTCHAD_ADDRESS }}
+        run: npx hardhat run scripts/loadMintCodes.js --network ${{ inputs.network }}
 
       - name: Deploy all contracts (LastChad + Items + QuestRewards)
         if: inputs.target == 'all-contracts'
@@ -124,6 +140,7 @@ jobs:
     if: |
       always() &&
       (inputs.target == 'worker' ||
+       (inputs.target == 'everything' && needs.deploy-contract.result != 'failure') ||
        (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure'))
 
     steps:

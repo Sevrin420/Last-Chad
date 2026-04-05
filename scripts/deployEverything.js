@@ -7,6 +7,7 @@
  *   3. QuestRewards     (quests + arcade)
  *   4. Market           (NFT marketplace)
  *   5. Gamble           (cell wagering)
+ *   6. Tournament       (monthly craps tournament)
  *
  * After deploy:
  *   - Wires all cross-contract references (setGameContract, setLastChadItems,
@@ -54,7 +55,7 @@ async function main() {
 
   // ── 1. LastChad ──────────────────────────────────────────────────────────
   const baseURI = "https://lastchad.xyz/metadata/";
-  console.log("1/5  Deploying LastChad (ERC-721)...");
+  console.log("1/6  Deploying LastChad (ERC-721)...");
   const LastChad = await hre.ethers.getContractFactory("LastChad");
   const lastChad = await LastChad.deploy(baseURI);
   await lastChad.waitForDeployment();
@@ -63,7 +64,7 @@ async function main() {
 
   // ── 2. LastChadItems ─────────────────────────────────────────────────────
   const itemsBaseURI = "https://lastchad.xyz/items/";
-  console.log("\n2/5  Deploying LastChadItems (ERC-1155)...");
+  console.log("\n2/6  Deploying LastChadItems (ERC-1155)...");
   const LastChadItems = await hre.ethers.getContractFactory("LastChadItems");
   const lastChadItems = await LastChadItems.deploy(itemsBaseURI);
   await lastChadItems.waitForDeployment();
@@ -71,7 +72,7 @@ async function main() {
   console.log("     ✓ LastChadItems:", itemsAddress);
 
   // ── 3. QuestRewards ──────────────────────────────────────────────────────
-  console.log("\n3/5  Deploying QuestRewards...");
+  console.log("\n3/6  Deploying QuestRewards...");
   const QuestRewards = await hre.ethers.getContractFactory("QuestRewards");
   const questRewards = await QuestRewards.deploy(lastChadAddress);
   await questRewards.waitForDeployment();
@@ -79,7 +80,7 @@ async function main() {
   console.log("     ✓ QuestRewards:", questRewardsAddress);
 
   // ── 4. Market ────────────────────────────────────────────────────────────
-  console.log("\n4/5  Deploying Market...");
+  console.log("\n4/6  Deploying Market...");
   const Market = await hre.ethers.getContractFactory("Market");
   const market = await Market.deploy(deployer.address);
   await market.waitForDeployment();
@@ -87,12 +88,20 @@ async function main() {
   console.log("     ✓ Market:", marketAddress);
 
   // ── 5. Gamble (oracle required at construction) ─────────────────────────
-  console.log("\n5/5  Deploying Gamble...");
+  console.log("\n5/6  Deploying Gamble...");
   const Gamble = await hre.ethers.getContractFactory("Gamble");
   const gamble = await Gamble.deploy(lastChadAddress, oracleAddress);
   await gamble.waitForDeployment();
   const gambleAddress = await gamble.getAddress();
   console.log("     ✓ Gamble:", gambleAddress);
+
+  // ── 6. Tournament ─────────────────────────────────────────────────────────
+  console.log("\n6/6  Deploying Tournament...");
+  const Tournament = await hre.ethers.getContractFactory("Tournament");
+  const tournament = await Tournament.deploy(lastChadAddress);
+  await tournament.waitForDeployment();
+  const tournamentAddress = await tournament.getAddress();
+  console.log("     ✓ Tournament:", tournamentAddress);
 
   // ════════════════════════════════════════════════════════════════════════
   // WIRING — connect all contracts together
@@ -115,6 +124,11 @@ async function main() {
   tx = await lcGameAuth.setGameContract(gambleAddress, true);
   await tx.wait();
   console.log("  LastChad.setGameContract(Gamble)         ✓");
+
+  // LastChad authorizes Tournament as a game contract
+  tx = await lcGameAuth.setGameContract(tournamentAddress, true);
+  await tx.wait();
+  console.log("  LastChad.setGameContract(Tournament)     ✓");
 
   // LastChadItems authorizes QuestRewards as a game contract
   const itemsGameAuth = new hre.ethers.Contract(itemsAddress, SET_GAME_ABI, deployer);
@@ -148,6 +162,22 @@ async function main() {
   await tx.wait();
   console.log("  Quest 1 → 10 cells, no item              ✓");
 
+  // ── Load mint codes ───────────────────────────────────────────────────
+  const hashesPath = path.join(__dirname, 'mintcodes-hashes.json');
+  if (fs.existsSync(hashesPath)) {
+    const { hashes } = JSON.parse(fs.readFileSync(hashesPath, 'utf8'));
+    console.log(`\n── Loading ${hashes.length} mint codes ──────────────────────────────────`);
+    const BATCH = 25;
+    for (let i = 0; i < hashes.length; i += BATCH) {
+      const batch = hashes.slice(i, i + BATCH);
+      tx = await lastChad.addMintCodes(batch);
+      await tx.wait();
+      console.log(`  Batch ${Math.floor(i / BATCH) + 1}: codes ${i + 1}–${Math.min(i + BATCH, hashes.length)} ✓`);
+    }
+  } else {
+    console.warn("\n  ⚠ mintcodes-hashes.json not found — skipping mint code load");
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   // PATCH CONFIG FILES — update all address references
   // ════════════════════════════════════════════════════════════════════════
@@ -179,8 +209,18 @@ async function main() {
       `export const GAMBLE_ADDRESS           = '${gambleAddress}'`
     );
 
+    // Add or update Tournament address
+    if (config.includes('TOURNAMENT_ADDRESS')) {
+      config = config.replace(/export const TOURNAMENT_ADDRESS\s*=\s*'[^']*'/, `export const TOURNAMENT_ADDRESS       = '${tournamentAddress}'`);
+    } else {
+      config = config.replace(
+        /export const GAMBLE_ADDRESS\s*=\s*'[^']*'/,
+        `export const GAMBLE_ADDRESS           = '${gambleAddress}';\nexport const TOURNAMENT_ADDRESS       = '${tournamentAddress}'`
+      );
+    }
+
     fs.writeFileSync(configPath, config, 'utf8');
-    console.log("  js/config.js                             ✓  (5 addresses)");
+    console.log("  js/config.js                             ✓  (6 addresses)");
   } else {
     console.warn("  ⚠ js/config.js not found");
   }
@@ -241,11 +281,13 @@ async function main() {
   console.log(`  QuestRewards:    ${questRewardsAddress}`);
   console.log(`  Market:          ${marketAddress}`);
   console.log(`  Gamble:          ${gambleAddress}`);
+  console.log(`  Tournament:      ${tournamentAddress}`);
   console.log(`  Oracle:          ✓  ${oracleAddress}`);
   console.log("");
   console.log("  Wiring:");
   console.log("    LastChad ← authorized → QuestRewards  ✓");
   console.log("    LastChad ← authorized → Gamble        ✓");
+  console.log("    LastChad ← authorized → Tournament    ✓");
   console.log("    Items    ← authorized → QuestRewards  ✓");
   console.log("    Market   ← approved   → LastChad      ✓");
   console.log("    Market   ← approved   → Items         ✓");

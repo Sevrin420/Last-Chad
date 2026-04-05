@@ -57,7 +57,9 @@ export const LASTCHAD_ABI = [
   // LastChad-specific
   'function MAX_SUPPLY() view returns (uint256)',
   'function MINT_PRICE() view returns (uint256)',
-  'function TEAM_MINT_PRICE() view returns (uint256)',
+  'function BASE_CELLS() view returns (uint256)',
+  'function PARTNER_BONUS_CELLS() view returns (uint256)',
+  'function CODE_BONUS_CELLS() view returns (uint256)',
   'function MAX_MINT_PER_WALLET() view returns (uint256)',
   'function totalMinted() view returns (uint256)',
   'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
@@ -74,7 +76,7 @@ export const LASTCHAD_ABI = [
   'function authorizedGame(address game) view returns (bool)',
   'function setGameContract(address game, bool enabled)',
   'function mint(uint256 quantity) payable',
-  'function mintWithTeam(uint256 quantity, uint256 teamId) payable',
+  'function mintWithCode(uint256 quantity, string code) payable',
   'function setStats(uint256 tokenId, string name, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma)',
   // Elimination & active status
   'function eliminated(uint256 tokenId) view returns (bool)',
@@ -97,13 +99,20 @@ export const LASTCHAD_ABI = [
   'function announceCull(uint256 executeAfterTimestamp)',
   'function cullAnnouncedAt() view returns (uint256)',
   'function cullExecuteAfter() view returns (uint256)',
-  // Team system
-  'function createTeam(string name, address nftContract) returns (uint256)',
-  'function setTeamActive(uint256 teamId, bool active)',
-  'function getTeam(uint256 teamId) view returns (string name, address nftContract, bool active, uint256 memberCount)',
-  'function getTeamCount() view returns (uint256)',
-  'function tokenTeam(uint256 tokenId) view returns (uint256)',
-  'function teamMemberCount(uint256 teamId) view returns (uint256)',
+  // Partner system
+  'function registerPartner(string name, address nftContract) returns (uint256)',
+  'function setPartnerActive(uint256 partnerId, bool active)',
+  'function getPartner(uint256 partnerId) view returns (string name, address nftContract, bool active)',
+  'function getPartnerCount() view returns (uint256)',
+  'function hasPartnerNFT(address wallet) view returns (bool)',
+  // Mint codes
+  'function mintCodeValid(bytes32 hash) view returns (bool)',
+  'function mintCodeUsed(bytes32 hash) view returns (bool)',
+  'function addMintCodes(bytes32[] hashes)',
+  'function removeMintCode(bytes32 hash)',
+  // Level freeze
+  'function levelsFrozen() view returns (bool)',
+  'function freezeLevels()',
   // Unique names
   'function isNameTaken(string name) view returns (bool)',
   // Per-token mutable URI
@@ -118,7 +127,9 @@ export const LASTCHAD_ABI = [
   // Events
   'event Eliminated(uint256 indexed tokenId, uint256 closedCells)',
   'event Reinstated(uint256 indexed tokenId)',
-  'event TeamCreated(uint256 indexed teamId, string name, address nftContract)',
+  'event PartnerRegistered(uint256 indexed partnerId, string name, address nftContract)',
+  'event MintCodeUsed(bytes32 indexed codeHash, address indexed minter)',
+  'event LevelsFrozen()',
   'event CullAnnounced(uint256 cullAt, uint8 mode, uint256 value, uint256 estimatedCount)',
   'event CellsLocked(uint256 indexed tokenId, uint256 amount, uint256 totalClosed, uint256 newLevel)',
   'event LevelUp(uint256 indexed tokenId, uint256 newLevel, uint256 statPointsAwarded)',
@@ -226,4 +237,33 @@ export const MARKET_ABI = [
   'event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice)',
   'function setLastChadContract(address _lastChad)',
   'function lastChadContract() view returns (address)',
+];
+
+export const TOURNAMENT_ABI = [
+  // Player
+  'function claimCells(uint256 tokenId)',
+  'function lockForTournament(uint256 tokenId)',
+  // View
+  'function lastChad() view returns (address)',
+  'function currentMonth() view returns (uint256)',
+  'function LOCK_AMOUNT() view returns (uint256)',
+  'function getLockedChads(uint256 month) view returns (uint256[])',
+  'function getLockCount(uint256 month) view returns (uint256)',
+  'function hasClaimed(uint256 tokenId, uint256 month) view returns (bool)',
+  'function hasLocked(uint256 tokenId, uint256 month) view returns (bool)',
+  'function getClaimAmount(uint256 tokenId) view returns (uint256)',
+  'function getCurrentMonth() view returns (uint256)',
+  'function endgameSnapshot(uint256 tokenId) view returns (uint256)',
+  'function getTierCount() view returns (uint256)',
+  'function getTierThreshold(uint256 index) view returns (uint256 threshold, uint256 amount)',
+  // Owner
+  'function snapshotEndgame(uint256[] tokenIds, uint256[] closedCells)',
+  'function setCellTier(uint256 closedCellThreshold, uint256 claimAmount)',
+  'function batchSetCellTiers(uint256[] thresholds, uint256[] amounts)',
+  'function distributeAndReset()',
+  // Events
+  'event CellsClaimed(uint256 indexed tokenId, uint256 month, uint256 amount)',
+  'event LockedForTournament(uint256 indexed tokenId, uint256 month)',
+  'event PrizeDistributed(uint256 month, uint256 winnerCount, uint256 perWinner)',
+  'event MonthAdvanced(uint256 newMonth)',
 ];

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tournament — Last Chad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nav.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: #0a0705;
+      background-image: url('assets/mainbg.png');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      padding-top: 60px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: clamp(0.7rem, 2.5vw, 1.2rem);
+      color: #c9a84c;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .month-display {
+      text-align: center;
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      margin-bottom: 24px;
+    }
+
+    .prize-pool {
+      text-align: center;
+      background: rgba(30, 20, 10, 0.85);
+      border: 2px solid #c9a84c;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .prize-label { font-size: 0.4rem; color: #8a7a5a; margin-bottom: 8px; }
+    .prize-amount { font-size: clamp(0.8rem, 3vw, 1.4rem); color: #c9a84c; }
+
+    .section {
+      background: rgba(30, 20, 10, 0.85);
+      border: 1px solid #5c4409;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 0.5rem;
+      color: #c9a84c;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #5c4409;
+      padding-bottom: 8px;
+    }
+
+    .chad-select {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      padding: 10px 12px;
+      background: rgba(20, 14, 8, 0.9);
+      border: 2px solid #5c4409;
+      border-radius: 4px;
+      color: #f5e6c8;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .chad-select:focus { border-color: #c9a84c; outline: none; }
+    .chad-select option { background: #1e140a; color: #f5e6c8; }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.38rem;
+      padding: 4px 0;
+      border-bottom: 1px dashed rgba(92, 68, 9, 0.3);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #8a7a5a; }
+    .info-value { color: #f5e6c8; }
+    .info-value.ok { color: #4caf50; }
+    .info-value.no { color: #ff4444; }
+
+    .action-btn {
+      width: 100%;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      padding: 14px;
+      border: 2px solid #c9a84c;
+      border-radius: 6px;
+      background: linear-gradient(180deg, #5c4409 0%, #3a2a06 100%);
+      color: #f5e6c8;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: all 0.2s;
+    }
+    .action-btn:hover { background: linear-gradient(180deg, #7a5c12 0%, #5c4409 100%); }
+    .action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .locked-list {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.35rem;
+    }
+    .locked-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px dashed rgba(92, 68, 9, 0.2);
+    }
+    .locked-item .chad-id { color: #c9a84c; }
+    .locked-item .owner { color: #8a7a5a; }
+
+    .status-msg {
+      font-size: 0.38rem;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
+    .status-msg.ok { color: #4caf50; }
+    .status-msg.err { color: #ff4444; }
+
+    .connect-prompt {
+      text-align: center;
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      padding: 40px 20px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>TOURNAMENT</h1>
+    <div class="month-display">Month <span id="monthNum">-</span></div>
+
+    <div class="prize-pool">
+      <div class="prize-label">PRIZE POOL</div>
+      <div class="prize-amount" id="prizePool">- AVAX</div>
+    </div>
+
+    <!-- Not connected -->
+    <div id="connectPrompt" class="connect-prompt">
+      Connect wallet to enter tournament
+    </div>
+
+    <!-- Connected content -->
+    <div id="tournamentContent" style="display:none">
+
+      <!-- Chad selector -->
+      <div class="section">
+        <div class="section-title">YOUR CHAD</div>
+        <select id="chadSelect" class="chad-select">
+          <option value="">Select a Chad...</option>
+        </select>
+        <div id="chadInfo"></div>
+      </div>
+
+      <!-- Claim Cells -->
+      <div class="section" id="claimSection" style="display:none">
+        <div class="section-title">CLAIM CELLS</div>
+        <div class="info-row">
+          <span class="info-label">Endgame Tier Cells</span>
+          <span class="info-value" id="claimAmount">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Claimed This Month</span>
+          <span class="info-value" id="claimStatus">-</span>
+        </div>
+        <button class="action-btn" id="claimBtn" disabled>CLAIM CELLS</button>
+        <div class="status-msg" id="claimMsg"></div>
+      </div>
+
+      <!-- Lock for Tournament -->
+      <div class="section" id="lockSection" style="display:none">
+        <div class="section-title">LOCK 1111 CELLS</div>
+        <div class="info-row">
+          <span class="info-label">Open Cells</span>
+          <span class="info-value" id="openCells">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Locked This Month</span>
+          <span class="info-value" id="lockStatus">-</span>
+        </div>
+        <button class="action-btn" id="lockBtn" disabled>LOCK 1111</button>
+        <div class="status-msg" id="lockMsg"></div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="section">
+      <div class="section-title">LOCKED THIS MONTH (<span id="lockCount">0</span>)</div>
+      <div class="locked-list" id="lockedList">
+        <div style="font-size:0.35rem;color:#8a7a5a;padding:8px 0;">No chads locked yet</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script type="module">
+    import {
+      connectWallet, autoReconnect, disconnect,
+      getSigner, getUserAddress, truncateAddress
+    } from './js/wallet.js';
+    import {
+      CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI,
+      TOURNAMENT_ADDRESS, TOURNAMENT_ABI
+    } from './js/config.js';
+
+    const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+
+    const chadSelect = document.getElementById('chadSelect');
+    const claimBtn = document.getElementById('claimBtn');
+    const lockBtn = document.getElementById('lockBtn');
+
+    let currentMonth = 0;
+
+    // ========== LOAD TOURNAMENT STATE ==========
+    async function loadTournamentState() {
+      if (!TOURNAMENT_ADDRESS) return;
+      try {
+        const tc = new ethers.Contract(TOURNAMENT_ADDRESS, TOURNAMENT_ABI, readProvider);
+        currentMonth = (await tc.currentMonth()).toNumber();
+        document.getElementById('monthNum').textContent = currentMonth;
+
+        const balance = await readProvider.getBalance(TOURNAMENT_ADDRESS);
+        document.getElementById('prizePool').textContent = parseFloat(ethers.utils.formatEther(balance)).toFixed(2) + ' AVAX';
+
+        const count = await tc.getLockCount(currentMonth);
+        document.getElementById('lockCount').textContent = count.toNumber();
+
+        const locked = await tc.getLockedChads(currentMonth);
+        const listEl = document.getElementById('lockedList');
+        if (locked.length === 0) {
+          listEl.innerHTML = '<div style="font-size:0.35rem;color:#8a7a5a;padding:8px 0;">No chads locked yet</div>';
+        } else {
+          const lc = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+          let html = '';
+          for (const id of locked) {
+            const owner = await lc.ownerOf(id);
+            const name = await lc.tokenName(id);
+            html += '<div class="locked-item"><span class="chad-id">#' + id + (name ? ' ' + name : '') + '</span><span class="owner">' + owner.slice(0, 6) + '...' + owner.slice(-4) + '</span></div>';
+          }
+          listEl.innerHTML = html;
+        }
+      } catch (err) {
+        console.error('Failed to load tournament state:', err);
+      }
+    }
+
+    // ========== LOAD USER CHADS ==========
+    async function loadUserChads() {
+      const addr = getUserAddress();
+      if (!addr || !CONTRACT_ADDRESS) return;
+      try {
+        const lc = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+        const balance = await lc.balanceOf(addr);
+        chadSelect.innerHTML = '<option value="">Select a Chad...</option>';
+        for (let i = 0; i < balance.toNumber(); i++) {
+          const tokenId = await lc.tokenOfOwnerByIndex(addr, i);
+          const name = await lc.tokenName(tokenId);
+          const eliminated = await lc.eliminated(tokenId);
+          if (!eliminated) {
+            const opt = document.createElement('option');
+            opt.value = tokenId.toString();
+            opt.textContent = '#' + tokenId + (name ? ' — ' + name : '') ;
+            chadSelect.appendChild(opt);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load chads:', err);
+      }
+    }
+
+    // ========== LOAD CHAD INFO ==========
+    async function loadChadInfo(tokenId) {
+      if (!tokenId || !TOURNAMENT_ADDRESS) return;
+      try {
+        const tc = new ethers.Contract(TOURNAMENT_ADDRESS, TOURNAMENT_ABI, readProvider);
+        const lc = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+
+        const claimAmount = await tc.getClaimAmount(tokenId);
+        const claimed = await tc.hasClaimed(tokenId, currentMonth);
+        const locked = await tc.hasLocked(tokenId, currentMonth);
+        const openCells = await lc.getOpenCells(tokenId);
+
+        // Show sections
+        document.getElementById('claimSection').style.display = 'block';
+        document.getElementById('lockSection').style.display = 'block';
+
+        // Claim info
+        document.getElementById('claimAmount').textContent = claimAmount.toNumber() + ' cells';
+        const claimStatusEl = document.getElementById('claimStatus');
+        claimStatusEl.textContent = claimed ? 'Yes' : 'No';
+        claimStatusEl.className = 'info-value ' + (claimed ? 'ok' : '');
+        claimBtn.disabled = claimed || claimAmount.toNumber() === 0;
+
+        // Lock info
+        document.getElementById('openCells').textContent = openCells.toNumber();
+        const lockStatusEl = document.getElementById('lockStatus');
+        lockStatusEl.textContent = locked ? 'Yes' : 'No';
+        lockStatusEl.className = 'info-value ' + (locked ? 'ok' : '');
+        lockBtn.disabled = locked || openCells.toNumber() < 1111;
+
+        // Clear messages
+        document.getElementById('claimMsg').textContent = '';
+        document.getElementById('lockMsg').textContent = '';
+      } catch (err) {
+        console.error('Failed to load chad info:', err);
+      }
+    }
+
+    chadSelect.addEventListener('change', () => {
+      const val = chadSelect.value;
+      if (val) loadChadInfo(parseInt(val));
+      else {
+        document.getElementById('claimSection').style.display = 'none';
+        document.getElementById('lockSection').style.display = 'none';
+      }
+    });
+
+    // ========== CLAIM CELLS ==========
+    claimBtn.addEventListener('click', async () => {
+      const tokenId = parseInt(chadSelect.value);
+      if (!tokenId || !getSigner()) return;
+      const msg = document.getElementById('claimMsg');
+      try {
+        claimBtn.disabled = true;
+        claimBtn.textContent = 'CLAIMING...';
+        const tc = new ethers.Contract(TOURNAMENT_ADDRESS, TOURNAMENT_ABI, getSigner());
+        const tx = await tc.claimCells(tokenId);
+        await tx.wait();
+        msg.textContent = 'Cells claimed!';
+        msg.className = 'status-msg ok';
+        claimBtn.textContent = 'CLAIMED';
+        loadChadInfo(tokenId);
+      } catch (err) {
+        msg.textContent = err.reason || err.message || 'Claim failed';
+        msg.className = 'status-msg err';
+        claimBtn.textContent = 'CLAIM CELLS';
+        claimBtn.disabled = false;
+      }
+    });
+
+    // ========== LOCK FOR TOURNAMENT ==========
+    lockBtn.addEventListener('click', async () => {
+      const tokenId = parseInt(chadSelect.value);
+      if (!tokenId || !getSigner()) return;
+      const msg = document.getElementById('lockMsg');
+      try {
+        lockBtn.disabled = true;
+        lockBtn.textContent = 'LOCKING...';
+        const tc = new ethers.Contract(TOURNAMENT_ADDRESS, TOURNAMENT_ABI, getSigner());
+        const tx = await tc.lockForTournament(tokenId);
+        await tx.wait();
+        msg.textContent = 'Locked 1111 cells!';
+        msg.className = 'status-msg ok';
+        lockBtn.textContent = 'LOCKED';
+        loadChadInfo(tokenId);
+        loadTournamentState();
+      } catch (err) {
+        msg.textContent = err.reason || err.message || 'Lock failed';
+        msg.className = 'status-msg err';
+        lockBtn.textContent = 'LOCK 1111';
+        lockBtn.disabled = false;
+      }
+    });
+
+    // ========== WALLET ==========
+    const walletBtn = document.getElementById('walletBtn');
+    const disconnectDropdown = document.getElementById('disconnectDropdown');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+
+    function onConnected(addr) {
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      document.getElementById('connectPrompt').style.display = 'none';
+      document.getElementById('tournamentContent').style.display = 'block';
+      loadUserChads();
+      closeWalletModal();
+    }
+
+    function onDisconnected() {
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+      document.getElementById('connectPrompt').style.display = 'block';
+      document.getElementById('tournamentContent').style.display = 'none';
+      disconnectDropdown.classList.remove('show');
+    }
+
+    walletBtn.addEventListener('click', () => {
+      if (getUserAddress()) {
+        disconnectDropdown.classList.toggle('show');
+        return;
+      }
+      openWalletModal();
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      disconnectDropdown.classList.remove('show');
+      disconnect(onDisconnected);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.wallet-wrapper')) {
+        disconnectDropdown.classList.remove('show');
+      }
+    });
+
+    document.addEventListener('wallet-selected', e => {
+      connectWallet(e.detail.wallet, { onConnected, onDisconnected })
+        .catch(err => alert('Connection error: ' + (err.message || err)));
+    });
+
+    // ========== INIT ==========
+    (async () => {
+      await loadTournamentState();
+      await autoReconnect({ onConnected, onDisconnected });
+    })();
+
+    setInterval(loadTournamentState, 30000);
+  </script>
+  <div id="wallet-modal-placeholder"></div>
+  <script src="js/wallet-modal.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>

@@ -444,9 +444,9 @@
     }
 
     /* --- Team selection --- */
-    .team-section { margin-bottom: 20px; }
-    .team-header { margin-bottom: 8px; }
-    .team-select {
+    .code-section { margin-bottom: 16px; }
+    .code-header { margin-bottom: 8px; }
+    .code-input {
       width: 100%;
       font-family: 'Press Start 2P', monospace;
       font-size: 0.5rem;
@@ -455,17 +455,40 @@
       border: 2px solid #5c4409;
       border-radius: 4px;
       color: #f5e6c8;
-      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      box-sizing: border-box;
     }
-    .team-select:focus { border-color: #c9a84c; outline: none; }
-    .team-select option { background: #1e140a; color: #f5e6c8; }
-    .team-status {
+    .code-input::placeholder { color: #5c4409; letter-spacing: 1px; }
+    .code-input:focus { border-color: #c9a84c; outline: none; }
+    .code-status {
       font-size: 0.38rem;
       margin-top: 6px;
       min-height: 1.2em;
     }
-    .team-status.ok { color: #4caf50; }
-    .team-status.err { color: #ff4444; }
+    .code-status.ok { color: #4caf50; }
+    .code-status.err { color: #ff4444; }
+
+    .cell-breakdown {
+      background: rgba(30, 20, 10, 0.6);
+      border: 1px solid #5c4409;
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      font-size: 0.38rem;
+    }
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      color: #f5e6c8;
+    }
+    .breakdown-row.bonus { color: #4caf50; }
+    .breakdown-row.total { color: #c9a84c; font-size: 0.42rem; padding-top: 6px; }
+    .breakdown-divider {
+      border-top: 1px dashed #5c4409;
+      margin: 4px 0;
+    }
 
     /* --- Mint button --- */
     .mint-btn {
@@ -758,7 +781,7 @@
       <!-- Price -->
       <div class="price-row">
         <span class="price-label">PRICE</span>
-        <span class="price-value" id="priceDisplay">0.02<span class="price-eth"> AVAX</span></span>
+        <span class="price-value" id="priceDisplay">2<span class="price-eth"> AVAX</span></span>
       </div>
 
       <!-- Quantity -->
@@ -783,18 +806,37 @@
       <!-- Total -->
       <div class="total-row">
         <span class="total-label">TOTAL</span>
-        <span class="total-value" id="totalValue">0.02 AVAX</span>
+        <span class="total-value" id="totalValue">2 AVAX</span>
       </div>
 
-      <!-- Team Selection -->
-      <div class="team-section" id="teamSection">
-        <div class="team-header">
-          <span class="quantity-label">TEAM</span>
+      <!-- Mint Code -->
+      <div class="code-section" id="codeSection">
+        <div class="code-header">
+          <span class="quantity-label">MINT CODE</span>
         </div>
-        <select id="teamSelect" class="team-select">
-          <option value="0">No Team (Free Agent)</option>
-        </select>
-        <div class="team-status" id="teamStatus"></div>
+        <input type="text" id="mintCodeInput" class="code-input" placeholder="CHAD-XXXX-XXXX" maxlength="14" autocomplete="off" spellcheck="false">
+        <div class="code-status" id="codeStatus"></div>
+      </div>
+
+      <!-- Cell Breakdown -->
+      <div class="cell-breakdown" id="cellBreakdown">
+        <div class="breakdown-row" id="baseCellsRow">
+          <span class="breakdown-label">Base cells</span>
+          <span class="breakdown-value" id="baseCellsValue">50 × 1 = 50</span>
+        </div>
+        <div class="breakdown-row bonus" id="partnerRow" style="display:none">
+          <span class="breakdown-label">Partner NFT bonus</span>
+          <span class="breakdown-value" id="partnerValue">+100 × 1 = 100</span>
+        </div>
+        <div class="breakdown-row bonus" id="codeRow" style="display:none">
+          <span class="breakdown-label">Code bonus</span>
+          <span class="breakdown-value" id="codeValue">+100 × 1 = 100</span>
+        </div>
+        <div class="breakdown-divider"></div>
+        <div class="breakdown-row total">
+          <span class="breakdown-label">Total cells</span>
+          <span class="breakdown-value" id="totalCellsValue">50</span>
+        </div>
       </div>
 
       <!-- Mint button -->
@@ -824,14 +866,14 @@
     import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
 
     // ========== CONFIG ==========
-    const PRICE = 0.02;
-    const TEAM_PRICE = 0.015;
-    const MAX_SUPPLY = 10000;
+    const PRICE = 2;
+    const MAX_SUPPLY = 333;
     const MAX_MINT_PER_WALLET = 5;
-    let activePrice = PRICE; // switches to TEAM_PRICE when team selected + eligible
+    const BASE_CELLS = 50;
+    const PARTNER_BONUS = 100;
+    const CODE_BONUS = 100;
 
     const CONTRACT_ABI = LASTCHAD_ABI;
-    const ERC721_BALANCE_ABI = LASTCHAD_ABI;
 
     // ========== DOM ==========
     const slider = document.getElementById('qtySlider');
@@ -847,9 +889,14 @@
     const supplyText = document.getElementById('supplyText');
     const supplyFill = document.getElementById('supplyFill');
 
-    const teamSection = document.getElementById('teamSection');
-    const teamSelect  = document.getElementById('teamSelect');
-    const teamStatus  = document.getElementById('teamStatus');
+    const mintCodeInput = document.getElementById('mintCodeInput');
+    const codeStatus = document.getElementById('codeStatus');
+    const partnerRow = document.getElementById('partnerRow');
+    const codeRow = document.getElementById('codeRow');
+    const baseCellsValue = document.getElementById('baseCellsValue');
+    const partnerValue = document.getElementById('partnerValue');
+    const codeValue = document.getElementById('codeValue');
+    const totalCellsValue = document.getElementById('totalCellsValue');
 
     // ========== READ PROVIDER ==========
     const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
@@ -858,7 +905,8 @@
     let quantity = 1;
     let minted = 0;
     let maxQty = MAX_SUPPLY;
-    let teamData = []; // [{ id, name, nftContract, active, memberCount }]
+    let hasPartner = false;
+    let validCode = false;
 
     // ========== SUPPLY TRACKING ==========
     async function updateSupply() {
@@ -902,73 +950,83 @@
       }
     }
 
-    // ========== TEAM LOADING ==========
-    async function loadTeams() {
-      if (!CONTRACT_ADDRESS) return;
+    // ========== PARTNER NFT DETECTION ==========
+    async function checkPartnerNFT() {
+      const addr = getUserAddress();
+      if (!addr || !CONTRACT_ADDRESS) {
+        hasPartner = false;
+        updateCellBreakdown();
+        return;
+      }
       try {
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        const count = await contract.getTeamCount();
-        teamData = [];
-        for (let i = 1; i <= count.toNumber(); i++) {
-          const [name, nftContract, active, memberCount] = await contract.getTeam(i);
-          if (active) teamData.push({ id: i, name, nftContract, memberCount: memberCount.toNumber() });
-        }
-        teamSelect.innerHTML = '<option value="0">No Team (Free Agent)</option>';
-        for (const t of teamData) {
-          const opt = document.createElement('option');
-          opt.value = t.id;
-          opt.textContent = t.name + ' (' + t.memberCount + ' members)';
-          teamSelect.appendChild(opt);
-        }
+        hasPartner = await contract.hasPartnerNFT(addr);
       } catch (err) {
-        console.error('Failed to load teams:', err);
+        console.error('Partner check failed:', err);
+        hasPartner = false;
       }
+      updateCellBreakdown();
     }
 
-    async function checkTeamEligibility() {
-      const teamId = parseInt(teamSelect.value);
-      if (teamId === 0) {
-        teamStatus.textContent = '';
-        teamStatus.className = 'team-status';
-        activePrice = PRICE;
-        updateUI();
+    // ========== MINT CODE VALIDATION ==========
+    let codeCheckTimeout = null;
+    mintCodeInput.addEventListener('input', () => {
+      clearTimeout(codeCheckTimeout);
+      const raw = mintCodeInput.value.trim().toUpperCase();
+      if (!raw) {
+        validCode = false;
+        codeStatus.textContent = '';
+        codeStatus.className = 'code-status';
+        updateCellBreakdown();
         return;
       }
-      const addr = getUserAddress();
-      const team = teamData.find(t => t.id === teamId);
-      if (!team) return;
+      codeStatus.textContent = 'Checking...';
+      codeStatus.className = 'code-status';
+      codeCheckTimeout = setTimeout(() => validateCode(raw), 500);
+    });
 
-      // No wallet connected — show team selected but no discount info
-      if (!addr) {
-        teamStatus.textContent = '';
-        teamStatus.className = 'team-status';
-        activePrice = PRICE;
-        updateUI();
-        return;
-      }
-
-      // Wallet connected — check NFT balance for discount
+    async function validateCode(code) {
+      if (!CONTRACT_ADDRESS) return;
       try {
-        const nft = new ethers.Contract(team.nftContract, ERC721_BALANCE_ABI, readProvider);
-        const bal = await nft.balanceOf(addr);
-        if (bal.toNumber() > 0) {
-          teamStatus.textContent = 'Eligible — you hold ' + team.name + ' NFT (25% discount!)';
-          teamStatus.className = 'team-status ok';
-          activePrice = TEAM_PRICE;
+        const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(code));
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
+        const isValid = await contract.mintCodeValid(hash);
+        const isUsed = await contract.mintCodeUsed(hash);
+        if (isValid && !isUsed) {
+          validCode = true;
+          codeStatus.textContent = 'Valid code — +100 cells per NFT!';
+          codeStatus.className = 'code-status ok';
+        } else if (isUsed) {
+          validCode = false;
+          codeStatus.textContent = 'Code already used';
+          codeStatus.className = 'code-status err';
         } else {
-          teamStatus.textContent = 'You must hold a ' + team.name + ' NFT to join this team';
-          teamStatus.className = 'team-status err';
-          activePrice = PRICE;
+          validCode = false;
+          codeStatus.textContent = 'Invalid code';
+          codeStatus.className = 'code-status err';
         }
       } catch (err) {
-        teamStatus.textContent = 'Could not verify NFT balance';
-        teamStatus.className = 'team-status err';
-        activePrice = PRICE;
+        validCode = false;
+        codeStatus.textContent = 'Could not verify code';
+        codeStatus.className = 'code-status err';
       }
-      updateUI();
+      updateCellBreakdown();
     }
 
-    teamSelect.addEventListener('change', checkTeamEligibility);
+    // ========== CELL BREAKDOWN ==========
+    function updateCellBreakdown() {
+      const base = BASE_CELLS * quantity;
+      const partner = hasPartner ? PARTNER_BONUS * quantity : 0;
+      const code = validCode ? CODE_BONUS * quantity : 0;
+      const total = base + partner + code;
+
+      baseCellsValue.textContent = BASE_CELLS + ' × ' + quantity + ' = ' + base;
+      partnerRow.style.display = hasPartner ? 'flex' : 'none';
+      partnerValue.textContent = '+' + PARTNER_BONUS + ' × ' + quantity + ' = ' + partner;
+      codeRow.style.display = validCode ? 'flex' : 'none';
+      codeValue.textContent = '+' + CODE_BONUS + ' × ' + quantity + ' = ' + code;
+      totalCellsValue.textContent = total;
+    }
 
     // ========== QUANTITY UI ==========
     function rebuildPips() {
@@ -993,12 +1051,10 @@
     function updateUI() {
       const max = parseInt(slider.max);
       qtyDisplay.textContent = quantity;
-      totalValue.textContent = (quantity * activePrice) + ' AVAX';
-      // Update price display to reflect current rate
+      totalValue.textContent = (quantity * PRICE) + ' AVAX';
       const priceEl = document.getElementById('priceDisplay');
       if (priceEl) {
-        priceEl.innerHTML = activePrice + '<span class="price-eth"> AVAX</span>' +
-          (activePrice === TEAM_PRICE ? ' <span style="color:#4caf50;font-size:0.35rem">(TEAM)</span>' : '');
+        priceEl.innerHTML = PRICE + '<span class="price-eth"> AVAX</span>';
       }
       sliderFill.style.width = max > 1 ? ((quantity - 1) / (max - 1) * 100) + '%' : '0%';
       slider.value = quantity;
@@ -1006,6 +1062,7 @@
       qtyPlus.disabled = quantity >= max;
       const pips = pipsContainer.querySelectorAll('span');
       pips.forEach((p, i) => p.classList.toggle('active', i + 1 <= quantity));
+      updateCellBreakdown();
     }
 
     slider.addEventListener('input', () => { quantity = parseInt(slider.value); updateUI(); });
@@ -1022,7 +1079,7 @@
       }
       closeWalletModal();
       updateSupply();
-      loadTeams().then(checkTeamEligibility);
+      checkPartnerNFT();
     }
 
     function onDisconnected() {
@@ -1032,10 +1089,7 @@
       btnText.textContent = 'MINT';
       mintBtn.classList.remove('ready');
       disconnectDropdown.classList.remove('show');
-      // Reset team discount info — keep selection but hide eligibility status
-      activePrice = PRICE;
-      teamStatus.textContent = '';
-      teamStatus.className = 'team-status';
+      hasPartner = false;
       updateUI();
     }
 
@@ -1133,14 +1187,14 @@
         mintBtn.classList.remove('ready');
 
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, getSigner());
-        const totalCost = ethers.utils.parseEther((quantity * activePrice).toString());
+        const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
 
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        const selectedTeam = parseInt(teamSelect.value);
-        const tx = selectedTeam > 0
-          ? await contract.mintWithTeam(quantity, selectedTeam, { value: totalCost })
+        const code = mintCodeInput.value.trim().toUpperCase();
+        const tx = code
+          ? await contract.mintWithCode(quantity, code, { value: totalCost })
           : await contract.mint(quantity, { value: totalCost });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
@@ -1179,6 +1233,12 @@
         } else if (msg.includes('Insufficient payment')) {
           alert('Insufficient AVAX. You need ' + (quantity * PRICE) + ' AVAX to mint.');
           btnText.textContent = 'MINT NOW';
+        } else if (msg.includes('Invalid code')) {
+          alert('Invalid mint code. Check the code and try again.');
+          btnText.textContent = 'MINT NOW';
+        } else if (msg.includes('Code already used')) {
+          alert('This mint code has already been used.');
+          btnText.textContent = 'MINT NOW';
         } else {
           btnText.textContent = 'FAILED';
           setTimeout(() => { btnText.textContent = 'MINT NOW'; }, 2000);
@@ -1191,7 +1251,6 @@
     // ========== AUTO-RECONNECT ==========
     (async () => {
       await updateSupply();
-      await loadTeams();
       await autoReconnect({ onConnected, onDisconnected });
     })();
 
