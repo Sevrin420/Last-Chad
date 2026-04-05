@@ -943,7 +943,7 @@
         // Update contract link
         const contractLink = document.getElementById('contractLink');
         contractLink.textContent = CONTRACT_ADDRESS.slice(0, 6) + '...' + CONTRACT_ADDRESS.slice(-4);
-        contractLink.href = 'https://testnet.snowtrace.io/address/' + CONTRACT_ADDRESS;
+        contractLink.href = 'https://snowtrace.io/address/' + CONTRACT_ADDRESS;
         contractLink.target = '_blank';
       } catch (err) {
         console.error('Failed to read supply:', err);

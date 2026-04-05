@@ -38,10 +38,6 @@ describe("Tournament", function () {
       expect(await tournament.lastChad()).to.equal(await lastChad.getAddress());
     });
 
-    it("sets gameOwner correctly", async function () {
-      expect(await tournament.gameOwner()).to.equal(owner.address);
-    });
-
     it("starts at month 0", async function () {
       expect(await tournament.currentMonth()).to.equal(0);
     });

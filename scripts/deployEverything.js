@@ -213,9 +213,10 @@ async function main() {
     if (config.includes('TOURNAMENT_ADDRESS')) {
       config = config.replace(/export const TOURNAMENT_ADDRESS\s*=\s*'[^']*'/, `export const TOURNAMENT_ADDRESS       = '${tournamentAddress}'`);
     } else {
+      // Insert after the GAMBLE_ADDRESS line
       config = config.replace(
-        /export const GAMBLE_ADDRESS\s*=\s*'[^']*'/,
-        `export const GAMBLE_ADDRESS           = '${gambleAddress}';\nexport const TOURNAMENT_ADDRESS       = '${tournamentAddress}'`
+        /(export const GAMBLE_ADDRESS\s*=\s*'[^']*';?)/,
+        `$1\nexport const TOURNAMENT_ADDRESS       = '${tournamentAddress}';`
       );
     }
 
@@ -294,7 +295,7 @@ async function main() {
   console.log("    Market   ← lastChad   → LastChad      ✓");
   console.log("");
   console.log("  Config files patched:");
-  console.log("    js/config.js          (5 addresses)");
+  console.log("    js/config.js          (6 addresses)");
   console.log("    js/quest-globals.js   (3 addresses)");
   console.log("    worker/wrangler.toml  (3 addresses)");
   console.log("════════════════════════════════════════════════════════════\n");

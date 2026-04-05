@@ -12,6 +12,10 @@ const hre = require("hardhat");
 const { TOURNAMENT } = require('./addresses');
 
 async function main() {
+  if (!TOURNAMENT || !hre.ethers.isAddress(TOURNAMENT)) {
+    throw new Error("TOURNAMENT address not set in js/config.js — deploy Tournament first");
+  }
+
   const [deployer] = await hre.ethers.getSigners();
   console.log("\n════════════════════════════════════════════");
   console.log("Tournament Payout");

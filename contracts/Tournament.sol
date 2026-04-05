@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface ILastChad {
     function ownerOf(uint256 tokenId) external view returns (address);
@@ -12,9 +13,8 @@ interface ILastChad {
     function getClosedCells(uint256 tokenId) external view returns (uint256);
 }
 
-contract Tournament is Ownable {
+contract Tournament is Ownable, ReentrancyGuard {
     ILastChad public immutable lastChad;
-    address public immutable gameOwner;
     uint256 public currentMonth;
     uint256 public constant LOCK_AMOUNT = 1111;
 
@@ -31,6 +31,9 @@ contract Tournament is Ownable {
     mapping(uint256 => uint256) public lockCount;                        // month → number locked
     mapping(uint256 => uint256[]) public lockedChads;                    // month → tokenId array
 
+    // ── Failed Transfer Recovery ──
+    mapping(address => uint256) public pendingWithdrawals;               // pull-based recovery
+
     // ── Events ──
     event CellsClaimed(uint256 indexed tokenId, uint256 month, uint256 amount);
     event LockedForTournament(uint256 indexed tokenId, uint256 month);
@@ -38,10 +41,10 @@ contract Tournament is Ownable {
     event MonthAdvanced(uint256 newMonth);
     event EndgameSnapshotSet(uint256 count);
     event CellTierSet(uint256 threshold, uint256 amount);
+    event TransferFailed(address indexed winner, uint256 amount);
 
     constructor(address _lastChad) Ownable(msg.sender) {
         lastChad = ILastChad(_lastChad);
-        gameOwner = msg.sender;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -71,8 +74,16 @@ contract Tournament is Ownable {
     }
 
     function _setCellTier(uint256 threshold, uint256 amount) internal {
-        // Add to thresholds array if new
-        if (cellTiers[threshold] == 0 && amount > 0) {
+        require(amount > 0, "Amount must be > 0");
+        // Check if threshold already exists
+        bool exists = false;
+        for (uint256 i = 0; i < tierThresholds.length; i++) {
+            if (tierThresholds[i] == threshold) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
             tierThresholds.push(threshold);
             _sortThresholds();
         }
@@ -132,25 +143,43 @@ contract Tournament is Ownable {
     // ─────────────────────────────────────────────────────────
 
     /// @notice Distribute AVAX to winners and advance to next month
-    function distributeAndReset() external onlyOwner {
-        uint256 pool = address(this).balance;
-        uint256 winners = lockCount[currentMonth];
+    function distributeAndReset() external onlyOwner nonReentrant {
+        uint256 month = currentMonth;
+        uint256 winners = lockCount[month];
 
-        if (winners > 0 && pool > 0) {
-            uint256 perWinner = pool / winners;
-            uint256[] storage chads = lockedChads[currentMonth];
+        // Advance month FIRST (checks-effects-interactions)
+        currentMonth = month + 1;
 
-            for (uint256 i = 0; i < chads.length; i++) {
-                address winner = lastChad.ownerOf(chads[i]);
-                (bool sent, ) = payable(winner).call{value: perWinner}("");
-                require(sent, "Transfer failed");
+        if (winners > 0) {
+            uint256 pool = address(this).balance;
+            if (pool > 0) {
+                uint256 perWinner = pool / winners;
+                uint256[] storage chads = lockedChads[month];
+
+                for (uint256 i = 0; i < chads.length; i++) {
+                    address winner = lastChad.ownerOf(chads[i]);
+                    (bool sent, ) = payable(winner).call{value: perWinner}("");
+                    if (!sent) {
+                        // Queue for pull-based withdrawal instead of reverting
+                        pendingWithdrawals[winner] += perWinner;
+                        emit TransferFailed(winner, perWinner);
+                    }
+                }
+
+                emit PrizeDistributed(month, winners, perWinner);
             }
-
-            emit PrizeDistributed(currentMonth, winners, perWinner);
         }
 
-        currentMonth++;
         emit MonthAdvanced(currentMonth);
+    }
+
+    /// @notice Withdraw failed prize transfers
+    function withdrawPending() external nonReentrant {
+        uint256 amount = pendingWithdrawals[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+        pendingWithdrawals[msg.sender] = 0;
+        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        require(sent, "Transfer failed");
     }
 
     /// @notice Accept AVAX deposits for the prize pool

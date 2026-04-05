@@ -86,8 +86,10 @@ jobs:
         if: inputs.target == 'load-mintcodes'
         env:
           PRIVATE_KEY:        ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          LASTCHAD_ADDRESS:   ${{ env.LASTCHAD_ADDRESS }}
-        run: npx hardhat run scripts/loadMintCodes.js --network ${{ inputs.network }}
+        run: |
+          LASTCHAD_ADDRESS=$(node -e "const fs=require('fs'),p=require('path');const s=fs.readFileSync(p.join(__dirname,'js','config.js'),'utf8');const m=s.match(/CONTRACT_ADDRESS\s*=\s*'([^']+)'/);console.log(m[1])")
+          export LASTCHAD_ADDRESS
+          npx hardhat run scripts/loadMintCodes.js --network ${{ inputs.network }}
 
       - name: Deploy all contracts (LastChad + Items + QuestRewards)
         if: inputs.target == 'all-contracts'
@@ -121,7 +123,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add js/config.js js/quest-globals.js
+          git add js/config.js js/quest-globals.js worker/wrangler.toml
           if git diff --cached --quiet; then
             echo "config files unchanged — skipping commit"
           else

@@ -261,6 +261,8 @@ export const TOURNAMENT_ABI = [
   'function setCellTier(uint256 closedCellThreshold, uint256 claimAmount)',
   'function batchSetCellTiers(uint256[] thresholds, uint256[] amounts)',
   'function distributeAndReset()',
+  'function withdrawPending()',
+  'function pendingWithdrawals(address) view returns (uint256)',
   // Events
   'event CellsClaimed(uint256 indexed tokenId, uint256 month, uint256 amount)',
   'event LockedForTournament(uint256 indexed tokenId, uint256 month)',
