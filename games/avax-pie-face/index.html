@@ -900,6 +900,12 @@
     });
   }
 
+  // ── PRELOAD ALL FACE IMAGES ─────────────────────────────────────
+  (function preloadImages() {
+    const all = FACES.concat(Object.values(PIE_FACES), ['pie.png']);
+    all.forEach(f => { const i = new Image(); i.src = ASSET_BASE + f; });
+  })();
+
   // ── GAME LOGIC ─────────────────────────────────────────────────
   function startGame() {
     if (!gameStartedViaUI) return;  // anti-cheat: must go through UI
