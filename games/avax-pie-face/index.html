@@ -12,7 +12,7 @@
 
     body {
       background-color: #0a0a0f;
-      background-image: url('assets/Avaxpieface/piefacemain.jpg');
+      background-image: url('../../assets/Avaxpieface/piefacemain.jpg');
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center center;
@@ -411,10 +411,10 @@
      AUDIO
 ════════════════════════════════════════ -->
 <audio id="audio-morning" loop preload="auto">
-  <source src="assets/Avaxpieface/morningmood.mp3" type="audio/mpeg" />
+  <source src="../../assets/Avaxpieface/morningmood.mp3" type="audio/mpeg" />
 </audio>
 <audio id="audio-circus" loop preload="auto">
-  <source src="assets/Avaxpieface/circus.mp3" type="audio/mpeg" />
+  <source src="../../assets/Avaxpieface/circus.mp3" type="audio/mpeg" />
 </audio>
 
 <!-- Fixed mute button -->
@@ -425,8 +425,8 @@
 ════════════════════════════════════════ -->
 <div id="video-overlay">
   <video id="intro-video" playsinline>
-    <source src="assets/Avaxpieface/piefaceintro.mp4" type="video/mp4" />
-    <source src="assets/Avaxpieface/piefaceintro.webm" type="video/webm" />
+    <source src="../../assets/Avaxpieface/piefaceintro.mp4" type="video/mp4" />
+    <source src="../../assets/Avaxpieface/piefaceintro.webm" type="video/webm" />
   </video>
 </div>
 
@@ -483,7 +483,7 @@
     <div class="hud-score" id="hud-score">0 pts</div>
   </div>
   <div class="board-wrap" id="board-wrap">
-    <img class="board-bg" src="assets/Avaxpieface/piefacemain.jpg" alt="Pie Face Board" id="board-bg-img" draggable="false" />
+    <img class="board-bg" src="../../assets/Avaxpieface/piefacemain.jpg" alt="Pie Face Board" id="board-bg-img" draggable="false" />
     <!-- Face slots injected by JS -->
   </div>
 </div>
@@ -506,7 +506,7 @@
      EMIN OVERLAY
 ════════════════════════════════════════ -->
 <div id="emin-overlay">
-  <img src="assets/Avaxpieface/eminend.png" alt="Emin" />
+  <img src="../../assets/Avaxpieface/eminend.png" alt="Emin" />
   <p>You pied Emin!<br/>Where's your sense of respect...</p>
   <button class="btn-primary" id="btn-emin-ok" style="max-width:260px;">Accept Your Fate</button>
 </div>
@@ -619,7 +619,7 @@
     'vanya.png':       'vanyapie.png',
   };
   const EMIN_FACE  = 'emin.png';
-  const ASSET_BASE = 'assets/Avaxpieface/';
+  const ASSET_BASE = '../../assets/Avaxpieface/';
 
   // ── Session state (in memory only — no localStorage) ───────────
   let sessionToken     = null;
