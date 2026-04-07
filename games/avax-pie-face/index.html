@@ -1002,35 +1002,53 @@
       clearTimeout(faceTimers[slotIdx]);
       delete faceTimers[slotIdx];
     }
-    // 1.2s rest before slot is available again
+    // 1s rest before slot is available again
     slotState[slotIdx] = '__busy__';
-    setTimeout(() => { slotState[slotIdx] = null; }, 1200);
+    setTimeout(() => { slotState[slotIdx] = null; }, 1000);
   }
 
   function onSlotClick(slotIdx) {
     if (!gameActive) return;
     const face = slotState[slotIdx];
-    if (!face) return;
+    if (!face || face === '__busy__') return;
 
-    // Cancel auto-hide timer; mark slot busy so nothing spawns during animation
+    // Cancel auto-hide timer; mark slot busy
     if (faceTimers[slotIdx]) {
       clearTimeout(faceTimers[slotIdx]);
       delete faceTimers[slotIdx];
     }
     slotState[slotIdx] = '__busy__';
 
-    // Swap to the grossed-out reaction image
-    const img = document.getElementById(`face-img-${slotIdx}`);
-    if (img && PIE_FACES[face]) img.src = ASSET_BASE + PIE_FACES[face];
+    const img  = document.getElementById(`face-img-${slotIdx}`);
+    const card = document.getElementById(`card-${slotIdx}`);
+    const slot = document.getElementById(`slot-${slotIdx}`);
+    if (!img || !card || !slot) return;
 
-    // Play pie-drop animation, then hold 0.5s, then flip down and rest 1.2s
-    showPieAnimation(slotIdx, () => {
+    // 1) Pie drops onto the plain face (0.4s)
+    const pieEl = document.createElement('img');
+    pieEl.src = ASSET_BASE + 'pie.png';
+    pieEl.style.cssText =
+      'position:absolute;left:0;top:-100%;width:100%;height:100%;' +
+      'object-fit:contain;z-index:20;pointer-events:none;' +
+      'transition:top 0.4s ease-in;';
+    slot.appendChild(pieEl);
+    void pieEl.offsetWidth;
+    pieEl.style.top = '0';
+
+    // 2) At impact: swap to pie face underneath the pie overlay
+    setTimeout(() => {
+      if (PIE_FACES[face]) img.src = ASSET_BASE + PIE_FACES[face];
+
+      // 3) Fade out the pie to reveal the grossed-out reaction
+      pieEl.style.transition = 'opacity 0.3s ease-out';
+      pieEl.style.opacity = '0';
+      setTimeout(() => { pieEl.remove(); }, 300);
+
+      // 4) Hold the pie face for 0.4s, then flip down
       setTimeout(() => {
-        const card = document.getElementById(`card-${slotIdx}`);
-        if (card) {
-          card.classList.remove('flipped-up');
-          card.classList.add('flipped-down');
-        }
+        card.classList.remove('flipped-up');
+        card.classList.add('flipped-down');
+
         if (face === EMIN_FACE) {
           triggerEmin();
         } else {
@@ -1038,37 +1056,11 @@
           clickCount += 1;
           document.getElementById('hud-score').textContent = gameScore + ' pts';
         }
-        // 1.2s rest before slot is available again
-        setTimeout(() => { slotState[slotIdx] = null; }, 1200);
-      }, 500);
-    });
-  }
 
-  function showPieAnimation(slotIdx, onComplete) {
-    const slot = document.getElementById(`slot-${slotIdx}`);
-    if (!slot) { onComplete(); return; }
-
-    const pieEl = document.createElement('img');
-    pieEl.src = ASSET_BASE + 'pie.png';
-    pieEl.style.cssText = [
-      'position:absolute',
-      'left:0', 'top:-100%',
-      'width:100%', 'height:100%',
-      'object-fit:contain',
-      'z-index:20',
-      'pointer-events:none',
-      'transition:top 0.5s ease-in',
-    ].join(';');
-    slot.appendChild(pieEl);
-
-    // Force reflow then drop
-    void pieEl.offsetWidth;
-    pieEl.style.top = '0';
-
-    setTimeout(() => {
-      pieEl.remove();
-      onComplete();
-    }, 600);
+        // 5) Rest 1s before slot is available
+        setTimeout(() => { slotState[slotIdx] = null; }, 1000);
+      }, 400);
+    }, 400);
   }
 
   function triggerEmin() {
