@@ -701,6 +701,13 @@
       .remote-card{border-bottom:none;border-right:1px solid #1a2a0a}
     }
 
+    /* ── Side-by-side layout: shrink dice so they don't overflow the table column ── */
+    @media(min-width:601px) and (max-width:899px){
+      .die{width:44px!important;height:44px!important}
+      .table-chip-tray .chip{width:32px!important;height:32px!important}
+      .table-chip-tray{gap:4px!important}
+    }
+
     /* ── Responsive (mobile) ── */
     @media(max-width:600px){
       .bet-zone:hover .zone-label{font-size:0.2rem}
