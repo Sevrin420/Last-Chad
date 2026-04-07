@@ -204,11 +204,8 @@ export default {
       }
 
       // ── Avax Pie Face ──
-      if (request.method === 'POST' && url.pathname === '/pieface/register') {
-        return await handlePieFaceRegister(request, env);
-      }
-      if (request.method === 'POST' && url.pathname === '/pieface/login') {
-        return await handlePieFaceLogin(request, env);
+      if (request.method === 'POST' && url.pathname === '/pieface/play') {
+        return await handlePieFacePlay(request, env);
       }
       if (request.method === 'GET' && url.pathname === '/pieface/leaderboard') {
         return await handlePieFaceLeaderboard(env);
@@ -1469,13 +1466,6 @@ const PIEFACE_MAX_SCORE = 2000; // max possible: 6 slots × ceil(60000/1850ms) �
 const PIEFACE_INITIAL_ATTEMPTS = 2;   // given on account creation
 const PIEFACE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24-hour cooldown then 1 attempt
 
-async function pfHashPw(username, password, oracleKey) {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`pieface:pw:${username.toLowerCase()}:${password}`));
-  return btoa(String.fromCharCode(...new Uint8Array(sig)));
-}
-
 async function pfSessionToken(username, oracleKey) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', enc.encode(oracleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -1483,51 +1473,28 @@ async function pfSessionToken(username, oracleKey) {
   return btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 32);
 }
 
-// POST /pieface/register  { username, password }
-async function handlePieFaceRegister(request, env) {
+// POST /pieface/play  { username }
+// Creates account if new, returns existing if known. No password.
+async function handlePieFacePlay(request, env) {
   const body = await parseBody(request);
   let username = (body.username || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '');
-  const password = (body.password || '').toString();
   if (!username || username.length < 2 || username.length > 24)
-    return json({ error: 'Username must be 2–24 characters (letters, numbers, spaces)' }, 400);
-  if (!password || password.length < 4)
-    return json({ error: 'Password must be at least 4 characters' }, 400);
+    return json({ error: 'Name must be 2–24 characters' }, 400);
 
   const userKey = `pieface:user:${username.toLowerCase()}`;
-  const existing = await env.RUNNER_KV.get(userKey);
-  if (existing) return json({ error: 'Username already taken' }, 409);
-
   const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
-  const passHash = await pfHashPw(username, password, oracleKey);
   const sessionToken = await pfSessionToken(username, oracleKey);
 
-  const user = { passHash, attempts: PIEFACE_INITIAL_ATTEMPTS, lastAttemptUsed: 0, highScore: 0 };
-  await env.RUNNER_KV.put(userKey, JSON.stringify(user));
+  let userData = await env.RUNNER_KV.get(userKey, { type: 'json' });
+  if (!userData) {
+    // New player — create account
+    userData = { attempts: PIEFACE_INITIAL_ATTEMPTS, lastAttemptUsed: 0, highScore: 0 };
+    await env.RUNNER_KV.put(userKey, JSON.stringify(userData));
+  }
 
-  return json({ ok: true, sessionToken, username, attempts: PIEFACE_INITIAL_ATTEMPTS, highScore: 0 });
-}
-
-// POST /pieface/login  { username, password }
-async function handlePieFaceLogin(request, env) {
-  const body = await parseBody(request);
-  let username = (body.username || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '');
-  const password = (body.password || '').toString();
-  if (!username) return json({ error: 'Username required' }, 400);
-  if (!password) return json({ error: 'Password required' }, 400);
-
-  const userKey = `pieface:user:${username.toLowerCase()}`;
-  const userData = await env.RUNNER_KV.get(userKey, { type: 'json' });
-  if (!userData) return json({ error: 'Username not found' }, 404);
-
-  const oracleKey = env.ORACLE_PRIVATE_KEY || 'dev-key';
-  const passHash = await pfHashPw(username, password, oracleKey);
-  if (passHash !== userData.passHash) return json({ error: 'Incorrect password' }, 401);
-
-  // Compute effective available attempts (banked + cooldown-refreshed)
   const availableAttempts = pfGetAvailableAttempts(userData);
   const secondsLeft = pfSecondsLeft(userData);
 
-  const sessionToken = await pfSessionToken(username, oracleKey);
   return json({ ok: true, sessionToken, username, attempts: availableAttempts, secondsLeft, highScore: userData.highScore || 0 });
 }
 

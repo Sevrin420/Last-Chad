@@ -444,11 +444,9 @@
   <div style="font-size:0.65rem; color:#ff6666; border:1px solid #ff444466; border-radius:6px; padding:10px 14px; margin-bottom:18px; text-align:center; line-height:2.2; width:100%;">
     Don't Pie Emin
   </div>
-  <input type="text" id="login-user" placeholder="Twitter Handle" autocomplete="off" maxlength="20" />
-  <input type="text" id="login-pass" placeholder="Password" autocomplete="off" maxlength="40" />
+  <input type="text" id="login-user" placeholder="Enter Your Name" autocomplete="off" maxlength="24" />
   <div class="error-msg" id="login-error"></div>
-  <button class="btn-primary" id="btn-login">Login</button>
-  <button class="btn-secondary" id="btn-create">Create Account</button>
+  <button class="btn-primary" id="btn-play">Play</button>
   <hr class="divider" />
   <button class="btn-small" id="btn-show-lb-login">View Leaderboard</button>
   <div id="login-lb-panel" style="display:none; width:100%;"></div>
@@ -457,22 +455,7 @@
 <!-- ════════════════════════════════════════
      SCREEN 2: PRE-GAME
 ════════════════════════════════════════ -->
-<div id="screen-pregame" class="screen">
-  <div style="font-size:0.65rem; color:#ff6666; border:1px solid #ff444466; border-radius:6px; padding:10px 14px; margin-bottom:18px; text-align:center; line-height:2.2; width:100%;">
-    Don't Pie Emin
-  </div>
-  <div class="pregame-info">
-    Welcome, <span id="pg-username">—</span><br/>
-    Attempts remaining: <span id="pg-attempts">—</span><br/>
-    High Score: <span id="pg-highscore">—</span>
-  </div>
-  <div class="error-msg" id="pregame-error"></div>
-  <button class="btn-primary" id="btn-start">Start Game</button>
-  <button class="btn-small" id="btn-show-lb-pg">View Leaderboard</button>
-  <div id="pg-lb-panel" style="display:none; width:100%;"></div>
-  <hr class="divider" />
-  <button class="btn-secondary" id="btn-back-login">Logout</button>
-</div>
+<div id="screen-pregame" class="screen" style="display:none;"></div>
 
 <!-- ════════════════════════════════════════
      SCREEN 3: GAME
@@ -731,53 +714,52 @@
     document.getElementById('login-error').textContent = msg;
   }
 
-  document.getElementById('btn-login').addEventListener('click', async () => {
+  // Single "Play" button: creates account if new, logs in if existing,
+  // then immediately starts the game (or shows cooldown)
+  document.getElementById('btn-play').addEventListener('click', async () => {
     const uInput = document.getElementById('login-user').value.trim();
-    const pInput = document.getElementById('login-pass').value;
     setLoginError('');
-    if (!uInput || !pInput) { setLoginError('Enter Twitter handle and password.'); return; }
+    if (!uInput || uInput.length < 2) { setLoginError('Enter a name (at least 2 characters).'); return; }
 
-    const btn = document.getElementById('btn-login');
+    const btn = document.getElementById('btn-play');
     setButtonLoading(btn, true);
     try {
-      const { status, data } = await apiPost('/pieface/login', { username: uInput, password: pInput });
-      if (status === 200 && data.ok) {
-        loginSuccess(data);
-      } else if (status === 404) {
-        setLoginError('Twitter handle not found. Did you mean to create an account?');
-      } else if (status === 401) {
-        setLoginError('Wrong password. Please try again.');
+      // Single endpoint: creates if new, returns existing if known
+      const { status, data } = await apiPost('/pieface/play', { username: uInput });
+      if (status !== 200 || !data.ok) {
+        setLoginError(data.error || 'Could not start. Please try again.');
+        return;
+      }
+
+      sessionToken       = data.sessionToken;
+      currentUser        = data.username;
+      currentAttempts    = data.attempts;
+      currentHighScore   = data.highScore || 0;
+      currentSecondsLeft = data.secondsLeft || 0;
+
+      // If no attempts left, show cooldown message on login screen
+      if (currentAttempts <= 0 && currentSecondsLeft > 0) {
+        setLoginError(`No attempts remaining. Next try in ${formatCooldown(currentSecondsLeft)}.`);
+        return;
+      }
+
+      // Use an attempt and start
+      const { status: s2, data: d2 } = await apiPost('/pieface/use-attempt', {
+        username: currentUser,
+        sessionToken: sessionToken,
+      });
+      if (s2 === 200 && d2.ok) {
+        currentAttempts    = d2.attempts;
+        currentSecondsLeft = d2.secondsLeft || 0;
+        gameStartedViaUI   = true;
+        startGame();
       } else {
-        setLoginError(data.error || 'Login failed. Please try again.');
+        setLoginError(d2.error || 'Could not start game. Please try again.');
       }
     } catch (e) {
       setLoginError('Connection failed: ' + (e?.message || 'unknown error'));
     } finally {
-      setButtonLoading(btn, false, 'Login');
-    }
-  });
-
-  document.getElementById('btn-create').addEventListener('click', async () => {
-    const uInput = document.getElementById('login-user').value.trim();
-    const pInput = document.getElementById('login-pass').value;
-    setLoginError('');
-    if (!uInput || !pInput) { setLoginError('Enter Twitter handle and password.'); return; }
-
-    const btn = document.getElementById('btn-create');
-    setButtonLoading(btn, true);
-    try {
-      const { status, data } = await apiPost('/pieface/register', { username: uInput, password: pInput });
-      if (status === 200 && data.ok) {
-        loginSuccess(data);
-      } else if (status === 409) {
-        setLoginError('That handle is already taken. Try logging in instead.');
-      } else {
-        setLoginError(data.error || 'Could not create account. Please try again.');
-      }
-    } catch (e) {
-      setLoginError('Connection failed: ' + (e?.message || 'unknown error'));
-    } finally {
-      setButtonLoading(btn, false, 'Create Account');
+      setButtonLoading(btn, false, 'Play');
     }
   });
 
@@ -788,77 +770,6 @@
       panel.style.display = 'block';
       btn.textContent = 'Hide Leaderboard';
       await loadAndRenderLeaderboard('login-lb-panel');
-    } else {
-      panel.style.display = 'none';
-      btn.textContent = 'View Leaderboard';
-    }
-  });
-
-  function loginSuccess(data) {
-    sessionToken         = data.sessionToken;
-    currentUser          = data.username;
-    currentAttempts      = data.attempts;
-    currentHighScore     = data.highScore || 0;
-    currentSecondsLeft   = data.secondsLeft || 0;
-    showPreGame();
-  }
-
-  // ── PRE-GAME SCREEN ────────────────────────────────────────────
-  function showPreGame() {
-    document.getElementById('pg-username').textContent  = currentUser;
-    document.getElementById('pg-attempts').textContent  = currentAttempts;
-    document.getElementById('pg-highscore').textContent = currentHighScore;
-    document.getElementById('pg-lb-panel').style.display = 'none';
-    document.getElementById('btn-show-lb-pg').textContent = 'View Leaderboard';
-
-    const startBtn  = document.getElementById('btn-start');
-    const errorEl   = document.getElementById('pregame-error');
-    if (currentAttempts <= 0 && currentSecondsLeft > 0) {
-      startBtn.style.display = 'none';
-      errorEl.textContent    = `No attempts remaining. Next attempt in ${formatCooldown(currentSecondsLeft)}.`;
-    } else {
-      startBtn.style.display = '';
-      errorEl.textContent    = '';
-    }
-    showScreen('screen-pregame');
-  }
-
-  document.getElementById('btn-start').addEventListener('click', async () => {
-    document.getElementById('pregame-error').textContent = '';
-    const btn = document.getElementById('btn-start');
-    setButtonLoading(btn, true);
-    try {
-      const { status, data } = await apiPost('/pieface/use-attempt', {
-        username: currentUser,
-        sessionToken: sessionToken,
-      });
-      if (status === 200 && data.ok) {
-        currentAttempts    = data.attempts;
-        currentSecondsLeft = data.secondsLeft || 0;
-        gameStartedViaUI   = true;
-        startGame();
-      } else {
-        document.getElementById('pregame-error').textContent =
-          data.error || 'Could not start game. Please try again.';
-      }
-    } catch {
-      document.getElementById('pregame-error').textContent = 'Network error. Please try again.';
-    } finally {
-      setButtonLoading(btn, false, 'Start Game');
-    }
-  });
-
-  document.getElementById('btn-back-login').addEventListener('click', () => {
-    doLogout();
-  });
-
-  document.getElementById('btn-show-lb-pg').addEventListener('click', async () => {
-    const panel = document.getElementById('pg-lb-panel');
-    const btn   = document.getElementById('btn-show-lb-pg');
-    if (panel.style.display === 'none') {
-      panel.style.display = 'block';
-      btn.textContent = 'Hide Leaderboard';
-      await loadAndRenderLeaderboard('pg-lb-panel');
     } else {
       panel.style.display = 'none';
       btn.textContent = 'View Leaderboard';
@@ -1160,8 +1071,34 @@
   }
 
   // ── END SCREEN BUTTONS ─────────────────────────────────────────
-  document.getElementById('btn-play-again').addEventListener('click', () => {
-    showPreGame();
+  document.getElementById('btn-play-again').addEventListener('click', async () => {
+    if (currentAttempts <= 0 && currentSecondsLeft > 0) {
+      doLogout();
+      setLoginError(`No attempts remaining. Next try in ${formatCooldown(currentSecondsLeft)}.`);
+      return;
+    }
+    const btn = document.getElementById('btn-play-again');
+    setButtonLoading(btn, true);
+    try {
+      const { status, data } = await apiPost('/pieface/use-attempt', {
+        username: currentUser,
+        sessionToken: sessionToken,
+      });
+      if (status === 200 && data.ok) {
+        currentAttempts    = data.attempts;
+        currentSecondsLeft = data.secondsLeft || 0;
+        gameStartedViaUI   = true;
+        startGame();
+      } else {
+        doLogout();
+        setLoginError(data.error || 'Could not start game.');
+      }
+    } catch {
+      doLogout();
+      setLoginError('Network error. Please try again.');
+    } finally {
+      setButtonLoading(btn, false, 'Play Again');
+    }
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
@@ -1177,7 +1114,6 @@
     currentHighScore = 0;
     gameStartedViaUI = false;
     document.getElementById('login-user').value = '';
-    document.getElementById('login-pass').value = '';
     document.getElementById('login-error').textContent = '';
     document.getElementById('login-lb-panel').style.display = 'none';
     document.getElementById('btn-show-lb-login').textContent = 'View Leaderboard';
@@ -1185,10 +1121,8 @@
   }
 
   // ── KEYBOARD ENTER SUPPORT ─────────────────────────────────────
-  ['login-user', 'login-pass'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('btn-login').click();
-    });
+  document.getElementById('login-user').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-play').click();
   });
 
 })();
