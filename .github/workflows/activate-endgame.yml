@@ -5,14 +5,6 @@ name: Activate Endgame
 on:
   workflow_dispatch:
     inputs:
-      network:
-        description: 'Network'
-        required: true
-        default: 'avalanche'
-        type: choice
-        options:
-          - fuji
-          - avalanche
       confirm:
         description: 'Type ACTIVATE to confirm (irreversible!)'
         required: true
@@ -20,10 +12,10 @@ on:
 
 jobs:
   activate:
-    name: Freeze Levels & Snapshot (${{ inputs.network }})
+    name: Freeze Levels & Snapshot (Avalanche Mainnet)
     runs-on: ubuntu-latest
     if: inputs.confirm == 'ACTIVATE'
-    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+    environment: mainnet
 
     steps:
       - uses: actions/checkout@v4
@@ -38,4 +30,4 @@ jobs:
       - name: Activate endgame
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/activateEndgame.js --network ${{ inputs.network }}
+        run: npx hardhat run scripts/activateEndgame.js --network avalanche

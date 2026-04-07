@@ -3,21 +3,12 @@ name: Tournament Payout
 # Manual trigger — distributes AVAX to locked chads and advances month
 on:
   workflow_dispatch:
-    inputs:
-      network:
-        description: 'Network'
-        required: true
-        default: 'avalanche'
-        type: choice
-        options:
-          - fuji
-          - avalanche
 
 jobs:
   payout:
-    name: Distribute & Reset (${{ inputs.network }})
+    name: Distribute & Reset (Avalanche Mainnet)
     runs-on: ubuntu-latest
-    environment: ${{ inputs.network == 'avalanche' && 'mainnet' || 'testnet' }}
+    environment: mainnet
 
     steps:
       - uses: actions/checkout@v4
@@ -32,4 +23,4 @@ jobs:
       - name: Run tournament payout
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/tournamentPayout.js --network ${{ inputs.network }}
+        run: npx hardhat run scripts/tournamentPayout.js --network avalanche
