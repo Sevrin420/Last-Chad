@@ -586,8 +586,8 @@
   const GAME_DURATION = 60;          // seconds
 
   // Spawn/duration ramp  t=0 → t=60
-  const SPAWN_START  = 1500; const SPAWN_END  = 450;
-  const DUR_START    = 2200; const DUR_END    = 900;
+  const SPAWN_START  = 1200; const SPAWN_END  = 350;
+  const DUR_START    = 2000; const DUR_END    = 800;
 
   // Square layout (% of image dimensions)
   const SLOTS = [
@@ -961,8 +961,10 @@
   function spawnFace() {
     if (!gameActive) return;
     const elapsed = (Date.now() - gameStartTime) / 1000;
-    // After 30s spawn 2 at once, after 45s spawn 3 at once
-    const count = elapsed >= 45 ? 3 : elapsed >= 30 ? 2 : (Math.random() < 0.35 ? 2 : 1);
+    // Ramp up: early=1-2, mid=2-3, late=3-4
+    const count = elapsed >= 40 ? (Math.random() < 0.4 ? 4 : 3)
+                : elapsed >= 20 ? (Math.random() < 0.5 ? 3 : 2)
+                : (Math.random() < 0.4 ? 2 : 1);
 
     for (let n = 0; n < count; n++) {
       const empty = [];
@@ -971,7 +973,10 @@
       }
       if (empty.length === 0) break;
       const slotIdx = empty[Math.floor(Math.random() * empty.length)];
-      const face    = FACES[Math.floor(Math.random() * FACES.length)];
+      // Last 20s: 30% chance of Emin (trap face)
+      const face = (elapsed >= 40 && Math.random() < 0.3)
+        ? EMIN_FACE
+        : FACES[Math.floor(Math.random() * FACES.length)];
       showFace(slotIdx, face);
     }
   }
