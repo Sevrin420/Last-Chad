@@ -976,26 +976,15 @@
     const card = document.getElementById(`card-${slotIdx}`);
     if (!img || !card) return;
 
-    // Keep card hidden while loading the new image to prevent
-    // the old pie face from flashing during the flip animation
-    card.classList.remove('flipped-up');
-    img.src = '';  // clear stale image immediately
+    img.src = '';                      // dump stale pie face
+    img.src = ASSET_BASE + face;       // set plain face (cached = instant)
+    card.classList.remove('flipped-down');
+    void card.offsetWidth;
+    card.classList.add('flipped-up');
 
     const dur = currentFaceDuration();
     if (faceTimers[slotIdx]) clearTimeout(faceTimers[slotIdx]);
-
-    function flipUp() {
-      if (slotState[slotIdx] !== face) return; // slot was reused, abort
-      void card.offsetWidth;
-      card.classList.add('flipped-up');
-      faceTimers[slotIdx] = setTimeout(() => hideFace(slotIdx), dur);
-    }
-
-    img.onload = flipUp;
-    img.onerror = flipUp; // still show on error rather than getting stuck
-    img.src = ASSET_BASE + face;
-    // If cached, onload may not fire — check immediately
-    if (img.complete && img.naturalWidth > 0) { img.onload = null; flipUp(); }
+    faceTimers[slotIdx] = setTimeout(() => hideFace(slotIdx), dur);
   }
 
   function hideFace(slotIdx) {
