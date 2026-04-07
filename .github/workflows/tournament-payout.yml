@@ -1,0 +1,26 @@
+name: Tournament Payout
+
+# Manual trigger — distributes AVAX to locked chads and advances month
+on:
+  workflow_dispatch:
+
+jobs:
+  payout:
+    name: Distribute & Reset (Avalanche Mainnet)
+    runs-on: ubuntu-latest
+    environment: mainnet
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run tournament payout
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/tournamentPayout.js --network avalanche

@@ -1,4 +1,4 @@
-.nav-wrapper { position: relative; }
+.nav-wrapper { position: relative; z-index: 10000; }
 
 .nav-toggle {
   width: 44px;
@@ -32,7 +32,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
   min-width: 160px;
   overflow: hidden;
-  z-index: 110;
+  z-index: 10001;
 }
 .nav-dropdown.show { display: block; }
 

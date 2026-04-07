@@ -10,11 +10,13 @@ interface IERC721Minimal {
 
 contract LastChad is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 333;
-    uint256 public constant MINT_PRICE = 2 ether;          // 2 AVAX — standard mint
-    uint256 public constant TEAM_MINT_PRICE = 1.5 ether;   // 1.5 AVAX — holds team NFT
+    uint256 public constant MINT_PRICE = 2 ether;              // 2 AVAX
     uint256 public constant TOTAL_STAT_POINTS = 2;
     uint256 public constant MAX_MINT_PER_WALLET = 5;
     uint256 public constant CELLS_PER_LEVEL = 100;
+    uint256 public constant BASE_CELLS = 50;
+    uint256 public constant PARTNER_BONUS_CELLS = 100;
+    uint256 public constant CODE_BONUS_CELLS = 100;
 
     struct Stats {
         uint32 strength;
@@ -24,17 +26,22 @@ contract LastChad is ERC721Enumerable, Ownable {
         bool assigned;
     }
 
-    // ── Team System ──
-    struct Team {
+    // ── Partner System ──
+    struct Partner {
         string name;
-        address nftContract;  // must hold an NFT from this contract to join
+        address nftContract;  // must hold an NFT from this contract for bonus
         bool active;
     }
 
-    uint256 public nextTeamId = 1;
-    mapping(uint256 => Team) public teams;                   // teamId → Team
-    mapping(uint256 => uint256) public tokenTeam;            // tokenId → teamId (0 = no team)
-    mapping(uint256 => uint256) public teamMemberCount;      // teamId → count of minted members
+    uint256 public nextPartnerId = 1;
+    mapping(uint256 => Partner) public partners;               // partnerId → Partner
+
+    // ── Mint Code System (one-time use) ──
+    mapping(bytes32 => bool) public mintCodeValid;             // hash → is a real code
+    mapping(bytes32 => bool) public mintCodeUsed;              // hash → already redeemed
+
+    // ── Level Freeze ──
+    bool public levelsFrozen;
 
     // ── Cull System ──
     enum CullMode { FixedCount, Percentage }
@@ -72,8 +79,10 @@ contract LastChad is ERC721Enumerable, Ownable {
     event CellsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingOpenCells);
     event Eliminated(uint256 indexed tokenId, uint256 closedCells);
     event Reinstated(uint256 indexed tokenId);
-    event TeamCreated(uint256 indexed teamId, string name, address nftContract);
-    event TeamUpdated(uint256 indexed teamId, bool active);
+    event PartnerRegistered(uint256 indexed partnerId, string name, address nftContract);
+    event PartnerUpdated(uint256 indexed partnerId, bool active);
+    event MintCodeUsed(bytes32 indexed codeHash, address indexed minter);
+    event LevelsFrozen();
     event CullAnnounced(uint256 cullAt, CullMode mode, uint256 value, uint256 estimatedCount);
     event CullModeSet(CullMode mode, uint256 value);
 
@@ -91,7 +100,6 @@ contract LastChad is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function _update(address to, uint256 tokenId, address auth) internal override(ERC721Enumerable) returns (address) {
         address from = _ownerOf(tokenId);
-        // Allow mints (from == address(0)) and burns, block transfers while active
         if (from != address(0) && to != address(0)) {
             require(!isActive[tokenId], "Token is active in quest/arcade");
         }
@@ -112,65 +120,101 @@ contract LastChad is ERC721Enumerable, Ownable {
     }
 
     // ─────────────────────────────────────────────────────────
-    // Team Management (owner only)
+    // Partner Management (owner only)
     // ─────────────────────────────────────────────────────────
-    function createTeam(string calldata name, address nftContract) external onlyOwner returns (uint256) {
+    function registerPartner(string calldata name, address nftContract) external onlyOwner returns (uint256) {
         require(bytes(name).length > 0, "Name cannot be empty");
         require(nftContract != address(0), "Invalid NFT contract");
-        uint256 teamId = nextTeamId++;
-        teams[teamId] = Team(name, nftContract, true);
-        emit TeamCreated(teamId, name, nftContract);
-        return teamId;
+        uint256 partnerId = nextPartnerId++;
+        partners[partnerId] = Partner(name, nftContract, true);
+        emit PartnerRegistered(partnerId, name, nftContract);
+        return partnerId;
     }
 
-    function setTeamActive(uint256 teamId, bool active) external onlyOwner {
-        require(bytes(teams[teamId].name).length > 0, "Team does not exist");
-        teams[teamId].active = active;
-        emit TeamUpdated(teamId, active);
+    function setPartnerActive(uint256 partnerId, bool active) external onlyOwner {
+        require(bytes(partners[partnerId].name).length > 0, "Partner does not exist");
+        partners[partnerId].active = active;
+        emit PartnerUpdated(partnerId, active);
     }
 
-    function getTeam(uint256 teamId) external view returns (string memory name, address nftContract, bool active, uint256 memberCount) {
-        Team memory t = teams[teamId];
-        return (t.name, t.nftContract, t.active, teamMemberCount[teamId]);
+    function getPartner(uint256 partnerId) external view returns (string memory name, address nftContract, bool active) {
+        Partner memory p = partners[partnerId];
+        return (p.name, p.nftContract, p.active);
     }
 
-    function getTeamCount() external view returns (uint256) {
-        return nextTeamId - 1;
+    function getPartnerCount() external view returns (uint256) {
+        return nextPartnerId - 1;
+    }
+
+    /// @notice Check if a wallet holds any registered partner NFT
+    function hasPartnerNFT(address wallet) public view returns (bool) {
+        for (uint256 i = 1; i < nextPartnerId; i++) {
+            if (partners[i].active && IERC721Minimal(partners[i].nftContract).balanceOf(wallet) > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ─────────────────────────────────────────────────────────
-    // Minting (with optional team selection + discount)
+    // Mint Code Management (owner only)
     // ─────────────────────────────────────────────────────────
+    function addMintCodes(bytes32[] calldata codeHashes) external onlyOwner {
+        for (uint256 i = 0; i < codeHashes.length; i++) {
+            mintCodeValid[codeHashes[i]] = true;
+        }
+    }
+
+    function removeMintCode(bytes32 codeHash) external onlyOwner {
+        mintCodeValid[codeHash] = false;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Minting — 50 base + 100 partner bonus + 100 code bonus = 250 max
+    // ─────────────────────────────────────────────────────────
+
+    /// @notice Standard mint (no code)
     function mint(uint256 quantity) external payable {
         require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
-        _mintInternal(quantity, 0);
+        _mintInternal(quantity, "");
     }
 
-    /// @notice Mint with team selection. Must hold an NFT from the team's collection.
-    ///         Discounted price: 0.015 AVAX per mint (vs 0.02 standard).
-    function mintWithTeam(uint256 quantity, uint256 teamId) external payable {
-        require(teamId > 0 && teamId < nextTeamId, "Invalid team");
-        Team memory t = teams[teamId];
-        require(t.active, "Team not active");
-        require(IERC721Minimal(t.nftContract).balanceOf(msg.sender) > 0, "Must hold team NFT");
-        require(msg.value >= TEAM_MINT_PRICE * quantity, "Insufficient payment");
-        _mintInternal(quantity, teamId);
+    /// @notice Mint with a bonus code for +100 cells per NFT
+    function mintWithCode(uint256 quantity, string calldata code) external payable {
+        require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
+        require(bytes(code).length > 0, "Empty code");
+        _mintInternal(quantity, code);
     }
 
-    function _mintInternal(uint256 quantity, uint256 teamId) internal {
+    function _mintInternal(uint256 quantity, string memory code) internal {
         require(quantity > 0, "Quantity must be > 0");
         require(totalMinted + quantity <= MAX_SUPPLY, "Exceeds max supply");
         require(mintedPerWallet[msg.sender] + quantity <= MAX_MINT_PER_WALLET, "Exceeds max per wallet");
+
+        // Calculate cells per NFT
+        uint256 cellsPerMint = BASE_CELLS;
+
+        // Partner bonus: +100 if wallet holds any registered partner NFT
+        bool partnerBonus = hasPartnerNFT(msg.sender);
+        if (partnerBonus) {
+            cellsPerMint += PARTNER_BONUS_CELLS;
+        }
+
+        // Code bonus: +100 if valid code (one-time use, burned here)
+        if (bytes(code).length > 0) {
+            bytes32 codeHash = keccak256(abi.encodePacked(code));
+            require(mintCodeValid[codeHash], "Invalid code");
+            require(!mintCodeUsed[codeHash], "Code already used");
+            mintCodeUsed[codeHash] = true;
+            cellsPerMint += CODE_BONUS_CELLS;
+            emit MintCodeUsed(codeHash, msg.sender);
+        }
 
         mintedPerWallet[msg.sender] += quantity;
         for (uint256 i = 0; i < quantity; i++) {
             totalMinted++;
             _safeMint(msg.sender, totalMinted);
-            _openCells[totalMinted] = 5;
-            if (teamId > 0) {
-                tokenTeam[totalMinted] = teamId;
-                teamMemberCount[teamId]++;
-            }
+            _openCells[totalMinted] = cellsPerMint;
         }
     }
 
@@ -242,6 +286,14 @@ contract LastChad is ERC721Enumerable, Ownable {
     }
 
     // ─────────────────────────────────────────────────────────
+    // Level Freeze (one-way, permanent)
+    // ─────────────────────────────────────────────────────────
+    function freezeLevels() external onlyOwner {
+        levelsFrozen = true;
+        emit LevelsFrozen();
+    }
+
+    // ─────────────────────────────────────────────────────────
     // Cull Configuration & Announcement
     // ─────────────────────────────────────────────────────────
     function setCullMode(CullMode mode, uint256 value) external onlyOwner {
@@ -274,7 +326,6 @@ contract LastChad is ERC721Enumerable, Ownable {
         emit Eliminated(tokenId, _closedCells[tokenId]);
     }
 
-    /// @notice Gas-optimized batch eliminate. Call in chunks of ~200-500 to stay under block gas limit.
     function batchEliminate(uint256[] calldata tokenIds) external onlyGameOrOwner {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 tid = tokenIds[i];
@@ -319,7 +370,8 @@ contract LastChad is ERC721Enumerable, Ownable {
 
         uint256 newLevel = (_closedCells[tokenId] / CELLS_PER_LEVEL) + 1;
 
-        if (newLevel > oldLevel) {
+        // Skip leveling when levels are frozen
+        if (newLevel > oldLevel && !levelsFrozen) {
             uint256 levelsGained = newLevel - oldLevel;
             _pendingStatPoints[tokenId] += levelsGained;
             emit LevelUp(tokenId, newLevel, levelsGained);
@@ -331,6 +383,7 @@ contract LastChad is ERC721Enumerable, Ownable {
     function spendStatPoint(uint256 tokenId, uint8 statIndex) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         require(!eliminated[tokenId], "Chad eliminated");
+        require(!levelsFrozen, "Levels are frozen");
         require(_pendingStatPoints[tokenId] > 0, "No stat points available");
         require(statIndex <= 3, "Invalid stat index");
 
@@ -400,7 +453,6 @@ contract LastChad is ERC721Enumerable, Ownable {
         return _openCells[tokenId];
     }
 
-    /// @notice Batch read closed cells for culling script efficiency
     function getClosedCellsBatch(uint256[] calldata tokenIds) external view returns (uint256[] memory) {
         uint256[] memory result = new uint256[](tokenIds.length);
         for (uint256 i = 0; i < tokenIds.length; i++) {
@@ -409,7 +461,6 @@ contract LastChad is ERC721Enumerable, Ownable {
         return result;
     }
 
-    /// @notice Get total cells (open + closed) for a token
     function getTotalCells(uint256 tokenId) external view returns (uint256) {
         return _openCells[tokenId] + _closedCells[tokenId];
     }

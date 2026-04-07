@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const PRICE = ethers.parseEther("0.02");
+const PRICE = ethers.parseEther("2");
 const BASE_URI = "https://lastchad.xyz/metadata/";
 
 describe("Gamble", function () {
