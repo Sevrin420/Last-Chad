@@ -28,10 +28,85 @@ jobs:
       - name: Download folder from Google Drive
         if: inputs.action == 'download-and-frame'
         run: |
-          gdown --folder "https://drive.google.com/drive/folders/13Zj2j2xGmHv0mpAEmDNUXGWLQGc7FADa" \
-            --output "assets/Chads 333" \
-            --remaining-ok
-          echo "Total downloaded: $(ls "assets/Chads 333/" | wc -l)"
+          pip install requests Pillow gdown -q
+          python3 - <<'PYEOF'
+          import requests, os, time
+
+          FOLDER_ID = "13Zj2j2xGmHv0mpAEmDNUXGWLQGc7FADa"
+          OUT_DIR   = "assets/Chads 333/333 Chads"
+          os.makedirs(OUT_DIR, exist_ok=True)
+
+          session = requests.Session()
+          session.headers.update({"User-Agent": "Mozilla/5.0"})
+
+          def list_files(folder_id):
+              """Scrape all file IDs from a public Google Drive folder, handling pagination."""
+              files = []
+              page_token = None
+              api = "https://www.googleapis.com/drive/v3/files"
+              while True:
+                  params = {
+                      "q": f"'{folder_id}' in parents and trashed=false",
+                      "fields": "nextPageToken,files(id,name,mimeType)",
+                      "pageSize": 1000,
+                      "supportsAllDrives": True,
+                  }
+                  if page_token:
+                      params["pageToken"] = page_token
+                  # Try public API first (no key, works for publicly shared)
+                  r = session.get(api, params=params)
+                  if r.status_code == 200:
+                      data = r.json()
+                      files.extend(data.get("files", []))
+                      page_token = data.get("nextPageToken")
+                      if not page_token:
+                          break
+                  else:
+                      break
+              return files
+
+          def download_file(file_id, dest_path):
+              url = f"https://drive.google.com/uc?export=download&id={file_id}"
+              r = session.get(url, stream=True)
+              # Handle large-file confirmation page
+              for key, val in r.cookies.items():
+                  if "download_warning" in key.lower() or key.startswith("download_warning"):
+                      url += f"&confirm={val}"
+                      r = session.get(url, stream=True)
+                      break
+              with open(dest_path, "wb") as f:
+                  for chunk in r.iter_content(32768):
+                      f.write(chunk)
+
+          print("Listing files in folder...")
+          files = list_files(FOLDER_ID)
+
+          # If API didn't return files (no key), fall back to gdown
+          if not files:
+              print("Public API returned no results, falling back to gdown...")
+              import subprocess
+              subprocess.run([
+                  "gdown", "--folder",
+                  f"https://drive.google.com/drive/folders/{FOLDER_ID}",
+                  "--output", "assets/Chads 333",
+                  "--remaining-ok"
+              ], check=True)
+          else:
+              img_files = [f for f in files if not f["mimeType"].startswith("application/vnd.google-apps")]
+              print(f"Found {len(img_files)} files. Downloading...")
+              for i, f in enumerate(img_files, 1):
+                  dest = os.path.join(OUT_DIR, f["name"])
+                  if os.path.exists(dest):
+                      print(f"  [{i}/{len(img_files)}] {f['name']} already exists, skipping")
+                      continue
+                  print(f"  [{i}/{len(img_files)}] {f['name']}")
+                  download_file(f["id"], dest)
+                  time.sleep(0.1)
+              print(f"Done. {len(img_files)} files downloaded.")
+
+          total = len([x for x in os.listdir(OUT_DIR) if not x.startswith(".")])
+          print(f"Total in folder: {total}")
+          PYEOF
 
       - name: Apply frame and rename Chad_1 … Chad_333
         run: |
