@@ -742,46 +742,6 @@
 </head>
 <body>
 
-  <!-- Mint Coming Soon Overlay -->
-  <div id="mintOverlay" style="
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: rgba(10, 7, 5, 0.82);
-    backdrop-filter: blur(3px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: all;
-    cursor: default;
-  ">
-    <div style="
-      border: 4px solid #c9a84c;
-      background: rgba(30, 20, 10, 0.92);
-      padding: clamp(28px, 6vw, 60px) clamp(24px, 8vw, 80px);
-      text-align: center;
-      box-shadow: 0 0 60px rgba(201, 168, 76, 0.25), inset 0 0 40px rgba(0,0,0,0.4);
-      max-width: 90vw;
-    ">
-      <div style="
-        font-family: 'Press Start 2P', monospace;
-        font-size: clamp(0.55rem, 2vw, 0.85rem);
-        color: #8a7a5a;
-        letter-spacing: 0.15em;
-        margin-bottom: 20px;
-        text-transform: uppercase;
-      ">Last Chad NFT</div>
-      <div style="
-        font-family: 'Press Start 2P', monospace;
-        font-size: clamp(1rem, 4vw, 2rem);
-        color: #c9a84c;
-        letter-spacing: 0.1em;
-        text-shadow: 0 0 20px rgba(201, 168, 76, 0.5), 2px 2px 0 #3a2a06;
-        line-height: 1.4;
-      ">MINTING<br>APRIL 9TH</div>
-    </div>
-  </div>
-
   <!-- Background -->
   <div class="bg">
     <img src="assets/last_chad_background.jpg" alt="">
@@ -865,6 +825,23 @@
         <div class="breakdown-row bonus" id="partnerRow">
           <span class="breakdown-label">Partner NFT bonus</span>
           <span class="breakdown-value" id="partnerValue">Not detected</span>
+        </div>
+        <div id="partnerList" style="padding: 4px 0 2px 0;">
+          <div class="breakdown-row" id="partner-little-burn" style="font-size:0.32rem; color:#555; padding:2px 0;">
+            <span class="breakdown-label">— Little Burn</span><span class="breakdown-value" id="partner-little-burn-status">—</span>
+          </div>
+          <div class="breakdown-row" id="partner-nochillio" style="font-size:0.32rem; color:#555; padding:2px 0;">
+            <span class="breakdown-label">— Nochillio</span><span class="breakdown-value" id="partner-nochillio-status">—</span>
+          </div>
+          <div class="breakdown-row" id="partner-salvors" style="font-size:0.32rem; color:#555; padding:2px 0;">
+            <span class="breakdown-label">— The Salvors</span><span class="breakdown-value" id="partner-salvors-status">—</span>
+          </div>
+          <div class="breakdown-row" id="partner-lucid-red" style="font-size:0.32rem; color:#555; padding:2px 0;">
+            <span class="breakdown-label">— Lucid RED</span><span class="breakdown-value" id="partner-lucid-red-status">—</span>
+          </div>
+          <div class="breakdown-row" id="partner-bobs" style="font-size:0.32rem; color:#555; padding:2px 0;">
+            <span class="breakdown-label">— The Bobs</span><span class="breakdown-value" id="partner-bobs-status">—</span>
+          </div>
         </div>
         <div class="breakdown-row bonus" id="codeRow" style="display:none">
           <span class="breakdown-label">Code bonus</span>
@@ -997,16 +974,42 @@
     }
 
     // ========== PARTNER NFT DETECTION ==========
+    const PARTNERS = [
+      { id: 'little-burn', name: 'Little Burn',  address: '0xf3513f263994a3536cc0a684209013d6808fe443' },
+      { id: 'nochillio',   name: 'Nochillio',    address: '0x204b3ee3f9bdcde258ba3f74de76ea8eedf0a36a' },
+      { id: 'salvors',     name: 'The Salvors',  address: '0xce4fee23ab35d0d9a4b6b644881ddd8adebeb300' },
+      { id: 'lucid-red',   name: 'Lucid RED',    address: '0x4160c72898bb4ebafe2612d76777008e78880478' },
+      { id: 'bobs',        name: 'The Bobs',     address: '0x66e82a463e47f0656a45f136368cf62686d2a01f' },
+    ];
+    const ERC721_BALANCE_ABI = ['function balanceOf(address owner) view returns (uint256)'];
+
     async function checkPartnerNFT() {
       const addr = getUserAddress();
-      if (!addr || !CONTRACT_ADDRESS) {
+      if (!addr) {
         hasPartner = false;
+        // Reset all partner rows to neutral
+        PARTNERS.forEach(p => {
+          const row = document.getElementById('partner-' + p.id);
+          const status = document.getElementById('partner-' + p.id + '-status');
+          if (row) row.style.color = '#555';
+          if (status) status.textContent = '—';
+        });
         updateCellBreakdown();
         return;
       }
       try {
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        hasPartner = await contract.hasPartnerNFT(addr);
+        let anyFound = false;
+        for (const p of PARTNERS) {
+          const nft = new ethers.Contract(p.address, ERC721_BALANCE_ABI, readProvider);
+          const bal = await nft.balanceOf(addr);
+          const found = BigInt(bal) > 0n;
+          if (found) anyFound = true;
+          const row = document.getElementById('partner-' + p.id);
+          const status = document.getElementById('partner-' + p.id + '-status');
+          if (row) row.style.color = found ? '#4caf50' : '#555';
+          if (status) status.textContent = found ? '✓' : '—';
+        }
+        hasPartner = anyFound;
       } catch (err) {
         console.error('Partner check failed:', err);
         hasPartner = false;
