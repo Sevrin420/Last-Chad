@@ -23,10 +23,10 @@ tag = "v2"
 new_sqlite_classes = ["HashCashTable"]
 
 [vars]
-LASTCHAD_ADDRESS      = "0x04DFED6F15866125b1f6d140bcb1AB90F7614252"
-QUEST_REWARDS_ADDRESS = "0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B"
-GAMBLE_ADDRESS        = "0x42Ae979c86cF4868F8648A1eec16567CbBF19698"
-READ_RPC              = "https://api.avax-test.network/ext/bc/C/rpc"
+LASTCHAD_ADDRESS      = "0xd8d166DcA70D7EF700A30ea071D8A01c6E451E78"
+QUEST_REWARDS_ADDRESS = "0x3F9BBb8509D69bc07FBbb29D892f9e3DB59C46C2"
+GAMBLE_ADDRESS        = "0x258583F419aCbB4e38bed5ac6535CD11169Eaf1C"
+READ_RPC              = "https://api.avax.network/ext/bc/C/rpc"
 GAME_BASE_URL         = "https://lastchad.xyz"
 AGORA_APP_ID          = "7917341a0c9c46a08328cc9a33989d75"
 

@@ -12,11 +12,12 @@
 // ══════════════════════════════════════════════════════════════════════
 
 // ── Contract addresses ───────────────────────────────────────────────
-export const CONTRACT_ADDRESS         = '0x04DFED6F15866125b1f6d140bcb1AB90F7614252';
-export const ITEMS_CONTRACT_ADDRESS   = '0x239066699C706152f6E2Fa5a82a05fC13C9677cD';
-export const QUEST_REWARDS_ADDRESS    = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
-export const MARKET_ADDRESS           = '0x204203b3495C940293b87cF1ff4ce7EEf81F1A1A';
-export const GAMBLE_ADDRESS           = '0x42Ae979c86cF4868F8648A1eec16567CbBF19698';
+export const CONTRACT_ADDRESS         = '0xd8d166DcA70D7EF700A30ea071D8A01c6E451E78';
+export const ITEMS_CONTRACT_ADDRESS   = '0x66f98e6F6fA6c0F0315De904b0AaE30337787d00';
+export const QUEST_REWARDS_ADDRESS    = '0x3F9BBb8509D69bc07FBbb29D892f9e3DB59C46C2';
+export const MARKET_ADDRESS           = '0x1BDCa01C4bE81d9B54D2528Cc3DB3f7Cd785E921';
+export const GAMBLE_ADDRESS           = '0x258583F419aCbB4e38bed5ac6535CD11169Eaf1C';
+export const TOURNAMENT_ADDRESS       = '0x3D2621F0Ac627e698B2D6ecB40C9b8C6aA4d19F8';
 
 // ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax.network/ext/bc/C/rpc';

@@ -10,9 +10,9 @@
 // ══════════════════════════════════════════════════════════════════════
 
 // ── Contract addresses (mirror config.js) ────────────────────────────
-var CONTRACT_ADDRESS       = '0x04DFED6F15866125b1f6d140bcb1AB90F7614252';
-var ITEMS_CONTRACT_ADDRESS = '0x239066699C706152f6E2Fa5a82a05fC13C9677cD';
-var QUEST_REWARDS_ADDRESS  = '0x1f3A741A5169B002C8F7563C7cD11a3081cD1E4B';
+var CONTRACT_ADDRESS       = '0xd8d166DcA70D7EF700A30ea071D8A01c6E451E78';
+var ITEMS_CONTRACT_ADDRESS = '0x66f98e6F6fA6c0F0315De904b0AaE30337787d00';
+var QUEST_REWARDS_ADDRESS  = '0x3F9BBb8509D69bc07FBbb29D892f9e3DB59C46C2';
 
 // ── RPC endpoints (mirror config.js) ─────────────────────────────────
 var READ_RPC          = 'https://api.avax.network/ext/bc/C/rpc';
