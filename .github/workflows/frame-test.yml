@@ -33,14 +33,32 @@ jobs:
           frame = Image.open(FRAME).convert("RGBA")
           fw, fh = frame.size
 
+          # Inner window coordinates (transparent area of the frame)
+          WIN_LEFT, WIN_TOP, WIN_RIGHT, WIN_BOTTOM = 163, 140, 730, 807
+          win_w = WIN_RIGHT - WIN_LEFT
+          win_h = WIN_BOTTOM - WIN_TOP
+
           for i in range(1, 6):
               src = os.path.join(SRC_DIR, f"Chad_{i:03d}.jpg")
               if not os.path.exists(src):
                   print(f"ERROR: {src} not found")
                   exit(1)
+
               chad = Image.open(src).convert("RGBA")
-              chad = chad.resize((fw, fh), Image.LANCZOS)
-              combined = Image.alpha_composite(chad, frame)
+
+              # Scale chad to fit within the inner window, preserving aspect ratio
+              chad.thumbnail((win_w, win_h), Image.LANCZOS)
+              cw, ch = chad.size
+
+              # Center within the window
+              x = WIN_LEFT + (win_w - cw) // 2
+              y = WIN_TOP  + (win_h - ch) // 2
+
+              # Paste chad onto blank canvas, then composite frame on top
+              canvas = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
+              canvas.paste(chad, (x, y))
+              combined = Image.alpha_composite(canvas, frame)
+
               out = os.path.join(OUT_DIR, f"Chad_{i:03d}.png")
               combined.convert("RGB").save(out, "PNG", optimize=True)
               print(f"  Chad_{i:03d}.png ✓")
