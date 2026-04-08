@@ -862,9 +862,9 @@
           <span class="breakdown-label">Base cells</span>
           <span class="breakdown-value" id="baseCellsValue">50 × 1 = 50</span>
         </div>
-        <div class="breakdown-row bonus" id="partnerRow" style="display:none">
+        <div class="breakdown-row bonus" id="partnerRow">
           <span class="breakdown-label">Partner NFT bonus</span>
-          <span class="breakdown-value" id="partnerValue">+100 × 1 = 100</span>
+          <span class="breakdown-value" id="partnerValue">Not detected</span>
         </div>
         <div class="breakdown-row bonus" id="codeRow" style="display:none">
           <span class="breakdown-label">Code bonus</span>
@@ -1067,8 +1067,9 @@
       const total = base + partner + code;
 
       baseCellsValue.textContent = BASE_CELLS + ' × ' + quantity + ' = ' + base;
-      partnerRow.style.display = hasPartner ? 'flex' : 'none';
-      partnerValue.textContent = '+' + PARTNER_BONUS + ' × ' + quantity + ' = ' + partner;
+      partnerRow.style.display = 'flex';
+      partnerRow.style.color = hasPartner ? '#4caf50' : '#888';
+      partnerValue.textContent = hasPartner ? '+' + PARTNER_BONUS + ' × ' + quantity + ' = ' + partner : 'Not detected';
       codeRow.style.display = validCode ? 'flex' : 'none';
       codeValue.textContent = '+' + CODE_BONUS + ' × ' + quantity + ' = ' + code;
       totalCellsValue.textContent = total;
