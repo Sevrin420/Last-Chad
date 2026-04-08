@@ -5,7 +5,7 @@ on:
 
 jobs:
   download:
-    name: Pull Chads 333 into assets/
+    name: Pull + Frame Chads 333
     runs-on: ubuntu-latest
 
     steps:
@@ -13,26 +13,64 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install gdown
-        run: pip install gdown
+      - name: Install dependencies
+        run: pip install gdown Pillow
 
       - name: Download folder from Google Drive
         run: |
           gdown --folder "https://drive.google.com/drive/folders/13Zj2j2xGmHv0mpAEmDNUXGWLQGc7FADa" \
             --output "assets/Chads 333" \
             --remaining-ok
-          echo "--- Downloaded files ---"
-          ls -lh "assets/Chads 333/" | head -20
-          echo "Total files: $(ls "assets/Chads 333/" | wc -l)"
+          echo "Total downloaded: $(ls "assets/Chads 333/" | wc -l)"
+
+      - name: Apply frame and rename Chad_1 … Chad_333
+        run: |
+          python3 - <<'PYEOF'
+          from PIL import Image
+          import os, glob, sys
+
+          SRC_DIR  = "assets/Chads 333"
+          FRAME    = "assets/frames/frame.png"
+          OUT_DIR  = "assets/chads/framed"
+          os.makedirs(OUT_DIR, exist_ok=True)
+
+          # Sort files alphabetically so numbering is deterministic
+          files = sorted([
+              f for f in glob.glob(os.path.join(SRC_DIR, "*"))
+              if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+          ])
+
+          if not files:
+              print("ERROR: No images found in", SRC_DIR)
+              sys.exit(1)
+
+          print(f"Found {len(files)} images. Applying frame...")
+
+          frame = Image.open(FRAME).convert("RGBA")
+          fw, fh = frame.size
+
+          for i, src_path in enumerate(files, start=1):
+              chad = Image.open(src_path).convert("RGBA")
+              # Scale chad to match frame dimensions
+              chad = chad.resize((fw, fh), Image.LANCZOS)
+              # Composite: chad behind frame
+              combined = Image.alpha_composite(chad, frame)
+              out_path = os.path.join(OUT_DIR, f"Chad_{i}.png")
+              combined.convert("RGB").save(out_path, "PNG", optimize=True)
+              print(f"  [{i}/{len(files)}] {os.path.basename(src_path)} → Chad_{i}.png")
+
+          print(f"Done. {len(files)} framed Chads saved to {OUT_DIR}/")
+          PYEOF
 
       - name: Commit and push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "assets/Chads 333/"
+          git add "assets/Chads 333/" "assets/chads/framed/"
           if git diff --cached --quiet; then
-            echo "No new files — folder may already be up to date"
+            echo "No changes to commit"
           else
-            git commit -m "Add Chads 333 images from Google Drive"
+            COUNT=$(git diff --cached --name-only | grep "Chad_" | wc -l)
+            git commit -m "Add ${COUNT} framed Chads (Chad_1 – Chad_${COUNT})"
             git push origin main
           fi
