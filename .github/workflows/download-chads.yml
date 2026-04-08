@@ -44,8 +44,9 @@ jobs:
           OUT_DIR  = "assets/chads/framed"
           os.makedirs(OUT_DIR, exist_ok=True)
 
+          # Search recursively — gdown may create a subfolder inside SRC_DIR
           files = sorted([
-              f for f in glob.glob(os.path.join(SRC_DIR, "*"))
+              f for f in glob.glob(os.path.join(SRC_DIR, "**", "*"), recursive=True)
               if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
           ])
 
@@ -79,5 +80,6 @@ jobs:
           else
             COUNT=$(git diff --cached --name-only | grep "Chad_" | wc -l)
             git commit -m "Add ${COUNT} framed Chads (Chad_1 – Chad_${COUNT})"
+            git pull --rebase origin main
             git push origin main
           fi
