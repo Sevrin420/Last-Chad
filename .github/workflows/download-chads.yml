@@ -2,6 +2,15 @@ name: Download Chads 333 from Google Drive
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'What to do'
+        required: true
+        default: 'download-and-frame'
+        type: choice
+        options:
+          - download-and-frame   # Download from Drive + apply frame
+          - frame-only           # Apply frame to already-downloaded files
 
 jobs:
   download:
@@ -17,6 +26,7 @@ jobs:
         run: pip install gdown Pillow
 
       - name: Download folder from Google Drive
+        if: inputs.action == 'download-and-frame'
         run: |
           gdown --folder "https://drive.google.com/drive/folders/13Zj2j2xGmHv0mpAEmDNUXGWLQGc7FADa" \
             --output "assets/Chads 333" \
@@ -34,7 +44,6 @@ jobs:
           OUT_DIR  = "assets/chads/framed"
           os.makedirs(OUT_DIR, exist_ok=True)
 
-          # Sort files alphabetically so numbering is deterministic
           files = sorted([
               f for f in glob.glob(os.path.join(SRC_DIR, "*"))
               if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
@@ -51,9 +60,7 @@ jobs:
 
           for i, src_path in enumerate(files, start=1):
               chad = Image.open(src_path).convert("RGBA")
-              # Scale chad to match frame dimensions
               chad = chad.resize((fw, fh), Image.LANCZOS)
-              # Composite: chad behind frame
               combined = Image.alpha_composite(chad, frame)
               out_path = os.path.join(OUT_DIR, f"Chad_{i}.png")
               combined.convert("RGB").save(out_path, "PNG", optimize=True)
