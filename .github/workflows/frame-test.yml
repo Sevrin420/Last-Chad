@@ -45,9 +45,16 @@ jobs:
                   exit(1)
 
               chad = Image.open(src).convert("RGBA")
+              cw, ch = chad.size
 
-              # Stretch to exactly fill the inner window — frame covers the edges
-              chad = chad.resize((win_w, win_h), Image.LANCZOS)
+              # Scale up so the image is at least as wide AND tall as the window
+              # then crop to exact window size from center — no stretching
+              scale = max(win_w / cw, win_h / ch)
+              chad = chad.resize((int(cw * scale), int(ch * scale)), Image.LANCZOS)
+              cw, ch = chad.size
+              left  = (cw - win_w) // 2
+              top   = (ch - win_h) // 2
+              chad  = chad.crop((left, top, left + win_w, top + win_h))
 
               # Paste into position on blank canvas, then composite frame on top
               canvas = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
