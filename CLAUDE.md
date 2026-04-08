@@ -8,6 +8,18 @@
 
 ---
 
+## !!!!! SECURITY: CONTENT SECURITY POLICY !!!!!
+
+**Every new HTML page MUST include this CSP meta tag immediately after `<meta charset>`:**
+
+```html
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src 'none';">
+```
+
+This blocks malicious scripts from injecting bad transactions. Already added to all existing pages and to the quest template in `github-api.js`. No exceptions for new pages.
+
+---
+
 ## User Context
 
 The Claude user **cannot code or run code locally**. All scripts, deployments, and commands must be:
