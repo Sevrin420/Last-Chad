@@ -45,18 +45,22 @@ jobs:
                   exit(1)
 
               chad = Image.open(src).convert("RGBA")
-
-              # Scale chad to fit within the inner window, preserving aspect ratio
-              chad.thumbnail((win_w, win_h), Image.LANCZOS)
               cw, ch = chad.size
 
-              # Center within the window
-              x = WIN_LEFT + (win_w - cw) // 2
-              y = WIN_TOP  + (win_h - ch) // 2
+              # Scale to FILL the window (cover) — no black bars, crop overflow
+              scale = max(win_w / cw, win_h / ch)
+              new_w = int(cw * scale)
+              new_h = int(ch * scale)
+              chad = chad.resize((new_w, new_h), Image.LANCZOS)
 
-              # Paste chad onto blank canvas, then composite frame on top
+              # Crop to exact window size, centered
+              crop_x = (new_w - win_w) // 2
+              crop_y = (new_h - win_h) // 2
+              chad = chad.crop((crop_x, crop_y, crop_x + win_w, crop_y + win_h))
+
+              # Paste into position on blank canvas, then composite frame on top
               canvas = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
-              canvas.paste(chad, (x, y))
+              canvas.paste(chad, (WIN_LEFT, WIN_TOP))
               combined = Image.alpha_composite(canvas, frame)
 
               out = os.path.join(OUT_DIR, f"Chad_{i:03d}.png")
