@@ -1,2 +1,0 @@
-Chad images will be downloaded here by the GitHub Actions workflow.
-Run: Actions → Download Chads 333 from Google Drive → frame-only
