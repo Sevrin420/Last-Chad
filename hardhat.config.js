@@ -24,10 +24,7 @@ module.exports = {
     }
   },
   etherscan: {
-    apiKey: {
-      avalanche: SNOWTRACE_API_KEY,
-      fuji:      SNOWTRACE_API_KEY,
-    },
+    apiKey: SNOWTRACE_API_KEY,
     customChains: [
       {
         network: "avalanche",
