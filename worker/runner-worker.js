@@ -108,6 +108,7 @@ const GETSTATS_ABI = [
 ];
 const QUESTREWARDS_ABI = [
   'function questStarted(uint256 tokenId, uint8 questId) view returns (bool)',
+  'function getSession(uint256 tokenId) view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
 ];
 
 export default {
@@ -424,12 +425,19 @@ async function handleWin(request, env) {
 
   const finalXP = Math.min(sectionXpTotal + statValue, MAX_XP_PER_QUEST);
 
-  // 4. Sign keccak256(tokenId, questId, player, finalXP)
+  // 4. Fetch on-chain session seed — included in signature to prevent replay.
+  //    Each startQuest() generates a unique seed (keccak256 of tokenId + prevrandao + timestamp).
+  const provider     = new ethers.JsonRpcProvider(env.READ_RPC);
+  const qr           = new ethers.Contract(env.QUEST_REWARDS_ADDRESS, QUESTREWARDS_ABI, provider);
+  const onChain      = await qr.getSession(BigInt(tokenId));
+  const sessionSeed  = onChain.seed;
+
+  // Sign keccak256(tokenId, questId, player, finalXP, seed)
   //    Must match what QuestRewards.sol verifies on-chain.
   const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
   const messageHash  = ethers.solidityPackedKeccak256(
-    ['uint256', 'uint8', 'address', 'uint256'],
-    [BigInt(tokenId), Number(questId), session.player, BigInt(finalXP)]
+    ['uint256', 'uint8', 'address', 'uint256', 'bytes32'],
+    [BigInt(tokenId), Number(questId), session.player, BigInt(finalXP), sessionSeed]
   );
   const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
 

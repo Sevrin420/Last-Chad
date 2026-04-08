@@ -162,7 +162,7 @@ contract QuestRewards {
 
         // Oracle signature verification
         if (oracle != address(0)) {
-            bytes32 message = keccak256(abi.encodePacked(tokenId, questId, session.player, cellReward));
+            bytes32 message = keccak256(abi.encodePacked(tokenId, questId, session.player, cellReward, session.seed));
             bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
             address signer  = ECDSA.recover(ethHash, oracleSig);
             require(signer == oracle, "Invalid oracle signature");
