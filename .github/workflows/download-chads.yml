@@ -6,10 +6,11 @@ on:
       action:
         description: 'What to do'
         required: true
-        default: 'download-and-frame'
+        default: 'rename-only'
         type: choice
         options:
           - download             # Download from Drive only
+          - rename-only          # Rename files in Chads 333 to Chad_1...Chad_333
           - frame-only           # Apply frame to already-downloaded files
 
 jobs:
@@ -40,7 +41,6 @@ jobs:
           session.headers.update({"User-Agent": "Mozilla/5.0"})
 
           def list_files(folder_id):
-              """Scrape all file IDs from a public Google Drive folder, handling pagination."""
               files = []
               page_token = None
               api = "https://www.googleapis.com/drive/v3/files"
@@ -53,7 +53,6 @@ jobs:
                   }
                   if page_token:
                       params["pageToken"] = page_token
-                  # Try public API first (no key, works for publicly shared)
                   r = session.get(api, params=params)
                   if r.status_code == 200:
                       data = r.json()
@@ -68,9 +67,8 @@ jobs:
           def download_file(file_id, dest_path):
               url = f"https://drive.google.com/uc?export=download&id={file_id}"
               r = session.get(url, stream=True)
-              # Handle large-file confirmation page
               for key, val in r.cookies.items():
-                  if "download_warning" in key.lower() or key.startswith("download_warning"):
+                  if "download_warning" in key.lower():
                       url += f"&confirm={val}"
                       r = session.get(url, stream=True)
                       break
@@ -81,7 +79,6 @@ jobs:
           print("Listing files in folder...")
           files = list_files(FOLDER_ID)
 
-          # If API didn't return files (no key), fall back to gdown
           if not files:
               print("Public API returned no results, falling back to gdown...")
               import subprocess
@@ -103,9 +100,40 @@ jobs:
                   download_file(f["id"], dest)
                   time.sleep(0.1)
               print(f"Done. {len(img_files)} files downloaded.")
+          PYEOF
 
-          total = len([x for x in os.listdir(OUT_DIR) if not x.startswith(".")])
-          print(f"Total in folder: {total}")
+      - name: Rename files to Chad_1...Chad_333
+        if: inputs.action == 'rename-only'
+        run: |
+          python3 - <<'PYEOF'
+          import os, glob
+
+          SRC_DIR = "assets/Chads 333"
+
+          files = sorted([
+              f for f in glob.glob(os.path.join(SRC_DIR, "*"))
+              if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+          ])
+
+          if not files:
+              print("ERROR: No images found in", SRC_DIR)
+              exit(1)
+
+          print(f"Found {len(files)} images. Renaming...")
+
+          # First pass: rename to temp names to avoid collisions
+          for i, src in enumerate(files, start=1):
+              os.rename(src, os.path.join(SRC_DIR, f"__tmp_{i}.jpg"))
+
+          # Second pass: rename to final Chad_X.jpg names
+          tmp_files = sorted(glob.glob(os.path.join(SRC_DIR, "__tmp_*.jpg")),
+                             key=lambda x: int(x.split("__tmp_")[1].replace(".jpg","")))
+          for i, src in enumerate(tmp_files, start=1):
+              dest = os.path.join(SRC_DIR, f"Chad_{i}.jpg")
+              os.rename(src, dest)
+              print(f"  Chad_{i}.jpg")
+
+          print(f"Done. {len(tmp_files)} files renamed.")
           PYEOF
 
       - name: Apply frame and rename Chad_1 … Chad_333
@@ -120,7 +148,6 @@ jobs:
           OUT_DIR  = "assets/chads/framed"
           os.makedirs(OUT_DIR, exist_ok=True)
 
-          # Search recursively — gdown may create a subfolder inside SRC_DIR
           files = sorted([
               f for f in glob.glob(os.path.join(SRC_DIR, "**", "*"), recursive=True)
               if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
@@ -155,8 +182,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            COUNT=$(git diff --cached --name-only | grep "Chad_" | wc -l)
-            git commit -m "Add ${COUNT} framed Chads (Chad_1 – Chad_${COUNT})"
+            git commit -m "Chads 333: ${{ inputs.action }}"
             git pull --rebase origin main
             git push origin main
           fi
