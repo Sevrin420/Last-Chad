@@ -34,16 +34,16 @@ jobs:
           fw, fh = frame.size
 
           for i in range(1, 6):
-              src = os.path.join(SRC_DIR, f"Chad_{i}.jpg")
+              src = os.path.join(SRC_DIR, f"Chad_{i:03d}.jpg")
               if not os.path.exists(src):
                   print(f"ERROR: {src} not found")
                   exit(1)
               chad = Image.open(src).convert("RGBA")
               chad = chad.resize((fw, fh), Image.LANCZOS)
               combined = Image.alpha_composite(chad, frame)
-              out = os.path.join(OUT_DIR, f"Chad_{i}.png")
+              out = os.path.join(OUT_DIR, f"Chad_{i:03d}.png")
               combined.convert("RGB").save(out, "PNG", optimize=True)
-              print(f"  Chad_{i}.png ✓")
+              print(f"  Chad_{i:03d}.png ✓")
 
           print("Done. 5 framed Chads saved to", OUT_DIR)
           PYEOF

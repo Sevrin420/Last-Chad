@@ -129,9 +129,9 @@ jobs:
           tmp_files = sorted(glob.glob(os.path.join(SRC_DIR, "__tmp_*.jpg")),
                              key=lambda x: int(x.split("__tmp_")[1].replace(".jpg","")))
           for i, src in enumerate(tmp_files, start=1):
-              dest = os.path.join(SRC_DIR, f"Chad_{i}.jpg")
+              dest = os.path.join(SRC_DIR, f"Chad_{i:03d}.jpg")
               os.rename(src, dest)
-              print(f"  Chad_{i}.jpg")
+              print(f"  Chad_{i:03d}.jpg")
 
           print(f"Done. {len(tmp_files)} files renamed.")
           PYEOF
