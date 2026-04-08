@@ -9,7 +9,7 @@ on:
         default: 'download-and-frame'
         type: choice
         options:
-          - download-and-frame   # Download from Drive + apply frame
+          - download             # Download from Drive only
           - frame-only           # Apply frame to already-downloaded files
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
         run: pip install gdown Pillow
 
       - name: Download folder from Google Drive
-        if: inputs.action == 'download-and-frame'
+        if: inputs.action == 'download'
         run: |
           pip install requests Pillow gdown -q
           python3 - <<'PYEOF'
@@ -109,6 +109,7 @@ jobs:
           PYEOF
 
       - name: Apply frame and rename Chad_1 … Chad_333
+        if: inputs.action == 'frame-only'
         run: |
           python3 - <<'PYEOF'
           from PIL import Image
@@ -149,7 +150,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "assets/Chads 333/" "assets/chads/framed/"
+          git add "assets/Chads 333/"
+          git add "assets/chads/framed/" 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
