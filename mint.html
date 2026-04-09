@@ -1183,22 +1183,6 @@
 
         const userAddr = await signer.getAddress();
 
-        // Check if the wallet address is a smart contract — _safeMint (OZ v5) throws
-        // ERC721InvalidReceiver (a custom error, undecodable by ethers v5) if the
-        // recipient doesn't implement onERC721Received.
-        errEl.textContent = 'Checking...';
-        errEl.style.display = 'block';
-        try {
-          const code = await readProvider.getCode(userAddr);
-          if (code && code !== '0x') {
-            showErr('Smart contract wallet detected (' + truncateAddress(userAddr) + '). NFT minting requires a regular wallet address — smart contract wallets cannot receive ERC-721 tokens from this contract.');
-            btnText.textContent = 'MINT NOW';
-            mintBtn.disabled = false;
-            mintBtn.classList.add('ready');
-            return;
-          }
-        } catch (_) {}
-
         // Test each partner NFT contract individually — if one reverts, the contract's
         // hasPartnerNFT() will revert on every mint for wallets without a partner NFT.
         errEl.textContent = 'Checking...';
