@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://verify.walletconnect.com;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mint | Last Chad</title>
   <link rel="stylesheet" href="styles.css">
@@ -1181,8 +1181,9 @@
         const supplyBefore = minted;
 
         // Explicit gasLimit bypasses Core wallet's broken gas estimation for payable functions.
-        // Unused gas is refunded — actual cost is ~130k for 1 mint + ~80k per additional.
-        const gasLimit = 180000 + (quantity - 1) * 90000;
+        // ERC721Enumerable + cells: ~210k first mint (fresh wallet), ~160k per additional.
+        // Unused gas is refunded — being generous here costs nothing.
+        const gasLimit = 260000 + (quantity - 1) * 170000;
         const tx = await contract.mint(quantity, { value: totalCost, gasLimit });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
