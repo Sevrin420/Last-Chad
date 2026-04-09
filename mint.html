@@ -1176,16 +1176,36 @@
         mintBtn.classList.remove('ready');
 
         const signer = getSigner();
+        const errEl = document.getElementById('mintError');
+        const showErr = (text) => { errEl.textContent = text; errEl.style.display = 'block'; };
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
+        const gasLimit = 260000 + (quantity - 1) * 170000;
 
-        // Diagnostic: log network + value so we can see what's being sent
-        const errEl = document.getElementById('mintError');
+        // Pre-flight: simulate the call using the read RPC to catch contract reverts early
+        errEl.textContent = 'Checking...';
+        errEl.style.display = 'block';
         try {
-          const network = await signer.provider.getNetwork();
-          errEl.textContent = 'Sending: ' + ethers.utils.formatEther(totalCost) + ' AVAX | chain: ' + network.chainId;
-          errEl.style.display = 'block';
-        } catch (_) {}
+          const userAddr = await signer.getAddress();
+          await readProvider.call({
+            to: CONTRACT_ADDRESS,
+            data: contract.interface.encodeFunctionData('mint', [quantity]),
+            value: totalCost,
+            from: userAddr,
+          });
+          errEl.style.display = 'none';
+        } catch (simErr) {
+          // Try to extract revert reason
+          let simMsg = simErr.reason || simErr.error?.message || simErr.message || '';
+          // ethers v5 embeds reason in message like "execution reverted: <reason>"
+          const match = simMsg.match(/execution reverted:?\s*(.*)/i);
+          if (match) simMsg = match[1].trim() || simMsg;
+          showErr('Blocked: ' + (simMsg || 'Transaction would fail'));
+          btnText.textContent = 'MINT NOW';
+          mintBtn.disabled = false;
+          mintBtn.classList.add('ready');
+          return;
+        }
 
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
@@ -1193,7 +1213,6 @@
         // Explicit gasLimit bypasses Core wallet's broken gas estimation for payable functions.
         // ERC721Enumerable + cells: ~210k first mint (fresh wallet), ~160k per additional.
         // Unused gas is refunded — being generous here costs nothing.
-        const gasLimit = 260000 + (quantity - 1) * 170000;
         const tx = await contract.mint(quantity, { value: totalCost, gasLimit });
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
@@ -1222,9 +1241,10 @@
         console.error('Mint failed:', err);
         const errEl = document.getElementById('mintError');
         const showErr = (text) => { errEl.textContent = text; errEl.style.display = 'block'; };
-        let msg = err.reason || err.message || 'Unknown error';
+        const msg = err.reason || err.message || 'Unknown error';
         if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
           btnText.textContent = 'MINT NOW';
+          errEl.style.display = 'none';
         } else if (msg.includes('Exceeds max supply')) {
           btnText.textContent = 'SOLD OUT';
           await updateSupply();
@@ -1244,8 +1264,7 @@
         } else {
           const txHash = err.transaction?.hash || err.receipt?.transactionHash || '';
           const reason = err.reason || err.data?.message || err.error?.message || msg;
-          const chainId = await signer.provider.getNetwork().then(n => n.chainId).catch(() => '?');
-          showErr('chain:' + chainId + ' value:' + ethers.utils.formatEther(totalCost) + 'AVAX gas:' + gasLimit + ' | ' + reason + (txHash ? ' | TX:' + txHash : ''));
+          showErr('FAILED: ' + reason + (txHash ? ' | TX:' + txHash : ''));
           btnText.textContent = 'FAILED';
           setTimeout(() => { btnText.textContent = 'MINT NOW'; }, 3000);
         }
