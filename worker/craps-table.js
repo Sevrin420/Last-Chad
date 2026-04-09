@@ -257,26 +257,19 @@ export class CrapsTable {
 
         // Self-register if not pre-registered (player picked table after /craps/start)
         if (!playerData) {
-          // Verify via KV record written by /craps/start — avoids HMAC re-computation in DO
-          const kvRaw = await this.env.RUNNER_KV.get(`craps_auth:${nonce}`);
-          if (!kvRaw) {
+          const valid = await this._verifySessionToken(nonce, data.player, token, tokenTs);
+          if (!valid) {
             ws.send(JSON.stringify({ type: 'error', message: 'Invalid or expired session token' }));
             break;
           }
-          let kvAuth;
-          try { kvAuth = JSON.parse(kvRaw); } catch (_) { kvAuth = null; }
-          if (!kvAuth || kvAuth.sessionToken !== token) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid session token' }));
-            break;
-          }
           playerData = {
-            tokenId:  kvAuth.tokenId || String(data.tokenId),
-            player:   kvAuth.player  || String(data.player).toLowerCase(),
-            stack:    kvAuth.stack   != null ? Number(kvAuth.stack) : (Number(data.stack) || 0),
+            tokenId:  String(data.tokenId),
+            player:   String(data.player).toLowerCase(),
+            stack:    Number(data.stack) || 0,
             bets:     {},
             comeBets: {},
             comeOdds: {},
-            buyIn:    kvAuth.stack   != null ? Number(kvAuth.stack) : (Number(data.buyIn) || Number(data.stack) || 0),
+            buyIn:    Number(data.buyIn) || Number(data.stack) || 0,
             lastBetTime: Date.now(),
             lastActivity: Date.now(),
             _expectedToken: token,

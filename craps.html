@@ -2081,16 +2081,10 @@ let _wsReconnectTimer = null;
 function wsUrl(table) {
   // Convert REST worker URL to WebSocket URL
   const base = WORKER_URL.replace(/^http/, 'ws');
-  let u = base + '/craps/ws?table=' + encodeURIComponent(table) +
+  return base + '/craps/ws?table=' + encodeURIComponent(table) +
     '&playerId=' + encodeURIComponent(STATE.playerId) +
     '&name=' + encodeURIComponent(STATE.nftName || STATE.playerName || 'Unknown') +
     '&chadId=' + encodeURIComponent(STATE.chadId || 0);
-  // Pass session credentials so the Worker can pre-register in the DO before WS handoff
-  if (STATE.nonce != null && STATE.sessionToken) {
-    u += '&nonce=' + encodeURIComponent(STATE.nonce) +
-         '&sessionToken=' + encodeURIComponent(STATE.sessionToken);
-  }
-  return u;
 }
 
 function wsSend(data) {
