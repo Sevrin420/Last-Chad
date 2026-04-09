@@ -971,7 +971,6 @@
       const addr = getUserAddress();
       if (!addr) {
         hasPartner = false;
-        // Reset all partner rows to neutral
         PARTNERS.forEach(p => {
           const row = document.getElementById('partner-' + p.id);
           const status = document.getElementById('partner-' + p.id + '-status');
@@ -981,9 +980,9 @@
         updateCellBreakdown();
         return;
       }
-      try {
-        let anyFound = false;
-        for (const p of PARTNERS) {
+      let anyFound = false;
+      for (const p of PARTNERS) {
+        try {
           const nft = new ethers.Contract(p.address, ERC721_BALANCE_ABI, readProvider);
           const bal = await nft.balanceOf(addr);
           const found = !bal.isZero();
@@ -992,12 +991,11 @@
           const status = document.getElementById('partner-' + p.id + '-status');
           if (row) row.style.color = found ? '#4caf50' : '#555';
           if (status) status.textContent = found ? '✓' : '—';
+        } catch (err) {
+          console.error('Partner check failed for ' + p.name + ':', err);
         }
-        hasPartner = anyFound;
-      } catch (err) {
-        console.error('Partner check failed:', err);
-        hasPartner = false;
       }
+      hasPartner = anyFound;
       updateCellBreakdown();
     }
 
