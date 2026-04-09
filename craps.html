@@ -2342,6 +2342,21 @@ function handleWsMessage(data) {
       break;
     }
 
+    case 'error': {
+      // Server-side error (e.g. auth failure, invalid session token)
+      console.error('[Craps WS error]', data.message);
+      dealerSay(data.message || 'Connection error.', 'sad');
+      addChatMsg('system', 'Error: ' + (data.message || 'Unknown error'));
+      // If it looks like an auth/session error, redirect to gamble.html after a delay
+      if (data.message && (data.message.toLowerCase().includes('session') || data.message.toLowerCase().includes('auth') || data.message.toLowerCase().includes('token') || data.message.toLowerCase().includes('nonce'))) {
+        addChatMsg('system', 'Redirecting to Gambling Den to start a new session...');
+        sessionStorage.removeItem('craps_session');
+        disconnectTable();
+        setTimeout(() => { window.location.href = 'gamble.html'; }, 3000);
+      }
+      break;
+    }
+
     default:
       break;
   }
