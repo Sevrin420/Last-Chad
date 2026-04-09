@@ -26,7 +26,7 @@ async function main() {
   const chad = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, owner);
   const provider = ethers.provider;
 
-  const count = (await chad.getPartnerCount()).toNumber();
+  const count = Number(await chad.getPartnerCount());
   console.log(`\nRegistered partners: ${count}`);
 
   for (let i = 1; i <= count; i++) {
