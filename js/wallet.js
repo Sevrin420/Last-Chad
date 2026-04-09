@@ -252,7 +252,10 @@ async function _initWcProvider() {
     projectId: WALLETCONNECT_PROJECT_ID,
     chains: [parseInt(AVAX_CHAIN_ID, 16)],
     showQrModal: true,
-    rpcMap: { [parseInt(AVAX_CHAIN_ID, 16)]: READ_RPC }
+    rpcMap: { [parseInt(AVAX_CHAIN_ID, 16)]: READ_RPC },
+    // Skip the wallet explorer (blank tiles / API failures) — show QR directly.
+    // Users scan the QR with Core, MetaMask, or any WalletConnect-compatible wallet.
+    qrModalOptions: { enableExplorer: false }
   });
 }
 
