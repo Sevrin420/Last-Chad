@@ -8,7 +8,7 @@
 // Requires PRIVATE_KEY env var set to owner wallet private key
 const { ethers } = require('hardhat');
 
-const CONTRACT_ADDRESS = '0xd8d1660cA70D7EF700A30ea071D8A01c6E451E78';
+const CONTRACT_ADDRESS = '0xd8d166DcA70D7EF700A30ea071D8A01c6E451E78';
 const ERC721_ABI = ['function balanceOf(address owner) view returns (uint256)'];
 const LASTCHAD_ABI = [
   'function getPartnerCount() view returns (uint256)',
