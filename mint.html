@@ -1236,7 +1236,20 @@
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
         const receipt = await signer.provider.waitForTransaction(txHash);
-        if (receipt.status === 0) throw new Error('Transaction reverted');
+        if (receipt.status === 0) {
+          // Replay at the failed block to extract the exact revert reason
+          try {
+            await readProvider.call({
+              to: CONTRACT_ADDRESS,
+              data: contract.interface.encodeFunctionData('mint', [quantity]),
+              value: totalCost,
+              from: userAddr,
+            }, receipt.blockNumber);
+          } catch (replayErr) {
+            throw replayErr; // will have the decoded revert reason
+          }
+          throw new Error('Transaction reverted (unknown reason)');
+        }
 
         // Refresh supply after successful mint
         await updateSupply();
