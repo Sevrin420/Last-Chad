@@ -1234,7 +1234,6 @@
           gasPrice = ethers.utils.parseUnits('35', 'gwei');
         }
 
-        const userAddr = await signer.getAddress();
         const rawProvider = signer.provider.provider; // Web3Provider → raw EIP-1193
         const txHash = await rawProvider.request({
           method: 'eth_sendTransaction',
