@@ -1180,7 +1180,10 @@
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        const tx = await contract.mint(quantity, { value: totalCost });
+        // Explicit gasLimit bypasses Core wallet's broken gas estimation for payable functions.
+        // Unused gas is refunded — actual cost is ~130k for 1 mint + ~80k per additional.
+        const gasLimit = 180000 + (quantity - 1) * 90000;
+        const tx = await contract.mint(quantity, { value: totalCost, gasLimit });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
 
