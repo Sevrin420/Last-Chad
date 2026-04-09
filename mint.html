@@ -1209,7 +1209,9 @@
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        const tx = await contract.mint(quantity, { value: totalCost, gasLimit });
+        // type: 0 forces legacy transaction — bypasses Core wallet's broken EIP-1559
+        // value handling that strips msg.value before broadcasting.
+        const tx = await contract.mint(quantity, { value: totalCost, gasLimit, type: 0 });
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
