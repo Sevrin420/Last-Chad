@@ -1213,7 +1213,9 @@
         // Explicit gasLimit bypasses Core wallet's broken gas estimation for payable functions.
         // ERC721Enumerable + cells: ~210k first mint (fresh wallet), ~160k per additional.
         // Unused gas is refunded — being generous here costs nothing.
-        const tx = await contract.mint(quantity, { value: totalCost, gasLimit });
+        // Some WalletConnect providers (Core mobile) drop BigNumber value objects —
+        // passing value as a hex string ensures it survives the WC relay intact.
+        const tx = await contract.mint(quantity, { value: totalCost.toHexString(), gasLimit });
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
