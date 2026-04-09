@@ -1209,59 +1209,22 @@
 
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
-        const userAddr = await signer.getAddress();
 
-        // ── Send transaction directly through the raw wallet provider ─────────
-        // Core wallet (desktop + mobile) has a bug: it re-runs eth_estimateGas
-        // internally after user approval, but WITHOUT msg.value — causing the
-        // payable mint() to fail its require(msg.value >= price) check and Core
-        // silently drops the transaction before it reaches the chain.
-        //
-        // Fix: call eth_sendTransaction directly with an explicit gasPrice.
-        // This forces a legacy (type 0) transaction. Core's legacy tx code path
-        // does NOT trigger the broken EIP-1559 re-estimation flow.
-        // Gas price is fetched from our own read RPC, not Core's provider.
-        const rawProv = signer.provider.provider;
-        const txData   = contract.interface.encodeFunctionData('mint', [quantity]);
-        let gasPx = null;
-        try {
-          const fd = await readProvider.getFeeData();
-          if (fd.gasPrice) gasPx = fd.gasPrice.mul(13).div(10).toHexString(); // +30% buffer
-        } catch (_) {}
-
-        const rawTxParams = {
-          from:  userAddr,
-          to:    CONTRACT_ADDRESS,
-          data:  txData,
-          value: totalCost.toHexString(),
-          gas:   '0x' + gasLimit.toString(16),
-          ...(gasPx ? { gasPrice: gasPx } : {})
-        };
-
-        const txHash = await rawProv.request({
-          method: 'eth_sendTransaction',
-          params: [rawTxParams]
+        // Populate ALL transaction fields (nonce, gasPrice, chainId) before
+        // sending to the wallet. By default, ethers.js v5 JsonRpcSigner sends
+        // only (from, to, data, value, gas) and lets the wallet fill the rest.
+        // Core wallet's internal field-population triggers a gas estimation
+        // that fails for payable functions. Sending a fully-populated tx
+        // means the wallet has nothing left to estimate — just sign & broadcast.
+        const mintTx = await contract.populateTransaction.mint(quantity, {
+          value: totalCost,
+          gasLimit
         });
-
+        const populated = await signer.populateTransaction(mintTx);
+        const tx = await signer.sendTransaction(populated);
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
-
-        // Wait for receipt via our read provider (not Core's — avoids wallet polling bugs)
-        const receipt = await readProvider.waitForTransaction(txHash, 1, 180000);
-
-        if (!receipt || receipt.status === 0) {
-          // Mined but reverted — re-simulate to get the reason
-          let onChainReason = 'Transaction reverted on-chain.';
-          try {
-            await readProvider.call({ to: CONTRACT_ADDRESS, data: txData, value: totalCost, from: userAddr });
-          } catch (re) {
-            let r = re.reason || re.error?.message || re.message || '';
-            const m = r.match(/execution reverted:?\s*(.*)/i);
-            if (m) r = m[1].trim() || r;
-            if (r) onChainReason = r;
-          }
-          throw new Error(onChainReason);
-        }
+        await tx.wait();
 
         // Refresh supply after successful mint
         await updateSupply();
