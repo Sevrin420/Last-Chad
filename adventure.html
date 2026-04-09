@@ -728,12 +728,36 @@
       </div>
 
       <!-- Quest selector + button -->
-      <div id="questSelectWrap">
-        <select id="questSelect" class="quest-select">
-          <option value="">Loading quests...</option>
-        </select>
-        <button class="battle-btn" id="battleBtn">BEGIN QUEST</button>
-        <div id="questStartStatus"></div>
+      <div style="position:relative; display:inline-block; width:100%;">
+        <div id="questSelectWrap">
+          <select id="questSelect" class="quest-select">
+            <option value="">Loading quests...</option>
+          </select>
+          <button class="battle-btn" id="battleBtn">BEGIN QUEST</button>
+          <div id="questStartStatus"></div>
+        </div>
+        <!-- Coming soon overlay -->
+        <div style="
+          position:absolute;
+          inset:0;
+          background:rgba(10,7,5,0.72);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          border-radius:6px;
+          pointer-events:all;
+          cursor:default;
+        ">
+          <span style="
+            font-family:'Press Start 2P',monospace;
+            font-size:clamp(0.38rem,1.8vw,0.6rem);
+            color:#c9a84c;
+            text-align:center;
+            line-height:1.8;
+            text-shadow:0 0 10px rgba(201,168,76,0.4);
+            padding:0 8px;
+          ">Quests Begin<br>Mint Completion</span>
+        </div>
       </div>
 
       <!-- Gallery -->
