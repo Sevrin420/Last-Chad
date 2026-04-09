@@ -1384,8 +1384,11 @@
         "The grime... The Smell!",
         "Anyhow, let's play shall we?"
       ]);
+      const crapsOpen = new URLSearchParams(window.location.search).get('craps') === 'open';
       showChoices([
-        { label: "Hand me the bones Chazzy", locked: "Craps table opens after mint ends" },
+        crapsOpen
+          ? { label: "Hand me the bones Chazzy", action: startCrapsGame }
+          : { label: "Hand me the bones Chazzy", locked: "Craps table opens after mint ends" },
         { label: "Craps Rules", action: showCrapsRules }
       ]);
     }
