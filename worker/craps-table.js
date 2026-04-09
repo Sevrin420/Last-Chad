@@ -73,11 +73,13 @@ export class CrapsTable {
     if (url.pathname === '/info') {
       const playerKeys = await this.state.storage.list({ prefix: 'player:' });
       const players = [];
+      let allCount = 0;
       for (const [, pd] of playerKeys) {
+        allCount++;
         if (pd._disconnectedAt) continue; // disconnected, awaiting reconnect
         players.push({ playerId: pd.player, name: pd.tokenId });
       }
-      return new Response(JSON.stringify({ count: players.length, players }), {
+      return new Response(JSON.stringify({ count: players.length, allCount, players }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
