@@ -2107,7 +2107,7 @@ function connectTable(tableCode) {
     // Authenticate with the DO — include full session data for self-registration
     // (player may have picked table after /craps/start, so DO might not have them yet;
     // the DO verifies the HMAC token before trusting any client-supplied data)
-    if (STATE.nonce && STATE.sessionToken) {
+    if (STATE.nonce != null && STATE.sessionToken) {
       wsSend({
         type: 'auth',
         nonce: STATE.nonce,
