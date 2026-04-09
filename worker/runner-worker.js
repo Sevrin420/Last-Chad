@@ -760,7 +760,7 @@ async function handleCrapsStart(request, env) {
   // Write auth record to KV so the Durable Object can verify without re-doing HMAC
   await env.RUNNER_KV.put(
     `craps_auth:${nonce}`,
-    JSON.stringify({ sessionToken, player: player.toLowerCase(), tokenId: String(tokenId), stack: wager }),
+    JSON.stringify({ sessionToken, sessionTokenTs, player: player.toLowerCase(), tokenId: String(tokenId), stack: wager }),
     { expirationTtl: 86400 }
   );
 
@@ -1027,6 +1027,36 @@ async function handleCrapsWebSocket(request, url, env) {
       await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
     }
   } catch (_) { /* best-effort; proceed with WS upgrade either way */ }
+
+  // Pre-register player in the DO before the WS upgrade.
+  // The DO's auth WS handler then finds playerData in storage and skips HMAC entirely,
+  // sending auth-ok immediately on the _expectedToken match.
+  // Works with both old and new DO code since /register is a stable REST endpoint.
+  const urlNonce = url.searchParams.get('nonce');
+  const urlToken = url.searchParams.get('sessionToken');
+  if (urlNonce != null && urlToken) {
+    try {
+      const kvRaw = await env.RUNNER_KV.get(`craps_auth:${urlNonce}`);
+      if (kvRaw) {
+        let kvAuth;
+        try { kvAuth = JSON.parse(kvRaw); } catch (_) {}
+        if (kvAuth && kvAuth.sessionToken === urlToken) {
+          await stub.fetch(new Request('https://do/register', {
+            method: 'POST',
+            body: JSON.stringify({
+              nonce:          String(urlNonce),
+              tokenId:        kvAuth.tokenId,
+              player:         kvAuth.player,
+              stack:          kvAuth.stack,
+              sessionToken:   urlToken,
+              sessionTokenTs: kvAuth.sessionTokenTs || null,
+              buyIn:          kvAuth.stack,
+            }),
+          }));
+        }
+      }
+    } catch (_) { /* best-effort; auth WS message handles fallback */ }
+  }
 
   // Forward the entire request (including Upgrade headers + query params)
   return stub.fetch(request);
