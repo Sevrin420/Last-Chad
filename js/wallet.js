@@ -308,9 +308,14 @@ export async function connectWallet(walletName, callbacks) {
     (window.core && window.core.ethereum) ||
     (window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet));
 
-  // Core on mobile: always use WalletConnect — Core mobile has NO injected provider.
-  // On desktop, Core extension injects window.ethereum so coreInjected will be true.
+  // Core on mobile: redirect to Core's built-in browser if not already injected.
+  // Core mobile's WalletConnect client strips msg.value from eth_sendTransaction,
+  // causing all payable transactions to fail. The only reliable fix is Core's
+  // built-in browser, which injects window.avalanche (no WalletConnect involved).
   if (walletName === 'core' && isMobile() && !coreInjected) {
+    const deepLink = getMobileDeepLink('core');
+    if (deepLink) { window.location.href = deepLink; return; }
+    // Last resort: WalletConnect (may fail for payable calls on some Core versions)
     await connectWalletConnect(callbacks);
     return;
   }
