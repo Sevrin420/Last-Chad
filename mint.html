@@ -1208,30 +1208,8 @@
 
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
-        const userAddr = await signer.getAddress();
 
-        // Build a fully-populated legacy (type 0) transaction using our own
-        // read RPC for gas price, nonce, and chainId — Core wallet just signs.
-        // Core returns "Internal error" for EIP-1559 (type-2) payable txs;
-        // legacy type-0 bypasses that code path entirely.
-        const feeData  = await readProvider.getFeeData();
-        const gasPrice = (feeData.gasPrice || ethers.utils.parseUnits('26', 'gwei'))
-                           .mul(13).div(10); // +30% buffer
-        const nonce    = await readProvider.getTransactionCount(userAddr, 'pending');
-
-        const mintTx = {
-          from:     userAddr,
-          to:       CONTRACT_ADDRESS,
-          data:     contract.interface.encodeFunctionData('mint', [quantity]),
-          value:    totalCost,
-          gasLimit: ethers.BigNumber.from(gasLimit),
-          gasPrice: gasPrice,
-          nonce:    nonce,
-          chainId:  43114,
-          type:     0,
-        };
-
-        const tx = await signer.sendTransaction(mintTx);
+        const tx = await contract.mint(quantity, { value: totalCost, gasLimit });
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
