@@ -1175,8 +1175,17 @@
         btnText.textContent = 'MINTING...';
         mintBtn.classList.remove('ready');
 
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, getSigner());
+        const signer = getSigner();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         const totalCost = ethers.utils.parseEther((quantity * PRICE).toString());
+
+        // Diagnostic: log network + value so we can see what's being sent
+        const errEl = document.getElementById('mintError');
+        try {
+          const network = await signer.provider.getNetwork();
+          errEl.textContent = 'Sending: ' + ethers.utils.formatEther(totalCost) + ' AVAX | chain: ' + network.chainId;
+          errEl.style.display = 'block';
+        } catch (_) {}
 
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
@@ -1186,6 +1195,7 @@
         // Unused gas is refunded — being generous here costs nothing.
         const gasLimit = 260000 + (quantity - 1) * 170000;
         const tx = await contract.mint(quantity, { value: totalCost, gasLimit });
+        errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
 
@@ -1234,7 +1244,8 @@
         } else {
           const txHash = err.transaction?.hash || err.receipt?.transactionHash || '';
           const reason = err.reason || err.data?.message || err.error?.message || msg;
-          showErr('FAILED: ' + reason + (txHash ? ' | TX: ' + txHash : ''));
+          const chainId = await signer.provider.getNetwork().then(n => n.chainId).catch(() => '?');
+          showErr('chain:' + chainId + ' value:' + ethers.utils.formatEther(totalCost) + 'AVAX gas:' + gasLimit + ' | ' + reason + (txHash ? ' | TX:' + txHash : ''));
           btnText.textContent = 'FAILED';
           setTimeout(() => { btnText.textContent = 'MINT NOW'; }, 3000);
         }
