@@ -672,7 +672,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI, CELLS_PER_LEVEL } from './js/config.js';
+    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI, CELLS_PER_LEVEL, getChadImageUrl } from './js/config.js';
 
     const MAX_PER_STAT = 10;
 
@@ -781,7 +781,7 @@
         const level = Number(levelRes);
 
         // Set portrait
-        document.getElementById('portraitImg').src = 'assets/chads/framed/' + tokenId + '.png';
+        document.getElementById('portraitImg').src = getChadImageUrl(tokenId);
         document.getElementById('portraitName').textContent = name.toUpperCase();
         document.getElementById('portraitLevel').textContent = 'LVL ' + level;
 

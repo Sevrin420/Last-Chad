@@ -1185,7 +1185,7 @@
   <script type="module">
     import { connectWallet, autoReconnect, disconnect,
              getSigner, ensureSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
+    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI, getChadImageUrl } from './js/config.js';
 
     // ── Music & Enter ──
     const jiptImage  = document.getElementById('jipt-image');
@@ -1451,7 +1451,7 @@
         const card = document.createElement('div');
         card.className = 'nft-card';
         card.innerHTML = `
-          <img src="assets/chads/framed/${token.id}.png" alt="Chad #${token.id}" />
+          <img src="${getChadImageUrl(token.id)}" alt="Chad #${token.id}" />
           <div class="nft-id">#${token.id} (${token.cells} cells)</div>
         `;
         card.addEventListener('click', () => selectChad(token, ownedTokens));
@@ -1496,7 +1496,7 @@
       const sel = document.createElement('div');
       sel.id = 'selected-chad';
       sel.innerHTML = `
-        <img src="assets/chads/framed/${token.id}.png" alt="Chad #${token.id}" />
+        <img src="${getChadImageUrl(token.id)}" alt="Chad #${token.id}" />
         <div id="chad-info">
           <div>Chad #${token.id}</div>
           <div class="cells-count">${token.cells} cells</div>

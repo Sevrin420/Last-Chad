@@ -31,6 +31,11 @@ var AVAX_CHAIN = {
 // ── WalletConnect (mirror config.js) ─────────────────────────────────
 var WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 
+// ── Chad image URL (mirror config.js) ────────────────────────────────
+function getChadImageUrl(tokenId) {
+  return 'assets/Chads%20333/framed/chad_' + tokenId + '.png';
+}
+
 // ── ABIs (subsets of config.js — only the functions quest pages need) ─
 var LASTCHAD_ABI = [
   'function ownerOf(uint256 tokenId) external view returns (address)',

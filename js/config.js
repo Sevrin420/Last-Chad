@@ -39,6 +39,12 @@ export const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 // ── Game Constants ──────────────────────────────────────────────────
 export const CELLS_PER_LEVEL = 100;
 
+// ── Chad image URL ───────────────────────────────────────────────────
+// Single source of truth — update here if image location ever changes.
+export function getChadImageUrl(tokenId) {
+  return 'assets/Chads%20333/framed/chad_' + tokenId + '.png';
+}
+
 // ── Cloudflare Worker ────────────────────────────────────────────────
 export const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
 

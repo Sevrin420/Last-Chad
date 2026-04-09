@@ -401,7 +401,7 @@ function showPanel(id) {
 
       // Portrait image
       var imgEl = document.getElementById('hudChadImg_' + sid);
-      if (imgEl) imgEl.src = '../../assets/chads/framed/' + chadId + '.png';
+      if (imgEl) imgEl.src = getChadImageUrl(chadId).replace('assets/', '../../assets/');
 
       // Equipped items from localStorage (immediate, no network)
       var modStr = 0, modInt = 0, modDex = 0, modCha = 0;

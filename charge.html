@@ -624,7 +624,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI, CELLS_PER_LEVEL } from './js/config.js';
+    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI, CELLS_PER_LEVEL, getChadImageUrl } from './js/config.js';
 
     const CONTRACT_ABI = LASTCHAD_ABI;
 
@@ -715,7 +715,7 @@
         const card = document.createElement('div');
         card.className = 'chad-card';
         card.dataset.tokenId = id;
-        card.innerHTML = `<img src="assets/chads/framed/${id}.png" alt="Chad #${id}"><span class="chad-id">#${id}</span>`;
+        card.innerHTML = `<img src="${getChadImageUrl(id)}" alt="Chad #${id}"><span class="chad-id">#${id}</span>`;
         card.addEventListener('click', () => selectChad(id));
         chadGrid.appendChild(card);
       }
@@ -730,7 +730,7 @@
 
       chargePanel.style.display = 'block';
       setTimeout(() => chargePanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-      portraitImg.src = `assets/chads/framed/${tokenId}.png`;
+      portraitImg.src = getChadImageUrl(tokenId);
       portraitImg.classList.add('show');
       chadName.textContent = 'CHAD #' + tokenId;
       statusMsg.textContent = '';

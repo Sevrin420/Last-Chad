@@ -962,14 +962,14 @@
 
   <script type="module">
     import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, READ_RPC,
-             LASTCHAD_ABI, ITEMS_ABI } from './js/config.js';
+             LASTCHAD_ABI, ITEMS_ABI, getChadImageUrl } from './js/config.js';
 
     // ========== GET CHAD FROM URL ==========
     const params = new URLSearchParams(window.location.search);
     const chadId = params.get('chad');
     const questId = params.get('questId'); // optional; if absent, dice work immediately (demo mode)
     if (!chadId) { window.location.replace('quest.html'); }
-    const chadImg = 'assets/chads/framed/' + chadId + '.png';
+    const chadImg = getChadImageUrl(chadId);
 
     document.getElementById('portraitImg').src = chadImg;
     document.getElementById('chadName').textContent = 'CHAD #' + chadId;

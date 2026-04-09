@@ -953,7 +953,7 @@
 <script type="module">
 import { connectWallet as walletConnect, autoReconnect, disconnect,
          getSigner, ensureSigner, getUserAddress, truncateAddress } from './js/wallet.js';
-import { GAMBLE_ADDRESS, GAMBLE_ABI } from './js/config.js';
+import { GAMBLE_ADDRESS, GAMBLE_ABI, getChadImageUrl } from './js/config.js';
 
 /* ===================================================================
    CRAPS TABLE — Last Chad
@@ -2053,7 +2053,7 @@ function setChadPortrait(seat, chadId) {
   if (slot) { slot.classList.remove('empty'); slot.classList.add('occupied'); }
   const img = document.getElementById('avatarImg-' + seat);
   if (img && chadId) {
-    img.src = 'assets/chads/framed/' + chadId + '.png';
+    img.src = getChadImageUrl(chadId);
     img.alt = 'Chad #' + chadId;
     img.classList.add('visible');
   }

@@ -993,10 +993,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, truncateAddress, getSigner } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC, MARKET_ADDRESS, MARKET_ABI, LASTCHAD_ABI, ITEMS_ABI } from './js/config.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC, MARKET_ADDRESS, MARKET_ABI, LASTCHAD_ABI, ITEMS_ABI, getChadImageUrl } from './js/config.js';
 
     const COLLECTIONS = {
-      chads: { label: 'Last Chad', address: CONTRACT_ADDRESS,       imageBase: '/assets/chads/framed/' },
+      chads: { label: 'Last Chad', address: CONTRACT_ADDRESS,       imageBase: null },
       items: { label: 'LC Items',  address: ITEMS_CONTRACT_ADDRESS, imageBase: '/assets/items/' },
     };
 
@@ -1457,7 +1457,7 @@
       listingsGrid.innerHTML = '';
       filtered.forEach(l => {
         const tid       = l.tokenId.toString();
-        const imgSrc    = COLLECTIONS.chads.imageBase + tid + '.png';
+        const imgSrc    = getChadImageUrl(tid);
         const priceAvax = ethers.utils.formatEther(l.price);
         const isOwn     = userAddress && l.seller.toLowerCase() === userAddress.toLowerCase();
         const s         = statsCache.get(tid) || { str: 0, int: 0, dex: 0, cha: 0, level: 1, name: '' };
@@ -1621,7 +1621,7 @@
       const maxStat     = Math.max(s.str, s.int, s.dex, s.cha, 1);
 
       detailTitle.textContent = 'CHAD #' + tid + (s.name ? ' — ' + s.name : '');
-      detailImg.src = COLLECTIONS.chads.imageBase + tid + '.png';
+      detailImg.src = getChadImageUrl(tid);
       detailImg.alt = displayName;
       detailName.textContent = displayName;
 
@@ -1801,7 +1801,7 @@
             ? `<div class="sell-card-price listed">Listed: ${c.price}</div>`
             : '<div class="sell-card-price unlisted">Not listed</div>';
           html += `<div class="sell-nft-card" data-type="chad" data-token="${c.id}">
-            <img src="${COLLECTIONS.chads.imageBase}${c.id}.png" alt="${c.name}">
+            <img src="${getChadImageUrl(c.id)}" alt="${c.name}">
             <div class="sell-card-name">${c.name}</div>
             ${priceHtml}
           </div>`;
@@ -2028,7 +2028,7 @@
 
       if (!tokenId) { sellPreview.style.display = 'none'; return; }
 
-      sellPreviewImg.src             = COLLECTIONS.chads.imageBase + tokenId + '.png';
+      sellPreviewImg.src             = getChadImageUrl(tokenId);
       sellPreviewName.textContent    = 'CHAD #' + tokenId;
       sellPreviewId.textContent      = tokenId;
       sellPreview.style.display      = 'flex';
