@@ -848,6 +848,7 @@
       <button class="mint-btn" id="mintBtn" disabled>
         <span class="btn-text">MINT</span>
       </button>
+      <div id="mintError" style="display:none;margin-top:12px;padding:10px;background:#3a0000;border:1px solid #ff4444;color:#ff8888;font-family:'Press Start 2P',monospace;font-size:0.55rem;line-height:1.6;word-break:break-all;text-align:left;"></div>
 
       <div class="contract-info">
         Contract: <a href="#" id="contractLink">0x1a2b...9z0x</a>
@@ -1209,6 +1210,8 @@
 
       } catch (err) {
         console.error('Mint failed:', err);
+        const errEl = document.getElementById('mintError');
+        const showErr = (text) => { errEl.textContent = text; errEl.style.display = 'block'; };
         let msg = err.reason || err.message || 'Unknown error';
         if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
           btnText.textContent = 'MINT NOW';
@@ -1217,24 +1220,23 @@
           await updateSupply();
           return;
         } else if (msg.includes('Exceeds max per wallet')) {
-          alert('You can only mint up to ' + MAX_MINT_PER_WALLET + ' NFTs per wallet.');
+          showErr('Already minted max ' + MAX_MINT_PER_WALLET + ' per wallet.');
           btnText.textContent = 'MINT NOW';
         } else if (msg.includes('Insufficient payment')) {
-          alert('Insufficient AVAX. You need ' + (quantity * PRICE) + ' AVAX to mint.');
+          showErr('Insufficient AVAX. Need ' + (quantity * PRICE) + ' AVAX.');
           btnText.textContent = 'MINT NOW';
         } else if (msg.includes('Invalid code')) {
-          alert('Invalid mint code. Check the code and try again.');
+          showErr('Invalid mint code.');
           btnText.textContent = 'MINT NOW';
         } else if (msg.includes('Code already used')) {
-          alert('This mint code has already been used.');
+          showErr('Mint code already used.');
           btnText.textContent = 'MINT NOW';
         } else {
-          // Show the actual reason so we can diagnose unknown failures
           const txHash = err.transaction?.hash || err.receipt?.transactionHash || '';
           const reason = err.reason || err.data?.message || err.error?.message || msg;
-          alert('Mint failed: ' + reason + (txHash ? '\n\nTx: ' + txHash : ''));
+          showErr('FAILED: ' + reason + (txHash ? ' | TX: ' + txHash : ''));
           btnText.textContent = 'FAILED';
-          setTimeout(() => { btnText.textContent = 'MINT NOW'; }, 2000);
+          setTimeout(() => { btnText.textContent = 'MINT NOW'; }, 3000);
         }
         mintBtn.disabled = false;
         mintBtn.classList.add('ready');
