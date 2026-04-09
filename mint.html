@@ -1229,6 +1229,10 @@
           alert('This mint code has already been used.');
           btnText.textContent = 'MINT NOW';
         } else {
+          // Show the actual reason so we can diagnose unknown failures
+          const txHash = err.transaction?.hash || err.receipt?.transactionHash || '';
+          const reason = err.reason || err.data?.message || err.error?.message || msg;
+          alert('Mint failed: ' + reason + (txHash ? '\n\nTx: ' + txHash : ''));
           btnText.textContent = 'FAILED';
           setTimeout(() => { btnText.textContent = 'MINT NOW'; }, 2000);
         }
