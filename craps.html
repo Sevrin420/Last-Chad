@@ -2105,7 +2105,6 @@ function connectTable(tableCode) {
 
   ws.onopen = () => {
     if (STATE.nonce != null && STATE.sessionToken) {
-      addChatMsg('system', 'WS open — sending auth (nonce=' + STATE.nonce + ')...');
       wsSend({
         type: 'auth',
         nonce: STATE.nonce,
@@ -2116,8 +2115,6 @@ function connectTable(tableCode) {
         stack: STATE.stack,
         buyIn: STATE.buyIn,
       });
-    } else {
-      addChatMsg('system', 'WS open — NO SESSION (nonce=' + STATE.nonce + ' token=' + !!STATE.sessionToken + ')');
     }
   };
 
@@ -2128,7 +2125,6 @@ function connectTable(tableCode) {
   };
 
   ws.onclose = (e) => {
-    addChatMsg('system', 'WS closed (code=' + e.code + ')');
     if (e.code === 4001) {
       alert('Table is full!');
       return;
@@ -2139,9 +2135,7 @@ function connectTable(tableCode) {
     }
   };
 
-  ws.onerror = (e) => {
-    addChatMsg('system', 'WS error — check console');
-  };
+  ws.onerror = () => {};
 }
 
 function disconnectTable() {
@@ -2156,7 +2150,6 @@ function handleWsMessage(data) {
   switch (data.type) {
 
     case 'init': {
-      addChatMsg('system', 'Table synced (phase=' + (data.game && data.game.turnPhase) + ')');
       // Initial state: all current players + shooter + game phase
       for (const p of data.players || []) {
         if (String(p.playerId) === String(STATE.playerId)) continue;

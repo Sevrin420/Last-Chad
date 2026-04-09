@@ -757,6 +757,13 @@ async function handleCrapsStart(request, env) {
 
   const { token: sessionToken, timestamp: sessionTokenTs } = await generateCrapsSessionToken(nonce, player.toLowerCase(), env);
 
+  // Write auth record to KV so the Durable Object can verify without re-doing HMAC
+  await env.RUNNER_KV.put(
+    `craps_auth:${nonce}`,
+    JSON.stringify({ sessionToken, player: player.toLowerCase(), tokenId: String(tokenId), stack: wager }),
+    { expirationTtl: 86400 }
+  );
+
   // Register player in the CrapsTable Durable Object (if tableCode provided).
   // If no tableCode yet (player picks table on craps.html), the DO registration
   // happens when the client sends the 'auth' WS message — the DO checks the token.
