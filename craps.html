@@ -1912,7 +1912,7 @@ async function cashOut() {
   }
   const totalPayout = STATE.stack + returnableBets;
 
-  if (!STATE.nonce) { dealerSay("No active session!", 'sad'); return; }
+  if (STATE.nonce == null) { dealerSay("No active session!", 'sad'); return; }
 
   const forfeitMsg = lockedBets > 0 ? ` (${lockedBets} on pass line will be forfeited)` : '';
   if (!(await gameConfirm(`Cash out ${totalPayout} cells?${forfeitMsg}`))) return;

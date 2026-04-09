@@ -246,7 +246,7 @@ export class CrapsTable {
         const nonce = data.nonce;
         const token = data.sessionToken;
         const tokenTs = data.sessionTokenTs != null ? Number(data.sessionTokenTs) : null;
-        if (!nonce || !token) {
+        if (nonce == null || !token) {
           ws.send(JSON.stringify({ type: 'error', message: 'Missing nonce or sessionToken' }));
           break;
         }
@@ -627,7 +627,7 @@ export class CrapsTable {
 
   async _handleRegister(body) {
     const { nonce, tokenId, player, stack, sessionToken, sessionTokenTs, buyIn } = body;
-    if (!nonce || !player || !sessionToken) {
+    if (nonce == null || !player || !sessionToken) {
       return jsonResp({ error: 'Missing fields' }, 400);
     }
 
@@ -658,7 +658,7 @@ export class CrapsTable {
 
   async _handleCashout(body) {
     const { nonce, sessionToken, sessionTokenTs } = body;
-    if (!nonce || !sessionToken) {
+    if (nonce == null || !sessionToken) {
       return jsonResp({ error: 'Missing nonce or sessionToken' }, 400);
     }
 
