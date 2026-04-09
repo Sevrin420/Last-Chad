@@ -1136,7 +1136,16 @@ export class CrapsTable {
     try {
       // Reject tokens older than 24 hours
       const TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-      if (!timestamp || typeof timestamp !== 'number' || Date.now() - timestamp > TOKEN_MAX_AGE_MS) {
+      if (!timestamp || typeof timestamp !== 'number') {
+        console.error('[CrapsTable] _verifySessionToken: bad timestamp', { nonce, timestamp, type: typeof timestamp });
+        return false;
+      }
+      if (Date.now() - timestamp > TOKEN_MAX_AGE_MS) {
+        console.error('[CrapsTable] _verifySessionToken: token expired', { nonce, age: Date.now() - timestamp });
+        return false;
+      }
+      if (!this.env.ORACLE_PRIVATE_KEY) {
+        console.error('[CrapsTable] _verifySessionToken: ORACLE_PRIVATE_KEY not set');
         return false;
       }
       const key = await crypto.subtle.importKey(
@@ -1149,8 +1158,13 @@ export class CrapsTable {
       const data = new TextEncoder().encode(`craps:${nonce}:${String(player).toLowerCase()}:${timestamp}`);
       const sig = await crypto.subtle.sign('HMAC', key, data);
       const expected = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-      return expected === token;
-    } catch (_) {
+      const match = expected === token;
+      if (!match) {
+        console.error('[CrapsTable] _verifySessionToken: HMAC mismatch', { nonce, player, timestamp, tokenLen: token?.length });
+      }
+      return match;
+    } catch (err) {
+      console.error('[CrapsTable] _verifySessionToken threw:', err?.message);
       return false;
     }
   }

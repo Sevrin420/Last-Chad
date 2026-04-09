@@ -233,6 +233,32 @@
       border-right-width: 2px;
       transform: translate(3px, 3px);
     }
+    .choice-btn-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      display: block;
+    }
+    .choice-btn-wrapper .choice-btn {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    .choice-btn-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 10, 15, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.45rem, 1.2vw, 0.55rem);
+      color: #ffe96a;
+      text-align: center;
+      padding: 6px 10px;
+      line-height: 1.5;
+      cursor: default;
+      border: 2px solid #7a6020;
+    }
 
     /* ── NFT selection grid ── */
     #nft-grid {
@@ -1315,11 +1341,25 @@
     function showChoices(options) {
       choicesDiv.innerHTML = '';
       for (const opt of options) {
-        const btn = document.createElement('button');
-        btn.className = 'choice-btn';
-        btn.textContent = opt.label;
-        btn.addEventListener('click', opt.action);
-        choicesDiv.appendChild(btn);
+        if (opt.locked) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'choice-btn-wrapper';
+          const btn = document.createElement('button');
+          btn.className = 'choice-btn';
+          btn.textContent = opt.label;
+          const overlay = document.createElement('div');
+          overlay.className = 'choice-btn-overlay';
+          overlay.textContent = opt.locked;
+          wrapper.appendChild(btn);
+          wrapper.appendChild(overlay);
+          choicesDiv.appendChild(wrapper);
+        } else {
+          const btn = document.createElement('button');
+          btn.className = 'choice-btn';
+          btn.textContent = opt.label;
+          btn.addEventListener('click', opt.action);
+          choicesDiv.appendChild(btn);
+        }
       }
     }
 
@@ -1345,7 +1385,7 @@
         "Anyhow, let's play shall we?"
       ]);
       showChoices([
-        { label: "Hand me the bones Chazzy", action: startCrapsGame },
+        { label: "Hand me the bones Chazzy", locked: "Craps table opens after mint ends" },
         { label: "Craps Rules", action: showCrapsRules }
       ]);
     }

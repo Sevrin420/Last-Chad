@@ -2228,6 +2228,7 @@ function handleWsMessage(data) {
       updateLocalPlayerUI();
       renderAllBetChips();
       syncPuck();
+      addChatMsg('system', 'Session active — table ready.');
       // Apply server-driven phase
       if (data.turnPhase) applyTurnPhase(data.turnPhase, data.turnDeadline || 0);
       break;
