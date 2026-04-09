@@ -808,13 +808,6 @@
       </div>
 
       <!-- Mint Code -->
-      <div class="code-section" id="codeSection">
-        <div class="code-header">
-          <span class="quantity-label">MINT CODE</span>
-        </div>
-        <input type="text" id="mintCodeInput" class="code-input" placeholder="CHAD-XXXX-XXXX" maxlength="14" autocomplete="off" spellcheck="false">
-        <div class="code-status" id="codeStatus"></div>
-      </div>
 
       <!-- Cell Breakdown -->
       <div class="cell-breakdown" id="cellBreakdown">
@@ -843,10 +836,6 @@
           <div class="breakdown-row" id="partner-bobs" style="font-size:0.32rem; color:#555; padding:2px 0;">
             <span class="breakdown-label">— The Bobs</span><span class="breakdown-value" id="partner-bobs-status">—</span>
           </div>
-        </div>
-        <div class="breakdown-row bonus" id="codeRow" style="display:none">
-          <span class="breakdown-label">Code bonus</span>
-          <span class="breakdown-value" id="codeValue">+100 × 1 = 100</span>
         </div>
         <div class="breakdown-divider"></div>
         <div class="breakdown-row total">
@@ -887,7 +876,6 @@
     const MAX_MINT_PER_WALLET = 5;
     const BASE_CELLS = 50;
     const PARTNER_BONUS = 100;
-    const CODE_BONUS = 100;
 
     const CONTRACT_ABI = LASTCHAD_ABI;
 
@@ -905,13 +893,9 @@
     const supplyText = document.getElementById('supplyText');
     const supplyFill = document.getElementById('supplyFill');
 
-    const mintCodeInput = document.getElementById('mintCodeInput');
-    const codeStatus = document.getElementById('codeStatus');
     const partnerRow = document.getElementById('partnerRow');
-    const codeRow = document.getElementById('codeRow');
     const baseCellsValue = document.getElementById('baseCellsValue');
     const partnerValue = document.getElementById('partnerValue');
-    const codeValue = document.getElementById('codeValue');
     const totalCellsValue = document.getElementById('totalCellsValue');
 
     // ========== READ PROVIDER ==========
@@ -922,7 +906,6 @@
     let minted = 0;
     let maxQty = MAX_SUPPLY;
     let hasPartner = false;
-    let validCode = false;
 
     // ========== SUPPLY TRACKING ==========
     async function updateSupply() {
@@ -1003,7 +986,7 @@
         for (const p of PARTNERS) {
           const nft = new ethers.Contract(p.address, ERC721_BALANCE_ABI, readProvider);
           const bal = await nft.balanceOf(addr);
-          const found = BigInt(bal) > 0n;
+          const found = !bal.isZero();
           if (found) anyFound = true;
           const row = document.getElementById('partner-' + p.id);
           const status = document.getElementById('partner-' + p.id + '-status');
@@ -1018,64 +1001,16 @@
       updateCellBreakdown();
     }
 
-    // ========== MINT CODE VALIDATION ==========
-    let codeCheckTimeout = null;
-    mintCodeInput.addEventListener('input', () => {
-      clearTimeout(codeCheckTimeout);
-      const raw = mintCodeInput.value.trim().toUpperCase();
-      if (!raw) {
-        validCode = false;
-        codeStatus.textContent = '';
-        codeStatus.className = 'code-status';
-        updateCellBreakdown();
-        return;
-      }
-      codeStatus.textContent = 'Checking...';
-      codeStatus.className = 'code-status';
-      codeCheckTimeout = setTimeout(() => validateCode(raw), 500);
-    });
-
-    async function validateCode(code) {
-      if (!CONTRACT_ADDRESS) return;
-      try {
-        const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(code));
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
-        const isValid = await contract.mintCodeValid(hash);
-        const isUsed = await contract.mintCodeUsed(hash);
-        if (isValid && !isUsed) {
-          validCode = true;
-          codeStatus.textContent = 'Valid code — +100 cells per NFT!';
-          codeStatus.className = 'code-status ok';
-        } else if (isUsed) {
-          validCode = false;
-          codeStatus.textContent = 'Code already used';
-          codeStatus.className = 'code-status err';
-        } else {
-          validCode = false;
-          codeStatus.textContent = 'Invalid code';
-          codeStatus.className = 'code-status err';
-        }
-      } catch (err) {
-        validCode = false;
-        codeStatus.textContent = 'Could not verify code';
-        codeStatus.className = 'code-status err';
-      }
-      updateCellBreakdown();
-    }
-
     // ========== CELL BREAKDOWN ==========
     function updateCellBreakdown() {
       const base = BASE_CELLS * quantity;
       const partner = hasPartner ? PARTNER_BONUS * quantity : 0;
-      const code = validCode ? CODE_BONUS * quantity : 0;
-      const total = base + partner + code;
+      const total = base + partner;
 
       baseCellsValue.textContent = BASE_CELLS + ' × ' + quantity + ' = ' + base;
       partnerRow.style.display = 'flex';
       partnerRow.style.color = hasPartner ? '#4caf50' : '#888';
       partnerValue.textContent = hasPartner ? '+100 Cells per mint' : 'Not detected';
-      codeRow.style.display = validCode ? 'flex' : 'none';
-      codeValue.textContent = '+100 Cells per mint';
       totalCellsValue.textContent = total;
     }
 
@@ -1243,10 +1178,7 @@
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        const code = mintCodeInput.value.trim().toUpperCase();
-        const tx = code
-          ? await contract.mintWithCode(quantity, code, { value: totalCost })
-          : await contract.mint(quantity, { value: totalCost });
+        const tx = await contract.mint(quantity, { value: totalCost });
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
 
