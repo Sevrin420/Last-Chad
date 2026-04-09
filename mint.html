@@ -1209,20 +1209,34 @@
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        // Provide gasPrice explicitly from readProvider so Core wallet doesn't
-        // need to fetch it (Core returns 0/invalid gasPrice for legacy txs, causing drops).
-        // Explicit gasPrice also forces type-0 (legacy) format, bypassing Core's
-        // broken EIP-1559 value-stripping bug.
+        // Bypass ethers.js transaction building entirely — send raw eth_sendTransaction
+        // directly to the wallet's EIP-1193 provider. This avoids any ethers.js
+        // transaction formatting that Core wallet may reject internally.
         let gasPrice;
         try {
           gasPrice = (await readProvider.getGasPrice()).mul(13).div(10); // +30% buffer
         } catch (_) {
-          gasPrice = ethers.utils.parseUnits('35', 'gwei'); // fallback: 35 nAVAX
+          gasPrice = ethers.utils.parseUnits('35', 'gwei');
         }
-        const tx = await contract.mint(quantity, { value: totalCost, gasLimit, gasPrice });
+
+        const userAddr = await signer.getAddress();
+        const rawProvider = signer.provider.provider; // Web3Provider → raw EIP-1193
+        const txHash = await rawProvider.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: userAddr,
+            to: CONTRACT_ADDRESS,
+            data: contract.interface.encodeFunctionData('mint', [quantity]),
+            value: '0x' + totalCost.toBigInt().toString(16),
+            gas: '0x' + gasLimit.toString(16),
+            gasPrice: '0x' + gasPrice.toBigInt().toString(16)
+          }]
+        });
+
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
-        await tx.wait();
+        const receipt = await signer.provider.waitForTransaction(txHash);
+        if (receipt.status === 0) throw new Error('Transaction reverted');
 
         // Refresh supply after successful mint
         await updateSupply();
