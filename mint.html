@@ -1183,10 +1183,24 @@
 
         const userAddr = await signer.getAddress();
 
-        // Test each partner NFT contract individually — if one reverts, the contract's
-        // hasPartnerNFT() will revert on every mint for wallets without a partner NFT.
         errEl.textContent = 'Checking...';
         errEl.style.display = 'block';
+
+        // Smart contract wallets (e.g. Avalanche Arena, account abstraction) cannot
+        // receive ERC-721 tokens via _safeMint — throws ERC721InvalidReceiver.
+        try {
+          const code = await readProvider.getCode(userAddr);
+          if (code && code !== '0x') {
+            showErr('Smart contract wallet detected. Please use a regular wallet (Rabby, MetaMask, or Core with a standard account) to mint.');
+            btnText.textContent = 'MINT NOW';
+            mintBtn.disabled = false;
+            mintBtn.classList.add('ready');
+            return;
+          }
+        } catch (_) {}
+
+        // Test each partner NFT contract individually — if one reverts, the contract's
+        // hasPartnerNFT() will revert on every mint for wallets without a partner NFT.
         const ERC721_BAL_ABI = ['function balanceOf(address owner) view returns (uint256)'];
         for (const p of PARTNERS) {
           try {
