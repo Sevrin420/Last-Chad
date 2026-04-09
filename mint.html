@@ -1090,7 +1090,10 @@
         disconnectDropdown.classList.toggle('show');
         return;
       }
-      openWalletModal();
+      // Call connectWallet directly so AppKit initialises if it hasn't yet
+      connectWallet(null, { onConnected, onDisconnected }).catch(err => {
+        console.error('Wallet open error:', err);
+      });
     });
 
     disconnectBtn.addEventListener('click', () => {
