@@ -1209,9 +1209,17 @@
         // Track supply before minting to determine minted token IDs
         const supplyBefore = minted;
 
-        // type: 0 forces legacy transaction — bypasses Core wallet's broken EIP-1559
-        // value handling that strips msg.value before broadcasting.
-        const tx = await contract.mint(quantity, { value: totalCost, gasLimit, type: 0 });
+        // Provide gasPrice explicitly from readProvider so Core wallet doesn't
+        // need to fetch it (Core returns 0/invalid gasPrice for legacy txs, causing drops).
+        // Explicit gasPrice also forces type-0 (legacy) format, bypassing Core's
+        // broken EIP-1559 value-stripping bug.
+        let gasPrice;
+        try {
+          gasPrice = (await readProvider.getGasPrice()).mul(13).div(10); // +30% buffer
+        } catch (_) {
+          gasPrice = ethers.utils.parseUnits('35', 'gwei'); // fallback: 35 nAVAX
+        }
+        const tx = await contract.mint(quantity, { value: totalCost, gasLimit, gasPrice });
         errEl.style.display = 'none';
         btnText.textContent = 'CONFIRMING...';
         await tx.wait();
