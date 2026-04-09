@@ -138,21 +138,36 @@ export function loadWcScript() {
 async function connectInjected(walletName, { onConnected, onDisconnected }) {
   let rawProvider = null;
 
-  if (walletName === 'core' && (window.avalanche || (window.core && window.core.ethereum))) {
-    rawProvider = window.avalanche || window.core.ethereum;
+  // Core wallet injects window.avalanche (all versions) — prefer it over window.ethereum
+  if (walletName === 'core') {
+    rawProvider = window.avalanche
+      || (window.core && window.core.ethereum)
+      || null;
+    // Also search window.ethereum.providers array (multi-wallet setups)
+    if (!rawProvider && window.ethereum?.providers?.length) {
+      for (const p of window.ethereum.providers) {
+        if (p.isAvalanche || p.isCoreWallet || p.isCore) { rawProvider = p; break; }
+      }
+    }
+    // Single-wallet: check window.ethereum flags
+    if (!rawProvider && window.ethereum && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet || window.ethereum.isCore)) {
+      rawProvider = window.ethereum;
+    }
+    // Last resort: if any ethereum provider exists, use it — Core may not set flags on older pages
+    if (!rawProvider && window.ethereum) {
+      rawProvider = window.ethereum;
+    }
   } else if (window.ethereum) {
     if (window.ethereum.providers && window.ethereum.providers.length) {
       for (const p of window.ethereum.providers) {
         if (walletName === 'rabby'    && p.isRabby)                          { rawProvider = p; break; }
         if (walletName === 'metamask' && p.isMetaMask && !p.isRabby)        { rawProvider = p; break; }
-        if (walletName === 'core'     && (p.isAvalanche || p.isCoreWallet)) { rawProvider = p; break; }
       }
     }
     if (!rawProvider) {
-      if      (walletName === 'rabby'    && window.ethereum.isRabby)                              rawProvider = window.ethereum;
-      else if (walletName === 'metamask' && window.ethereum.isMetaMask)                           rawProvider = window.ethereum;
-      else if (walletName === 'core'     && (window.ethereum.isAvalanche || window.ethereum.isCoreWallet)) rawProvider = window.ethereum;
-      else                                                                                         rawProvider = window.ethereum;
+      if      (walletName === 'rabby'    && window.ethereum.isRabby)    rawProvider = window.ethereum;
+      else if (walletName === 'metamask' && window.ethereum.isMetaMask) rawProvider = window.ethereum;
+      else                                                               rawProvider = window.ethereum;
     }
   }
 
@@ -183,8 +198,8 @@ async function connectInjected(walletName, { onConnected, onDisconnected }) {
       accounts = await Promise.race([
         rawProvider.request({ method: 'eth_requestAccounts' }),
         new Promise((_, reject) => setTimeout(() => reject(new Error(
-          'Connection timed out. Please try refreshing the page.'
-        )), 10000))
+          'Connection timed out. Open your Core wallet and approve the connection, then try again.'
+        )), 30000))
       ]);
     }
 
