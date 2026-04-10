@@ -10,16 +10,17 @@ async function main() {
   const [deployer] = await hre.ethers.getSigners();
   console.log("Deployer:", deployer.address);
 
-  const balance = await deployer.getBalance();
-  console.log("Balance: ", hre.ethers.utils.formatEther(balance), "AVAX");
+  const balance = await hre.ethers.provider.getBalance(deployer.address);
+  console.log("Balance: ", hre.ethers.formatEther(balance), "AVAX");
 
   console.log("\nDeploying FakeLil...");
   const FakeLil = await hre.ethers.getContractFactory("FakeLil");
   const contract = await FakeLil.deploy(deployer.address);
-  await contract.deployed();
+  await contract.waitForDeployment();
 
+  const address = await contract.getAddress();
   console.log("\n✅ FakeLil deployed!");
-  console.log("   Address:", contract.address);
+  console.log("   Address:", address);
   console.log("   Network:", hre.network.name);
   console.log("\nNext steps:");
   console.log("  1. Upload NFT images to your hosting (e.g. lastchad.xyz/fake-lil/{id}.png)");
