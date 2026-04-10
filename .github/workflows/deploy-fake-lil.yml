@@ -32,6 +32,7 @@ on:
       contract_address:
         description: '[airdrop only] FakeLil contract address'
         required: false
+        default: '0x0d3A4B121e4Ee2aFcF6843776c83cbd96f392Fb6'
         type: string
       recipient:
         description: 'Airdrop recipient address'
