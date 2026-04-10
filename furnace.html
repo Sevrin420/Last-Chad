@@ -49,6 +49,28 @@
       letter-spacing: 0.05em;
     }
 
+    /* ── Mute button ── */
+    .mute-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      padding: 8px 12px;
+      background: rgba(30, 20, 5, 0.8);
+      border: 2px solid #5a3d00;
+      border-radius: 4px;
+      color: #c9a84c;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    .mute-btn:hover { border-color: #c9a84c; }
+    .mute-btn.muted { color: #5a3d00; border-color: #3d2000; }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .wallet-wrapper { position: relative; }
     .wallet-btn {
       font-family: 'Press Start 2P', monospace;
@@ -443,8 +465,13 @@
   <div id="nav-placeholder"></div>
 
   <!-- Header -->
+  <audio id="bgMusic" src="assets/furnace/march.mp3" loop preload="none"></audio>
+
   <header class="header">
-    <span class="page-title-header">THE FURNACE</span>
+    <div class="header-left">
+      <span class="page-title-header">THE FURNACE</span>
+      <button class="mute-btn" id="muteBtn">♪ MUTE</button>
+    </div>
     <div class="wallet-wrapper">
       <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
       <div class="disconnect-dropdown" id="disconnectDropdown">
@@ -807,6 +834,37 @@
     function updateBurnBtn() {
       burnBtn.disabled = selectedTokenId === null;
     }
+  </script>
+
+  <!-- Background music: plays on first user interaction, mute toggle -->
+  <script>
+    (function () {
+      const music   = document.getElementById('bgMusic');
+      const muteBtn = document.getElementById('muteBtn');
+      let started = false;
+
+      music.volume = 0.5;
+
+      function startMusic() {
+        if (started) return;
+        started = true;
+        music.play().catch(() => {});
+        document.removeEventListener('click', startMusic);
+        document.removeEventListener('touchstart', startMusic);
+      }
+
+      document.addEventListener('click',      startMusic, { once: false });
+      document.addEventListener('touchstart', startMusic, { once: false });
+
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // don't let this click start the music in a weird state
+        music.muted = !music.muted;
+        muteBtn.textContent = music.muted ? '♪ UNMUTE' : '♪ MUTE';
+        muteBtn.classList.toggle('muted', music.muted);
+        // If muted before first play, still start on unmute click
+        if (!started) startMusic();
+      });
+    })();
   </script>
 
   <script src="nav.js"></script>
