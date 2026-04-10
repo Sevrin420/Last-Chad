@@ -498,16 +498,9 @@
       <!-- NFT image being burned -->
       <img class="burning-nft" id="burningNft" src="" alt="Burning Chad">
 
-      <!-- ══ FLAME VIDEO ═══════════════════════════════════════════════
-           Replace src with your flame video path:
-           <video class="flame-video" id="flameVideo"
-                  src="assets/flames.mp4"
-                  autoplay muted playsinline></video>
-           ══════════════════════════════════════════════════════════════ -->
       <video class="flame-video" id="flameVideo"
-             src=""
-             muted playsinline
-             style="display:none">
+             src="assets/furnace/flames.mp4"
+             muted playsinline>
       </video>
 
       <!-- Success state (fades in after animation) -->
@@ -771,11 +764,9 @@
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           burningNft.classList.add('animating');
-          // ── If you add a flame video src, uncomment these lines:
-          // flameVideo.style.display = '';
-          // flameVideo.currentTime = 0;
-          // flameVideo.play().catch(() => {});
-          // flameVideo.classList.add('animating');
+          flameVideo.currentTime = 0;
+          flameVideo.play().catch(() => {});
+          flameVideo.classList.add('animating');
         });
       });
 
