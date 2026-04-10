@@ -69,6 +69,11 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      min-width: 0;
+    }
+
+    @media (max-width: 480px) {
+      .page-title-header { display: none; }
     }
 
     .wallet-wrapper { position: relative; }
@@ -534,6 +539,13 @@
     let draggingTokenId   = null;
     let draggingImgUrl    = null;
     let isBurning         = false;
+    let isLoading         = false;
+
+    // Touch drag state
+    let touchCard      = null;
+    let touchTokenId   = null;
+    let touchImgUrl    = null;
+    let touchGhost     = null;
 
     // ── Wallet ──────────────────────────────────────────────────────────
     walletBtn.addEventListener('click', () => {
@@ -579,6 +591,8 @@
 
     // ── Load owned Fake Lils ─────────────────────────────────────────────
     async function loadLils() {
+      if (isLoading) return;
+      isLoading = true;
       lilGrid.innerHTML = '';
       lilGrid.style.display = 'none';
       loadMsg.style.display = 'block';
@@ -592,6 +606,7 @@
         loadMsg.style.display = 'none';
         connectPrompt.textContent = 'Error loading Fake Lils.';
         connectPrompt.style.display = 'block';
+        isLoading = false;
         return;
       }
 
@@ -608,13 +623,17 @@
       if (owned.length === 0) {
         connectPrompt.textContent = "You don't own any Fake Lils.";
         connectPrompt.style.display = 'block';
+        isLoading = false;
         return;
       }
 
+      // Deduplicate in case of any RPC quirks
+      const unique = [...new Set(owned)];
       lilGrid.style.display = 'flex';
-      for (const id of owned) {
+      for (const id of unique) {
         lilGrid.appendChild(buildCard(id));
       }
+      isLoading = false;
     }
 
     function buildCard(id) {
@@ -689,11 +708,80 @@
       await initBurn(id, img);
     });
 
-    // Mobile burn button
+    // Mobile burn button (tap-to-select fallback)
     burnBtn.addEventListener('click', async () => {
       if (isBurning || selectedTokenId === null) return;
       await initBurn(selectedTokenId, selectedImgUrl);
     });
+
+    // ── Touch drag-and-drop ───────────────────────────────────────────────
+    document.addEventListener('touchstart', (e) => {
+      const card = e.target.closest('.lil-card');
+      if (!card || isBurning) return;
+      touchCard    = card;
+      touchTokenId = parseInt(card.dataset.tokenId);
+      touchImgUrl  = getFakeLilImageUrl(touchTokenId);
+
+      const touch = e.touches[0];
+      const rect  = card.getBoundingClientRect();
+
+      // Ghost follows the finger
+      touchGhost = card.cloneNode(true);
+      touchGhost.style.cssText = `
+        position: fixed;
+        width: ${rect.width}px;
+        height: ${rect.height}px;
+        left: ${touch.clientX - rect.width / 2}px;
+        top: ${touch.clientY - rect.height / 2}px;
+        opacity: 0.75;
+        pointer-events: none;
+        z-index: 500;
+        border: 2px solid #e05c10;
+        border-radius: 6px;
+        box-shadow: 0 0 16px rgba(224,92,16,0.6);
+        transition: none;
+      `;
+      document.body.appendChild(touchGhost);
+      card.classList.add('dragging');
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!touchGhost) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const w = touchGhost.offsetWidth;
+      const h = touchGhost.offsetHeight;
+      touchGhost.style.left = (touch.clientX - w / 2) + 'px';
+      touchGhost.style.top  = (touch.clientY - h / 2) + 'px';
+
+      const r = dropZone.getBoundingClientRect();
+      const over = touch.clientX >= r.left && touch.clientX <= r.right &&
+                   touch.clientY >= r.top  && touch.clientY <= r.bottom;
+      dropZone.classList.toggle('drag-over', over && !isBurning);
+    }, { passive: false });
+
+    document.addEventListener('touchend', async (e) => {
+      if (!touchGhost) return;
+      const touch = e.changedTouches[0];
+
+      touchGhost.remove();
+      touchGhost = null;
+      if (touchCard) touchCard.classList.remove('dragging');
+      dropZone.classList.remove('drag-over');
+
+      const r    = dropZone.getBoundingClientRect();
+      const over = touch.clientX >= r.left && touch.clientX <= r.right &&
+                   touch.clientY >= r.top  && touch.clientY <= r.bottom;
+
+      if (over && touchTokenId !== null && !isBurning) {
+        const id  = touchTokenId;
+        const img = touchImgUrl;
+        touchCard = null; touchTokenId = null; touchImgUrl = null;
+        await initBurn(id, img);
+      } else {
+        touchCard = null; touchTokenId = null; touchImgUrl = null;
+      }
+    }, { passive: true });
 
     // ── Burn flow ────────────────────────────────────────────────────────
     async function initBurn(tokenId, imgUrl) {
