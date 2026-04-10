@@ -1,29 +1,58 @@
-name: Deploy Fake Lil
+name: Fake Lil
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Standalone deploy for the FakeLil NFT contract.
-# Has no relation to Last Chad contracts — do not touch js/config.js.
+# Two actions in one workflow — pick one from the dropdown:
 #
-# Required secret (Repo → Settings → Secrets and variables → Actions):
-#   DEPLOYER_PRIVATE_KEY  — deployer wallet private key (hex, no 0x prefix)
+#   deploy  → Deploy contract, set base URI, then airdrop (if recipient filled)
+#   airdrop → Airdrop to an existing deployed contract
+#
+# Required secret:
+#   DEPLOYER_PRIVATE_KEY  — owner wallet private key (hex, no 0x prefix)
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
   workflow_dispatch:
     inputs:
-      network:
-        description: 'Target network'
+      action:
+        description: 'Action'
         required: true
-        default: 'fuji'
+        default: 'deploy'
         type: choice
         options:
-          - fuji       # Avalanche Fuji testnet (deploy here first to verify)
-          - avalanche  # Avalanche C-Chain mainnet
+          - deploy
+          - airdrop
+      network:
+        description: 'Network'
+        required: true
+        default: 'avalanche'
+        type: choice
+        options:
+          - avalanche
+          - fuji
+      contract_address:
+        description: '[airdrop only] FakeLil contract address'
+        required: false
+        default: '0x0d3A4B121e4Ee2aFcF6843776c83cbd96f392Fb6'
+        type: string
+      recipient:
+        description: 'Airdrop recipient address'
+        required: false
+        default: '0xa3b4ac626e7896b65e25b794c278f5efa0ceb05a'
+        type: string
+      quantity:
+        description: 'Number of NFTs to airdrop'
+        required: false
+        default: '6'
+        type: string
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 1: Deploy contract → set base URI → optional airdrop
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
   deploy:
     name: Deploy FakeLil (${{ inputs.network }})
     runs-on: ubuntu-latest
+    if: inputs.action == 'deploy'
 
     steps:
       - uses: actions/checkout@v4
@@ -36,10 +65,69 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Compile contracts
+      - name: Compile
         run: npx hardhat compile
 
       - name: Deploy FakeLil
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/deployFakeLil.js --network ${{ inputs.network }}
+        run: |
+          OUTPUT=$(npx hardhat run scripts/deployFakeLil.js --network ${{ inputs.network }} 2>&1)
+          echo "$OUTPUT"
+          ADDRESS=$(echo "$OUTPUT" | grep -oP '(?<=Address:  )\S+')
+          echo "FAKELIL_ADDRESS=$ADDRESS" >> $GITHUB_ENV
+
+      - name: Set base URI
+        if: env.FAKELIL_ADDRESS != ''
+        env:
+          PRIVATE_KEY:     ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          FAKELIL_ADDRESS: ${{ env.FAKELIL_ADDRESS }}
+          BASE_URI:        'https://lastchad.xyz/fake-lil/'
+        run: npx hardhat run scripts/setFakeLilBaseURI.js --network ${{ inputs.network }}
+
+      - name: Airdrop NFTs
+        if: inputs.recipient != '' && env.FAKELIL_ADDRESS != ''
+        env:
+          PRIVATE_KEY:     ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          FAKELIL_ADDRESS: ${{ env.FAKELIL_ADDRESS }}
+          RECIPIENT:       ${{ inputs.recipient }}
+          QUANTITY:        ${{ inputs.quantity }}
+        run: npx hardhat run scripts/airdropFakeLil.js --network ${{ inputs.network }}
+
+      - name: Summary
+        if: env.FAKELIL_ADDRESS != ''
+        run: |
+          echo "## ✅ FakeLil Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Network** | ${{ inputs.network }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Contract** | \`${{ env.FAKELIL_ADDRESS }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Airdrop to** | ${{ inputs.recipient || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Airdrop qty** | ${{ inputs.quantity }} |" >> $GITHUB_STEP_SUMMARY
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 2: Airdrop to an existing contract
+# ─────────────────────────────────────────────────────────────────────────────
+  airdrop:
+    name: Airdrop ${{ inputs.quantity }} Fake Lil → ${{ inputs.recipient }}
+    runs-on: ubuntu-latest
+    if: inputs.action == 'airdrop'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Airdrop NFTs
+        env:
+          PRIVATE_KEY:     ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          FAKELIL_ADDRESS: ${{ inputs.contract_address }}
+          RECIPIENT:       ${{ inputs.recipient }}
+          QUANTITY:        ${{ inputs.quantity }}
+        run: npx hardhat run scripts/airdropFakeLil.js --network ${{ inputs.network }}
