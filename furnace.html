@@ -403,6 +403,48 @@
       background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
     }
 
+    /* ── Intro overlay ── */
+    #introOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: #0a0a0f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s ease;
+    }
+    #introOverlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #beginBurnBtn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.8rem, 3vw, 1.2rem);
+      padding: 20px 40px;
+      background: linear-gradient(180deg, #b83010 0%, #7a1a05 100%);
+      border: 3px solid #e05c10;
+      border-radius: 6px;
+      color: #f5e6c8;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      box-shadow:
+        0 0 30px rgba(224, 92, 16, 0.4),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+      transition: all 0.2s;
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+    #beginBurnBtn:hover {
+      background: linear-gradient(180deg, #d03818 0%, #9a2208 100%);
+      box-shadow: 0 0 50px rgba(224, 92, 16, 0.7);
+      transform: scale(1.04);
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 30px rgba(224, 92, 16, 0.4), inset 0 1px 0 rgba(255,255,255,0.1); }
+      50%       { box-shadow: 0 0 60px rgba(224, 92, 16, 0.8), inset 0 1px 0 rgba(255,255,255,0.1); }
+    }
+
     /* ── Responsive ── */
     @media (max-width: 700px) {
       .drop-hint { display: none; }
@@ -415,7 +457,9 @@
   <div id="nav-placeholder"></div>
 
   <!-- Header -->
-  <audio id="bgMusic" src="assets/furnace/march.mp3" loop preload="none"></audio>
+  <audio id="bgMusic"   src="assets/furnace/march.mp3" loop preload="none"></audio>
+  <!-- DROP SOUND: set src to your burn/drop sound file when ready -->
+  <audio id="dropSound" src="" preload="none"></audio>
 
   <header class="header">
     <div class="header-left">
@@ -476,6 +520,11 @@
         <button class="burn-close-btn" id="burnCloseBtn">CLOSE</button>
       </div>
     </div>
+  </div>
+
+  <!-- Intro overlay — covers page until user clicks Begin Burn -->
+  <div id="introOverlay">
+    <button id="beginBurnBtn">BEGIN BURN</button>
   </div>
 
   <div id="wallet-modal-placeholder"></div>
@@ -761,12 +810,11 @@
       if (isBurning) return;
       isBurning = true;
 
-      // Play music on drop — called synchronously inside the gesture event
-      // so mobile browsers allow it without a separate user-interaction prompt.
-      const music = document.getElementById('bgMusic');
-      if (music) {
-        music.currentTime = 0;
-        music.play().catch(() => {});
+      // Play drop sound — called synchronously inside gesture so mobile allows it
+      const dropSound = document.getElementById('dropSound');
+      if (dropSound && dropSound.src) {
+        dropSound.currentTime = 0;
+        dropSound.play().catch(() => {});
       }
 
       const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
@@ -839,12 +887,21 @@
   <!-- Background music: plays on first user interaction, mute toggle -->
   <script>
     (function () {
-      const music   = document.getElementById('bgMusic');
-      const muteBtn = document.getElementById('muteBtn');
+      const music     = document.getElementById('bgMusic');
+      const muteBtn   = document.getElementById('muteBtn');
+      const intro     = document.getElementById('introOverlay');
+      const beginBtn  = document.getElementById('beginBurnBtn');
 
       music.volume = 0.5;
 
-      // Music starts on drop — mute button just toggles
+      // Begin Burn button — dismiss overlay and start music
+      beginBtn.addEventListener('click', () => {
+        music.play().catch(() => {});
+        intro.classList.add('fade-out');
+        setTimeout(() => intro.remove(), 850);
+      });
+
+      // Mute button toggles
       muteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         music.muted = !music.muted;
