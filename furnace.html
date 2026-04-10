@@ -125,14 +125,14 @@
       padding: 90px 20px 60px;
     }
 
-    /* ── Single-column stacked wrapper ── */
+    /* ── Wrapper ── */
     .content-row {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 32px;
       width: 100%;
-      max-width: 800px;
+      max-width: 900px;
     }
 
     /* ── NFT grid column ── */
@@ -173,6 +173,7 @@
       max-height: 520px;
       overflow-y: auto;
       padding: 8px 4px;
+      width: 100%;
     }
 
     .lil-grid::-webkit-scrollbar { width: 6px; }
@@ -180,7 +181,7 @@
     .lil-grid::-webkit-scrollbar-thumb { background: #5a3d00; border-radius: 3px; }
 
     .lil-card {
-      width: 100px;
+      width: clamp(100px, 10vw, 120px);
       background: rgba(30, 20, 5, 0.8);
       border: 2px solid #3d2e0a;
       border-radius: 6px;
@@ -225,7 +226,7 @@
     /* ── Furnace column ── */
     .furnace-column {
       width: 100%;
-      max-width: 360px;
+      max-width: 400px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -444,7 +445,42 @@
       50%       { box-shadow: 0 0 60px rgba(224, 92, 16, 0.8), inset 0 1px 0 rgba(255,255,255,0.1); }
     }
 
-    /* ── Responsive ── */
+    /* ── Desktop side-by-side layout ── */
+    @media (min-width: 960px) {
+      .main {
+        padding: 100px 40px 80px;
+      }
+      .content-row {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 56px;
+        max-width: 1400px;
+      }
+      .grid-column {
+        flex: 1 1 0;
+        min-width: 0;
+        align-items: flex-start;
+      }
+      .lil-grid {
+        gap: 16px;
+        max-height: calc(100vh - 180px);
+        justify-content: flex-start;
+        width: 100%;
+      }
+      .lil-card {
+        width: clamp(130px, 9vw, 170px);
+      }
+      .furnace-column {
+        max-width: 520px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 90px;
+        align-self: flex-start;
+      }
+    }
+
+    /* ── Mobile ── */
     @media (max-width: 700px) {
       .drop-hint { display: none; }
       .lil-grid { max-height: 280px; }
@@ -840,6 +876,7 @@
         }
 
         setStatus('Burning... tx: ' + tx.hash.slice(0, 10) + '...');
+        await new Promise(r => setTimeout(r, 1400));
         startBurnAnimation(imgUrl, tokenId, tx, card);
 
       } catch (e) {
@@ -932,9 +969,20 @@
 
       music.volume = MARCH_NORMAL;
 
-      // Begin Burn — dismiss overlay, start march
+      // Begin Burn — dismiss overlay, start march, prime SFX
       beginBtn.addEventListener('click', () => {
         music.play().catch(() => {});
+        // Prime SFX files: play silently then pause so first real play is instant
+        ['chickenSnd', 'whatSnd'].forEach(function(id) {
+          const sfx = document.getElementById(id);
+          if (!sfx) return;
+          sfx.volume = 0;
+          sfx.play().catch(function(){}).finally(function() {
+            sfx.pause();
+            sfx.currentTime = 0;
+            sfx.volume = 1;
+          });
+        });
         intro.classList.add('fade-out');
         setTimeout(() => intro.remove(), 850);
       });
