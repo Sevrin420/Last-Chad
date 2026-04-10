@@ -761,6 +761,13 @@
       if (isBurning) return;
       isBurning = true;
 
+      // Play music on drop — called synchronously inside the gesture event
+      // so mobile browsers allow it without a separate user-interaction prompt.
+      const music = document.getElementById('bgMusic');
+      if (music) {
+        music.currentTime = 0;
+        music.play().catch(() => {});
+      }
 
       const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
       if (card) card.classList.add('burning');
@@ -834,28 +841,15 @@
     (function () {
       const music   = document.getElementById('bgMusic');
       const muteBtn = document.getElementById('muteBtn');
-      let started = false;
 
       music.volume = 0.5;
 
-      function startMusic() {
-        if (started) return;
-        started = true;
-        music.play().catch(() => {});
-        document.removeEventListener('click', startMusic);
-        document.removeEventListener('touchstart', startMusic);
-      }
-
-      document.addEventListener('click',      startMusic, { once: false });
-      document.addEventListener('touchstart', startMusic, { once: false });
-
+      // Music starts on drop — mute button just toggles
       muteBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // don't let this click start the music in a weird state
+        e.stopPropagation();
         music.muted = !music.muted;
         muteBtn.textContent = music.muted ? '♪ UNMUTE' : '♪ MUTE';
         muteBtn.classList.toggle('muted', music.muted);
-        // If muted before first play, still start on unmute click
-        if (!started) startMusic();
       });
     })();
   </script>
