@@ -288,26 +288,6 @@
     }
 
     /* Mobile tap-to-burn button */
-    .burn-btn {
-      display: none;
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.5rem;
-      padding: 12px 24px;
-      background: linear-gradient(180deg, #b83010 0%, #7a1a05 100%);
-      border: 2px solid #e05c10;
-      border-radius: 4px;
-      color: #f5e6c8;
-      cursor: pointer;
-      transition: all 0.2s;
-      width: 100%;
-    }
-    .burn-btn:hover:not(:disabled) {
-      background: linear-gradient(180deg, #d03818 0%, #9a2208 100%);
-    }
-    .burn-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
 
     .status-msg {
       font-size: 0.4rem;
@@ -425,7 +405,6 @@
 
     /* ── Responsive ── */
     @media (max-width: 700px) {
-      .burn-btn { display: block; }
       .drop-hint { display: none; }
       .lil-grid { max-height: 280px; }
     }
@@ -473,9 +452,6 @@
             <span class="drop-hint">DROP FAKE LIL HERE TO BURN</span>
           </div>
         </div>
-
-        <!-- Mobile: tap card then tap this button -->
-        <button class="burn-btn" id="burnBtn" disabled>BURN SELECTED FAKE LIL</button>
 
         <div class="status-msg" id="statusMsg"></div>
       </div>
@@ -529,7 +505,6 @@
     const loadMsg             = document.getElementById('loadMsg');
     const lilGrid             = document.getElementById('lilGrid');
     const dropZone            = document.getElementById('dropZone');
-    const burnBtn             = document.getElementById('burnBtn');
     const statusMsg           = document.getElementById('statusMsg');
     const burnOverlay         = document.getElementById('burnOverlay');
     const burningNft          = document.getElementById('burningNft');
@@ -674,8 +649,7 @@
           selectedTokenId = id;
           selectedImgUrl = imgUrl;
           card.classList.add('selected');
-          burnBtn.disabled = false;
-          setStatus('Fake Lil #' + id + ' selected — tap BURN to destroy it.');
+          setStatus('Fake Lil #' + id + ' selected.');
         }
       });
 
@@ -686,7 +660,6 @@
       selectedTokenId = null;
       selectedImgUrl = null;
       document.querySelectorAll('.lil-card').forEach(c => c.classList.remove('selected'));
-      burnBtn.disabled = true;
       setStatus('');
     }
 
@@ -712,12 +685,6 @@
       draggingTokenId = null;
       draggingImgUrl = null;
       await initBurn(id, img);
-    });
-
-    // Mobile burn button (tap-to-select fallback)
-    burnBtn.addEventListener('click', async () => {
-      if (isBurning || selectedTokenId === null) return;
-      await initBurn(selectedTokenId, selectedImgUrl);
     });
 
     // ── Touch drag-and-drop ───────────────────────────────────────────────
@@ -792,55 +759,15 @@
     // ── Burn flow ────────────────────────────────────────────────────────
     async function initBurn(tokenId, imgUrl) {
       if (isBurning) return;
-
-      // ── TEST MODE: skip transaction, go straight to animation ──
       isBurning = true;
+
+
       const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
       if (card) card.classList.add('burning');
+
+      // ── TEST MODE: skip transaction ──
       setStatus('TEST MODE — no transaction sent');
       startBurnAnimation(imgUrl, tokenId, { hash: '0xTEST', wait: () => Promise.resolve() }, card);
-      return;
-      // ── END TEST MODE ──
-
-      const signer = await getSigner();
-      if (!signer) {
-        setStatus('Connect your wallet first.');
-        return;
-      }
-
-      isBurning = true;
-      burnBtn.disabled = true;
-      setStatus('Waiting for wallet confirmation...');
-
-      // Grey out the card being burned
-      const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
-      if (card) card.classList.add('burning');
-
-      try {
-        const contract = new ethers.Contract(FAKELIL_ADDRESS, FAKELIL_ABI, signer);
-
-        let tx;
-        try {
-          tx = await contract.transferFrom(userAddress, BURN_ADDRESS, tokenId);
-        } catch (e) {
-          const msg = e?.reason || e?.message || 'Transaction rejected.';
-          setStatus(msg.length > 80 ? msg.slice(0, 80) + '...' : msg);
-          if (card) card.classList.remove('burning');
-          isBurning = false;
-          updateBurnBtn();
-          return;
-        }
-
-        // Transaction signed — start the burn animation immediately
-        setStatus('Burning... tx: ' + tx.hash.slice(0, 10) + '...');
-        startBurnAnimation(imgUrl, tokenId, tx, card);
-
-      } catch (e) {
-        setStatus('Unexpected error. Try again.');
-        if (card) card.classList.remove('burning');
-        isBurning = false;
-        updateBurnBtn();
-      }
     }
 
     function startBurnAnimation(imgUrl, tokenId, tx, card) {
@@ -898,7 +825,7 @@
     }
 
     function updateBurnBtn() {
-      burnBtn.disabled = selectedTokenId === null;
+
     }
   </script>
 
