@@ -76,6 +76,12 @@
       .page-title-header { display: none; }
     }
 
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .wallet-wrapper { position: relative; }
     .wallet-btn {
       font-family: 'Press Start 2P', monospace;
@@ -510,12 +516,14 @@
   <header class="header">
     <div class="header-left">
       <span class="page-title-header">THE FURNACE</span>
-      <button class="mute-btn" id="muteBtn">♪ MUTE</button>
     </div>
-    <div class="wallet-wrapper">
-      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
-      <div class="disconnect-dropdown" id="disconnectDropdown">
-        <button class="disconnect-btn" id="disconnectBtn">Disconnect</button>
+    <div class="header-right">
+      <button class="mute-btn" id="muteBtn">♪ MUTE</button>
+      <div class="wallet-wrapper">
+        <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+        <div class="disconnect-dropdown" id="disconnectDropdown">
+          <button class="disconnect-btn" id="disconnectBtn">Disconnect</button>
+        </div>
       </div>
     </div>
   </header>
