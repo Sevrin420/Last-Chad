@@ -445,6 +445,17 @@
       50%       { box-shadow: 0 0 60px rgba(224, 92, 16, 0.8), inset 0 1px 0 rgba(255,255,255,0.1); }
     }
 
+    /* ── Waiting indicator ── */
+    .waiting-indicator {
+      font-size: 0.45rem;
+      color: #e05c10;
+      text-align: center;
+      padding: 10px 0 4px;
+      text-shadow: 0 0 10px rgba(224, 92, 16, 0.5);
+      animation: blink 0.9s step-start infinite;
+      display: none;
+    }
+
     /* ── Desktop side-by-side layout ── */
     @media (min-width: 960px) {
       .main {
@@ -533,6 +544,7 @@
         </div>
 
         <div class="status-msg" id="statusMsg"></div>
+        <div class="waiting-indicator" id="waitingIndicator">▶ WAITING TO BURN...</div>
       </div>
 
     </div>
@@ -844,6 +856,8 @@
     }, { passive: true });
 
     // ── Burn flow ────────────────────────────────────────────────────────
+    const waitingIndicator = document.getElementById('waitingIndicator');
+
     async function initBurn(tokenId, imgUrl) {
       if (isBurning) return;
 
@@ -854,9 +868,6 @@
       }
 
       isBurning = true;
-
-      // Play what.mp3 synchronously inside gesture before any await
-      if (window.playSfx) playSfx('whatSnd');
 
       const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
       if (card) card.classList.add('burning');
@@ -875,18 +886,33 @@
           return;
         }
 
-        setStatus('Burning... tx: ' + tx.hash.slice(0, 10) + '...');
-        await new Promise(r => setTimeout(r, 1400));
-        startBurnAnimation(imgUrl, tokenId, tx, card);
+        // Signed — now wait for on-chain confirmation
+        setStatus('');
+        waitingIndicator.style.display = 'block';
+        try {
+          await tx.wait(1);
+        } catch (_) {
+          // Even if wait() throws, the tx was signed — proceed
+        }
+        waitingIndicator.style.display = 'none';
+
+        startBurnAnimation(imgUrl, card);
 
       } catch (e) {
         setStatus('Unexpected error. Try again.');
+        waitingIndicator.style.display = 'none';
         if (card) card.classList.remove('burning');
         isBurning = false;
       }
     }
 
-    function startBurnAnimation(imgUrl, tokenId, tx, card) {
+    function startBurnAnimation(imgUrl, card) {
+      // Remove the card from the grid immediately — tx is confirmed
+      if (card) card.remove();
+
+      // Fire what.mp3 in sync with the animation
+      if (window.playSfx) playSfx('whatSnd');
+
       // Set the NFT image in the overlay
       burningNft.src = imgUrl;
       burnDone.classList.remove('show');
@@ -911,14 +937,6 @@
       setTimeout(() => {
         burnDone.classList.add('show');
       }, ANIM_DURATION);
-
-      // Wait for tx confirmation in the background and remove card from grid
-      tx.wait(1).then(() => {
-        if (card) card.remove();
-      }).catch(() => {
-        // If confirmation fails we still remove the card — tx was signed
-        if (card) card.remove();
-      });
     }
 
     burnCloseBtn.addEventListener('click', () => {
