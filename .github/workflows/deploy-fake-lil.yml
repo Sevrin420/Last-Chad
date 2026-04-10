@@ -1,0 +1,45 @@
+name: Deploy Fake Lil
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Standalone deploy for the FakeLil NFT contract.
+# Has no relation to Last Chad contracts — do not touch js/config.js.
+#
+# Required secret (Repo → Settings → Secrets and variables → Actions):
+#   DEPLOYER_PRIVATE_KEY  — deployer wallet private key (hex, no 0x prefix)
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'Target network'
+        required: true
+        default: 'fuji'
+        type: choice
+        options:
+          - fuji       # Avalanche Fuji testnet (deploy here first to verify)
+          - avalanche  # Avalanche C-Chain mainnet
+
+jobs:
+  deploy:
+    name: Deploy FakeLil (${{ inputs.network }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contracts
+        run: npx hardhat compile
+
+      - name: Deploy FakeLil
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/deployFakeLil.js --network ${{ inputs.network }}
