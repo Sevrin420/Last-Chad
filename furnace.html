@@ -787,6 +787,15 @@
     async function initBurn(tokenId, imgUrl) {
       if (isBurning) return;
 
+      // ── TEST MODE: skip transaction, go straight to animation ──
+      isBurning = true;
+      const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
+      if (card) card.classList.add('burning');
+      setStatus('TEST MODE — no transaction sent');
+      startBurnAnimation(imgUrl, tokenId, { hash: '0xTEST', wait: () => Promise.resolve() }, card);
+      return;
+      // ── END TEST MODE ──
+
       const signer = await getSigner();
       if (!signer) {
         setStatus('Connect your wallet first.');
