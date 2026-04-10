@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Furnace | Last Chad</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="nav.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      color: #f5e6c8;
+      overflow-x: hidden;
+      background: #0a0a0f;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 60%, rgba(180, 60, 10, 0.18) 0%, transparent 65%),
+        linear-gradient(180deg, rgba(10, 10, 20, 0.6) 0%, rgba(10, 10, 20, 0.85) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ── */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(10, 10, 20, 0.88);
+      border-bottom: 2px solid #5a3d00;
+      backdrop-filter: blur(8px);
+    }
+
+    .page-title-header {
+      font-size: clamp(0.7rem, 2.5vw, 1rem);
+      color: #c9a84c;
+      letter-spacing: 0.05em;
+    }
+
+    .wallet-wrapper { position: relative; }
+    .wallet-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .wallet-btn:hover { background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%); }
+    .wallet-btn.connected {
+      background: linear-gradient(180deg, #2e5c2e 0%, #1a3d1a 100%);
+      border-color: #4caf50;
+      color: #a5d6a7;
+      font-size: 0.5rem;
+    }
+    .disconnect-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px); right: 0;
+      background: linear-gradient(180deg, #0e1420 0%, #090e1a 100%);
+      border: 2px solid #5a3d00;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      z-index: 110; min-width: 160px;
+    }
+    .disconnect-dropdown.show { display: block; }
+    .disconnect-btn {
+      width: 100%; padding: 12px 16px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #e53935; background: none; border: none;
+      cursor: pointer; text-align: center; transition: background 0.15s;
+    }
+    .disconnect-btn:hover { background: rgba(229,57,53,0.15); }
+
+    /* ── Main layout ── */
+    .main {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 90px 20px 60px;
+    }
+
+    .page-title {
+      font-size: clamp(1rem, 4vw, 1.4rem);
+      color: #c9a84c;
+      text-shadow: 0 0 20px rgba(255, 100, 20, 0.6);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .page-sub {
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      text-align: center;
+      margin-bottom: 32px;
+      line-height: 1.8;
+    }
+
+    /* ── Two-column wrapper ── */
+    .content-row {
+      display: flex;
+      gap: 32px;
+      width: 100%;
+      max-width: 1100px;
+      align-items: flex-start;
+    }
+
+    /* ── NFT grid column ── */
+    .grid-column {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .grid-label {
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    #connectPrompt {
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      text-align: center;
+      padding: 40px 0;
+      line-height: 2;
+    }
+
+    #loadMsg {
+      font-size: 0.45rem;
+      color: #8a7a5a;
+      text-align: center;
+      padding: 40px 0;
+      display: none;
+    }
+
+    .chad-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      max-height: 520px;
+      overflow-y: auto;
+      padding: 8px 4px;
+    }
+
+    .chad-grid::-webkit-scrollbar { width: 6px; }
+    .chad-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+    .chad-grid::-webkit-scrollbar-thumb { background: #5a3d00; border-radius: 3px; }
+
+    .chad-card {
+      width: 100px;
+      background: rgba(30, 20, 5, 0.8);
+      border: 2px solid #3d2e0a;
+      border-radius: 6px;
+      cursor: grab;
+      transition: border-color 0.2s, transform 0.15s, opacity 0.2s;
+      user-select: none;
+      overflow: hidden;
+    }
+    .chad-card:active { cursor: grabbing; }
+    .chad-card:hover {
+      border-color: #c9a84c;
+      transform: translateY(-3px);
+    }
+    .chad-card.selected {
+      border-color: #e05c10;
+      box-shadow: 0 0 12px rgba(224, 92, 16, 0.5);
+      transform: translateY(-3px);
+    }
+    .chad-card.burning {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .chad-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      display: block;
+      object-fit: cover;
+      pointer-events: none;
+      image-rendering: pixelated;
+    }
+    .chad-card .chad-id {
+      display: block;
+      text-align: center;
+      font-size: 0.4rem;
+      color: #8a7a5a;
+      padding: 4px 0 5px;
+    }
+    .chad-card.dragging {
+      opacity: 0.5;
+    }
+
+    /* ── Furnace column ── */
+    .furnace-column {
+      flex: 0 0 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 90px;
+    }
+
+    .furnace-label {
+      font-size: 0.5rem;
+      color: #8a7a5a;
+      text-align: center;
+    }
+
+    /* Drop zone wraps the furnace image */
+    .furnace-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    /* ── FURNACE IMAGE ──
+       Replace the placeholder below with your furnace image.
+       The drop zone is overlaid on top of it.
+    ── */
+    .furnace-img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 8px;
+      display: block;
+    }
+
+    /* Placeholder shown when no furnace image src is set */
+    .furnace-placeholder {
+      width: 100%;
+      aspect-ratio: 1;
+      background: linear-gradient(160deg, #1a0a00 0%, #2d1200 60%, #1a0a00 100%);
+      border: 3px dashed #5a3d00;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      color: #5a3d00;
+      font-size: 0.4rem;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .furnace-placeholder .furnace-icon {
+      font-size: 3rem;
+      filter: sepia(1) saturate(2) hue-rotate(-20deg) brightness(0.5);
+    }
+
+    /* Drop zone overlay */
+    .drop-zone {
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 20px;
+      transition: background 0.2s;
+      cursor: default;
+    }
+
+    .drop-zone.drag-over {
+      background: rgba(255, 80, 10, 0.18);
+      outline: 3px dashed #e05c10;
+      outline-offset: -4px;
+    }
+
+    .drop-hint {
+      font-size: 0.45rem;
+      color: rgba(200, 168, 76, 0.7);
+      text-shadow: 0 0 8px rgba(255, 100, 20, 0.5);
+      background: rgba(10, 5, 0, 0.7);
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid rgba(90, 60, 0, 0.5);
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .drop-zone.drag-over .drop-hint {
+      color: #e05c10;
+      border-color: #e05c10;
+    }
+
+    /* Mobile tap-to-burn button */
+    .burn-btn {
+      display: none;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      padding: 12px 24px;
+      background: linear-gradient(180deg, #b83010 0%, #7a1a05 100%);
+      border: 2px solid #e05c10;
+      border-radius: 4px;
+      color: #f5e6c8;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .burn-btn:hover:not(:disabled) {
+      background: linear-gradient(180deg, #d03818 0%, #9a2208 100%);
+    }
+    .burn-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .status-msg {
+      font-size: 0.4rem;
+      text-align: center;
+      min-height: 1.5em;
+      color: #8a7a5a;
+      line-height: 1.8;
+    }
+
+    /* ── Burn overlay ── */
+    #burnOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+    }
+    #burnOverlay.active { display: flex; }
+
+    .burn-scene {
+      position: relative;
+      width: clamp(240px, 40vw, 420px);
+      aspect-ratio: 1;
+    }
+
+    /* The NFT image being burned */
+    .burning-nft {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+      z-index: 1;
+      /* Animation applied via JS after tx signed */
+    }
+
+    @keyframes nftBurn {
+      0%   { opacity: 1;    transform: scale(1); }
+      30%  { opacity: 0.85; transform: scale(0.95); }
+      70%  { opacity: 0.4;  transform: scale(0.75); }
+      100% { opacity: 0;    transform: scale(0.5); }
+    }
+
+    .burning-nft.animating {
+      animation: nftBurn 3.5s ease-in forwards;
+    }
+
+    /* ── FLAME VIDEO ──
+       Replace the src below with your flame video path.
+       It is positioned on top of the NFT image.
+       Opacity animates down as the NFT disappears.
+    ── */
+    .flame-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 6px;
+      z-index: 2;
+      mix-blend-mode: screen;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    @keyframes flameAppear {
+      0%   { opacity: 0; }
+      15%  { opacity: 0.9; }
+      75%  { opacity: 0.9; }
+      100% { opacity: 0; }
+    }
+
+    .flame-video.animating {
+      animation: flameAppear 3.5s ease-in-out forwards;
+    }
+
+    /* Burn done state */
+    .burn-done {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      opacity: 0;
+      transition: opacity 0.6s;
+      z-index: 3;
+    }
+    .burn-done.show { opacity: 1; }
+
+    .burn-done-text {
+      font-size: clamp(0.5rem, 2vw, 0.8rem);
+      color: #e05c10;
+      text-shadow: 0 0 20px rgba(255, 100, 20, 0.8);
+      text-align: center;
+    }
+
+    .burn-close-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      padding: 10px 20px;
+      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
+      border: 2px solid #d4a017;
+      border-radius: 4px;
+      color: #1a1005;
+      cursor: pointer;
+    }
+    .burn-close-btn:hover {
+      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .content-row {
+        flex-direction: column-reverse;
+        gap: 24px;
+      }
+      .furnace-column {
+        position: static;
+        flex: none;
+        width: 100%;
+        max-width: 340px;
+        align-self: center;
+      }
+      .burn-btn { display: block; }
+      .drop-hint { display: none; }
+      .chad-grid { max-height: 360px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <span class="page-title-header">THE FURNACE</span>
+    <div class="wallet-wrapper">
+      <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
+      <div class="disconnect-dropdown" id="disconnectDropdown">
+        <button class="disconnect-btn" id="disconnectBtn">Disconnect</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+    <h1 class="page-title">THE FURNACE</h1>
+    <p class="page-sub">
+      Drag a Chad into the furnace to burn it forever.<br>
+      This sends the NFT to the dead wallet. It cannot be undone.
+    </p>
+
+    <div class="content-row">
+
+      <!-- NFT Grid -->
+      <div class="grid-column">
+        <div class="grid-label">YOUR CHADS — drag one to the furnace</div>
+        <div id="connectPrompt">Connect your wallet<br>to see your Chads.</div>
+        <div id="loadMsg">Loading your Chads...</div>
+        <div class="chad-grid" id="chadGrid" style="display:none"></div>
+      </div>
+
+      <!-- Furnace -->
+      <div class="furnace-column">
+        <div class="furnace-label">DROP ZONE</div>
+
+        <div class="furnace-wrap">
+          <!-- ══ FURNACE IMAGE ══════════════════════════════════════════
+               Replace this placeholder with your furnace image:
+               <img class="furnace-img" src="assets/furnace.png" alt="Furnace">
+               ══════════════════════════════════════════════════════════ -->
+          <div class="furnace-placeholder">
+            <span class="furnace-icon">🔥</span>
+            <span>FURNACE IMAGE<br>GOES HERE</span>
+          </div>
+
+          <div class="drop-zone" id="dropZone">
+            <span class="drop-hint">DROP CHAD HERE TO BURN</span>
+          </div>
+        </div>
+
+        <!-- Mobile: tap card then tap this button -->
+        <button class="burn-btn" id="burnBtn" disabled>BURN SELECTED CHAD</button>
+
+        <div class="status-msg" id="statusMsg"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Burn overlay (shown after transaction is signed) -->
+  <div id="burnOverlay">
+    <div class="burn-scene" id="burnScene">
+      <!-- NFT image being burned -->
+      <img class="burning-nft" id="burningNft" src="" alt="Burning Chad">
+
+      <!-- ══ FLAME VIDEO ═══════════════════════════════════════════════
+           Replace src with your flame video path:
+           <video class="flame-video" id="flameVideo"
+                  src="assets/flames.mp4"
+                  autoplay muted playsinline></video>
+           ══════════════════════════════════════════════════════════════ -->
+      <video class="flame-video" id="flameVideo"
+             src=""
+             muted playsinline
+             style="display:none">
+      </video>
+
+      <!-- Success state (fades in after animation) -->
+      <div class="burn-done" id="burnDone">
+        <div class="burn-done-text">BURNED</div>
+        <button class="burn-close-btn" id="burnCloseBtn">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="wallet-modal-placeholder"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script type="module">
+    import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
+    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI, getChadImageUrl } from './js/config.js';
+
+    const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+
+    // DOM refs
+    const walletBtn           = document.getElementById('walletBtn');
+    const disconnectDropdown  = document.getElementById('disconnectDropdown');
+    const disconnectBtn       = document.getElementById('disconnectBtn');
+    const connectPrompt       = document.getElementById('connectPrompt');
+    const loadMsg             = document.getElementById('loadMsg');
+    const chadGrid            = document.getElementById('chadGrid');
+    const dropZone            = document.getElementById('dropZone');
+    const burnBtn             = document.getElementById('burnBtn');
+    const statusMsg           = document.getElementById('statusMsg');
+    const burnOverlay         = document.getElementById('burnOverlay');
+    const burningNft          = document.getElementById('burningNft');
+    const flameVideo          = document.getElementById('flameVideo');
+    const burnDone            = document.getElementById('burnDone');
+    const burnCloseBtn        = document.getElementById('burnCloseBtn');
+
+    const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
+
+    let userAddress       = null;
+    let selectedTokenId   = null;
+    let selectedImgUrl    = null;
+    let draggingTokenId   = null;
+    let draggingImgUrl    = null;
+    let isBurning         = false;
+
+    // ── Wallet ──────────────────────────────────────────────────────────
+    walletBtn.addEventListener('click', () => {
+      if (userAddress) {
+        disconnectDropdown.classList.toggle('show');
+      } else {
+        connectWallet(null, { onConnected, onDisconnected });
+      }
+    });
+
+    disconnectBtn.addEventListener('click', async () => {
+      disconnectDropdown.classList.remove('show');
+      await disconnect(onDisconnected);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!walletBtn.contains(e.target) && !disconnectDropdown.contains(e.target)) {
+        disconnectDropdown.classList.remove('show');
+      }
+    });
+
+    function onConnected(addr) {
+      userAddress = addr;
+      walletBtn.textContent = truncateAddress(addr);
+      walletBtn.classList.add('connected');
+      if (window.closeWalletModal) window.closeWalletModal();
+      connectPrompt.style.display = 'none';
+      loadChads();
+    }
+
+    function onDisconnected() {
+      userAddress = null;
+      walletBtn.textContent = 'Connect Wallet';
+      walletBtn.classList.remove('connected');
+      connectPrompt.textContent = 'Connect your wallet\nto see your Chads.';
+      connectPrompt.style.display = 'block';
+      chadGrid.style.display = 'none';
+      chadGrid.innerHTML = '';
+      clearSelection();
+    }
+
+    autoReconnect({ onConnected, onDisconnected });
+
+    // ── Load owned Chads ─────────────────────────────────────────────────
+    async function loadChads() {
+      chadGrid.innerHTML = '';
+      chadGrid.style.display = 'none';
+      loadMsg.style.display = 'block';
+      connectPrompt.style.display = 'none';
+
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+      let balance;
+      try {
+        balance = (await contract.balanceOf(userAddress)).toNumber();
+      } catch (e) {
+        loadMsg.style.display = 'none';
+        connectPrompt.textContent = 'Error loading Chads.';
+        connectPrompt.style.display = 'block';
+        return;
+      }
+
+      const owned = [];
+      for (let i = 0; i < balance; i++) {
+        try {
+          const id = (await contract.tokenOfOwnerByIndex(userAddress, i)).toNumber();
+          owned.push(id);
+        } catch (_) {}
+      }
+
+      loadMsg.style.display = 'none';
+
+      if (owned.length === 0) {
+        connectPrompt.textContent = "You don't own any Chads.";
+        connectPrompt.style.display = 'block';
+        return;
+      }
+
+      chadGrid.style.display = 'flex';
+      for (const id of owned) {
+        chadGrid.appendChild(buildCard(id));
+      }
+    }
+
+    function buildCard(id) {
+      const imgUrl = getChadImageUrl(id);
+      const card = document.createElement('div');
+      card.className = 'chad-card';
+      card.dataset.tokenId = id;
+      card.draggable = true;
+      card.innerHTML = `<img src="${imgUrl}" alt="Chad #${id}"><span class="chad-id">#${id}</span>`;
+
+      // Desktop drag
+      card.addEventListener('dragstart', (e) => {
+        if (isBurning) { e.preventDefault(); return; }
+        draggingTokenId = id;
+        draggingImgUrl = imgUrl;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', id);
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+      });
+
+      // Mobile / click-to-select
+      card.addEventListener('click', () => {
+        if (isBurning) return;
+        if (selectedTokenId === id) {
+          clearSelection();
+        } else {
+          clearSelection();
+          selectedTokenId = id;
+          selectedImgUrl = imgUrl;
+          card.classList.add('selected');
+          burnBtn.disabled = false;
+          setStatus('Chad #' + id + ' selected — tap BURN to destroy it.');
+        }
+      });
+
+      return card;
+    }
+
+    function clearSelection() {
+      selectedTokenId = null;
+      selectedImgUrl = null;
+      document.querySelectorAll('.chad-card').forEach(c => c.classList.remove('selected'));
+      burnBtn.disabled = true;
+      setStatus('');
+    }
+
+    // ── Drop zone ────────────────────────────────────────────────────────
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!isBurning) dropZone.classList.add('drag-over');
+      e.dataTransfer.dropEffect = 'move';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+      if (!dropZone.contains(e.relatedTarget)) {
+        dropZone.classList.remove('drag-over');
+      }
+    });
+
+    dropZone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (isBurning || draggingTokenId === null) return;
+      const id = draggingTokenId;
+      const img = draggingImgUrl;
+      draggingTokenId = null;
+      draggingImgUrl = null;
+      await initBurn(id, img);
+    });
+
+    // Mobile burn button
+    burnBtn.addEventListener('click', async () => {
+      if (isBurning || selectedTokenId === null) return;
+      await initBurn(selectedTokenId, selectedImgUrl);
+    });
+
+    // ── Burn flow ────────────────────────────────────────────────────────
+    async function initBurn(tokenId, imgUrl) {
+      if (isBurning) return;
+
+      const signer = await getSigner();
+      if (!signer) {
+        setStatus('Connect your wallet first.');
+        return;
+      }
+
+      isBurning = true;
+      burnBtn.disabled = true;
+      setStatus('Waiting for wallet confirmation...');
+
+      // Grey out the card being burned
+      const card = document.querySelector(`.chad-card[data-token-id="${tokenId}"]`);
+      if (card) card.classList.add('burning');
+
+      try {
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, signer);
+
+        let tx;
+        try {
+          tx = await contract.transferFrom(userAddress, BURN_ADDRESS, tokenId);
+        } catch (e) {
+          const msg = e?.reason || e?.message || 'Transaction rejected.';
+          setStatus(msg.length > 80 ? msg.slice(0, 80) + '...' : msg);
+          if (card) card.classList.remove('burning');
+          isBurning = false;
+          updateBurnBtn();
+          return;
+        }
+
+        // Transaction signed — start the burn animation immediately
+        setStatus('Burning... tx: ' + tx.hash.slice(0, 10) + '...');
+        startBurnAnimation(imgUrl, tokenId, tx, card);
+
+      } catch (e) {
+        setStatus('Unexpected error. Try again.');
+        if (card) card.classList.remove('burning');
+        isBurning = false;
+        updateBurnBtn();
+      }
+    }
+
+    function startBurnAnimation(imgUrl, tokenId, tx, card) {
+      // Set the NFT image in the overlay
+      burningNft.src = imgUrl;
+      burnDone.classList.remove('show');
+      burningNft.classList.remove('animating');
+      flameVideo.classList.remove('animating');
+
+      // Show overlay
+      burnOverlay.classList.add('active');
+
+      // Start animations after a short paint delay
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          burningNft.classList.add('animating');
+          // ── If you add a flame video src, uncomment these lines:
+          // flameVideo.style.display = '';
+          // flameVideo.currentTime = 0;
+          // flameVideo.play().catch(() => {});
+          // flameVideo.classList.add('animating');
+        });
+      });
+
+      // After animation completes, show success
+      const ANIM_DURATION = 3500;
+      setTimeout(() => {
+        burnDone.classList.add('show');
+      }, ANIM_DURATION);
+
+      // Wait for tx confirmation in the background and remove card from grid
+      tx.wait(1).then(() => {
+        if (card) card.remove();
+      }).catch(() => {
+        // If confirmation fails we still remove the card — tx was signed
+        if (card) card.remove();
+      });
+    }
+
+    burnCloseBtn.addEventListener('click', () => {
+      burnOverlay.classList.remove('active');
+      clearSelection();
+      isBurning = false;
+      setStatus('');
+      // If no more chads, show empty state
+      const remaining = document.querySelectorAll('.chad-card').length;
+      if (remaining === 0) {
+        chadGrid.style.display = 'none';
+        connectPrompt.textContent = 'All Chads have been burned.';
+        connectPrompt.style.display = 'block';
+      }
+    });
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+    function setStatus(msg) {
+      statusMsg.textContent = msg;
+    }
+
+    function updateBurnBtn() {
+      burnBtn.disabled = selectedTokenId === null;
+    }
+  </script>
+
+  <script src="nav.js"></script>
+</body>
+</html>
