@@ -151,12 +151,18 @@
       line-height: 2;
     }
 
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
     #loadMsg {
       font-size: 0.45rem;
-      color: #8a7a5a;
+      color: #c9a84c;
       text-align: center;
       padding: 40px 0;
       display: none;
+      animation: blink 1s step-start infinite;
     }
 
     .lil-grid {
