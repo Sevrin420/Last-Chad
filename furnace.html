@@ -457,9 +457,9 @@
   <div id="nav-placeholder"></div>
 
   <!-- Header -->
-  <audio id="bgMusic"   src="assets/furnace/march.mp3" loop preload="none"></audio>
-  <!-- DROP SOUND: set src to your burn/drop sound file when ready -->
-  <audio id="dropSound" src="" preload="none"></audio>
+  <audio id="bgMusic"    src="assets/furnace/march.mp3"   loop preload="none"></audio>
+  <audio id="chickenSnd" src="assets/furnace/chicken.mp3"  preload="auto"></audio>
+  <audio id="whatSnd"    src="assets/furnace/what.mp3"     preload="auto"></audio>
 
   <header class="header">
     <div class="header-left">
@@ -682,6 +682,7 @@
         card.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
+        if (window.playSfx) playSfx('chickenSnd');
       });
 
       card.addEventListener('dragend', () => {
@@ -699,6 +700,7 @@
           selectedImgUrl = imgUrl;
           card.classList.add('selected');
           setStatus('Fake Lil #' + id + ' selected.');
+          if (window.playSfx) playSfx('chickenSnd');
         }
       });
 
@@ -810,12 +812,8 @@
       if (isBurning) return;
       isBurning = true;
 
-      // Play drop sound — called synchronously inside gesture so mobile allows it
-      const dropSound = document.getElementById('dropSound');
-      if (dropSound && dropSound.src) {
-        dropSound.currentTime = 0;
-        dropSound.play().catch(() => {});
-      }
+      // Play what.mp3 on drop — synchronous call inside gesture for mobile
+      if (window.playSfx) playSfx('whatSnd');
 
       const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
       if (card) card.classList.add('burning');
@@ -884,24 +882,38 @@
     }
   </script>
 
-  <!-- Background music: plays on first user interaction, mute toggle -->
+  <!-- Music, sound effects, volume ducking -->
   <script>
+    const MARCH_NORMAL = 0.5;
+    const MARCH_DUCKED = 0.15;
+
+    // Duck march while a short clip plays, then restore
+    window.playSfx = function(audioId) {
+      const march = document.getElementById('bgMusic');
+      const sfx   = document.getElementById(audioId);
+      if (!sfx) return;
+      sfx.currentTime = 0;
+      march.volume = MARCH_DUCKED;
+      sfx.play().catch(() => {});
+      sfx.onended = () => { march.volume = MARCH_NORMAL; };
+    };
+
     (function () {
-      const music     = document.getElementById('bgMusic');
-      const muteBtn   = document.getElementById('muteBtn');
-      const intro     = document.getElementById('introOverlay');
-      const beginBtn  = document.getElementById('beginBurnBtn');
+      const music    = document.getElementById('bgMusic');
+      const muteBtn  = document.getElementById('muteBtn');
+      const intro    = document.getElementById('introOverlay');
+      const beginBtn = document.getElementById('beginBurnBtn');
 
-      music.volume = 0.5;
+      music.volume = MARCH_NORMAL;
 
-      // Begin Burn button — dismiss overlay and start music
+      // Begin Burn — dismiss overlay, start march
       beginBtn.addEventListener('click', () => {
         music.play().catch(() => {});
         intro.classList.add('fade-out');
         setTimeout(() => intro.remove(), 850);
       });
 
-      // Mute button toggles
+      // Mute toggles
       muteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         music.muted = !music.muted;
