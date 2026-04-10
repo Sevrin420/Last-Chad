@@ -810,17 +810,43 @@
     // ── Burn flow ────────────────────────────────────────────────────────
     async function initBurn(tokenId, imgUrl) {
       if (isBurning) return;
+
+      const signer = await getSigner();
+      if (!signer) {
+        setStatus('Connect your wallet first.');
+        return;
+      }
+
       isBurning = true;
 
-      // Play what.mp3 on drop — synchronous call inside gesture for mobile
+      // Play what.mp3 synchronously inside gesture before any await
       if (window.playSfx) playSfx('whatSnd');
 
       const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
       if (card) card.classList.add('burning');
+      setStatus('Waiting for wallet confirmation...');
 
-      // ── TEST MODE: skip transaction ──
-      setStatus('TEST MODE — no transaction sent');
-      startBurnAnimation(imgUrl, tokenId, { hash: '0xTEST', wait: () => Promise.resolve() }, card);
+      try {
+        const contract = new ethers.Contract(FAKELIL_ADDRESS, FAKELIL_ABI, signer);
+        let tx;
+        try {
+          tx = await contract.transferFrom(userAddress, BURN_ADDRESS, tokenId);
+        } catch (e) {
+          const msg = e?.reason || e?.message || 'Transaction rejected.';
+          setStatus(msg.length > 80 ? msg.slice(0, 80) + '...' : msg);
+          if (card) card.classList.remove('burning');
+          isBurning = false;
+          return;
+        }
+
+        setStatus('Burning... tx: ' + tx.hash.slice(0, 10) + '...');
+        startBurnAnimation(imgUrl, tokenId, tx, card);
+
+      } catch (e) {
+        setStatus('Unexpected error. Try again.');
+        if (card) card.classList.remove('burning');
+        isBurning = false;
+      }
     }
 
     function startBurnAnimation(imgUrl, tokenId, tx, card) {
