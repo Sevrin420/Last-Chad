@@ -246,28 +246,6 @@
       display: block;
     }
 
-    /* Placeholder shown when no furnace image src is set */
-    .furnace-placeholder {
-      width: 100%;
-      aspect-ratio: 1;
-      background: linear-gradient(160deg, #1a0a00 0%, #2d1200 60%, #1a0a00 100%);
-      border: 3px dashed #5a3d00;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 12px;
-      color: #5a3d00;
-      font-size: 0.4rem;
-      text-align: center;
-      padding: 20px;
-    }
-
-    .furnace-placeholder .furnace-icon {
-      font-size: 3rem;
-      filter: sepia(1) saturate(2) hue-rotate(-20deg) brightness(0.5);
-    }
 
     /* Drop zone overlay */
     .drop-zone {
@@ -498,14 +476,7 @@
         <div class="furnace-label">DROP ZONE</div>
 
         <div class="furnace-wrap">
-          <!-- ══ FURNACE IMAGE ══════════════════════════════════════════
-               Replace this placeholder with your furnace image:
-               <img class="furnace-img" src="assets/furnace.png" alt="Furnace">
-               ══════════════════════════════════════════════════════════ -->
-          <div class="furnace-placeholder">
-            <span class="furnace-icon">🔥</span>
-            <span>FURNACE IMAGE<br>GOES HERE</span>
-          </div>
+          <img class="furnace-img" src="assets/furnace/furnace.gif" alt="Furnace">
 
           <div class="drop-zone" id="dropZone">
             <span class="drop-hint">DROP CHAD HERE TO BURN</span>
