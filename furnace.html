@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Furnace | Last Chad</title>
+  <title>Furnace | Fake Lil</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="nav.css">
   <style>
@@ -120,44 +120,22 @@
       padding: 90px 20px 60px;
     }
 
-    .page-title {
-      font-size: clamp(1rem, 4vw, 1.4rem);
-      color: #c9a84c;
-      text-shadow: 0 0 20px rgba(255, 100, 20, 0.6);
-      text-align: center;
-      margin-bottom: 6px;
-    }
-
-    .page-sub {
-      font-size: 0.45rem;
-      color: #8a7a5a;
-      text-align: center;
-      margin-bottom: 32px;
-      line-height: 1.8;
-    }
-
-    /* ── Two-column wrapper ── */
+    /* ── Single-column stacked wrapper ── */
     .content-row {
       display: flex;
+      flex-direction: column;
+      align-items: center;
       gap: 32px;
       width: 100%;
-      max-width: 1100px;
-      align-items: flex-start;
+      max-width: 800px;
     }
 
     /* ── NFT grid column ── */
     .grid-column {
-      flex: 1 1 0;
-      min-width: 0;
+      width: 100%;
       display: flex;
       flex-direction: column;
-    }
-
-    .grid-label {
-      font-size: 0.5rem;
-      color: #8a7a5a;
-      margin-bottom: 12px;
-      text-align: center;
+      align-items: center;
     }
 
     #connectPrompt {
@@ -176,7 +154,7 @@
       display: none;
     }
 
-    .chad-grid {
+    .lil-grid {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
@@ -186,11 +164,11 @@
       padding: 8px 4px;
     }
 
-    .chad-grid::-webkit-scrollbar { width: 6px; }
-    .chad-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
-    .chad-grid::-webkit-scrollbar-thumb { background: #5a3d00; border-radius: 3px; }
+    .lil-grid::-webkit-scrollbar { width: 6px; }
+    .lil-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+    .lil-grid::-webkit-scrollbar-thumb { background: #5a3d00; border-radius: 3px; }
 
-    .chad-card {
+    .lil-card {
       width: 100px;
       background: rgba(30, 20, 5, 0.8);
       border: 2px solid #3d2e0a;
@@ -200,21 +178,21 @@
       user-select: none;
       overflow: hidden;
     }
-    .chad-card:active { cursor: grabbing; }
-    .chad-card:hover {
+    .lil-card:active { cursor: grabbing; }
+    .lil-card:hover {
       border-color: #c9a84c;
       transform: translateY(-3px);
     }
-    .chad-card.selected {
+    .lil-card.selected {
       border-color: #e05c10;
       box-shadow: 0 0 12px rgba(224, 92, 16, 0.5);
       transform: translateY(-3px);
     }
-    .chad-card.burning {
+    .lil-card.burning {
       opacity: 0.35;
       pointer-events: none;
     }
-    .chad-card img {
+    .lil-card img {
       width: 100%;
       aspect-ratio: 1;
       display: block;
@@ -222,32 +200,25 @@
       pointer-events: none;
       image-rendering: pixelated;
     }
-    .chad-card .chad-id {
+    .lil-card .lil-id {
       display: block;
       text-align: center;
       font-size: 0.4rem;
       color: #8a7a5a;
       padding: 4px 0 5px;
     }
-    .chad-card.dragging {
+    .lil-card.dragging {
       opacity: 0.5;
     }
 
     /* ── Furnace column ── */
     .furnace-column {
-      flex: 0 0 320px;
+      width: 100%;
+      max-width: 360px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 16px;
-      position: sticky;
-      top: 90px;
-    }
-
-    .furnace-label {
-      font-size: 0.5rem;
-      color: #8a7a5a;
-      text-align: center;
     }
 
     /* Drop zone wraps the furnace image */
@@ -443,20 +414,9 @@
 
     /* ── Responsive ── */
     @media (max-width: 700px) {
-      .content-row {
-        flex-direction: column-reverse;
-        gap: 24px;
-      }
-      .furnace-column {
-        position: static;
-        flex: none;
-        width: 100%;
-        max-width: 340px;
-        align-self: center;
-      }
       .burn-btn { display: block; }
       .drop-hint { display: none; }
-      .chad-grid { max-height: 360px; }
+      .lil-grid { max-height: 280px; }
     }
   </style>
 </head>
@@ -482,36 +442,29 @@
 
   <!-- Main -->
   <main class="main">
-    <h1 class="page-title">THE FURNACE</h1>
-    <p class="page-sub">
-      Drag a Chad into the furnace to burn it forever.<br>
-      This sends the NFT to the dead wallet. It cannot be undone.
-    </p>
-
     <div class="content-row">
 
       <!-- NFT Grid -->
       <div class="grid-column">
-        <div class="grid-label">YOUR CHADS — drag one to the furnace</div>
-        <div id="connectPrompt">Connect your wallet<br>to see your Chads.</div>
-        <div id="loadMsg">Loading your Chads...</div>
-        <div class="chad-grid" id="chadGrid" style="display:none"></div>
+        <div id="connectPrompt">Connect your wallet<br>to see your Fake Lils.</div>
+        <div id="loadMsg">Loading your Fake Lils...</div>
+        <div class="lil-grid" id="lilGrid" style="display:none"></div>
       </div>
 
       <!-- Furnace -->
       <div class="furnace-column">
-        <div class="furnace-label">DROP ZONE</div>
+
 
         <div class="furnace-wrap">
           <img class="furnace-img" src="assets/furnace/furnace.gif" alt="Furnace">
 
           <div class="drop-zone" id="dropZone">
-            <span class="drop-hint">DROP CHAD HERE TO BURN</span>
+            <span class="drop-hint">DROP FAKE LIL HERE TO BURN</span>
           </div>
         </div>
 
         <!-- Mobile: tap card then tap this button -->
-        <button class="burn-btn" id="burnBtn" disabled>BURN SELECTED CHAD</button>
+        <button class="burn-btn" id="burnBtn" disabled>BURN SELECTED FAKE LIL</button>
 
         <div class="status-msg" id="statusMsg"></div>
       </div>
@@ -523,7 +476,7 @@
   <div id="burnOverlay">
     <div class="burn-scene" id="burnScene">
       <!-- NFT image being burned -->
-      <img class="burning-nft" id="burningNft" src="" alt="Burning Chad">
+      <img class="burning-nft" id="burningNft" src="" alt="Burning Fake Lil">
 
       <video class="flame-video" id="flameVideo"
              src="assets/furnace/flames.mp4"
@@ -543,9 +496,19 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
     import { connectWallet, autoReconnect, disconnect, getSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI, getChadImageUrl } from './js/config.js';
+    import { READ_RPC } from './js/config.js';
 
-    const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+    const FAKELIL_ADDRESS = '0x0d3A4B121e4Ee2aFcF6843776c83cbd96f392Fb6';
+    const BURN_ADDRESS    = '0x000000000000000000000000000000000000dEaD';
+    const FAKELIL_ABI = [
+      'function balanceOf(address owner) view returns (uint256)',
+      'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
+      'function transferFrom(address from, address to, uint256 tokenId)',
+    ];
+
+    function getFakeLilImageUrl(tokenId) {
+      return 'assets/furnace/c' + tokenId + '.jpg';
+    }
 
     // DOM refs
     const walletBtn           = document.getElementById('walletBtn');
@@ -553,7 +516,7 @@
     const disconnectBtn       = document.getElementById('disconnectBtn');
     const connectPrompt       = document.getElementById('connectPrompt');
     const loadMsg             = document.getElementById('loadMsg');
-    const chadGrid            = document.getElementById('chadGrid');
+    const lilGrid             = document.getElementById('lilGrid');
     const dropZone            = document.getElementById('dropZone');
     const burnBtn             = document.getElementById('burnBtn');
     const statusMsg           = document.getElementById('statusMsg');
@@ -598,36 +561,36 @@
       walletBtn.classList.add('connected');
       if (window.closeWalletModal) window.closeWalletModal();
       connectPrompt.style.display = 'none';
-      loadChads();
+      loadLils();
     }
 
     function onDisconnected() {
       userAddress = null;
       walletBtn.textContent = 'Connect Wallet';
       walletBtn.classList.remove('connected');
-      connectPrompt.textContent = 'Connect your wallet\nto see your Chads.';
+      connectPrompt.textContent = 'Connect your wallet\nto see your Fake Lils.';
       connectPrompt.style.display = 'block';
-      chadGrid.style.display = 'none';
-      chadGrid.innerHTML = '';
+      lilGrid.style.display = 'none';
+      lilGrid.innerHTML = '';
       clearSelection();
     }
 
     autoReconnect({ onConnected, onDisconnected });
 
-    // ── Load owned Chads ─────────────────────────────────────────────────
-    async function loadChads() {
-      chadGrid.innerHTML = '';
-      chadGrid.style.display = 'none';
+    // ── Load owned Fake Lils ─────────────────────────────────────────────
+    async function loadLils() {
+      lilGrid.innerHTML = '';
+      lilGrid.style.display = 'none';
       loadMsg.style.display = 'block';
       connectPrompt.style.display = 'none';
 
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, readProvider);
+      const contract = new ethers.Contract(FAKELIL_ADDRESS, FAKELIL_ABI, readProvider);
       let balance;
       try {
         balance = (await contract.balanceOf(userAddress)).toNumber();
       } catch (e) {
         loadMsg.style.display = 'none';
-        connectPrompt.textContent = 'Error loading Chads.';
+        connectPrompt.textContent = 'Error loading Fake Lils.';
         connectPrompt.style.display = 'block';
         return;
       }
@@ -643,24 +606,24 @@
       loadMsg.style.display = 'none';
 
       if (owned.length === 0) {
-        connectPrompt.textContent = "You don't own any Chads.";
+        connectPrompt.textContent = "You don't own any Fake Lils.";
         connectPrompt.style.display = 'block';
         return;
       }
 
-      chadGrid.style.display = 'flex';
+      lilGrid.style.display = 'flex';
       for (const id of owned) {
-        chadGrid.appendChild(buildCard(id));
+        lilGrid.appendChild(buildCard(id));
       }
     }
 
     function buildCard(id) {
-      const imgUrl = getChadImageUrl(id);
+      const imgUrl = getFakeLilImageUrl(id);
       const card = document.createElement('div');
-      card.className = 'chad-card';
+      card.className = 'lil-card';
       card.dataset.tokenId = id;
       card.draggable = true;
-      card.innerHTML = `<img src="${imgUrl}" alt="Chad #${id}"><span class="chad-id">#${id}</span>`;
+      card.innerHTML = `<img src="${imgUrl}" alt="Fake Lil #${id}"><span class="lil-id">#${id}</span>`;
 
       // Desktop drag
       card.addEventListener('dragstart', (e) => {
@@ -687,7 +650,7 @@
           selectedImgUrl = imgUrl;
           card.classList.add('selected');
           burnBtn.disabled = false;
-          setStatus('Chad #' + id + ' selected — tap BURN to destroy it.');
+          setStatus('Fake Lil #' + id + ' selected — tap BURN to destroy it.');
         }
       });
 
@@ -697,7 +660,7 @@
     function clearSelection() {
       selectedTokenId = null;
       selectedImgUrl = null;
-      document.querySelectorAll('.chad-card').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('.lil-card').forEach(c => c.classList.remove('selected'));
       burnBtn.disabled = true;
       setStatus('');
     }
@@ -747,11 +710,11 @@
       setStatus('Waiting for wallet confirmation...');
 
       // Grey out the card being burned
-      const card = document.querySelector(`.chad-card[data-token-id="${tokenId}"]`);
+      const card = document.querySelector(`.lil-card[data-token-id="${tokenId}"]`);
       if (card) card.classList.add('burning');
 
       try {
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, LASTCHAD_ABI, signer);
+        const contract = new ethers.Contract(FAKELIL_ADDRESS, FAKELIL_ABI, signer);
 
         let tx;
         try {
@@ -817,11 +780,11 @@
       clearSelection();
       isBurning = false;
       setStatus('');
-      // If no more chads, show empty state
-      const remaining = document.querySelectorAll('.chad-card').length;
+      // If no more Fake Lils, show empty state
+      const remaining = document.querySelectorAll('.lil-card').length;
       if (remaining === 0) {
-        chadGrid.style.display = 'none';
-        connectPrompt.textContent = 'All Chads have been burned.';
+        lilGrid.style.display = 'none';
+        connectPrompt.textContent = 'All Fake Lils have been burned.';
         connectPrompt.style.display = 'block';
       }
     });
