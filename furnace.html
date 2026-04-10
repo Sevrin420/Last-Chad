@@ -692,6 +692,7 @@
       // Mobile / click-to-select
       card.addEventListener('click', () => {
         if (isBurning) return;
+        if (window.playSfx) playSfx('chickenSnd');
         if (selectedTokenId === id) {
           clearSelection();
         } else {
@@ -700,7 +701,6 @@
           selectedImgUrl = imgUrl;
           card.classList.add('selected');
           setStatus('Fake Lil #' + id + ' selected.');
-          if (window.playSfx) playSfx('chickenSnd');
         }
       });
 
@@ -742,6 +742,7 @@
     document.addEventListener('touchstart', (e) => {
       const card = e.target.closest('.lil-card');
       if (!card || isBurning) return;
+      if (window.playSfx) playSfx('chickenSnd');
       touchCard    = card;
       touchTokenId = parseInt(card.dataset.tokenId);
       touchImgUrl  = getFakeLilImageUrl(touchTokenId);
