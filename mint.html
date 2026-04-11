@@ -737,9 +737,63 @@
       .mint-card { max-width: 100%; padding: 32px 28px; }
       .modal { max-width: 100%; }
     }
+
+    /* === Pause overlay === */
+    #pauseOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: rgba(10, 10, 15, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .pause-box {
+      background: rgba(20, 15, 5, 0.97);
+      border: 2px solid #5a3d00;
+      border-radius: 8px;
+      padding: 40px 36px;
+      max-width: 560px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(0,0,0,0.8);
+    }
+
+    .pause-box h2 {
+      font-size: clamp(0.9rem, 3vw, 1.3rem);
+      color: #c9a84c;
+      margin-bottom: 28px;
+      letter-spacing: 0.05em;
+    }
+
+    .pause-box p {
+      font-size: clamp(0.45rem, 1.5vw, 0.6rem);
+      color: #d4c4a0;
+      line-height: 2.4;
+      margin-bottom: 20px;
+    }
+
+    .pause-box .sig {
+      font-size: clamp(0.4rem, 1.2vw, 0.55rem);
+      color: #8a7a5a;
+      margin-top: 28px;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Pause overlay -->
+  <div id="pauseOverlay">
+    <div class="pause-box">
+      <h2>Aloha</h2>
+      <p>Thank you for checking out Last Chad! I'm humbled that you're interested in minting.</p>
+      <p>Due to low minting I am pausing the project and returning funds.</p>
+      <p>It's been a big learning experience and I'm more motivated than ever to bring fun and value to Avalanche.</p>
+      <div class="sig">~Sev</div>
+    </div>
+  </div>
 
   <!-- Background -->
   <div class="bg">
