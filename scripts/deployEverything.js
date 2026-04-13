@@ -3,14 +3,14 @@
  *
  * One-click full deploy of ALL Members Only contracts:
  *   1. MembersOnly      (ERC-721 — membership NFTs)
- *   2. MembersOnlyItems (ERC-1155 — items)
+ *   2. MembersOnlyItems (ERC-1155 — items + chips + treasury)
  *   3. Market           (NFT marketplace)
- *   4. Gamble           (chip wagering)
+ *   4. Gamble           (chip wagering — oracle required)
  *   5. Tournament       (tournament system)
  *
  * After deploy:
- *   - Wires all cross-contract references (setGameContract, setApprovedContract)
- *   - Patches js/config.js with new addresses
+ *   - Wires all cross-contract references
+ *   - Patches js/config.js and worker/wrangler.toml with new addresses
  *
  * Usage:
  *   npx hardhat run scripts/deployEverything.js --network fuji
@@ -18,7 +18,7 @@
  *
  * Env vars:
  *   PRIVATE_KEY      — deployer wallet
- *   ORACLE_ADDRESS   — Cloudflare Worker public key (REQUIRED for Gamble constructor)
+ *   ORACLE_ADDRESS   — Cloudflare Worker public key (REQUIRED for Gamble)
  */
 
 const hre  = require("hardhat");
@@ -27,6 +27,10 @@ const path = require("path");
 
 const SET_GAME_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
+];
+
+const SET_ITEMS_ABI = [
+  'function setItems(address _items) external',
 ];
 
 const MARKET_WIRE_ABI = [
@@ -39,7 +43,7 @@ async function main() {
 
   const oracleAddress = process.env.ORACLE_ADDRESS;
   if (!oracleAddress || !hre.ethers.isAddress(oracleAddress)) {
-    throw new Error("ORACLE_ADDRESS env var is required (non-zero address). Gamble requires oracle at deploy.");
+    throw new Error("ORACLE_ADDRESS env var is required (non-zero address).");
   }
 
   console.log("\n╔════════════════════════════════════════════════════════════╗");
@@ -62,7 +66,7 @@ async function main() {
   const itemsBaseURI = "https://lastchad.xyz/items/";
   console.log("\n2/5  Deploying MembersOnlyItems (ERC-1155)...");
   const MembersOnlyItems = await hre.ethers.getContractFactory("MembersOnlyItems");
-  const membersOnlyItems = await MembersOnlyItems.deploy(itemsBaseURI);
+  const membersOnlyItems = await MembersOnlyItems.deploy(itemsBaseURI, membersOnlyAddress);
   await membersOnlyItems.waitForDeployment();
   const itemsAddress = await membersOnlyItems.getAddress();
   console.log("     ✓ MembersOnlyItems:", itemsAddress);
@@ -75,10 +79,10 @@ async function main() {
   const marketAddress = await market.getAddress();
   console.log("     ✓ Market:", marketAddress);
 
-  // ── 4. Gamble (oracle required at construction) ─────────────────────────
+  // ── 4. Gamble ───────────────────────────────────────────────────────────
   console.log("\n4/5  Deploying Gamble...");
   const Gamble = await hre.ethers.getContractFactory("Gamble");
-  const gamble = await Gamble.deploy(membersOnlyAddress, oracleAddress);
+  const gamble = await Gamble.deploy(membersOnlyAddress, itemsAddress, oracleAddress);
   await gamble.waitForDeployment();
   const gambleAddress = await gamble.getAddress();
   console.log("     ✓ Gamble:", gambleAddress);
@@ -86,40 +90,40 @@ async function main() {
   // ── 5. Tournament ─────────────────────────────────────────────────────────
   console.log("\n5/5  Deploying Tournament...");
   const Tournament = await hre.ethers.getContractFactory("Tournament");
-  const tournament = await Tournament.deploy(membersOnlyAddress);
+  const tournament = await Tournament.deploy(membersOnlyAddress, itemsAddress);
   await tournament.waitForDeployment();
   const tournamentAddress = await tournament.getAddress();
   console.log("     ✓ Tournament:", tournamentAddress);
 
   // ════════════════════════════════════════════════════════════════════════
-  // WIRING — connect all contracts together
+  // WIRING
   // ════════════════════════════════════════════════════════════════════════
   console.log("\n── Wiring contracts ──────────────────────────────────────");
   let tx;
 
-  // MembersOnly authorizes Gamble as a game contract
-  const moGameAuth = new hre.ethers.Contract(membersOnlyAddress, SET_GAME_ABI, deployer);
-  tx = await moGameAuth.setGameContract(gambleAddress, true);
+  // MembersOnly.setItems(itemsAddress) — so it can mint chips on mint/weekly
+  const moSetItems = new hre.ethers.Contract(membersOnlyAddress, SET_ITEMS_ABI, deployer);
+  tx = await moSetItems.setItems(itemsAddress);
   await tx.wait();
-  console.log("  MembersOnly.setGameContract(Gamble)        ✓");
+  console.log("  MembersOnly.setItems(Items)                ✓");
 
-  // MembersOnly authorizes Tournament as a game contract
-  tx = await moGameAuth.setGameContract(tournamentAddress, true);
+  // Items authorizes MembersOnly (for chip minting on mint/weekly)
+  const itemsAuth = new hre.ethers.Contract(itemsAddress, SET_GAME_ABI, deployer);
+  tx = await itemsAuth.setGameContract(membersOnlyAddress, true);
   await tx.wait();
-  console.log("  MembersOnly.setGameContract(Tournament)    ✓");
+  console.log("  Items.setGameContract(MembersOnly)         ✓");
 
-  // MembersOnlyItems authorizes Gamble as a game contract
-  const itemsGameAuth = new hre.ethers.Contract(itemsAddress, SET_GAME_ABI, deployer);
-  tx = await itemsGameAuth.setGameContract(gambleAddress, true);
+  // Items authorizes Gamble (for chip burn/mint on wager/win)
+  tx = await itemsAuth.setGameContract(gambleAddress, true);
   await tx.wait();
-  console.log("  MembersOnlyItems.setGameContract(Gamble)   ✓");
+  console.log("  Items.setGameContract(Gamble)              ✓");
 
-  // MembersOnlyItems authorizes Tournament as a game contract
-  tx = await itemsGameAuth.setGameContract(tournamentAddress, true);
+  // Items authorizes Tournament (for chip burn on entry)
+  tx = await itemsAuth.setGameContract(tournamentAddress, true);
   await tx.wait();
-  console.log("  MembersOnlyItems.setGameContract(Tournament) ✓");
+  console.log("  Items.setGameContract(Tournament)          ✓");
 
-  // Market: approve MembersOnly + Items for trading
+  // Market approves MembersOnly + Items for trading
   const marketContract = new hre.ethers.Contract(marketAddress, MARKET_WIRE_ABI, deployer);
   tx = await marketContract.setApprovedContract(membersOnlyAddress, true);
   await tx.wait();
@@ -138,30 +142,18 @@ async function main() {
   if (fs.existsSync(configPath)) {
     let config = fs.readFileSync(configPath, 'utf8');
 
-    config = config.replace(
-      /export const CONTRACT_ADDRESS\s*=\s*'[^']*'/,
-      `export const CONTRACT_ADDRESS         = '${membersOnlyAddress}'`
-    );
-    config = config.replace(
-      /export const ITEMS_CONTRACT_ADDRESS\s*=\s*'[^']*'/,
-      `export const ITEMS_CONTRACT_ADDRESS   = '${itemsAddress}'`
-    );
-    config = config.replace(
-      /export const MARKET_ADDRESS\s*=\s*'[^']*'/,
-      `export const MARKET_ADDRESS           = '${marketAddress}'`
-    );
-    config = config.replace(
-      /export const GAMBLE_ADDRESS\s*=\s*'[^']*'/,
-      `export const GAMBLE_ADDRESS           = '${gambleAddress}'`
-    );
+    const replacements = {
+      CONTRACT_ADDRESS:       membersOnlyAddress,
+      ITEMS_CONTRACT_ADDRESS: itemsAddress,
+      MARKET_ADDRESS:         marketAddress,
+      GAMBLE_ADDRESS:         gambleAddress,
+      TOURNAMENT_ADDRESS:     tournamentAddress,
+    };
 
-    if (config.includes('TOURNAMENT_ADDRESS')) {
-      config = config.replace(/export const TOURNAMENT_ADDRESS\s*=\s*'[^']*'/, `export const TOURNAMENT_ADDRESS       = '${tournamentAddress}'`);
-    } else {
-      config = config.replace(
-        /(export const GAMBLE_ADDRESS\s*=\s*'[^']*';?)/,
-        `$1\nexport const TOURNAMENT_ADDRESS       = '${tournamentAddress}';`
-      );
+    for (const [key, addr] of Object.entries(replacements)) {
+      const re = new RegExp(`export const ${key}\\s*=\\s*'[^']*'`);
+      const pad = key.length < 24 ? ' '.repeat(24 - key.length) : ' ';
+      config = config.replace(re, `export const ${key}${pad}= '${addr}'`);
     }
 
     fs.writeFileSync(configPath, config, 'utf8');
@@ -193,27 +185,22 @@ async function main() {
   console.log("\n╔════════════════════════════════════════════════════════════╗");
   console.log("║              Deployment Complete!                         ║");
   console.log("╚════════════════════════════════════════════════════════════╝");
-  console.log(`  Network:         ${network}`);
-  console.log(`  MembersOnly:     ${membersOnlyAddress}`);
-  console.log(`  MembersOnlyItems:${itemsAddress}`);
-  console.log(`  Market:          ${marketAddress}`);
-  console.log(`  Gamble:          ${gambleAddress}`);
-  console.log(`  Tournament:      ${tournamentAddress}`);
-  console.log(`  Oracle:          ✓  ${oracleAddress}`);
+  console.log(`  Network:          ${network}`);
+  console.log(`  MembersOnly:      ${membersOnlyAddress}`);
+  console.log(`  MembersOnlyItems: ${itemsAddress}`);
+  console.log(`  Market:           ${marketAddress}`);
+  console.log(`  Gamble:           ${gambleAddress}`);
+  console.log(`  Tournament:       ${tournamentAddress}`);
+  console.log(`  Oracle:           ${oracleAddress}`);
   console.log("");
   console.log("  Wiring:");
-  console.log("    MembersOnly  ← authorized → Gamble       ✓");
-  console.log("    MembersOnly  ← authorized → Tournament   ✓");
-  console.log("    Items        ← authorized → Gamble       ✓");
-  console.log("    Items        ← authorized → Tournament   ✓");
-  console.log("    Market       ← approved   → MembersOnly  ✓");
-  console.log("    Market       ← approved   → Items        ✓");
-  console.log("");
-  console.log("  Config files patched:");
-  console.log("    js/config.js          (5 addresses)");
-  console.log("    worker/wrangler.toml  (2 addresses)");
+  console.log("    MembersOnly.setItems(Items)             ✓");
+  console.log("    Items ← authorized → MembersOnly       ✓");
+  console.log("    Items ← authorized → Gamble            ✓");
+  console.log("    Items ← authorized → Tournament        ✓");
+  console.log("    Market ← approved  → MembersOnly       ✓");
+  console.log("    Market ← approved  → Items             ✓");
   console.log("════════════════════════════════════════════════════════════\n");
-  console.log("Next: Commit config files, deploy Cloudflare Worker, verify on Snowtrace.");
 }
 
 main().catch(err => {

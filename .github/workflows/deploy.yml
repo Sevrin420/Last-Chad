@@ -8,10 +8,11 @@ on:
       target:
         description: 'What to deploy'
         required: true
-        default: 'all-contracts'
+        default: 'everything'
         type: choice
         options:
-          - all-contracts    # Deploy MembersOnly + MembersOnlyItems (full redeploy)
+          - everything       # Deploy ALL 5 contracts + wire + worker (full protocol)
+          - all-contracts    # Deploy MembersOnly + MembersOnlyItems only
           - gamble           # Deploy Gamble only
           - worker           # Cloudflare Worker only
           - authorize        # Re-authorize game contracts in MembersOnly + Items
@@ -45,7 +46,7 @@ jobs:
   deploy-contract:
     name: Deploy Contracts (Avalanche Mainnet)
     runs-on: ubuntu-latest
-    if: inputs.target == 'all-contracts' || inputs.target == 'gamble'
+    if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'gamble'
     environment: mainnet
 
     steps:
@@ -59,6 +60,13 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Deploy everything (all 5 contracts + wiring)
+        if: inputs.target == 'everything'
+        env:
+          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
+        run: npx hardhat run scripts/deployEverything.js --network avalanche
 
       - name: Deploy all contracts (MembersOnly + Items)
         if: inputs.target == 'all-contracts'
@@ -96,8 +104,8 @@ jobs:
     if: |
       always() &&
       (inputs.target == 'worker' ||
-       (inputs.target == 'everything' && needs.deploy-contract.result != 'failure') ||
-       (inputs.target == 'all-contracts' && needs.deploy-contract.result != 'failure'))
+       (inputs.target == 'everything' && needs.deploy-contract.result == 'success') ||
+       (inputs.target == 'all-contracts' && needs.deploy-contract.result == 'success'))
 
     steps:
       - uses: actions/checkout@v4
