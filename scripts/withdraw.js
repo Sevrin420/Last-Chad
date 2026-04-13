@@ -1,6 +1,6 @@
 /**
  * withdraw.js
- * Calls withdraw() on LastChad to send all collected AVAX to the owner wallet.
+ * Calls withdraw() on MembersOnly to send all collected AVAX to the owner wallet.
  * Run via GitHub Actions with OWNER_PRIVATE_KEY secret.
  */
 

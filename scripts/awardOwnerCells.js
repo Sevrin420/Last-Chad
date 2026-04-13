@@ -1,36 +1,36 @@
-// Award 100 open cells to every Chad NFT currently in the owner wallet.
+// Award chips to every Chad NFT currently in the owner wallet.
 // Run: npx hardhat run scripts/awardOwnerCells.js --network fuji
 //      npx hardhat run scripts/awardOwnerCells.js --network avalanche
 
 const hre = require("hardhat");
-const { LAST_CHAD: CONTRACT_ADDRESS } = require('./addresses');
+const { MEMBERS_ONLY: CONTRACT_ADDRESS } = require('./addresses');
 
-const CELLS_TO_AWARD = 100;
+const CHIPS_TO_AWARD = 100;
 
 const ABI = [
-  'function totalSupply() view returns (uint256)',
+  'function totalMinted() view returns (uint256)',
   'function ownerOf(uint256 tokenId) view returns (address)',
-  'function getOpenCells(uint256 tokenId) view returns (uint256)',
-  'function awardCells(uint256 tokenId, uint256 amount) external',
+  'function getChips(uint256 tokenId) view returns (uint256)',
+  'function awardChips(uint256 tokenId, uint256 amount) external',
 ];
 
 async function main() {
   const [owner] = await hre.ethers.getSigners();
   console.log("Owner wallet:", owner.address);
   console.log("Contract:    ", CONTRACT_ADDRESS);
-  console.log("Cells/Chad:  ", CELLS_TO_AWARD);
+  console.log("Chips/Chad:  ", CHIPS_TO_AWARD);
   console.log("─".repeat(50));
 
-  const lastChad = new hre.ethers.Contract(CONTRACT_ADDRESS, ABI, owner);
+  const contract = new hre.ethers.Contract(CONTRACT_ADDRESS, ABI, owner);
 
-  const totalRaw = await lastChad.totalSupply();
+  const totalRaw = await contract.totalMinted();
   const total = totalRaw.toNumber ? totalRaw.toNumber() : Number(totalRaw);
-  console.log(`Total supply: ${total} Chads\n`);
+  console.log(`Total minted: ${total} Chads\n`);
 
   const owned = [];
   for (let id = 1; id <= total; id++) {
     try {
-      const tokenOwner = await lastChad.ownerOf(id);
+      const tokenOwner = await contract.ownerOf(id);
       if (tokenOwner.toLowerCase() === owner.address.toLowerCase()) {
         owned.push(id);
       }
@@ -46,14 +46,14 @@ async function main() {
 
   for (const tokenId of owned) {
     try {
-      const before = (await lastChad.getOpenCells(tokenId)).toString();
-      console.log(`Chad #${tokenId} — open cells before: ${before}`);
+      const before = (await contract.getChips(tokenId)).toString();
+      console.log(`Chad #${tokenId} — chips before: ${before}`);
 
-      const tx = await lastChad.awardCells(tokenId, CELLS_TO_AWARD);
+      const tx = await contract.awardChips(tokenId, CHIPS_TO_AWARD);
       await tx.wait();
 
-      const after = (await lastChad.getOpenCells(tokenId)).toString();
-      console.log(`Chad #${tokenId} — open cells after:  ${after} ✓`);
+      const after = (await contract.getChips(tokenId)).toString();
+      console.log(`Chad #${tokenId} — chips after:  ${after} ✓`);
     } catch (err) {
       console.error(`Chad #${tokenId} failed:`, err.message);
     }

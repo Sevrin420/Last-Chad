@@ -4,233 +4,288 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-interface ILastChad {
+interface IMembersOnlyForTournament {
     function ownerOf(uint256 tokenId) external view returns (address);
-    function eliminated(uint256 tokenId) external view returns (bool);
-    function awardCells(uint256 tokenId, uint256 amount) external;
-    function spendCells(uint256 tokenId, uint256 amount) external;
-    function getOpenCells(uint256 tokenId) external view returns (uint256);
-    function getClosedCells(uint256 tokenId) external view returns (uint256);
+    function spendChips(uint256 tokenId, uint256 amount) external;
+    function awardChips(uint256 tokenId, uint256 amount) external;
 }
 
+/// @title Tournament — configurable tournaments for Members Only casino
+///
+/// Tournament flow:
+///   1. Owner creates tournament with params (cost, duration, rebuy, etc.)
+///   2. Players enter (chip cost deducted, tournament chips awarded)
+///   3. Players play games and accumulate/lose tournament chips
+///   4. Players lock their tournament chip balance as their score
+///   5. Tournament ends — leaderboard is final
+///
+/// Entry is once per NFT unless rebuy is allowed.
+/// Rebuy: re-enter, new score only replaces old if higher.
 contract Tournament is Ownable, ReentrancyGuard {
-    ILastChad public immutable lastChad;
-    uint256 public currentMonth;
-    uint256 public constant LOCK_AMOUNT = 1111;
+    IMembersOnlyForTournament public immutable membersOnly;
 
-    // ── Endgame Snapshot ──
-    mapping(uint256 => uint256) public endgameSnapshot;      // tokenId → closed cells at endgame
+    struct TournamentConfig {
+        string  name;
+        uint256 startTime;
+        uint256 endTime;
+        uint256 chipCost;          // 0 = free entry
+        bool    tokenGated;        // requires Members Only NFT (always true for now)
+        uint256 tournamentChips;   // chips received on entry
+        bool    rebuyAllowed;
+        bool    active;
+        uint256 entryCount;        // total entries
+    }
 
-    // ── Cell Tiers ──
-    mapping(uint256 => uint256) public cellTiers;            // closedCellThreshold → claimAmount
-    uint256[] public tierThresholds;                         // sorted thresholds for lookup
+    struct TournamentEntry {
+        uint256 tournamentChips;   // current tournament chip balance
+        uint256 score;             // locked score (0 = not yet locked)
+        bool    entered;
+        uint256 entryCount;        // times entered (for rebuy tracking)
+        bool    busted;            // went to 0
+    }
 
-    // ── Monthly State ──
-    mapping(uint256 => mapping(uint256 => bool)) public cellsClaimed;    // tokenId → month → claimed
-    mapping(uint256 => mapping(uint256 => bool)) public lockedForMonth;  // tokenId → month → locked
-    mapping(uint256 => uint256) public lockCount;                        // month → number locked
-    mapping(uint256 => uint256[]) public lockedChads;                    // month → tokenId array
-
-    // ── Failed Transfer Recovery ──
-    mapping(address => uint256) public pendingWithdrawals;               // pull-based recovery
+    uint256 public nextTournamentId = 1;
+    mapping(uint256 => TournamentConfig) public tournaments;
+    mapping(uint256 => mapping(uint256 => TournamentEntry)) public entries; // tournamentId => tokenId => entry
+    mapping(uint256 => uint256[]) private _leaderboardTokens;              // tournamentId => tokenId array (scored)
+    mapping(uint256 => mapping(uint256 => bool)) private _onLeaderboard;   // tournamentId => tokenId => on board
 
     // ── Events ──
-    event CellsClaimed(uint256 indexed tokenId, uint256 month, uint256 amount);
-    event LockedForTournament(uint256 indexed tokenId, uint256 month);
-    event PrizeDistributed(uint256 month, uint256 winnerCount, uint256 perWinner);
-    event MonthAdvanced(uint256 newMonth);
-    event EndgameSnapshotSet(uint256 count);
-    event CellTierSet(uint256 threshold, uint256 amount);
-    event TransferFailed(address indexed winner, uint256 amount);
+    event TournamentCreated(uint256 indexed tournamentId, string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed);
+    event TournamentCancelled(uint256 indexed tournamentId);
+    event TournamentEntered(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 tournamentChips);
+    event ScoreLocked(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 score);
+    event ScoreUpdated(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 oldScore, uint256 newScore);
+    event PlayerBusted(uint256 indexed tournamentId, uint256 indexed tokenId);
+    event TournamentChipsAwarded(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 amount);
+    event TournamentChipsSpent(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 amount);
 
-    constructor(address _lastChad) Ownable(msg.sender) {
-        lastChad = ILastChad(_lastChad);
+    constructor(address _membersOnly) Ownable(msg.sender) {
+        membersOnly = IMembersOnlyForTournament(_membersOnly);
     }
 
     // ─────────────────────────────────────────────────────────
-    // Setup Functions (owner only)
+    // Owner Functions
     // ─────────────────────────────────────────────────────────
 
-    /// @notice Freeze each chad's closed cell count for tier lookup (can be batched)
-    function snapshotEndgame(uint256[] calldata tokenIds, uint256[] calldata closedCells) external onlyOwner {
-        require(tokenIds.length == closedCells.length, "Array length mismatch");
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            endgameSnapshot[tokenIds[i]] = closedCells[i];
-        }
-        emit EndgameSnapshotSet(tokenIds.length);
+    function createTournament(
+        string calldata name,
+        uint256 startTime,
+        uint256 endTime,
+        uint256 chipCost,
+        uint256 tournamentChips,
+        bool    rebuyAllowed
+    ) external onlyOwner returns (uint256 tournamentId) {
+        require(bytes(name).length > 0, "Name required");
+        require(endTime > startTime, "End must be after start");
+        require(tournamentChips > 0, "Must award tournament chips");
+
+        tournamentId = nextTournamentId++;
+        tournaments[tournamentId] = TournamentConfig({
+            name:            name,
+            startTime:       startTime,
+            endTime:         endTime,
+            chipCost:        chipCost,
+            tokenGated:      true,
+            tournamentChips: tournamentChips,
+            rebuyAllowed:    rebuyAllowed,
+            active:          true,
+            entryCount:      0
+        });
+
+        emit TournamentCreated(tournamentId, name, startTime, endTime, chipCost, tournamentChips, rebuyAllowed);
     }
 
-    /// @notice Set a single cell tier (threshold → claim amount)
-    function setCellTier(uint256 closedCellThreshold, uint256 claimAmount) external onlyOwner {
-        _setCellTier(closedCellThreshold, claimAmount);
+    function cancelTournament(uint256 tournamentId) external onlyOwner {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        tournaments[tournamentId].active = false;
+        emit TournamentCancelled(tournamentId);
     }
 
-    /// @notice Set multiple cell tiers in one call
-    function batchSetCellTiers(uint256[] calldata thresholds, uint256[] calldata amounts) external onlyOwner {
-        require(thresholds.length == amounts.length, "Array length mismatch");
-        for (uint256 i = 0; i < thresholds.length; i++) {
-            _setCellTier(thresholds[i], amounts[i]);
-        }
+    /// @notice Award tournament chips to a player (for game results)
+    function awardTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount) external onlyOwner {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        TournamentEntry storage entry = entries[tournamentId][tokenId];
+        require(entry.entered, "Not entered");
+        require(!entry.busted, "Player busted");
+
+        entry.tournamentChips += amount;
+        emit TournamentChipsAwarded(tournamentId, tokenId, amount);
     }
 
-    function _setCellTier(uint256 threshold, uint256 amount) internal {
-        require(amount > 0, "Amount must be > 0");
-        // Check if threshold already exists
-        bool exists = false;
-        for (uint256 i = 0; i < tierThresholds.length; i++) {
-            if (tierThresholds[i] == threshold) {
-                exists = true;
-                break;
-            }
-        }
-        if (!exists) {
-            tierThresholds.push(threshold);
-            _sortThresholds();
-        }
-        cellTiers[threshold] = amount;
-        emit CellTierSet(threshold, amount);
-    }
+    /// @notice Spend tournament chips from a player (for game results)
+    function spendTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount) external onlyOwner {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        TournamentEntry storage entry = entries[tournamentId][tokenId];
+        require(entry.entered, "Not entered");
+        require(entry.tournamentChips >= amount, "Insufficient tournament chips");
 
-    function _sortThresholds() internal {
-        uint256 len = tierThresholds.length;
-        for (uint256 i = 1; i < len; i++) {
-            uint256 key = tierThresholds[i];
-            uint256 j = i;
-            while (j > 0 && tierThresholds[j - 1] > key) {
-                tierThresholds[j] = tierThresholds[j - 1];
-                j--;
-            }
-            tierThresholds[j] = key;
+        entry.tournamentChips -= amount;
+
+        if (entry.tournamentChips == 0) {
+            entry.busted = true;
+            emit PlayerBusted(tournamentId, tokenId);
         }
+
+        emit TournamentChipsSpent(tournamentId, tokenId, amount);
     }
 
     // ─────────────────────────────────────────────────────────
     // Player Functions
     // ─────────────────────────────────────────────────────────
 
-    /// @notice Claim free cells based on endgame snapshot tier (once per month)
-    function claimCells(uint256 tokenId) external {
-        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!lastChad.eliminated(tokenId), "Chad eliminated");
-        require(!cellsClaimed[tokenId][currentMonth], "Already claimed this month");
+    function enterTournament(uint256 tournamentId, uint256 tokenId) external {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        TournamentConfig storage config = tournaments[tournamentId];
+        require(config.active, "Tournament not active");
+        require(block.timestamp >= config.startTime, "Tournament not started");
+        require(block.timestamp < config.endTime, "Tournament ended");
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
 
-        uint256 amount = getClaimAmount(tokenId);
-        require(amount > 0, "No cells to claim");
+        TournamentEntry storage entry = entries[tournamentId][tokenId];
 
-        cellsClaimed[tokenId][currentMonth] = true;
-        lastChad.awardCells(tokenId, amount);
+        if (entry.entered) {
+            // Rebuy logic
+            require(config.rebuyAllowed, "Rebuy not allowed");
+            require(entry.busted, "Must be busted to rebuy");
 
-        emit CellsClaimed(tokenId, currentMonth, amount);
-    }
-
-    /// @notice Lock 1111 cells to enter this month's tournament
-    function lockForTournament(uint256 tokenId) external {
-        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!lastChad.eliminated(tokenId), "Chad eliminated");
-        require(!lockedForMonth[tokenId][currentMonth], "Already locked this month");
-
-        lastChad.spendCells(tokenId, LOCK_AMOUNT);
-
-        lockedForMonth[tokenId][currentMonth] = true;
-        lockCount[currentMonth]++;
-        lockedChads[currentMonth].push(tokenId);
-
-        emit LockedForTournament(tokenId, currentMonth);
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // Owner Functions — Distribution
-    // ─────────────────────────────────────────────────────────
-
-    /// @notice Distribute AVAX to winners and advance to next month
-    function distributeAndReset() external onlyOwner nonReentrant {
-        uint256 month = currentMonth;
-        uint256 winners = lockCount[month];
-
-        // Advance month FIRST (checks-effects-interactions)
-        currentMonth = month + 1;
-
-        if (winners > 0) {
-            uint256 pool = address(this).balance;
-            if (pool > 0) {
-                uint256 perWinner = pool / winners;
-                uint256[] storage chads = lockedChads[month];
-
-                for (uint256 i = 0; i < chads.length; i++) {
-                    address winner = lastChad.ownerOf(chads[i]);
-                    (bool sent, ) = payable(winner).call{value: perWinner}("");
-                    if (!sent) {
-                        // Queue for pull-based withdrawal instead of reverting
-                        pendingWithdrawals[winner] += perWinner;
-                        emit TransferFailed(winner, perWinner);
-                    }
-                }
-
-                emit PrizeDistributed(month, winners, perWinner);
-            }
+            entry.busted = false;
+            entry.tournamentChips = config.tournamentChips;
+            entry.entryCount++;
+        } else {
+            // First entry
+            entry.entered = true;
+            entry.tournamentChips = config.tournamentChips;
+            entry.entryCount = 1;
+            config.entryCount++;
         }
 
-        emit MonthAdvanced(currentMonth);
+        // Deduct chip cost if any
+        if (config.chipCost > 0) {
+            membersOnly.spendChips(tokenId, config.chipCost);
+        }
+
+        emit TournamentEntered(tournamentId, tokenId, config.tournamentChips);
     }
 
-    /// @notice Withdraw failed prize transfers
-    function withdrawPending() external nonReentrant {
-        uint256 amount = pendingWithdrawals[msg.sender];
-        require(amount > 0, "Nothing to withdraw");
-        pendingWithdrawals[msg.sender] = 0;
-        (bool sent, ) = payable(msg.sender).call{value: amount}("");
-        require(sent, "Transfer failed");
-    }
+    function lockScore(uint256 tournamentId, uint256 tokenId) external {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        TournamentConfig storage config = tournaments[tournamentId];
+        require(config.active, "Tournament not active");
+        require(block.timestamp < config.endTime, "Tournament ended");
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
 
-    /// @notice Accept AVAX deposits for the prize pool
-    receive() external payable {}
+        TournamentEntry storage entry = entries[tournamentId][tokenId];
+        require(entry.entered, "Not entered");
+        require(!entry.busted, "Player busted");
+        require(entry.tournamentChips > 0, "No chips to lock");
+
+        uint256 newScore = entry.tournamentChips;
+        uint256 oldScore = entry.score;
+
+        // If rebuy: new score only replaces old if higher
+        if (oldScore > 0) {
+            require(newScore > oldScore, "New score must be higher than previous");
+            entry.score = newScore;
+            emit ScoreUpdated(tournamentId, tokenId, oldScore, newScore);
+        } else {
+            entry.score = newScore;
+            // Add to leaderboard tracking
+            if (!_onLeaderboard[tournamentId][tokenId]) {
+                _leaderboardTokens[tournamentId].push(tokenId);
+                _onLeaderboard[tournamentId][tokenId] = true;
+            }
+            emit ScoreLocked(tournamentId, tokenId, newScore);
+        }
+
+        // Lock means chips are committed — set to 0
+        entry.tournamentChips = 0;
+        entry.busted = true; // Can rebuy if allowed
+    }
 
     // ─────────────────────────────────────────────────────────
     // View Functions
     // ─────────────────────────────────────────────────────────
 
-    function getLockedChads(uint256 month) external view returns (uint256[] memory) {
-        return lockedChads[month];
+    function getTournament(uint256 tournamentId) external view returns (
+        string memory name,
+        uint256 startTime,
+        uint256 endTime,
+        uint256 chipCost,
+        uint256 tournamentChips,
+        bool    rebuyAllowed,
+        bool    active,
+        uint256 entryCount
+    ) {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        TournamentConfig storage c = tournaments[tournamentId];
+        return (c.name, c.startTime, c.endTime, c.chipCost, c.tournamentChips, c.rebuyAllowed, c.active, c.entryCount);
     }
 
-    function getLockCount(uint256 month) external view returns (uint256) {
-        return lockCount[month];
+    function getEntry(uint256 tournamentId, uint256 tokenId) external view returns (
+        uint256 tournamentChips,
+        uint256 score,
+        bool    entered,
+        uint256 entryCount,
+        bool    busted
+    ) {
+        TournamentEntry storage e = entries[tournamentId][tokenId];
+        return (e.tournamentChips, e.score, e.entered, e.entryCount, e.busted);
     }
 
-    function hasClaimed(uint256 tokenId, uint256 month) external view returns (bool) {
-        return cellsClaimed[tokenId][month];
+    function getLeaderboardCount(uint256 tournamentId) external view returns (uint256) {
+        return _leaderboardTokens[tournamentId].length;
     }
 
-    function hasLocked(uint256 tokenId, uint256 month) external view returns (bool) {
-        return lockedForMonth[tokenId][month];
-    }
+    function getLeaderboard(uint256 tournamentId, uint256 offset, uint256 limit) external view returns (
+        uint256[] memory tokenIds,
+        uint256[] memory scores
+    ) {
+        uint256[] storage tokens = _leaderboardTokens[tournamentId];
+        uint256 total = tokens.length;
 
-    function getClaimAmount(uint256 tokenId) public view returns (uint256) {
-        uint256 snapshot = endgameSnapshot[tokenId];
-        if (snapshot == 0) return 0;
-
-        uint256 best = 0;
-        for (uint256 i = 0; i < tierThresholds.length; i++) {
-            if (snapshot >= tierThresholds[i]) {
-                best = cellTiers[tierThresholds[i]];
-            } else {
-                break; // thresholds are sorted ascending
-            }
+        if (offset >= total) {
+            return (new uint256[](0), new uint256[](0));
         }
-        return best;
+
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 count = end - offset;
+
+        tokenIds = new uint256[](count);
+        scores = new uint256[](count);
+
+        for (uint256 i = 0; i < count; i++) {
+            uint256 tid = tokens[offset + i];
+            tokenIds[i] = tid;
+            scores[i] = entries[tournamentId][tid].score;
+        }
     }
 
-    function getCurrentMonth() external view returns (uint256) {
-        return currentMonth;
+    function isTournamentActive(uint256 tournamentId) external view returns (bool) {
+        if (!_tournamentExists(tournamentId)) return false;
+        TournamentConfig storage c = tournaments[tournamentId];
+        return c.active && block.timestamp >= c.startTime && block.timestamp < c.endTime;
     }
 
-    function getTierCount() external view returns (uint256) {
-        return tierThresholds.length;
+    function _tournamentExists(uint256 tournamentId) internal view returns (bool) {
+        return tournamentId > 0 && tournamentId < nextTournamentId;
     }
 
-    function getTierThreshold(uint256 index) external view returns (uint256 threshold, uint256 amount) {
-        require(index < tierThresholds.length, "Index out of bounds");
-        threshold = tierThresholds[index];
-        amount = cellTiers[threshold];
+    /// @notice Accept AVAX deposits for prize pools
+    receive() external payable {}
+
+    /// @notice Distribute AVAX prize to specific winners (owner decides)
+    function distributePrize(address[] calldata winners, uint256[] calldata amounts) external onlyOwner nonReentrant {
+        require(winners.length == amounts.length, "Array length mismatch");
+        for (uint256 i = 0; i < winners.length; i++) {
+            (bool sent, ) = payable(winners[i]).call{value: amounts[i]}("");
+            require(sent, "Transfer failed");
+        }
+    }
+
+    function withdraw() external onlyOwner {
+        (bool success, ) = payable(owner()).call{value: address(this).balance}("");
+        require(success, "Withdrawal failed");
     }
 }

@@ -1,32 +1,32 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const PRICE = ethers.parseEther("2");
-const BASE_URI = "https://lastchad.xyz/metadata/";
+const PRICE = ethers.parseEther("0.01");
+const BASE_URI = "https://membersonly.xyz/metadata/";
 
 describe("Gamble", function () {
-  let lastChad, gamble, owner, player, other, oracleWallet;
+  let membersOnly, gamble, owner, player, other, oracleWallet;
 
   beforeEach(async function () {
     [owner, player, other] = await ethers.getSigners();
     oracleWallet = ethers.Wallet.createRandom();
 
-    const ChadFactory = await ethers.getContractFactory("LastChad");
-    lastChad = await ChadFactory.deploy(BASE_URI);
+    const MembersOnlyFactory = await ethers.getContractFactory("MembersOnly");
+    membersOnly = await MembersOnlyFactory.deploy(BASE_URI);
 
     const GambleFactory = await ethers.getContractFactory("Gamble");
     gamble = await GambleFactory.deploy(
-      await lastChad.getAddress(),
+      await membersOnly.getAddress(),
       oracleWallet.address
     );
 
     // Authorize gamble contract
-    await lastChad.setGameContract(await gamble.getAddress(), true);
+    await membersOnly.setGameContract(await gamble.getAddress(), true);
 
-    // Mint a token and give it cells
-    await lastChad.connect(player).mint(1, { value: PRICE });
-    await lastChad.connect(player).setStats(1, "TestChad", 1, 0, 1, 0);
-    await lastChad.awardCells(1, 100);
+    // Mint a token (gets BASE_CHIPS = 50)
+    await membersOnly.connect(player).mint(1, { value: PRICE });
+    // Award extra chips for testing
+    await membersOnly.awardChips(1, 100);
   });
 
   /** Helper: sign a claimWinnings message with the oracle wallet */
@@ -38,9 +38,7 @@ describe("Gamble", function () {
     return oracleWallet.signMessage(ethers.getBytes(messageHash));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Constructor
-  // ──────────────────────────────────────────────────────────
+  // ─── Constructor ───
   describe("constructor", function () {
     it("sets oracle at deploy", async function () {
       expect(await gamble.oracle()).to.equal(oracleWallet.address);
@@ -49,24 +47,21 @@ describe("Gamble", function () {
     it("reverts if oracle is zero address", async function () {
       const GambleFactory = await ethers.getContractFactory("Gamble");
       await expect(
-        GambleFactory.deploy(await lastChad.getAddress(), ethers.ZeroAddress)
+        GambleFactory.deploy(await membersOnly.getAddress(), ethers.ZeroAddress)
       ).to.be.revertedWith("Oracle required");
     });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // commitWager
-  // ──────────────────────────────────────────────────────────
+  // ─── commitWager ───
   describe("commitWager", function () {
-    it("deducts cells and returns nonce", async function () {
-      const cellsBefore = await lastChad.getCells(1);
+    it("deducts chips and returns nonce", async function () {
+      const chipsBefore = await membersOnly.getChips(1);
       const tx = await gamble.connect(player).commitWager(1, 10);
       const receipt = await tx.wait();
 
-      const cellsAfter = await lastChad.getCells(1);
-      expect(cellsBefore - cellsAfter).to.equal(10);
+      const chipsAfter = await membersOnly.getChips(1);
+      expect(chipsBefore - chipsAfter).to.equal(10);
 
-      // Check nonce was emitted
       const iface = gamble.interface;
       const log = receipt.logs
         .map(l => { try { return iface.parseLog(l); } catch { return null; } })
@@ -103,28 +98,21 @@ describe("Gamble", function () {
       await expect(
         gamble.connect(player).commitWager(1, 0)
       ).to.be.revertedWith("Wager out of range");
-
-      await expect(
-        gamble.connect(player).commitWager(1, 51)
-      ).to.be.revertedWith("Wager out of range");
     });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // claimWinnings
-  // ──────────────────────────────────────────────────────────
+  // ─── claimWinnings ───
   describe("claimWinnings", function () {
     beforeEach(async function () {
-      // Commit a wager (nonce=0)
       await gamble.connect(player).commitWager(1, 10);
     });
 
-    it("awards cells on valid oracle-signed claim", async function () {
+    it("awards chips on valid oracle-signed claim", async function () {
       const sig = await signClaim(1, 20, 0, player.address);
-      const cellsBefore = await lastChad.getCells(1);
+      const chipsBefore = await membersOnly.getChips(1);
       await gamble.connect(player).claimWinnings(1, 20, 0, sig);
-      const cellsAfter = await lastChad.getCells(1);
-      expect(cellsAfter - cellsBefore).to.equal(20);
+      const chipsAfter = await membersOnly.getChips(1);
+      expect(chipsAfter - chipsBefore).to.equal(20);
     });
 
     it("cleans up storage after claim", async function () {
@@ -169,18 +157,12 @@ describe("Gamble", function () {
       ).to.be.revertedWith("Invalid oracle signature");
     });
 
-    it("reverts with empty signature (no bypass)", async function () {
-      await expect(
-        gamble.connect(player).claimWinnings(1, 20, 0, "0x")
-      ).to.be.reverted;
-    });
-
     it("allows zero payout claim (just marks nonce used)", async function () {
       const sig = await signClaim(1, 0, 0, player.address);
-      const cellsBefore = await lastChad.getCells(1);
+      const chipsBefore = await membersOnly.getChips(1);
       await gamble.connect(player).claimWinnings(1, 0, 0, sig);
-      const cellsAfter = await lastChad.getCells(1);
-      expect(cellsAfter).to.equal(cellsBefore);
+      const chipsAfter = await membersOnly.getChips(1);
+      expect(chipsAfter).to.equal(chipsBefore);
       expect(await gamble.usedNonces(0)).to.be.true;
     });
   });

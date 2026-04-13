@@ -1,322 +1,262 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-
-const PRICE = ethers.parseEther("2");
-const BASE_URI = "https://lastchad.xyz/metadata/";
+const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
 describe("Tournament", function () {
-  let lastChad, tournament, owner, addr1, addr2, addr3;
+  let MembersOnly, membersOnly;
+  let Tournament, tournament;
+  let owner, user1, user2;
+  const MINT_PRICE = ethers.parseEther("0.01");
 
   beforeEach(async function () {
-    [owner, addr1, addr2, addr3] = await ethers.getSigners();
+    [owner, user1, user2] = await ethers.getSigners();
 
-    // Deploy LastChad
-    const LC = await ethers.getContractFactory("LastChad");
-    lastChad = await LC.deploy(BASE_URI);
+    MembersOnly = await ethers.getContractFactory("MembersOnly");
+    membersOnly = await MembersOnly.deploy("https://membersonly.xyz/metadata/");
 
-    // Deploy Tournament
-    const T = await ethers.getContractFactory("Tournament");
-    tournament = await T.deploy(await lastChad.getAddress());
+    Tournament = await ethers.getContractFactory("Tournament");
+    tournament = await Tournament.deploy(await membersOnly.getAddress());
 
-    // Authorize Tournament as a game contract on LastChad
-    await lastChad.setGameContract(await tournament.getAddress(), true);
+    // Authorize tournament to spend/award chips
+    await membersOnly.setGameContract(await tournament.getAddress(), true);
 
-    // Mint a chad for addr1 and addr2
-    await lastChad.connect(addr1).mint(1, { value: PRICE });
-    await lastChad.connect(addr2).mint(1, { value: PRICE });
-
-    // Award extra cells so they have enough to lock (1111 needed)
-    await lastChad.awardCells(1, 2000);
-    await lastChad.awardCells(2, 2000);
+    // Mint NFTs for users
+    await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
+    await membersOnly.connect(user2).mint(1, { value: MINT_PRICE });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Deployment
-  // ──────────────────────────────────────────────────────────
-  describe("Deployment", function () {
-    it("sets lastChad address correctly", async function () {
-      expect(await tournament.lastChad()).to.equal(await lastChad.getAddress());
+  // ─── Tournament Creation ───
+  describe("Creation", function () {
+    it("should create a tournament", async function () {
+      const now = await time.latest();
+      const start = now + 60;
+      const end = start + 3600;
+
+      await expect(tournament.createTournament("Weekly Craps", start, end, 10, 1000, false))
+        .to.emit(tournament, "TournamentCreated");
+
+      const t = await tournament.getTournament(1);
+      expect(t.name).to.equal("Weekly Craps");
+      expect(t.chipCost).to.equal(10);
+      expect(t.tournamentChips).to.equal(1000);
+      expect(t.rebuyAllowed).to.be.false;
+      expect(t.active).to.be.true;
     });
 
-    it("starts at month 0", async function () {
-      expect(await tournament.currentMonth()).to.equal(0);
-    });
-
-    it("LOCK_AMOUNT is 1111", async function () {
-      expect(await tournament.LOCK_AMOUNT()).to.equal(1111);
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
-  // Endgame Snapshot
-  // ──────────────────────────────────────────────────────────
-  describe("Endgame Snapshot", function () {
-    it("owner can set snapshots", async function () {
-      await tournament.snapshotEndgame([1, 2], [500, 1000]);
-      expect(await tournament.endgameSnapshot(1)).to.equal(500);
-      expect(await tournament.endgameSnapshot(2)).to.equal(1000);
-    });
-
-    it("reverts for non-owner", async function () {
+    it("should reject end before start", async function () {
+      const now = await time.latest();
       await expect(
-        tournament.connect(addr1).snapshotEndgame([1], [500])
-      ).to.be.revertedWithCustomError(tournament, "OwnableUnauthorizedAccount");
+        tournament.createTournament("Bad", now + 100, now + 50, 0, 100, false)
+      ).to.be.revertedWith("End must be after start");
     });
 
-    it("reverts on array length mismatch", async function () {
+    it("should reject zero tournament chips", async function () {
+      const now = await time.latest();
       await expect(
-        tournament.snapshotEndgame([1, 2], [500])
-      ).to.be.revertedWith("Array length mismatch");
+        tournament.createTournament("Bad", now + 60, now + 3600, 0, 0, false)
+      ).to.be.revertedWith("Must award tournament chips");
+    });
+
+    it("should cancel a tournament", async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Test", now + 60, now + 3600, 0, 100, false);
+      await tournament.cancelTournament(1);
+
+      const t = await tournament.getTournament(1);
+      expect(t.active).to.be.false;
     });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Cell Tiers
-  // ──────────────────────────────────────────────────────────
-  describe("Cell Tiers", function () {
-    it("owner can set a single tier", async function () {
-      await tournament.setCellTier(500, 30);
-      expect(await tournament.getTierCount()).to.equal(1);
-      const [threshold, amount] = await tournament.getTierThreshold(0);
-      expect(threshold).to.equal(500);
-      expect(amount).to.equal(30);
-    });
+  // ─── Entry ───
+  describe("Entry", function () {
+    let tournamentId;
 
-    it("owner can batch set tiers", async function () {
-      await tournament.batchSetCellTiers([200, 500, 1000], [20, 30, 50]);
-      expect(await tournament.getTierCount()).to.equal(3);
-    });
-
-    it("tiers are sorted ascending", async function () {
-      await tournament.batchSetCellTiers([1000, 200, 500], [50, 20, 30]);
-      const [t0] = await tournament.getTierThreshold(0);
-      const [t1] = await tournament.getTierThreshold(1);
-      const [t2] = await tournament.getTierThreshold(2);
-      expect(t0).to.equal(200);
-      expect(t1).to.equal(500);
-      expect(t2).to.equal(1000);
-    });
-
-    it("reverts for non-owner", async function () {
-      await expect(
-        tournament.connect(addr1).setCellTier(500, 30)
-      ).to.be.revertedWithCustomError(tournament, "OwnableUnauthorizedAccount");
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
-  // Claim Cells
-  // ──────────────────────────────────────────────────────────
-  describe("Claim Cells", function () {
     beforeEach(async function () {
-      // Set up snapshot and tiers
-      await tournament.snapshotEndgame([1, 2], [500, 1000]);
-      await tournament.batchSetCellTiers([200, 500, 1000], [20, 30, 50]);
+      const now = await time.latest();
+      await tournament.createTournament("Test", now + 1, now + 7200, 10, 500, false);
+      tournamentId = 1;
+      await time.increase(2);
     });
 
-    it("player can claim cells based on tier", async function () {
-      const cellsBefore = await lastChad.getOpenCells(1);
-      await tournament.connect(addr1).claimCells(1);
-      const cellsAfter = await lastChad.getOpenCells(1);
-      expect(cellsAfter - cellsBefore).to.equal(30); // 500 closed → tier 500 → 30 cells
+    it("should enter a free tournament", async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Free", now + 1, now + 7200, 0, 100, false);
+      await time.increase(2);
+
+      await tournament.connect(user1).enterTournament(2, 1);
+      const entry = await tournament.getEntry(2, 1);
+      expect(entry.entered).to.be.true;
+      expect(entry.tournamentChips).to.equal(100);
     });
 
-    it("higher snapshot gets higher tier", async function () {
-      const cellsBefore = await lastChad.getOpenCells(2);
-      await tournament.connect(addr2).claimCells(2);
-      const cellsAfter = await lastChad.getOpenCells(2);
-      expect(cellsAfter - cellsBefore).to.equal(50); // 1000 closed → tier 1000 → 50 cells
+    it("should deduct chip cost on entry", async function () {
+      const chipsBefore = await membersOnly.getChips(1);
+      await tournament.connect(user1).enterTournament(1, 1);
+      const chipsAfter = await membersOnly.getChips(1);
+      expect(chipsBefore - chipsAfter).to.equal(10);
     });
 
-    it("emits CellsClaimed event", async function () {
-      await expect(tournament.connect(addr1).claimCells(1))
-        .to.emit(tournament, "CellsClaimed")
-        .withArgs(1, 0, 30);
-    });
-
-    it("cannot claim twice in same month", async function () {
-      await tournament.connect(addr1).claimCells(1);
+    it("should reject entry before tournament starts", async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Future", now + 10000, now + 20000, 0, 100, false);
       await expect(
-        tournament.connect(addr1).claimCells(1)
-      ).to.be.revertedWith("Already claimed this month");
+        tournament.connect(user1).enterTournament(2, 1)
+      ).to.be.revertedWith("Tournament not started");
     });
 
-    it("cannot claim for someone else's chad", async function () {
+    it("should reject double entry without rebuy", async function () {
+      await tournament.connect(user1).enterTournament(1, 1);
       await expect(
-        tournament.connect(addr2).claimCells(1)
+        tournament.connect(user1).enterTournament(1, 1)
+      ).to.be.revertedWith("Rebuy not allowed");
+    });
+
+    it("should reject non-owner entry", async function () {
+      await expect(
+        tournament.connect(user2).enterTournament(1, 1)
       ).to.be.revertedWith("Not token owner");
-    });
-
-    it("cannot claim with no snapshot", async function () {
-      // Mint a new chad with no snapshot
-      await lastChad.connect(addr3).mint(1, { value: PRICE });
-      await expect(
-        tournament.connect(addr3).claimCells(3)
-      ).to.be.revertedWith("No cells to claim");
     });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Lock for Tournament
-  // ──────────────────────────────────────────────────────────
-  describe("Lock for Tournament", function () {
-    it("player can lock 1111 cells", async function () {
-      const cellsBefore = await lastChad.getOpenCells(1);
-      await tournament.connect(addr1).lockForTournament(1);
-      const cellsAfter = await lastChad.getOpenCells(1);
-      expect(cellsBefore - cellsAfter).to.equal(1111);
+  // ─── Score Locking ───
+  describe("Score Locking", function () {
+    let tournamentId;
+
+    beforeEach(async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Test", now + 1, now + 7200, 0, 500, false);
+      tournamentId = 1;
+      await time.increase(2);
+      await tournament.connect(user1).enterTournament(1, 1);
     });
 
-    it("increments lock count", async function () {
-      await tournament.connect(addr1).lockForTournament(1);
-      expect(await tournament.getLockCount(0)).to.equal(1);
+    it("should lock score", async function () {
+      await tournament.connect(user1).lockScore(1, 1);
+      const entry = await tournament.getEntry(1, 1);
+      expect(entry.score).to.equal(500);
+      expect(entry.tournamentChips).to.equal(0);
     });
 
-    it("adds to lockedChads array", async function () {
-      await tournament.connect(addr1).lockForTournament(1);
-      const locked = await tournament.getLockedChads(0);
-      expect(locked.length).to.equal(1);
-      expect(locked[0]).to.equal(1);
+    it("should add to leaderboard", async function () {
+      await tournament.connect(user1).lockScore(1, 1);
+      expect(await tournament.getLeaderboardCount(1)).to.equal(1);
     });
 
-    it("emits LockedForTournament event", async function () {
-      await expect(tournament.connect(addr1).lockForTournament(1))
-        .to.emit(tournament, "LockedForTournament")
-        .withArgs(1, 0);
-    });
-
-    it("cannot lock twice in same month", async function () {
-      await tournament.connect(addr1).lockForTournament(1);
+    it("should reject lock when busted", async function () {
+      await tournament.spendTournamentChips(1, 1, 500);
       await expect(
-        tournament.connect(addr1).lockForTournament(1)
-      ).to.be.revertedWith("Already locked this month");
-    });
-
-    it("cannot lock someone else's chad", async function () {
-      await expect(
-        tournament.connect(addr2).lockForTournament(1)
-      ).to.be.revertedWith("Not token owner");
-    });
-
-    it("reverts if insufficient cells", async function () {
-      // Spend most cells first
-      await lastChad.spendCells(1, 1500);
-      await expect(
-        tournament.connect(addr1).lockForTournament(1)
-      ).to.be.revertedWith("Insufficient cells");
+        tournament.connect(user1).lockScore(1, 1)
+      ).to.be.revertedWith("Player busted");
     });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Distribute and Reset
-  // ──────────────────────────────────────────────────────────
-  describe("Distribute and Reset", function () {
-    it("distributes AVAX equally to winners", async function () {
-      await tournament.connect(addr1).lockForTournament(1);
-      await tournament.connect(addr2).lockForTournament(2);
+  // ─── Rebuy ───
+  describe("Rebuy", function () {
+    beforeEach(async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Rebuy", now + 1, now + 7200, 0, 500, true);
+      await time.increase(2);
+      await tournament.connect(user1).enterTournament(1, 1);
+    });
 
-      // Send 10 AVAX to tournament as prize pool
-      const prize = ethers.parseEther("10");
+    it("should allow rebuy after bust", async function () {
+      await tournament.spendTournamentChips(1, 1, 500); // bust
+      await tournament.connect(user1).enterTournament(1, 1); // rebuy
+      const entry = await tournament.getEntry(1, 1);
+      expect(entry.tournamentChips).to.equal(500);
+      expect(entry.entryCount).to.equal(2);
+    });
+
+    it("should allow higher score to replace old", async function () {
+      await tournament.connect(user1).lockScore(1, 1);
+      const entry1 = await tournament.getEntry(1, 1);
+      expect(entry1.score).to.equal(500);
+
+      // Rebuy
+      await tournament.connect(user1).enterTournament(1, 1);
+      await tournament.awardTournamentChips(1, 1, 100);
+
+      await tournament.connect(user1).lockScore(1, 1);
+      const entry2 = await tournament.getEntry(1, 1);
+      expect(entry2.score).to.equal(600);
+    });
+
+    it("should reject lower score replacement", async function () {
+      await tournament.connect(user1).lockScore(1, 1); // score = 500
+
+      await tournament.connect(user1).enterTournament(1, 1); // rebuy
+      await tournament.spendTournamentChips(1, 1, 100);
+
+      await expect(
+        tournament.connect(user1).lockScore(1, 1)
+      ).to.be.revertedWith("New score must be higher than previous");
+    });
+  });
+
+  // ─── Leaderboard ───
+  describe("Leaderboard", function () {
+    it("should return paginated leaderboard", async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Test", now + 1, now + 7200, 0, 500, false);
+      await time.increase(2);
+
+      await tournament.connect(user1).enterTournament(1, 1);
+      await tournament.connect(user2).enterTournament(1, 2);
+
+      await tournament.connect(user1).lockScore(1, 1);
+      await tournament.connect(user2).lockScore(1, 2);
+
+      const [tokenIds, scores] = await tournament.getLeaderboard(1, 0, 10);
+      expect(tokenIds.length).to.equal(2);
+      expect(scores[0]).to.equal(500);
+      expect(scores[1]).to.equal(500);
+    });
+  });
+
+  // ─── Tournament Chips (Owner) ───
+  describe("Tournament Chip Management", function () {
+    beforeEach(async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Test", now + 1, now + 7200, 0, 500, false);
+      await time.increase(2);
+      await tournament.connect(user1).enterTournament(1, 1);
+    });
+
+    it("should award tournament chips", async function () {
+      await tournament.awardTournamentChips(1, 1, 200);
+      const entry = await tournament.getEntry(1, 1);
+      expect(entry.tournamentChips).to.equal(700);
+    });
+
+    it("should spend tournament chips", async function () {
+      await tournament.spendTournamentChips(1, 1, 100);
+      const entry = await tournament.getEntry(1, 1);
+      expect(entry.tournamentChips).to.equal(400);
+    });
+
+    it("should bust player when chips hit zero", async function () {
+      await tournament.spendTournamentChips(1, 1, 500);
+      const entry = await tournament.getEntry(1, 1);
+      expect(entry.busted).to.be.true;
+    });
+  });
+
+  // ─── Prize Distribution ───
+  describe("Prize Distribution", function () {
+    it("should distribute prize to winners", async function () {
+      const prize = ethers.parseEther("1");
       await owner.sendTransaction({
         to: await tournament.getAddress(),
         value: prize
       });
 
-      const balBefore1 = await ethers.provider.getBalance(addr1.address);
-      const balBefore2 = await ethers.provider.getBalance(addr2.address);
-
-      await tournament.distributeAndReset();
-
-      const balAfter1 = await ethers.provider.getBalance(addr1.address);
-      const balAfter2 = await ethers.provider.getBalance(addr2.address);
-
-      expect(balAfter1 - balBefore1).to.equal(ethers.parseEther("5"));
-      expect(balAfter2 - balBefore2).to.equal(ethers.parseEther("5"));
+      const balBefore = await ethers.provider.getBalance(user1.address);
+      await tournament.distributePrize([user1.address], [prize]);
+      const balAfter = await ethers.provider.getBalance(user1.address);
+      expect(balAfter - balBefore).to.equal(prize);
     });
 
-    it("advances month after distribution", async function () {
-      await tournament.distributeAndReset();
-      expect(await tournament.currentMonth()).to.equal(1);
-    });
-
-    it("emits MonthAdvanced event", async function () {
-      await expect(tournament.distributeAndReset())
-        .to.emit(tournament, "MonthAdvanced")
-        .withArgs(1);
-    });
-
-    it("players can lock again in new month", async function () {
-      await tournament.connect(addr1).lockForTournament(1);
-      await tournament.distributeAndReset();
-      // Refill cells for next month
-      await lastChad.awardCells(1, 2000);
-      await tournament.connect(addr1).lockForTournament(1);
-      expect(await tournament.getLockCount(1)).to.equal(1);
-    });
-
-    it("reverts for non-owner", async function () {
-      await expect(
-        tournament.connect(addr1).distributeAndReset()
-      ).to.be.revertedWithCustomError(tournament, "OwnableUnauthorizedAccount");
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
-  // View Functions
-  // ──────────────────────────────────────────────────────────
-  describe("View Functions", function () {
-    it("hasClaimed returns correct value", async function () {
-      await tournament.snapshotEndgame([1], [500]);
-      await tournament.setCellTier(500, 30);
-      expect(await tournament.hasClaimed(1, 0)).to.equal(false);
-      await tournament.connect(addr1).claimCells(1);
-      expect(await tournament.hasClaimed(1, 0)).to.equal(true);
-    });
-
-    it("hasLocked returns correct value", async function () {
-      expect(await tournament.hasLocked(1, 0)).to.equal(false);
-      await tournament.connect(addr1).lockForTournament(1);
-      expect(await tournament.hasLocked(1, 0)).to.equal(true);
-    });
-
-    it("getClaimAmount returns correct tier amount", async function () {
-      await tournament.snapshotEndgame([1], [750]);
-      await tournament.batchSetCellTiers([200, 500, 1000], [20, 30, 50]);
-      // 750 >= 500 but < 1000, so tier 500 → 30
-      expect(await tournament.getClaimAmount(1)).to.equal(30);
-    });
-
-    it("getClaimAmount returns 0 for no snapshot", async function () {
-      expect(await tournament.getClaimAmount(1)).to.equal(0);
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
-  // Eliminated Chads
-  // ──────────────────────────────────────────────────────────
-  describe("Eliminated Chads", function () {
-    it("eliminated chad cannot claim cells", async function () {
-      await tournament.snapshotEndgame([1], [500]);
-      await tournament.setCellTier(500, 30);
-      await lastChad.eliminate(1);
-      await expect(
-        tournament.connect(addr1).claimCells(1)
-      ).to.be.revertedWith("Chad eliminated");
-    });
-
-    it("eliminated chad cannot lock for tournament", async function () {
-      await lastChad.eliminate(1);
-      await expect(
-        tournament.connect(addr1).lockForTournament(1)
-      ).to.be.revertedWith("Chad eliminated");
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
-  // Receive AVAX
-  // ──────────────────────────────────────────────────────────
-  describe("Receive AVAX", function () {
-    it("accepts direct AVAX transfers", async function () {
+    it("should accept AVAX deposits", async function () {
       await owner.sendTransaction({
         to: await tournament.getAddress(),
         value: ethers.parseEther("5")

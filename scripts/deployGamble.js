@@ -1,7 +1,7 @@
 /**
  * deployGamble.js
  *
- * Deploys the Gamble contract, authorizes it in LastChad,
+ * Deploys the Gamble contract, authorizes it in MembersOnly,
  * and patches js/config.js with the new address automatically.
  *
  * Usage:
@@ -9,13 +9,14 @@
  *   npx hardhat run scripts/deployGamble.js --network avalanche
  *
  * Required env vars:
- *   PRIVATE_KEY  — deployer / game-owner wallet
+ *   PRIVATE_KEY    — deployer / game-owner wallet
+ *   ORACLE_ADDRESS — oracle wallet public address
  */
 
 const hre  = require("hardhat");
 const fs   = require("fs");
 const path = require("path");
-const { LAST_CHAD: LAST_CHAD_ADDRESS } = require('./addresses');
+const { MEMBERS_ONLY: CONTRACT_ADDRESS } = require('./addresses');
 
 const SET_GAME_CONTRACT_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
@@ -32,30 +33,26 @@ async function main() {
 
   console.log(`\nDeploying Gamble on [${network}]`);
   console.log(`Deployer / game owner: ${deployer.address}`);
-  console.log(`LastChad:              ${LAST_CHAD_ADDRESS}`);
+  console.log(`MembersOnly:           ${CONTRACT_ADDRESS}`);
   console.log(`Oracle:                ${oracleAddress}\n`);
 
   // ── 1. Deploy Gamble (oracle required at construction) ─────────────────
   const Gamble = await hre.ethers.getContractFactory("Gamble");
-  const gamble = await Gamble.deploy(LAST_CHAD_ADDRESS, oracleAddress);
+  const gamble = await Gamble.deploy(CONTRACT_ADDRESS, oracleAddress);
   await gamble.waitForDeployment();
 
   const gambleAddress = await gamble.getAddress();
   console.log("Gamble deployed to:", gambleAddress);
 
-  // ── 2. Authorize Gamble in LastChad ────────────────────────────────────
-  console.log("\nAuthorizing Gamble in LastChad...");
-  const lastChad = new hre.ethers.Contract(
-    LAST_CHAD_ADDRESS, SET_GAME_CONTRACT_ABI, deployer
-  );
-  const tx = await lastChad.setGameContract(gambleAddress, true);
+  // ── 2. Authorize Gamble in MembersOnly ────────────────────────────────
+  console.log("\nAuthorizing Gamble in MembersOnly...");
+  const contract = new hre.ethers.Contract(CONTRACT_ADDRESS, SET_GAME_CONTRACT_ABI, deployer);
+  const tx = await contract.setGameContract(gambleAddress, true);
   await tx.wait();
-  console.log("  lastChad.setGameContract ✓");
-
-  // Oracle was set atomically in the constructor — no separate tx needed.
+  console.log("  setGameContract(Gamble) ✓");
   console.log("\n  Oracle set at deploy ✓ →", oracleAddress);
 
-  // ── 4. Patch js/config.js ──────────────────────────────────────────────
+  // ── 3. Patch js/config.js ──────────────────────────────────────────────
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
   if (fs.existsSync(configPath)) {
     let config = fs.readFileSync(configPath, 'utf8');
@@ -69,7 +66,7 @@ async function main() {
     console.warn("\nWarning: js/config.js not found — update GAMBLE_ADDRESS manually.");
   }
 
-  // ── 5. Patch worker/wrangler.toml ────────────────────────────────────
+  // ── 4. Patch worker/wrangler.toml ────────────────────────────────────
   const wranglerPath = path.join(__dirname, '..', 'worker', 'wrangler.toml');
   if (fs.existsSync(wranglerPath)) {
     let wrangler = fs.readFileSync(wranglerPath, 'utf8');
@@ -87,7 +84,7 @@ async function main() {
   console.log("Deployment complete!");
   console.log("  Network:          ", network);
   console.log("  Gamble:           ", gambleAddress);
-  console.log("  LastChad auth:    ✓");
+  console.log("  MembersOnly auth:  ✓");
   console.log("  Oracle:            ✓ ", oracleAddress);
   console.log("══════════════════════════════════════════════════\n");
   console.log("js/config.js has been updated. Commit and push to go live.");

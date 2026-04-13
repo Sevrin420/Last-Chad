@@ -11,22 +11,17 @@ on:
         default: 'all-contracts'
         type: choice
         options:
-          - everything       # Deploy ALL 6 contracts + Tournament + mint codes (mainnet launch)
-          - all-contracts    # Deploy LastChad + LastChadItems + QuestRewards (full redeploy)
-          - lastchad-only    # Re-deploy LastChad only (e.g. stat point changes), re-auth QuestRewards
-          - quest-only       # Deploy QuestRewards only (LastChad + Items already deployed)
-          - gamble           # Deploy Gamble only (LastChad already deployed)
-          - load-mintcodes   # Load mint code hashes into already-deployed LastChad
+          - all-contracts    # Deploy MembersOnly + MembersOnlyItems (full redeploy)
+          - gamble           # Deploy Gamble only
           - worker           # Cloudflare Worker only
-          - authorize        # Re-authorize already-deployed QuestRewards in LastChad + Items
+          - authorize        # Re-authorize game contracts in MembersOnly + Items
           - verify           # Verify all contracts on Snowtrace (no deploy)
           - validate         # On-chain validation: confirm all contracts are live and wired
-          - release-escrow   # Return all NFTs locked in QuestRewards escrow to their owners
-          - gamble-open      # Open the gambling den (authorize Gamble in LastChad)
+          - gamble-open      # Open the gambling den (authorize Gamble in MembersOnly)
           - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
-          - award-owner-cells # Award 100 open cells to every Chad in the owner wallet
+          - award-owner-chips # Award chips to every Chad in the owner wallet
           - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
-          - approve-market   # Whitelist LastChad + Items on the Market contract
+          - approve-market   # Whitelist MembersOnly + Items on the Market contract
           - reset-tables     # Reset all 6 public craps tables (nuke stuck game state)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +45,7 @@ jobs:
   deploy-contract:
     name: Deploy Contracts (Avalanche Mainnet)
     runs-on: ubuntu-latest
-    if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'lastchad-only' || inputs.target == 'quest-only' || inputs.target == 'gamble' || inputs.target == 'load-mintcodes'
+    if: inputs.target == 'all-contracts' || inputs.target == 'gamble'
     environment: mainnet
 
     steps:
@@ -65,42 +60,11 @@ jobs:
 
       - run: npm ci
 
-      - name: Deploy EVERYTHING (6 contracts + mint codes + wiring)
-        if: inputs.target == 'everything'
-        env:
-          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: npx hardhat run scripts/deployEverything.js --network avalanche
-
-      - name: Load mint codes into deployed LastChad
-        if: inputs.target == 'load-mintcodes'
-        env:
-          PRIVATE_KEY:        ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: |
-          LASTCHAD_ADDRESS=$(node -e "const fs=require('fs'),p=require('path');const s=fs.readFileSync(p.join(__dirname,'js','config.js'),'utf8');const m=s.match(/CONTRACT_ADDRESS\s*=\s*'([^']+)'/);console.log(m[1])")
-          export LASTCHAD_ADDRESS
-          npx hardhat run scripts/loadMintCodes.js --network avalanche
-
-      - name: Deploy all contracts (LastChad + Items + QuestRewards)
+      - name: Deploy all contracts (MembersOnly + Items)
         if: inputs.target == 'all-contracts'
         env:
-          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/deployAll.js --network avalanche
-
-      - name: Re-deploy LastChad only (re-auth existing QuestRewards)
-        if: inputs.target == 'lastchad-only'
-        env:
-          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: npx hardhat run scripts/deployLastChad.js --network avalanche
-
-      - name: Deploy QuestRewards only
-        if: inputs.target == 'quest-only'
-        env:
-          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: npx hardhat run scripts/deployQuestRewards.js --network avalanche
 
       - name: Deploy Gamble only
         if: inputs.target == 'gamble'
@@ -113,7 +77,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add js/config.js js/quest-globals.js worker/wrangler.toml
+          git add js/config.js worker/wrangler.toml
           if git diff --cached --quiet; then
             echo "config files unchanged — skipping commit"
           else
@@ -184,7 +148,7 @@ jobs:
           fi
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 3: Re-authorize an already-deployed QuestRewards contract
+  # Job 3: Re-authorize game contracts
   # ───────────────────────────────────────────────────────────────────────────
   authorize-contracts:
     name: Authorize Contracts (Avalanche Mainnet)
@@ -202,7 +166,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Authorize QuestRewards in LastChad + LastChadItems
+      - name: Authorize game contracts in MembersOnly + MembersOnlyItems
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/authorizeContracts.js --network avalanche
@@ -254,30 +218,6 @@ jobs:
         run: npx hardhat run scripts/validateContracts.js --network avalanche
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 5: Release all locked NFTs from QuestRewards escrow
-  # ───────────────────────────────────────────────────────────────────────────
-  release-escrow:
-    name: Release Escrow (Avalanche Mainnet)
-    runs-on: ubuntu-latest
-    if: inputs.target == 'release-escrow'
-    environment: mainnet
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Release all NFTs in escrow back to their owners
-        env:
-          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/releaseEscrow.js --network avalanche
-
-  # ───────────────────────────────────────────────────────────────────────────
   # Job 6: Open or close the gambling den
   # ───────────────────────────────────────────────────────────────────────────
   toggle-gamble:
@@ -303,12 +243,12 @@ jobs:
         run: npx hardhat run scripts/toggleGamble.js --network avalanche
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 7: Award 100 open cells to every Chad in the owner wallet
+  # Job 7: Award chips to every Chad in the owner wallet
   # ───────────────────────────────────────────────────────────────────────────
-  award-owner-cells:
-    name: Award 100 Cells to Owner Chads (Avalanche Mainnet)
+  award-owner-chips:
+    name: Award Chips to Owner Chads (Avalanche Mainnet)
     runs-on: ubuntu-latest
-    if: inputs.target == 'award-owner-cells'
+    if: inputs.target == 'award-owner-chips'
     environment: mainnet
 
     steps:
@@ -321,15 +261,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Award 100 cells to each Chad in owner wallet
+      - name: Award chips to each Chad in owner wallet
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/awardOwnerCells.js --network avalanche
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 8: Whitelist LastChad + Items on the Market contract
-  # Run this after deploying a new Market, or after an all-contracts redeploy
-  # if the Market address was already set in js/config.js beforehand.
+  # Job 8: Whitelist MembersOnly + Items on the Market contract
   # ───────────────────────────────────────────────────────────────────────────
   approve-market:
     name: Approve Contracts on Market (Avalanche Mainnet)
@@ -347,7 +285,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Whitelist LastChad + Items on Market contract
+      - name: Whitelist MembersOnly + Items on Market contract
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
         run: npx hardhat run scripts/approveMarketContracts.js --network avalanche
@@ -371,18 +309,15 @@ jobs:
       - name: Sync contract addresses from js/config.js → wrangler.toml
         working-directory: worker
         run: |
-          LASTCHAD=$(grep "CONTRACT_ADDRESS\b" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
-          QUESTREWARDS=$(grep "QUEST_REWARDS_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          CONTRACT=$(grep "CONTRACT_ADDRESS\b" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
           GAMBLE=$(grep "GAMBLE_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
           RPC=$(grep "READ_RPC" ../js/config.js | head -1 | sed "s/.*'\(https[^']*\)'.*/\1/")
 
-          echo "LastChad:     $LASTCHAD"
-          echo "QuestRewards: $QUESTREWARDS"
-          echo "Gamble:       $GAMBLE"
-          echo "RPC:          $RPC"
+          echo "Contract: $CONTRACT"
+          echo "Gamble:   $GAMBLE"
+          echo "RPC:      $RPC"
 
-          sed -i "s|LASTCHAD_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|LASTCHAD_ADDRESS      = \"${LASTCHAD}\"|" wrangler.toml
-          sed -i "s|QUEST_REWARDS_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|QUEST_REWARDS_ADDRESS = \"${QUESTREWARDS}\"|" wrangler.toml
+          sed -i "s|CONTRACT_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|CONTRACT_ADDRESS      = \"${CONTRACT}\"|" wrangler.toml
           sed -i "s|GAMBLE_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|GAMBLE_ADDRESS        = \"${GAMBLE}\"|" wrangler.toml
           sed -i "s|READ_RPC.*=.*\"https[^\"]*\"|READ_RPC              = \"${RPC}\"|" wrangler.toml
 

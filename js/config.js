@@ -1,23 +1,19 @@
 // ══════════════════════════════════════════════════════════════════════
-// config.js — SINGLE SOURCE OF TRUTH for Last Chad configuration
+// config.js — SINGLE SOURCE OF TRUTH for Members Only configuration
 // ══════════════════════════════════════════════════════════════════════
 // All contract addresses, ABIs, RPC endpoints, chain config, and
-// service URLs live here.  Other config files are thin wrappers:
+// service URLs live here.
 //
-//   js/quest-globals.js  — sets global `var`s for non-module quest pages
-//   js/builder-config.js — builder-only settings (GitHub, knownItems)
-//
-// When deploying contracts, update THIS file first.  Deploy scripts
-// patch both config.js and quest-globals.js automatically.
+// When deploying contracts, update THIS file first. Deploy scripts
+// patch automatically.
 // ══════════════════════════════════════════════════════════════════════
 
-// ── Contract addresses ───────────────────────────────────────────────
-export const CONTRACT_ADDRESS         = '0xd8d166DcA70D7EF700A30ea071D8A01c6E451E78';
-export const ITEMS_CONTRACT_ADDRESS   = '0x66f98e6F6fA6c0F0315De904b0AaE30337787d00';
-export const QUEST_REWARDS_ADDRESS    = '0x3F9BBb8509D69bc07FBbb29D892f9e3DB59C46C2';
-export const MARKET_ADDRESS           = '0x1BDCa01C4bE81d9B54D2528Cc3DB3f7Cd785E921';
-export const GAMBLE_ADDRESS           = '0x258583F419aCbB4e38bed5ac6535CD11169Eaf1C';
-export const TOURNAMENT_ADDRESS       = '0x3D2621F0Ac627e698B2D6ecB40C9b8C6aA4d19F8';
+// ── Contract addresses (update after deployment) ─────────────────────
+export const CONTRACT_ADDRESS         = '0x0000000000000000000000000000000000000000'; // MembersOnly
+export const ITEMS_CONTRACT_ADDRESS   = '0x0000000000000000000000000000000000000000'; // MembersOnlyItems
+export const MARKET_ADDRESS           = '0x0000000000000000000000000000000000000000'; // Market
+export const GAMBLE_ADDRESS           = '0x0000000000000000000000000000000000000000'; // Gamble
+export const TOURNAMENT_ADDRESS       = '0x0000000000000000000000000000000000000000'; // Tournament
 
 // ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax.network/ext/bc/C/rpc';
@@ -36,11 +32,8 @@ export const AVAX_CHAIN = {
 // ── WalletConnect ────────────────────────────────────────────────────
 export const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 
-// ── Game Constants ──────────────────────────────────────────────────
-export const CELLS_PER_LEVEL = 100;
-
-// ── Chad image URL ───────────────────────────────────────────────────
-// Single source of truth — update here if image location ever changes.
+// ── NFT image URL ────────────────────────────────────────────────────
+// Single source of truth — asset folders are untouchable.
 export function getChadImageUrl(tokenId) {
   return 'assets/Chads%20333/framed/chad_' + tokenId + '.png';
 }
@@ -48,7 +41,11 @@ export function getChadImageUrl(tokenId) {
 // ── Cloudflare Worker ────────────────────────────────────────────────
 export const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
 
-export const LASTCHAD_ABI = [
+// ══════════════════════════════════════════════════════════════════════
+// ABIs — Members Only contracts
+// ══════════════════════════════════════════════════════════════════════
+
+export const MEMBERS_ONLY_ABI = [
   // ERC-721 standard
   'function totalSupply() view returns (uint256)',
   'function balanceOf(address owner) view returns (uint256)',
@@ -57,149 +54,102 @@ export const LASTCHAD_ABI = [
   'function approve(address to, uint256 tokenId)',
   'function getApproved(uint256 tokenId) view returns (address)',
   'function isApprovedForAll(address owner, address operator) view returns (bool)',
+  'function setApprovalForAll(address operator, bool approved)',
   'function transferFrom(address from, address to, uint256 tokenId)',
   // ERC-721 Enumerable
   'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
   'function tokenByIndex(uint256 index) view returns (uint256)',
-  // LastChad-specific
+  // MembersOnly-specific
   'function MAX_SUPPLY() view returns (uint256)',
   'function MINT_PRICE() view returns (uint256)',
-  'function BASE_CELLS() view returns (uint256)',
-  'function PARTNER_BONUS_CELLS() view returns (uint256)',
-  'function CODE_BONUS_CELLS() view returns (uint256)',
+  'function BASE_CHIPS() view returns (uint256)',
+  'function PARTNER_BONUS_CHIPS() view returns (uint256)',
   'function MAX_MINT_PER_WALLET() view returns (uint256)',
   'function totalMinted() view returns (uint256)',
-  'function getStats(uint256 tokenId) view returns (uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma, bool assigned)',
-  'function getLevel(uint256 tokenId) view returns (uint256)',
-  'function getOpenCells(uint256 tokenId) view returns (uint256)',
-  'function getClosedCells(uint256 tokenId) view returns (uint256)',
-  'function getCells(uint256 tokenId) view returns (uint256)',
-  'function lockCells(uint256 tokenId, uint256 amount)',
-  'function awardCells(uint256 tokenId, uint256 amount)',
-  'function spendCells(uint256 tokenId, uint256 amount)',
-  'function getPendingStatPoints(uint256 tokenId) view returns (uint256)',
-  'function spendStatPoint(uint256 tokenId, uint8 statIndex)',
-  'function tokenName(uint256 tokenId) view returns (string)',
-  'function authorizedGame(address game) view returns (bool)',
-  'function setGameContract(address game, bool enabled)',
   'function mint(uint256 quantity) payable',
-  'function mintWithCode(uint256 quantity, string code) payable',
-  'function setStats(uint256 tokenId, string name, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma)',
-  // Elimination & active status
-  'function eliminated(uint256 tokenId) view returns (bool)',
-  'function eliminatedCount() view returns (uint256)',
+  'function mintWhitelist(uint256 quantity, bytes32[] proof) payable',
+  // Naming
+  'function setName(uint256 tokenId, string name)',
+  'function tokenName(uint256 tokenId) view returns (string)',
+  'function isNameTaken(string name) view returns (bool)',
+  'function isNameAssigned(uint256 tokenId) view returns (bool)',
+  // Chips
+  'function getChips(uint256 tokenId) view returns (uint256)',
+  'function getChipsBatch(uint256[] tokenIds) view returns (uint256[])',
+  'function awardChips(uint256 tokenId, uint256 amount)',
+  'function batchAwardChips(uint256[] tokenIds, uint256[] amounts)',
+  'function spendChips(uint256 tokenId, uint256 amount)',
+  // Tier system
+  'function tokenTier(uint256 tokenId) view returns (uint8)',
+  'function tierChipReward(uint8 tier) view returns (uint256)',
+  'function setTier(uint256 tokenId, uint8 tier)',
+  'function batchSetTier(uint256[] tokenIds, uint8[] tiers)',
+  'function setTierReward(uint8 tier, uint256 amount)',
+  // Level system
+  'function getLevel(uint256 tokenId) view returns (uint8)',
+  'function levelBonusChips(uint8 level) view returns (uint256)',
+  'function setLevelBonus(uint8 level, uint256 amount)',
+  // Weekly claiming
+  'function currentWeek() view returns (uint256)',
+  'function claimWeeklyChips(uint256 tokenId)',
+  'function advanceWeek()',
+  'function getWeeklyReward(uint256 tokenId) view returns (uint256)',
+  'function hasClaimed(uint256 tokenId, uint256 week) view returns (bool)',
+  // Active lock
   'function isActive(uint256 tokenId) view returns (bool)',
   'function setActive(uint256 tokenId, bool active)',
-  'function eliminate(uint256 tokenId)',
-  'function batchEliminate(uint256[] tokenIds)',
-  'function reinstate(uint256 tokenId)',
-  'function batchReinstate(uint256[] tokenIds)',
-  // Batch helpers
-  'function batchAwardCells(uint256[] tokenIds, uint256[] amounts)',
-  'function getClosedCellsBatch(uint256[] tokenIds) view returns (uint256[])',
-  'function getTotalCells(uint256 tokenId) view returns (uint256)',
-  // Cull system
-  'function cullMode() view returns (uint8)',
-  'function cullValue() view returns (uint256)',
-  'function getCullCount() view returns (uint256)',
-  'function setCullMode(uint8 mode, uint256 value)',
-  'function announceCull(uint256 executeAfterTimestamp)',
-  'function cullAnnouncedAt() view returns (uint256)',
-  'function cullExecuteAfter() view returns (uint256)',
+  // Game auth
+  'function authorizedGame(address game) view returns (bool)',
+  'function setGameContract(address game, bool enabled)',
   // Partner system
   'function registerPartner(string name, address nftContract) returns (uint256)',
   'function setPartnerActive(uint256 partnerId, bool active)',
   'function getPartner(uint256 partnerId) view returns (string name, address nftContract, bool active)',
   'function getPartnerCount() view returns (uint256)',
   'function hasPartnerNFT(address wallet) view returns (bool)',
-  // Mint codes
-  'function mintCodeValid(bytes32 hash) view returns (bool)',
-  'function mintCodeUsed(bytes32 hash) view returns (bool)',
-  'function addMintCodes(bytes32[] hashes)',
-  'function removeMintCode(bytes32 hash)',
-  // Level freeze
-  'function levelsFrozen() view returns (bool)',
-  'function freezeLevels()',
-  // Unique names
-  'function isNameTaken(string name) view returns (bool)',
-  // Per-token mutable URI
+  // Whitelist
+  'function merkleRoot() view returns (bytes32)',
+  'function setMerkleRoot(bytes32 root)',
+  // URI
   'function setTokenURI(uint256 tokenId, string uri)',
   'function batchSetTokenURI(uint256[] tokenIds, string[] uris)',
-  // Owner
   'function setBaseURI(string baseURI)',
+  // Owner
   'function withdraw()',
-  'function updateStats(uint256 tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma)',
-  'function addStat(uint256 tokenId, uint8 statIndex, uint32 amount)',
   'function mintedPerWallet(address wallet) view returns (uint256)',
   // Events
-  'event Eliminated(uint256 indexed tokenId, uint256 closedCells)',
-  'event Reinstated(uint256 indexed tokenId)',
-  'event PartnerRegistered(uint256 indexed partnerId, string name, address nftContract)',
-  'event MintCodeUsed(bytes32 indexed codeHash, address indexed minter)',
-  'event LevelsFrozen()',
-  'event CullAnnounced(uint256 cullAt, uint8 mode, uint256 value, uint256 estimatedCount)',
-  'event CellsLocked(uint256 indexed tokenId, uint256 amount, uint256 totalClosed, uint256 newLevel)',
-  'event LevelUp(uint256 indexed tokenId, uint256 newLevel, uint256 statPointsAwarded)',
-  'event CellsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalOpenCells)',
-  'event StatsAssigned(uint256 indexed tokenId, uint32 strength, uint32 intelligence, uint32 dexterity, uint32 charisma)',
   'event NameSet(uint256 indexed tokenId, string name)',
+  'event ChipsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalChips)',
+  'event ChipsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingChips)',
+  'event TierSet(uint256 indexed tokenId, uint8 tier)',
+  'event WeeklyChipsClaimed(uint256 indexed tokenId, uint256 week, uint256 amount)',
+  'event WeekAdvanced(uint256 newWeek)',
 ];
+
+// Backwards-compatible alias
+export const LASTCHAD_ABI = MEMBERS_ONLY_ABI;
 
 export const ITEMS_ABI = [
   'function balanceOf(address account, uint256 id) view returns (uint256)',
-  'function getItem(uint256 itemId) view returns (string memory name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active)',
-  'function mint(uint256 itemId, uint256 quantity) external payable',
+  'function getItem(uint256 itemId) view returns (string name, uint256 maxSupply, uint256 minted, uint256 price, bool stackable, bool active, uint8 itemType, uint256 bonusAmount)',
+  'function mint(uint256 itemId, uint256 quantity) payable',
   'function totalItems() view returns (uint256)',
   'function airdrop(address to, uint256 itemId, uint256 quantity)',
   'function batchAirdrop(address[] recipients, uint256 itemId, uint256[] quantities)',
-  'function createItem(string name, uint256 maxSupply, uint256 price, bool stackable) returns (uint256)',
+  'function createItem(string name, uint256 maxSupply, uint256 price, bool stackable, uint8 itemType, uint256 bonusAmount) returns (uint256)',
   'function setGameContract(address game, bool enabled)',
   'function isApprovedForAll(address account, address operator) view returns (bool)',
   'function setApprovalForAll(address operator, bool approved)',
-];
-
-export const QUEST_REWARDS_ABI = [
-  // Player
-  'function startQuest(uint256 tokenId, uint8 questId)',
-  'function completeQuest(uint256 tokenId, uint8 questId, uint256 cellReward, bytes oracleSig)',
-  'function purchaseItem(uint256 tokenId, uint256 itemId)',
-  // Game owner — config
-  'function setOracle(address oracle)',
-  'function setQuestConfig(uint8 questId, uint16 cellReward, uint16 itemReward)',
-  'function setLastChadItems(address itemsAddress)',
-  'function setQuestCooldown(uint256 cooldown)',
-  // Game owner — awards
-  'function awardCells(uint256 tokenId, uint256 amount)',
-  'function awardItem(uint256 tokenId, uint256 itemId)',
-  'function setItemPrice(uint256 itemId, uint256 cellCost)',
-  // Game owner — quest/arcade management
-  'function failQuest(uint256 tokenId, uint8 questId)',
-  'function releaseQuest(uint256 tokenId)',
-  'function releaseArcade(uint256 tokenId)',
-  // Arcade sessions
-  'function startArcade(uint256 tokenId, uint8 gameType, bytes32 seed)',
-  'function confirmSurvival(uint256 tokenId)',
-  'function confirmDeath(uint256 tokenId)',
-  'function pauseDeaths()',
-  'function unpauseDeaths()',
-  // View
-  'function itemPrices(uint256 itemId) view returns (uint256)',
-  'function questCooldown() view returns (uint256)',
-  'function deathsPaused() view returns (bool)',
-  'function deathCount() view returns (uint256)',
-  'function getSession(uint256 tokenId) view returns (bytes32 seed, uint8 questId, uint256 startTime, uint256 expiresAt, bool active)',
-  'function getArcadeSession(uint256 tokenId) view returns (bytes32 seed, uint8 gameType, uint256 startTime, bool active)',
-  'function isSessionExpired(uint256 tokenId) view returns (bool)',
-  'function getQuestConfig(uint8 questId) view returns (uint16 cellReward, uint16 itemReward)',
-  'function lastQuestTime(uint256 tokenId, uint8 questId) view returns (uint256)',
-  'function questCompleted(uint256 tokenId, uint8 questId) view returns (bool)',
-  // Events
-  'event QuestStarted(uint256 indexed tokenId, uint8 questId, bytes32 seed, uint256 expiresAt)',
-  'event QuestCompleted(uint256 indexed tokenId, uint8 questId, uint256 cellsAwarded, uint256 itemAwarded)',
-  'event QuestFailed(uint256 indexed tokenId, uint8 questId)',
-  'event ArcadeStarted(uint256 indexed tokenId, uint8 gameType, bytes32 seed)',
-  'event ArcadeSurvived(uint256 indexed tokenId, uint8 gameType)',
-  'event ArcadeDeath(uint256 indexed tokenId, uint8 gameType)',
+  // Utilize system
+  'function utilizeItem(uint256 tokenId, uint256 itemId)',
+  'function unutilizeItem(uint256 tokenId, uint256 itemId)',
+  'function isUtilized(uint256 tokenId, uint256 itemId) view returns (bool)',
+  // Chip bonuses
+  'function claimWeeklyItemBonus(uint256 tokenId, uint256[] itemIds)',
+  'function claimOneTimeBonus(uint256 tokenId, uint256 itemId)',
+  // Wallet claiming
+  'function claimItem(uint256 itemId)',
+  'function setItemClaimable(uint256 itemId, address[] wallets)',
 ];
 
 export const GAMBLE_ABI = [
@@ -242,37 +192,31 @@ export const MARKET_ABI = [
   'function list1155(address nftContract, uint256 tokenId, uint256 price)',
   'function delist1155(address nftContract, uint256 tokenId)',
   'event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice)',
-  'function setLastChadContract(address _lastChad)',
-  'function lastChadContract() view returns (address)',
+  'function setMembersOnlyContract(address _membersOnly)',
+  'function membersOnlyContract() view returns (address)',
 ];
 
 export const TOURNAMENT_ABI = [
   // Player
-  'function claimCells(uint256 tokenId)',
-  'function lockForTournament(uint256 tokenId)',
+  'function enterTournament(uint256 tournamentId, uint256 tokenId)',
+  'function lockScore(uint256 tournamentId, uint256 tokenId)',
   // View
-  'function lastChad() view returns (address)',
-  'function currentMonth() view returns (uint256)',
-  'function LOCK_AMOUNT() view returns (uint256)',
-  'function getLockedChads(uint256 month) view returns (uint256[])',
-  'function getLockCount(uint256 month) view returns (uint256)',
-  'function hasClaimed(uint256 tokenId, uint256 month) view returns (bool)',
-  'function hasLocked(uint256 tokenId, uint256 month) view returns (bool)',
-  'function getClaimAmount(uint256 tokenId) view returns (uint256)',
-  'function getCurrentMonth() view returns (uint256)',
-  'function endgameSnapshot(uint256 tokenId) view returns (uint256)',
-  'function getTierCount() view returns (uint256)',
-  'function getTierThreshold(uint256 index) view returns (uint256 threshold, uint256 amount)',
+  'function getTournament(uint256 tournamentId) view returns (string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed, bool active, uint256 entryCount)',
+  'function getEntry(uint256 tournamentId, uint256 tokenId) view returns (uint256 tournamentChips, uint256 score, bool entered, uint256 entryCount, bool busted)',
+  'function getLeaderboard(uint256 tournamentId, uint256 offset, uint256 limit) view returns (uint256[] tokenIds, uint256[] scores)',
+  'function getLeaderboardCount(uint256 tournamentId) view returns (uint256)',
+  'function isTournamentActive(uint256 tournamentId) view returns (bool)',
+  'function nextTournamentId() view returns (uint256)',
   // Owner
-  'function snapshotEndgame(uint256[] tokenIds, uint256[] closedCells)',
-  'function setCellTier(uint256 closedCellThreshold, uint256 claimAmount)',
-  'function batchSetCellTiers(uint256[] thresholds, uint256[] amounts)',
-  'function distributeAndReset()',
-  'function withdrawPending()',
-  'function pendingWithdrawals(address) view returns (uint256)',
+  'function createTournament(string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed) returns (uint256)',
+  'function cancelTournament(uint256 tournamentId)',
+  'function awardTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount)',
+  'function spendTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount)',
+  'function distributePrize(address[] winners, uint256[] amounts)',
+  'function withdraw()',
   // Events
-  'event CellsClaimed(uint256 indexed tokenId, uint256 month, uint256 amount)',
-  'event LockedForTournament(uint256 indexed tokenId, uint256 month)',
-  'event PrizeDistributed(uint256 month, uint256 winnerCount, uint256 perWinner)',
-  'event MonthAdvanced(uint256 newMonth)',
+  'event TournamentCreated(uint256 indexed tournamentId, string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed)',
+  'event TournamentEntered(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 tournamentChips)',
+  'event ScoreLocked(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 score)',
+  'event ScoreUpdated(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 oldScore, uint256 newScore)',
 ];

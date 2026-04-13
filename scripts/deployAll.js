@@ -1,10 +1,9 @@
 /**
  * deployAll.js
  *
- * Full redeploy of all Last Chad contracts:
- *   1. LastChad (ERC-721, cells-based leveling)
- *   2. LastChadItems (ERC-1155 items)
- *   3. QuestRewards (quest escrow + cell rewards)
+ * Full redeploy of all Members Only contracts:
+ *   1. MembersOnly (ERC-721)
+ *   2. MembersOnlyItems (ERC-1155 items)
  *
  * Wires all contracts together and patches js/config.js automatically.
  *
@@ -14,7 +13,6 @@
  *
  * Env vars:
  *   PRIVATE_KEY      — deployer wallet
- *   ORACLE_ADDRESS   — (optional) Cloudflare Worker public key
  */
 
 const hre  = require("hardhat");
@@ -35,83 +33,40 @@ async function main() {
   const network    = hre.network.name;
 
   console.log("\n════════════════════════════════════════════");
-  console.log("Last Chad — Full Redeploy");
+  console.log("Members Only — Full Redeploy");
   console.log("════════════════════════════════════════════");
   console.log(`Network:   ${network}`);
   console.log(`Deployer:  ${deployer.address}\n`);
 
-  // ── 1. LastChad ──────────────────────────────────────────────────────────
+  // ── 1. MembersOnly ───────────────────────────────────────────────────────
   const baseURI = "https://lastchad.xyz/metadata/";
-  console.log("1/3  Deploying LastChad...");
-  const LastChad = await hre.ethers.getContractFactory("LastChad");
-  const lastChad = await LastChad.deploy(baseURI);
-  await lastChad.waitForDeployment();
-  const lastChadAddress = await lastChad.getAddress();
-  console.log("     LastChad deployed to:", lastChadAddress);
+  console.log("1/2  Deploying MembersOnly...");
+  const MembersOnly = await hre.ethers.getContractFactory("MembersOnly");
+  const membersOnly = await MembersOnly.deploy(baseURI);
+  await membersOnly.waitForDeployment();
+  const membersOnlyAddress = await membersOnly.getAddress();
+  console.log("     MembersOnly deployed to:", membersOnlyAddress);
 
-  // ── 2. LastChadItems ──────────────────────────────────────────────────────
+  // ── 2. MembersOnlyItems ──────────────────────────────────────────────────
   const itemsBaseURI = "https://lastchad.xyz/items/";
-  console.log("\n2/3  Deploying LastChadItems...");
-  const LastChadItems = await hre.ethers.getContractFactory("LastChadItems");
-  const lastChadItems = await LastChadItems.deploy(itemsBaseURI);
-  await lastChadItems.waitForDeployment();
-  const itemsAddress = await lastChadItems.getAddress();
-  console.log("     LastChadItems deployed to:", itemsAddress);
+  console.log("\n2/2  Deploying MembersOnlyItems...");
+  const MembersOnlyItems = await hre.ethers.getContractFactory("MembersOnlyItems");
+  const membersOnlyItems = await MembersOnlyItems.deploy(itemsBaseURI);
+  await membersOnlyItems.waitForDeployment();
+  const itemsAddress = await membersOnlyItems.getAddress();
+  console.log("     MembersOnlyItems deployed to:", itemsAddress);
 
-  // ── 3. QuestRewards ───────────────────────────────────────────────────────
-  console.log("\n3/3  Deploying QuestRewards...");
-  const QuestRewards = await hre.ethers.getContractFactory("QuestRewards");
-  const questRewards = await QuestRewards.deploy(lastChadAddress);
-  await questRewards.waitForDeployment();
-  const questRewardsAddress = await questRewards.getAddress();
-  console.log("     QuestRewards deployed to:", questRewardsAddress);
-
-  // ── Wire: QuestRewards ← LastChadItems ───────────────────────────────────
-  console.log("\nWiring contracts...");
-  let tx = await questRewards.setLastChadItems(itemsAddress);
-  await tx.wait();
-  console.log("  QuestRewards.setLastChadItems ✓");
-
-  // ── Wire: LastChad authorizes QuestRewards ────────────────────────────────
-  const lcContract = new hre.ethers.Contract(lastChadAddress, SET_GAME_ABI, deployer);
-  tx = await lcContract.setGameContract(questRewardsAddress, true);
-  await tx.wait();
-  console.log("  LastChad.setGameContract(QuestRewards) ✓");
-
-  // ── Wire: LastChadItems authorizes QuestRewards ───────────────────────────
-  const lcItemsContract = new hre.ethers.Contract(itemsAddress, SET_GAME_ABI, deployer);
-  tx = await lcItemsContract.setGameContract(questRewardsAddress, true);
-  await tx.wait();
-  console.log("  LastChadItems.setGameContract(QuestRewards) ✓");
-
-  // ── Oracle (optional) ─────────────────────────────────────────────────────
-  const oracleAddress = process.env.ORACLE_ADDRESS;
-  if (oracleAddress && hre.ethers.isAddress(oracleAddress)) {
-    tx = await questRewards.setOracle(oracleAddress);
-    await tx.wait();
-    console.log("  QuestRewards.setOracle ✓ →", oracleAddress);
-  } else {
-    console.warn("  Oracle not set — add ORACLE_ADDRESS env var to wire it.");
-  }
-
-  // ── Seed quest configs ────────────────────────────────────────────────────
-  // setQuestConfig(questId, cellReward, itemReward)
-  console.log("\nSeeding quest configs...");
-  tx = await questRewards.setQuestConfig(1, 10, 0);
-  await tx.wait();
-  console.log("  Quest 1 → 10 cells on completion ✓");
-
-  // ── Wire: Market approves LastChad + Items ────────────────────────────────
+  // ── Wire: Market approves MembersOnly + Items ─────────────────────────────
   if (MARKET_ADDRESS && hre.ethers.isAddress(MARKET_ADDRESS)) {
     const market = new hre.ethers.Contract(MARKET_ADDRESS, MARKET_ABI, deployer);
-    tx = await market.setApprovedContract(lastChadAddress, true);
+    let tx = await market.setApprovedContract(membersOnlyAddress, true);
     await tx.wait();
-    console.log("  Market.setApprovedContract(LastChad) ✓");
+    console.log("  Market.setApprovedContract(MembersOnly) ✓");
     tx = await market.setApprovedContract(itemsAddress, true);
     await tx.wait();
     console.log("  Market.setApprovedContract(Items) ✓");
   } else {
-    console.warn("  Market address not set — skipping market approval. Run approve-market after deploying Market.");
+    console.warn("  Market address not set — skipping market approval.");
   }
 
   // ── Patch js/config.js ───────────────────────────────────────────────────
@@ -121,15 +76,11 @@ async function main() {
 
     config = config.replace(
       /export const CONTRACT_ADDRESS\s*=\s*'[^']*'/,
-      `export const CONTRACT_ADDRESS         = '${lastChadAddress}'`
+      `export const CONTRACT_ADDRESS         = '${membersOnlyAddress}'`
     );
     config = config.replace(
       /export const ITEMS_CONTRACT_ADDRESS\s*=\s*'[^']*'/,
       `export const ITEMS_CONTRACT_ADDRESS   = '${itemsAddress}'`
-    );
-    config = config.replace(
-      /export const QUEST_REWARDS_ADDRESS\s*=\s*'[^']*'/,
-      `export const QUEST_REWARDS_ADDRESS    = '${questRewardsAddress}'`
     );
 
     fs.writeFileSync(configPath, config, 'utf8');
@@ -138,38 +89,21 @@ async function main() {
     console.warn("\nWarning: js/config.js not found — update addresses manually.");
   }
 
-  // Patch js/quest-globals.js (runtime config for quest pages)
-  const globalsPath = path.join(__dirname, '..', 'js', 'quest-globals.js');
-  if (fs.existsSync(globalsPath)) {
-    let globals = fs.readFileSync(globalsPath, 'utf8');
-    globals = globals.replace(/var CONTRACT_ADDRESS\s*=\s*'[^']*'/, `var CONTRACT_ADDRESS = '${lastChadAddress}'`);
-    globals = globals.replace(/var ITEMS_CONTRACT_ADDRESS\s*=\s*'[^']*'/, `var ITEMS_CONTRACT_ADDRESS = '${itemsAddress}'`);
-    globals = globals.replace(/var QUEST_REWARDS_ADDRESS\s*=\s*'[^']*'/, `var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}'`);
-    fs.writeFileSync(globalsPath, globals, 'utf8');
-    console.log("Patched js/quest-globals.js ✓");
-  } else {
-    console.warn("Warning: js/quest-globals.js not found — update addresses manually.");
-  }
-
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log("\n════════════════════════════════════════════");
   console.log("Deployment Complete!");
   console.log("════════════════════════════════════════════");
   console.log(`  Network:       ${network}`);
-  console.log(`  LastChad:      ${lastChadAddress}`);
+  console.log(`  MembersOnly:   ${membersOnlyAddress}`);
   console.log(`  Items:         ${itemsAddress}`);
-  console.log(`  QuestRewards:  ${questRewardsAddress}`);
-  console.log(`  Oracle:        ${oracleAddress ? "✓  " + oracleAddress : "⚠  not set"}`);
-  console.log(`  Market:        ${MARKET_ADDRESS && hre.ethers.isAddress(MARKET_ADDRESS) ? "✓  approved on " + MARKET_ADDRESS : "⚠  not set — run approve-market"}`);
   console.log("════════════════════════════════════════════\n");
   console.log("Next steps:");
-  console.log("  1. Commit and push js/config.js + js/quest-globals.js");
-  if (!oracleAddress) {
-    console.log("  2. Set oracle: ORACLE_ADDRESS=0x... npx hardhat run scripts/deployAll.js");
-  }
+  console.log("  1. Deploy Gamble.sol and Tournament.sol separately");
+  console.log("  2. Run authorizeContracts.js to wire game contracts");
+  console.log("  3. Run validateContracts.js to confirm everything is wired");
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(err);
   process.exit(1);
 });

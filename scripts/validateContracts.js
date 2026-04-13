@@ -1,7 +1,7 @@
 /**
  * validateContracts.js
  *
- * Read-only on-chain validation for all deployed Last Chad contracts.
+ * Read-only on-chain validation for all deployed Members Only contracts.
  * Confirms each contract is live and correctly wired together.
  * No private key or gas required.
  *
@@ -26,11 +26,11 @@ function readConfig() {
     return m ? m[1] : '';
   };
   return {
-    lastChad:     get("CONTRACT_ADDRESS"),
-    items:        get("ITEMS_CONTRACT_ADDRESS"),
-    questRewards: get("QUEST_REWARDS_ADDRESS"),
-    market:       get("MARKET_ADDRESS",   false),
-    gamble:       get("GAMBLE_ADDRESS",   false),
+    membersOnly: get("CONTRACT_ADDRESS"),
+    items:       get("ITEMS_CONTRACT_ADDRESS"),
+    market:      get("MARKET_ADDRESS",    false),
+    gamble:      get("GAMBLE_ADDRESS",    false),
+    tournament:  get("TOURNAMENT_ADDRESS", false),
   };
 }
 
@@ -60,8 +60,8 @@ async function check(label, fn) {
 
 // ── Contract ABIs (view-only) ─────────────────────────────────────────────────
 
-const LAST_CHAD_ABI = [
-  'function totalSupply() view returns (uint256)',
+const MEMBERS_ONLY_ABI = [
+  'function totalMinted() view returns (uint256)',
   'function MAX_SUPPLY() view returns (uint256)',
   'function name() view returns (string)',
   'function authorizedGame(address) view returns (bool)',
@@ -74,23 +74,23 @@ const ITEMS_ABI = [
   'function owner() view returns (address)',
 ];
 
-const QUEST_REWARDS_ABI = [
-  'function lastChad() view returns (address)',
-  'function gameOwner() view returns (address)',
-  'function getQuestConfig(uint8 questId) view returns (uint16 cellReward, uint16 itemReward)',
-];
-
 const MARKET_ABI = [
   'function feeBps() view returns (uint256)',
   'function owner() view returns (address)',
 ];
 
 const GAMBLE_ABI = [
-  'function lastChad() view returns (address)',
+  'function membersOnly() view returns (address)',
   'function oracle() view returns (address)',
   'function gameOwner() view returns (address)',
   'function minWager() view returns (uint256)',
   'function maxWager() view returns (uint256)',
+];
+
+const TOURNAMENT_ABI = [
+  'function membersOnly() view returns (address)',
+  'function owner() view returns (address)',
+  'function nextTournamentId() view returns (uint256)',
 ];
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -101,78 +101,81 @@ async function main() {
   const p       = hre.ethers.provider;
 
   console.log("\n════════════════════════════════════════════════════════");
-  console.log("Last Chad — On-Chain Contract Validation");
+  console.log("Members Only — On-Chain Contract Validation");
   console.log("════════════════════════════════════════════════════════");
-  console.log(`Network:       ${network}`);
-  console.log(`LastChad:      ${cfg.lastChad}`);
-  console.log(`Items:         ${cfg.items}`);
-  console.log(`QuestRewards:  ${cfg.questRewards}`);
-  if (cfg.market) console.log(`Market:        ${cfg.market}`);
-  if (cfg.gamble) console.log(`Gamble:        ${cfg.gamble}`);
+  console.log(`Network:        ${network}`);
+  console.log(`MembersOnly:    ${cfg.membersOnly}`);
+  console.log(`Items:          ${cfg.items}`);
+  if (cfg.market)     console.log(`Market:         ${cfg.market}`);
+  if (cfg.gamble)     console.log(`Gamble:         ${cfg.gamble}`);
+  if (cfg.tournament) console.log(`Tournament:     ${cfg.tournament}`);
   console.log("────────────────────────────────────────────────────────");
 
-  // ── 1. LastChad ────────────────────────────────────────────────────────────
-  console.log("\n[1/5] LastChad");
-  const lc = new hre.ethers.Contract(cfg.lastChad, LAST_CHAD_ABI, p);
-  await check("bytecode deployed",       () => p.getCode(cfg.lastChad).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
-  await check("name()",                  () => lc.name());
-  await check("MAX_SUPPLY()",            () => lc.MAX_SUPPLY().then(v => v.toString()));
-  await check("totalSupply()",           () => lc.totalSupply().then(v => v.toString()));
-  await check("owner()",                 () => lc.owner());
-  await check("QuestRewards authorized", () => lc.authorizedGame(cfg.questRewards).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
+  // ── 1. MembersOnly ────────────────────────────────────────────────────────
+  console.log("\n[1] MembersOnly");
+  const mo = new hre.ethers.Contract(cfg.membersOnly, MEMBERS_ONLY_ABI, p);
+  await check("bytecode deployed",   () => p.getCode(cfg.membersOnly).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
+  await check("name()",              () => mo.name());
+  await check("MAX_SUPPLY()",        () => mo.MAX_SUPPLY().then(v => v.toString()));
+  await check("totalMinted()",       () => mo.totalMinted().then(v => v.toString()));
+  await check("owner()",             () => mo.owner());
   if (cfg.gamble) {
-    await check("Gamble authorized",      () => lc.authorizedGame(cfg.gamble).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
+    await check("Gamble authorized", () => mo.authorizedGame(cfg.gamble).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
+  }
+  if (cfg.tournament) {
+    await check("Tournament authorized", () => mo.authorizedGame(cfg.tournament).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
   }
 
-  // ── 2. LastChadItems ───────────────────────────────────────────────────────
-  console.log("\n[2/5] LastChadItems");
+  // ── 2. MembersOnlyItems ───────────────────────────────────────────────────
+  console.log("\n[2] MembersOnlyItems");
   const items = new hre.ethers.Contract(cfg.items, ITEMS_ABI, p);
-  await check("bytecode deployed",       () => p.getCode(cfg.items).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
-  await check("owner()",                 () => items.owner());
-  await check("QuestRewards authorized", () => items.authorizedGame(cfg.questRewards).then(v => { if (!v) throw new Error("NOT authorized"); return "yes"; }));
-  await check("Item #1 exists (name)",   () => items.getItem(1).then(r => r.name));
-  await check("Item #1 active",          () => items.getItem(1).then(r => { if (!r.active) throw new Error("item inactive"); return "yes"; }));
+  await check("bytecode deployed",   () => p.getCode(cfg.items).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
+  await check("owner()",             () => items.owner());
 
-  // ── 3. QuestRewards ────────────────────────────────────────────────────────
-  console.log("\n[3/5] QuestRewards");
-  const qr = new hre.ethers.Contract(cfg.questRewards, QUEST_REWARDS_ABI, p);
-  await check("bytecode deployed",       () => p.getCode(cfg.questRewards).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
-  await check("gameOwner()",             () => qr.gameOwner());
-  await check("lastChad() points to LC", () => qr.lastChad().then(addr => {
-    if (addr.toLowerCase() !== cfg.lastChad.toLowerCase()) throw new Error(`points to ${addr}`);
-    return "correct";
-  }));
-  await check("quest 1 config seeded",   () => qr.getQuestConfig(1).then(r => `cells=${r.cellReward}, item=${r.itemReward}`));
-
-  // ── 4. Market ──────────────────────────────────────────────────────────────
+  // ── 3. Market ──────────────────────────────────────────────────────────────
   if (cfg.market) {
-    console.log("\n[4/5] Market");
+    console.log("\n[3] Market");
     const mkt = new hre.ethers.Contract(cfg.market, MARKET_ABI, p);
     await check("bytecode deployed", () => p.getCode(cfg.market).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
     await check("owner()",           () => mkt.owner());
     await check("feeBps()",          () => mkt.feeBps().then(v => `${v.toString()} bps`));
   } else {
-    console.log("\n[4/5] Market — skipped (MARKET_ADDRESS not set)");
+    console.log("\n[3] Market — skipped (MARKET_ADDRESS not set)");
   }
 
-  // ── 5. Gamble ──────────────────────────────────────────────────────────────
+  // ── 4. Gamble ──────────────────────────────────────────────────────────────
   if (cfg.gamble) {
-    console.log("\n[5/5] Gamble");
+    console.log("\n[4] Gamble");
     const gmbl = new hre.ethers.Contract(cfg.gamble, GAMBLE_ABI, p);
-    await check("bytecode deployed",       () => p.getCode(cfg.gamble).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
-    await check("gameOwner()",             () => gmbl.gameOwner());
-    await check("lastChad() points to LC", () => gmbl.lastChad().then(addr => {
-      if (addr.toLowerCase() !== cfg.lastChad.toLowerCase()) throw new Error(`points to ${addr}`);
+    await check("bytecode deployed",        () => p.getCode(cfg.gamble).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
+    await check("gameOwner()",              () => gmbl.gameOwner());
+    await check("membersOnly() correct",    () => gmbl.membersOnly().then(addr => {
+      if (addr.toLowerCase() !== cfg.membersOnly.toLowerCase()) throw new Error(`points to ${addr}`);
       return "correct";
     }));
-    await check("oracle() is set",         () => gmbl.oracle().then(addr => {
+    await check("oracle() is set",          () => gmbl.oracle().then(addr => {
       if (addr === "0x0000000000000000000000000000000000000000") throw new Error("oracle not set");
       return addr;
     }));
-    await check("minWager()",              () => gmbl.minWager().then(v => v.toString()));
-    await check("maxWager()",              () => gmbl.maxWager().then(v => v.toString()));
+    await check("minWager()",               () => gmbl.minWager().then(v => v.toString()));
+    await check("maxWager()",               () => gmbl.maxWager().then(v => v.toString()));
   } else {
-    console.log("\n[5/5] Gamble — skipped (GAMBLE_ADDRESS not set)");
+    console.log("\n[4] Gamble — skipped (GAMBLE_ADDRESS not set)");
+  }
+
+  // ── 5. Tournament ──────────────────────────────────────────────────────────
+  if (cfg.tournament) {
+    console.log("\n[5] Tournament");
+    const tourn = new hre.ethers.Contract(cfg.tournament, TOURNAMENT_ABI, p);
+    await check("bytecode deployed",     () => p.getCode(cfg.tournament).then(c => { if (c === "0x") throw new Error("no bytecode"); return "yes"; }));
+    await check("owner()",               () => tourn.owner());
+    await check("membersOnly() correct", () => tourn.membersOnly().then(addr => {
+      if (addr.toLowerCase() !== cfg.membersOnly.toLowerCase()) throw new Error(`points to ${addr}`);
+      return "correct";
+    }));
+    await check("nextTournamentId()",    () => tourn.nextTournamentId().then(v => v.toString()));
+  } else {
+    console.log("\n[5] Tournament — skipped (TOURNAMENT_ADDRESS not set)");
   }
 
   // ── Summary ────────────────────────────────────────────────────────────────

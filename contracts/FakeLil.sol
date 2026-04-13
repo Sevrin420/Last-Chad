@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @title FakeLil
  * @notice Free-to-mint ERC-721 collection. 20 max supply.
- *         Completely standalone — no dependency on Last Chad contracts.
+ *         Completely standalone — no dependency on Members Only contracts.
  */
 contract FakeLil is ERC721Enumerable, Ownable {
 

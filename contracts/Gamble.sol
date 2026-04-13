@@ -4,29 +4,29 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-interface ILastChad {
+interface IMembersOnly {
     function ownerOf(uint256 tokenId) external view returns (address);
-    function eliminated(uint256 tokenId) external view returns (bool);
     function isActive(uint256 tokenId) external view returns (bool);
-    function spendCells(uint256 tokenId, uint256 amount) external;
-    function awardCells(uint256 tokenId, uint256 amount) external;
+    function spendChips(uint256 tokenId, uint256 amount) external;
+    function awardChips(uint256 tokenId, uint256 amount) external;
 }
 
-/// @title Gamble — cell-wagering games for Last Chad
+/// @title Gamble — chip-wagering games for Members Only
 ///
-/// Two settlement paths:
+/// Three settlement paths:
 ///   1. flip()        — fully on-chain coin flip (40% win, 2x payout).
 ///   2. resolveGame() — oracle-signed settlement for any off-chain game
 ///                      (blackjack, poker, etc.). The Cloudflare Worker
 ///                      runs game logic and signs (tokenId, wager, payout,
 ///                      gameId, nonce, player). The contract verifies and
-///                      settles cells atomically.
+///                      settles chips atomically.
+///   3. commitWager() / claimWinnings() — two-tx settlement for craps, poker.
 ///
-/// Must be authorized: lastChad.setGameContract(gambleAddress, true)
+/// Must be authorized: membersOnly.setGameContract(gambleAddress, true)
 contract Gamble {
-    ILastChad public immutable lastChad;
-    address   public immutable gameOwner;
-    address   public oracle;
+    IMembersOnly public immutable membersOnly;
+    address      public immutable gameOwner;
+    address      public oracle;
 
     uint256 public minWager = 1;
     uint256 public maxWager = 500;
@@ -36,8 +36,8 @@ contract Gamble {
     mapping(uint256 => bool) public usedNonces;
 
     // Two-tx settlement (poker, craps, etc.)
-    mapping(uint256 => uint256) public wagerAmounts;  // nonce → wager
-    mapping(uint256 => address) public wagerPlayers;   // nonce → player
+    mapping(uint256 => uint256) public wagerAmounts;  // nonce => wager
+    mapping(uint256 => address) public wagerPlayers;   // nonce => player
     uint256 public nextNonce;
 
     // ── Events ──────────────────────────────────────────────────────────────
@@ -72,11 +72,11 @@ contract Gamble {
     );
 
     // ── Constructor ──────────────────────────────────────────────────────────
-    constructor(address lastChadAddress, address _oracle) {
+    constructor(address membersOnlyAddress, address _oracle) {
         require(_oracle != address(0), "Oracle required");
-        lastChad  = ILastChad(lastChadAddress);
-        gameOwner = msg.sender;
-        oracle    = _oracle;
+        membersOnly = IMembersOnly(membersOnlyAddress);
+        gameOwner   = msg.sender;
+        oracle      = _oracle;
     }
 
     modifier onlyGameOwner() {
@@ -104,21 +104,19 @@ contract Gamble {
     // ── Path 1: on-chain coin flip ───────────────────────────────────────────
     /// @notice 40% chance to win 2x the wager. Outcome derived from block entropy.
     function flip(uint256 tokenId, uint256 wager) external {
-        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!lastChad.eliminated(tokenId), "Chad eliminated");
-        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!membersOnly.isActive(tokenId), "Token is active");
         require(wager >= minWager && wager <= maxWager, "Wager out of range");
 
-        lastChad.spendCells(tokenId, wager);
+        membersOnly.spendChips(tokenId, wager);
 
         bytes32 seed = keccak256(abi.encodePacked(
             tokenId, wager, block.prevrandao, block.timestamp, msg.sender
         ));
-        // 40 out of 100 = 40% win chance
         bool won = uint256(seed) % 100 < 40;
 
         if (won) {
-            lastChad.awardCells(tokenId, wager * 2);
+            membersOnly.awardChips(tokenId, wager * 2);
         }
 
         emit CoinFlip(tokenId, msg.sender, wager, won, seed);
@@ -127,10 +125,7 @@ contract Gamble {
     // ── Path 2: oracle-signed game resolution ────────────────────────────────
     /// @notice Settle any off-chain game (blackjack, poker, etc.).
     ///         The Worker signs keccak256(tokenId, wager, payout, gameId, nonce, player).
-    ///         Spends `wager` cells; if payout > 0 awards that many cells back.
-    /// @param gameId  Identifier for the game type (e.g. 1=blackjack, 2=poker).
-    /// @param nonce   Unique value per game session — prevents signature replay.
-    /// @param payout  Cells to award on win (0 = player lost, wager*2 = double-or-nothing).
+    ///         Spends `wager` chips; if payout > 0 awards that many chips back.
     function resolveGame(
         uint256 tokenId,
         uint256 wager,
@@ -139,9 +134,8 @@ contract Gamble {
         uint256 nonce,
         bytes calldata oracleSig
     ) external {
-        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!lastChad.eliminated(tokenId), "Chad eliminated");
-        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!membersOnly.isActive(tokenId), "Token is active");
         require(wager > 0, "Invalid wager");
         require(!usedNonces[nonce], "Nonce already used");
 
@@ -153,27 +147,26 @@ contract Gamble {
         require(signer == oracle, "Invalid oracle signature");
 
         usedNonces[nonce] = true;
-        lastChad.spendCells(tokenId, wager);
+        membersOnly.spendChips(tokenId, wager);
         if (payout > 0) {
-            lastChad.awardCells(tokenId, payout);
+            membersOnly.awardChips(tokenId, payout);
         }
 
         emit GameResolved(tokenId, msg.sender, gameId, wager, payout);
     }
 
     // ── Path 3: two-tx settlement (poker, craps) ───────────────────────────
-    /// @notice TX 1 — Player commits cells before the game starts.
-    ///         Cells are spent immediately. Returns a nonce for the session.
+    /// @notice TX 1 — Player commits chips before the game starts.
+    ///         Chips are spent immediately. Returns a nonce for the session.
     function commitWager(uint256 tokenId, uint256 wager) external returns (uint256) {
-        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!lastChad.eliminated(tokenId), "Chad eliminated");
-        require(!lastChad.isActive(tokenId), "Token active in quest/arcade");
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!membersOnly.isActive(tokenId), "Token is active");
         require(wager >= minWager && wager <= maxWager, "Wager out of range");
 
         uint256 nonce = nextNonce++;
         wagerAmounts[nonce] = wager;
         wagerPlayers[nonce] = msg.sender;
-        lastChad.spendCells(tokenId, wager);
+        membersOnly.spendChips(tokenId, wager);
 
         emit WagerCommitted(tokenId, msg.sender, wager, nonce);
         return nonce;
@@ -187,8 +180,7 @@ contract Gamble {
         uint256 nonce,
         bytes calldata oracleSig
     ) external {
-        require(lastChad.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!lastChad.eliminated(tokenId), "Chad eliminated");
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
         require(wagerAmounts[nonce] > 0, "No active wager");
         require(wagerPlayers[nonce] == msg.sender, "Not wager owner");
         require(!usedNonces[nonce], "Already claimed");
@@ -206,7 +198,7 @@ contract Gamble {
         delete wagerPlayers[nonce];
 
         if (payout > 0) {
-            lastChad.awardCells(tokenId, payout);
+            membersOnly.awardChips(tokenId, payout);
         }
 
         emit WinningsClaimed(tokenId, msg.sender, payout, nonce);

@@ -1,19 +1,16 @@
 /**
  * deployEverything.js
  *
- * One-click full deploy of ALL Last Chad contracts:
- *   1. LastChad         (ERC-721 — characters)
- *   2. LastChadItems    (ERC-1155 — items)
- *   3. QuestRewards     (quests + arcade)
- *   4. Market           (NFT marketplace)
- *   5. Gamble           (cell wagering)
- *   6. Tournament       (monthly craps tournament)
+ * One-click full deploy of ALL Members Only contracts:
+ *   1. MembersOnly      (ERC-721 — membership NFTs)
+ *   2. MembersOnlyItems (ERC-1155 — items)
+ *   3. Market           (NFT marketplace)
+ *   4. Gamble           (chip wagering)
+ *   5. Tournament       (tournament system)
  *
  * After deploy:
- *   - Wires all cross-contract references (setGameContract, setLastChadItems,
- *     setOracle, setApprovedContract, setLastChadContract)
- *   - Seeds default quest config (quest 1 → 10 cells)
- *   - Patches js/config.js and js/quest-globals.js with new addresses
+ *   - Wires all cross-contract references (setGameContract, setApprovedContract)
+ *   - Patches js/config.js with new addresses
  *
  * Usage:
  *   npx hardhat run scripts/deployEverything.js --network fuji
@@ -34,7 +31,6 @@ const SET_GAME_ABI = [
 
 const MARKET_WIRE_ABI = [
   'function setApprovedContract(address nftContract, bool approved) external',
-  'function setLastChadContract(address _lastChad) external',
 ];
 
 async function main() {
@@ -47,58 +43,50 @@ async function main() {
   }
 
   console.log("\n╔════════════════════════════════════════════════════════════╗");
-  console.log("║         Last Chad — Full Protocol Deploy                  ║");
+  console.log("║         Members Only — Full Protocol Deploy               ║");
   console.log("╚════════════════════════════════════════════════════════════╝");
   console.log(`  Network:   ${network}`);
   console.log(`  Deployer:  ${deployer.address}`);
   console.log(`  Oracle:    ${oracleAddress}\n`);
 
-  // ── 1. LastChad ──────────────────────────────────────────────────────────
+  // ── 1. MembersOnly ──────────────────────────────────────────────────────
   const baseURI = "https://lastchad.xyz/metadata/";
-  console.log("1/6  Deploying LastChad (ERC-721)...");
-  const LastChad = await hre.ethers.getContractFactory("LastChad");
-  const lastChad = await LastChad.deploy(baseURI);
-  await lastChad.waitForDeployment();
-  const lastChadAddress = await lastChad.getAddress();
-  console.log("     ✓ LastChad:", lastChadAddress);
+  console.log("1/5  Deploying MembersOnly (ERC-721)...");
+  const MembersOnly = await hre.ethers.getContractFactory("MembersOnly");
+  const membersOnly = await MembersOnly.deploy(baseURI);
+  await membersOnly.waitForDeployment();
+  const membersOnlyAddress = await membersOnly.getAddress();
+  console.log("     ✓ MembersOnly:", membersOnlyAddress);
 
-  // ── 2. LastChadItems ─────────────────────────────────────────────────────
+  // ── 2. MembersOnlyItems ─────────────────────────────────────────────────
   const itemsBaseURI = "https://lastchad.xyz/items/";
-  console.log("\n2/6  Deploying LastChadItems (ERC-1155)...");
-  const LastChadItems = await hre.ethers.getContractFactory("LastChadItems");
-  const lastChadItems = await LastChadItems.deploy(itemsBaseURI);
-  await lastChadItems.waitForDeployment();
-  const itemsAddress = await lastChadItems.getAddress();
-  console.log("     ✓ LastChadItems:", itemsAddress);
+  console.log("\n2/5  Deploying MembersOnlyItems (ERC-1155)...");
+  const MembersOnlyItems = await hre.ethers.getContractFactory("MembersOnlyItems");
+  const membersOnlyItems = await MembersOnlyItems.deploy(itemsBaseURI);
+  await membersOnlyItems.waitForDeployment();
+  const itemsAddress = await membersOnlyItems.getAddress();
+  console.log("     ✓ MembersOnlyItems:", itemsAddress);
 
-  // ── 3. QuestRewards ──────────────────────────────────────────────────────
-  console.log("\n3/6  Deploying QuestRewards...");
-  const QuestRewards = await hre.ethers.getContractFactory("QuestRewards");
-  const questRewards = await QuestRewards.deploy(lastChadAddress);
-  await questRewards.waitForDeployment();
-  const questRewardsAddress = await questRewards.getAddress();
-  console.log("     ✓ QuestRewards:", questRewardsAddress);
-
-  // ── 4. Market ────────────────────────────────────────────────────────────
-  console.log("\n4/6  Deploying Market...");
+  // ── 3. Market ────────────────────────────────────────────────────────────
+  console.log("\n3/5  Deploying Market...");
   const Market = await hre.ethers.getContractFactory("Market");
   const market = await Market.deploy(deployer.address);
   await market.waitForDeployment();
   const marketAddress = await market.getAddress();
   console.log("     ✓ Market:", marketAddress);
 
-  // ── 5. Gamble (oracle required at construction) ─────────────────────────
-  console.log("\n5/6  Deploying Gamble...");
+  // ── 4. Gamble (oracle required at construction) ─────────────────────────
+  console.log("\n4/5  Deploying Gamble...");
   const Gamble = await hre.ethers.getContractFactory("Gamble");
-  const gamble = await Gamble.deploy(lastChadAddress, oracleAddress);
+  const gamble = await Gamble.deploy(membersOnlyAddress, oracleAddress);
   await gamble.waitForDeployment();
   const gambleAddress = await gamble.getAddress();
   console.log("     ✓ Gamble:", gambleAddress);
 
-  // ── 6. Tournament ─────────────────────────────────────────────────────────
-  console.log("\n6/6  Deploying Tournament...");
+  // ── 5. Tournament ─────────────────────────────────────────────────────────
+  console.log("\n5/5  Deploying Tournament...");
   const Tournament = await hre.ethers.getContractFactory("Tournament");
-  const tournament = await Tournament.deploy(lastChadAddress);
+  const tournament = await Tournament.deploy(membersOnlyAddress);
   await tournament.waitForDeployment();
   const tournamentAddress = await tournament.getAddress();
   console.log("     ✓ Tournament:", tournamentAddress);
@@ -109,96 +97,54 @@ async function main() {
   console.log("\n── Wiring contracts ──────────────────────────────────────");
   let tx;
 
-  // QuestRewards needs to know about Items
-  tx = await questRewards.setLastChadItems(itemsAddress);
+  // MembersOnly authorizes Gamble as a game contract
+  const moGameAuth = new hre.ethers.Contract(membersOnlyAddress, SET_GAME_ABI, deployer);
+  tx = await moGameAuth.setGameContract(gambleAddress, true);
   await tx.wait();
-  console.log("  QuestRewards.setLastChadItems           ✓");
+  console.log("  MembersOnly.setGameContract(Gamble)        ✓");
 
-  // LastChad authorizes QuestRewards as a game contract
-  const lcGameAuth = new hre.ethers.Contract(lastChadAddress, SET_GAME_ABI, deployer);
-  tx = await lcGameAuth.setGameContract(questRewardsAddress, true);
+  // MembersOnly authorizes Tournament as a game contract
+  tx = await moGameAuth.setGameContract(tournamentAddress, true);
   await tx.wait();
-  console.log("  LastChad.setGameContract(QuestRewards)  ✓");
+  console.log("  MembersOnly.setGameContract(Tournament)    ✓");
 
-  // LastChad authorizes Gamble as a game contract
-  tx = await lcGameAuth.setGameContract(gambleAddress, true);
-  await tx.wait();
-  console.log("  LastChad.setGameContract(Gamble)         ✓");
-
-  // LastChad authorizes Tournament as a game contract
-  tx = await lcGameAuth.setGameContract(tournamentAddress, true);
-  await tx.wait();
-  console.log("  LastChad.setGameContract(Tournament)     ✓");
-
-  // LastChadItems authorizes QuestRewards as a game contract
+  // MembersOnlyItems authorizes Gamble as a game contract
   const itemsGameAuth = new hre.ethers.Contract(itemsAddress, SET_GAME_ABI, deployer);
-  tx = await itemsGameAuth.setGameContract(questRewardsAddress, true);
+  tx = await itemsGameAuth.setGameContract(gambleAddress, true);
   await tx.wait();
-  console.log("  LastChadItems.setGameContract(QuestRewards) ✓");
+  console.log("  MembersOnlyItems.setGameContract(Gamble)   ✓");
 
-  // Market: approve LastChad + Items for trading, set LastChad reference
-  const marketContract = new hre.ethers.Contract(marketAddress, MARKET_WIRE_ABI, deployer);
-  tx = await marketContract.setApprovedContract(lastChadAddress, true);
+  // MembersOnlyItems authorizes Tournament as a game contract
+  tx = await itemsGameAuth.setGameContract(tournamentAddress, true);
   await tx.wait();
-  console.log("  Market.setApprovedContract(LastChad)     ✓");
+  console.log("  MembersOnlyItems.setGameContract(Tournament) ✓");
+
+  // Market: approve MembersOnly + Items for trading
+  const marketContract = new hre.ethers.Contract(marketAddress, MARKET_WIRE_ABI, deployer);
+  tx = await marketContract.setApprovedContract(membersOnlyAddress, true);
+  await tx.wait();
+  console.log("  Market.setApprovedContract(MembersOnly)    ✓");
 
   tx = await marketContract.setApprovedContract(itemsAddress, true);
   await tx.wait();
-  console.log("  Market.setApprovedContract(Items)        ✓");
-
-  tx = await marketContract.setLastChadContract(lastChadAddress);
-  await tx.wait();
-  console.log("  Market.setLastChadContract(LastChad)     ✓");
-
-  // Oracle for QuestRewards (Gamble oracle was set in constructor)
-  tx = await questRewards.setOracle(oracleAddress);
-  await tx.wait();
-  console.log("  QuestRewards.setOracle                  ✓ →", oracleAddress);
-  console.log("  Gamble.oracle (set at deploy)            ✓ →", oracleAddress);
-
-  // ── Seed quest configs ─────────────────────────────────────────────────
-  console.log("\n── Seeding quest configs ─────────────────────────────────");
-  tx = await questRewards.setQuestConfig(1, 10, 0);
-  await tx.wait();
-  console.log("  Quest 1 → 10 cells, no item              ✓");
-
-  // ── Load mint codes ───────────────────────────────────────────────────
-  const hashesPath = path.join(__dirname, 'mintcodes-hashes.json');
-  if (fs.existsSync(hashesPath)) {
-    const { hashes } = JSON.parse(fs.readFileSync(hashesPath, 'utf8'));
-    console.log(`\n── Loading ${hashes.length} mint codes ──────────────────────────────────`);
-    const BATCH = 25;
-    for (let i = 0; i < hashes.length; i += BATCH) {
-      const batch = hashes.slice(i, i + BATCH);
-      tx = await lastChad.addMintCodes(batch);
-      await tx.wait();
-      console.log(`  Batch ${Math.floor(i / BATCH) + 1}: codes ${i + 1}–${Math.min(i + BATCH, hashes.length)} ✓`);
-    }
-  } else {
-    console.warn("\n  ⚠ mintcodes-hashes.json not found — skipping mint code load");
-  }
+  console.log("  Market.setApprovedContract(Items)          ✓");
 
   // ════════════════════════════════════════════════════════════════════════
-  // PATCH CONFIG FILES — update all address references
+  // PATCH CONFIG FILES
   // ════════════════════════════════════════════════════════════════════════
   console.log("\n── Patching config files ─────────────────────────────────");
 
-  // Patch js/config.js (ES module — used by all main HTML pages)
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
   if (fs.existsSync(configPath)) {
     let config = fs.readFileSync(configPath, 'utf8');
 
     config = config.replace(
       /export const CONTRACT_ADDRESS\s*=\s*'[^']*'/,
-      `export const CONTRACT_ADDRESS         = '${lastChadAddress}'`
+      `export const CONTRACT_ADDRESS         = '${membersOnlyAddress}'`
     );
     config = config.replace(
       /export const ITEMS_CONTRACT_ADDRESS\s*=\s*'[^']*'/,
       `export const ITEMS_CONTRACT_ADDRESS   = '${itemsAddress}'`
-    );
-    config = config.replace(
-      /export const QUEST_REWARDS_ADDRESS\s*=\s*'[^']*'/,
-      `export const QUEST_REWARDS_ADDRESS    = '${questRewardsAddress}'`
     );
     config = config.replace(
       /export const MARKET_ADDRESS\s*=\s*'[^']*'/,
@@ -209,11 +155,9 @@ async function main() {
       `export const GAMBLE_ADDRESS           = '${gambleAddress}'`
     );
 
-    // Add or update Tournament address
     if (config.includes('TOURNAMENT_ADDRESS')) {
       config = config.replace(/export const TOURNAMENT_ADDRESS\s*=\s*'[^']*'/, `export const TOURNAMENT_ADDRESS       = '${tournamentAddress}'`);
     } else {
-      // Insert after the GAMBLE_ADDRESS line
       config = config.replace(
         /(export const GAMBLE_ADDRESS\s*=\s*'[^']*';?)/,
         `$1\nexport const TOURNAMENT_ADDRESS       = '${tournamentAddress}';`
@@ -221,53 +165,26 @@ async function main() {
     }
 
     fs.writeFileSync(configPath, config, 'utf8');
-    console.log("  js/config.js                             ✓  (6 addresses)");
+    console.log("  js/config.js                             ✓  (5 addresses)");
   } else {
     console.warn("  ⚠ js/config.js not found");
   }
 
-  // Patch worker/wrangler.toml (Cloudflare Worker — needs contract addresses for on-chain reads)
   const wranglerPath = path.join(__dirname, '..', 'worker', 'wrangler.toml');
   if (fs.existsSync(wranglerPath)) {
     let wrangler = fs.readFileSync(wranglerPath, 'utf8');
     wrangler = wrangler.replace(
-      /LASTCHAD_ADDRESS\s*=\s*"[^"]*"/,
-      `LASTCHAD_ADDRESS      = "${lastChadAddress}"`
-    );
-    wrangler = wrangler.replace(
-      /QUEST_REWARDS_ADDRESS\s*=\s*"[^"]*"/,
-      `QUEST_REWARDS_ADDRESS = "${questRewardsAddress}"`
+      /CONTRACT_ADDRESS\s*=\s*"[^"]*"/,
+      `CONTRACT_ADDRESS      = "${membersOnlyAddress}"`
     );
     wrangler = wrangler.replace(
       /GAMBLE_ADDRESS\s*=\s*"[^"]*"/,
       `GAMBLE_ADDRESS        = "${gambleAddress}"`
     );
     fs.writeFileSync(wranglerPath, wrangler, 'utf8');
-    console.log("  worker/wrangler.toml                     ✓  (3 addresses)");
+    console.log("  worker/wrangler.toml                     ✓  (2 addresses)");
   } else {
     console.warn("  ⚠ worker/wrangler.toml not found");
-  }
-
-  // Patch js/quest-globals.js (vanilla JS — used by generated quest pages)
-  const globalsPath = path.join(__dirname, '..', 'js', 'quest-globals.js');
-  if (fs.existsSync(globalsPath)) {
-    let globals = fs.readFileSync(globalsPath, 'utf8');
-    globals = globals.replace(
-      /var CONTRACT_ADDRESS\s*=\s*'[^']*'/,
-      `var CONTRACT_ADDRESS = '${lastChadAddress}'`
-    );
-    globals = globals.replace(
-      /var ITEMS_CONTRACT_ADDRESS\s*=\s*'[^']*'/,
-      `var ITEMS_CONTRACT_ADDRESS = '${itemsAddress}'`
-    );
-    globals = globals.replace(
-      /var QUEST_REWARDS_ADDRESS\s*=\s*'[^']*'/,
-      `var QUEST_REWARDS_ADDRESS = '${questRewardsAddress}'`
-    );
-    fs.writeFileSync(globalsPath, globals, 'utf8');
-    console.log("  js/quest-globals.js                      ✓  (3 addresses)");
-  } else {
-    console.warn("  ⚠ js/quest-globals.js not found");
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -277,27 +194,24 @@ async function main() {
   console.log("║              Deployment Complete!                         ║");
   console.log("╚════════════════════════════════════════════════════════════╝");
   console.log(`  Network:         ${network}`);
-  console.log(`  LastChad:        ${lastChadAddress}`);
-  console.log(`  LastChadItems:   ${itemsAddress}`);
-  console.log(`  QuestRewards:    ${questRewardsAddress}`);
+  console.log(`  MembersOnly:     ${membersOnlyAddress}`);
+  console.log(`  MembersOnlyItems:${itemsAddress}`);
   console.log(`  Market:          ${marketAddress}`);
   console.log(`  Gamble:          ${gambleAddress}`);
   console.log(`  Tournament:      ${tournamentAddress}`);
   console.log(`  Oracle:          ✓  ${oracleAddress}`);
   console.log("");
   console.log("  Wiring:");
-  console.log("    LastChad ← authorized → QuestRewards  ✓");
-  console.log("    LastChad ← authorized → Gamble        ✓");
-  console.log("    LastChad ← authorized → Tournament    ✓");
-  console.log("    Items    ← authorized → QuestRewards  ✓");
-  console.log("    Market   ← approved   → LastChad      ✓");
-  console.log("    Market   ← approved   → Items         ✓");
-  console.log("    Market   ← lastChad   → LastChad      ✓");
+  console.log("    MembersOnly  ← authorized → Gamble       ✓");
+  console.log("    MembersOnly  ← authorized → Tournament   ✓");
+  console.log("    Items        ← authorized → Gamble       ✓");
+  console.log("    Items        ← authorized → Tournament   ✓");
+  console.log("    Market       ← approved   → MembersOnly  ✓");
+  console.log("    Market       ← approved   → Items        ✓");
   console.log("");
   console.log("  Config files patched:");
-  console.log("    js/config.js          (6 addresses)");
-  console.log("    js/quest-globals.js   (3 addresses)");
-  console.log("    worker/wrangler.toml  (3 addresses)");
+  console.log("    js/config.js          (5 addresses)");
+  console.log("    worker/wrangler.toml  (2 addresses)");
   console.log("════════════════════════════════════════════════════════════\n");
   console.log("Next: Commit config files, deploy Cloudflare Worker, verify on Snowtrace.");
 }

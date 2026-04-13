@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chad Base — Last Chad</title>
+  <title>Lobby — Members Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
@@ -114,10 +114,10 @@
 
     .zone-docs .zone-label { margin-top: 8%; }
 
-    /* ── North opening — Quests — RED ── */
-    .zone-quests { left: 28%; top: 4%; width: 44%; height: 24%; }
-    .zone-quests .zone-label { color: #ff7070; }
-    .zone-quests::before {
+    /* ── North opening — Tournament — RED ── */
+    .zone-tournament { left: 28%; top: 4%; width: 44%; height: 24%; }
+    .zone-tournament .zone-label { color: #ff7070; }
+    .zone-tournament::before {
       background: radial-gradient(ellipse at center,
         rgba(200, 30, 30, 0.55) 0%,
         rgba(200, 30, 30, 0.20) 45%,
@@ -159,10 +159,10 @@
       50%       { opacity: 1.0; }
     }
 
-    /* ── Pot over fire — Eat/Rest — PURPLE ── */
-    .zone-rest { left: 28%; bottom: 4%; width: 44%; height: 26%; }
-    .zone-rest .zone-label { color: #d58fff; }
-    .zone-rest::before {
+    /* ── Pot over fire — Craps — PURPLE ── */
+    .zone-craps { left: 28%; bottom: 4%; width: 44%; height: 26%; }
+    .zone-craps .zone-label { color: #d58fff; }
+    .zone-craps::before {
       background: radial-gradient(ellipse at center,
         rgba(160, 50, 220, 0.58) 0%,
         rgba(160, 50, 220, 0.20) 45%,
@@ -209,9 +209,9 @@
   <div id="scene">
     <img src="assets/chadhome.jpg" alt="Chad Base" draggable="false" />
 
-    <!-- North opening — Quests -->
-    <a class="zone zone-quests" href="adventure.html">
-      <span class="zone-label">QUESTS</span>
+    <!-- North opening — Tournament -->
+    <a class="zone zone-tournament" href="tournament.html">
+      <span class="zone-label">TOURNAMENT</span>
     </a>
 
     <!-- Market stall — Marketplace -->
@@ -224,9 +224,9 @@
       <span class="zone-label">MINT</span>
     </a>
 
-    <!-- Pot over fire — Eat/Rest -->
-    <a class="zone zone-rest" href="charge.html">
-      <span class="zone-label">CHARGE</span>
+    <!-- Pot over fire — Craps -->
+    <a class="zone zone-craps" href="gamble.html">
+      <span class="zone-label">CRAPS</span>
     </a>
 
     <!-- Boxes left of pot — Docs -->

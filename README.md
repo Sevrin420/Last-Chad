@@ -1,8 +1,8 @@
-# Last Chad
+# Members Only
 
-> A Mobile text-based adventure RPG with upgradable NFT characters on Avalanche.
+> An NFT-gated casino on Avalanche. 222 Chads. Multiplayer craps, tournaments, and a player-to-player market.
 
-Mint a Chad. Send them on quests. Roll dice. Play Mini-Games. Earn XP. Level up. Equip items. Don't die.
+Mint a Chad. Earn chips weekly. Hit the tables. Top the leaderboard.
 
 ---
 
@@ -12,42 +12,41 @@ Mint a Chad. Send them on quests. Roll dice. Play Mini-Games. Earn XP. Level up.
 
 ---
 
-## The Game
+## The Casino
 
-Last Chad is a mobile fully on-chain RPG where your character is an ERC-721 NFT that permanently changes based on your choices. XP, levels, stats, and items are all stored on-chain. There is no reset.
+Members Only is a fully on-chain casino where your membership is an ERC-721 NFT. Chips, tiers, and items are all stored on-chain.
 
-### Characters
-- 10,000 total supply, 2 AVAX to mint
-- 4 stats: Strength, Intelligence, Dexterity, Charisma
-- Distribute 2 points at setup, earn 1 more per level-up
-- Level = total XP / 100
+### Membership
+- 222 total supply, 0.01 AVAX to mint
+- Max 5 per wallet
+- Name your Chad (12 char max, unique)
 
-### Quests
-- Your Chad is locked in escrow for the duration
-- Dice rolls are deterministic — derived from an on-chain keccak256 seed
-- One attempt per quest per Chad. Forever.
-- Fail and your Chad might not come back
+### Chips
+- In-game currency tied to your NFT (not your wallet)
+- Earned weekly based on Tier + Level
+- Spent at the tables (craps, gamble) and in tournaments
+
+### Tiers & Levels
+- **Tier** (1-3): set by owner to match metadata trait
+- **Level** (1-4): determined by mint order (#1-50 = L1, #51-100 = L2, #101-150 = L3, #151-222 = L4)
+- Both contribute to weekly chip rewards
 
 ### Items
-- ERC-1155 tokens earned through quests or direct claim
-- Some items apply stat bonuses during gameplay
-- Non-stackable items: one per wallet
-
-### Cells
-- In-game currency tied to your NFT (not your wallet)
-- Earned mid-quest, spent in the quest shop
+- ERC-1155 tokens with chip bonuses
+- Utilize (lock) items to your NFT for weekly bonus chips
+- Trade on the market when not utilized
 
 ---
 
-## Contracts — Fuji Testnet
+## Contracts
 
-| Contract | Address |
+| Contract | Purpose |
 |----------|---------|
-| LastChad (ERC-721) | `0xcE6D7bC4cAdfafc4cAe6BB86fD70ea206bDe884f` |
-| LastChadItems (ERC-1155) | `0x00906C5b4a5943E212FD59d227e995F3390cf86d` |
-| QuestRewards | `0x0CcA830784D13F4E9B606F914eB0c1deecA925eB` |
-| Market | `0x2648fce03fe383c4a1d1a4c21fa59a0b9f35243d` |
-| Gamble | `0x12527ec23064D11Fa128d6B36Db69252b86Ec0AC` |
+| MembersOnly | ERC-721 NFT (222 max, chips, tiers, levels, weekly claims) |
+| MembersOnlyItems | ERC-1155 items (stackable/non-stackable, utilize/lock) |
+| Gamble | Chip wagering (craps buy-in, oracle settlements) |
+| Tournament | Tournament entry, score locking, leaderboard |
+| Market | Player-to-player NFT trading |
 
 ---
 
@@ -55,8 +54,8 @@ Last Chad is a mobile fully on-chain RPG where your character is an ERC-721 NFT 
 
 - Solidity 0.8.26 + OpenZeppelin 5.0.0
 - Hardhat 2.28.5
-- Web3.js + WalletConnect
-- Cloudflare Worker (quest oracle)
+- ethers.js v5 + AppKit/Reown
+- Cloudflare Workers + Durable Objects (craps tables)
 - GitHub Pages
 
 ---

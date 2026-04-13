@@ -10,11 +10,11 @@ function findImport(importPath) {
   return { error: 'File not found: ' + importPath };
 }
 
-const source = fs.readFileSync(path.resolve(__dirname, 'contracts/LastChad.sol'), 'utf8');
+const source = fs.readFileSync(path.resolve(__dirname, 'contracts/MembersOnly.sol'), 'utf8');
 
 const input = {
   language: 'Solidity',
-  sources: { 'LastChad.sol': { content: source } },
+  sources: { 'MembersOnly.sol': { content: source } },
   settings: {
     outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } },
     optimizer: { enabled: true, runs: 200 }
@@ -32,13 +32,13 @@ if (output.errors) {
   }
 }
 
-const contract = output.contracts['LastChad.sol']['LastChad'];
+const contract = output.contracts['MembersOnly.sol']['MembersOnly'];
 const abi = JSON.stringify(contract.abi);
 const bytecode = '0x' + contract.evm.bytecode.object;
 
-fs.writeFileSync(path.resolve(__dirname, 'contracts/LastChad.abi.json'), abi);
-fs.writeFileSync(path.resolve(__dirname, 'contracts/LastChad.bin'), bytecode);
+fs.writeFileSync(path.resolve(__dirname, 'contracts/MembersOnly.abi.json'), abi);
+fs.writeFileSync(path.resolve(__dirname, 'contracts/MembersOnly.bin'), bytecode);
 
-console.log('ABI written to contracts/LastChad.abi.json');
-console.log('Bytecode written to contracts/LastChad.bin');
+console.log('ABI written to contracts/MembersOnly.abi.json');
+console.log('Bytecode written to contracts/MembersOnly.bin');
 console.log('Bytecode length:', bytecode.length);

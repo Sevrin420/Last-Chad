@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mint | Last Chad</title>
+  <title>Mint | Members Only</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="nav.css">
   <style>
@@ -469,7 +469,7 @@
     .code-status.ok { color: #4caf50; }
     .code-status.err { color: #ff4444; }
 
-    .cell-breakdown {
+    .chip-breakdown {
       background: rgba(30, 20, 10, 0.6);
       border: 1px solid #5c4409;
       border-radius: 4px;
@@ -788,7 +788,7 @@
   <div id="pauseOverlay">
     <div class="pause-box">
       <h2>Aloha</h2>
-      <p>Thank you for checking out Last Chad! I'm humbled that you're interested in minting.</p>
+      <p>Thank you for checking out Members Only! I'm humbled that you're interested in minting.</p>
       <p>Due to low minting I am pausing the project and returning funds.</p>
       <p>It's been a big learning experience and I'm more motivated than ever to bring fun and value to Avalanche.</p>
       <div class="sig">~Sev</div>
@@ -814,13 +814,13 @@
   <!-- Main -->
   <main class="main">
     <div class="mint-card">
-      <h1 class="card-title">Last Chad</h1>
+      <h1 class="card-title">Members Only</h1>
 
       <!-- Supply -->
       <div class="supply-section">
         <div class="supply-label">
           <span>MINTED</span>
-          <span id="supplyText">— / 333</span>
+          <span id="supplyText">— / 222</span>
         </div>
         <div class="supply-bar">
           <div class="supply-fill" id="supplyFill"></div>
@@ -832,7 +832,7 @@
       <!-- Price -->
       <div class="price-row">
         <span class="price-label">PRICE</span>
-        <span class="price-value" id="priceDisplay">2<span class="price-eth"> AVAX</span></span>
+        <span class="price-value" id="priceDisplay">0.01<span class="price-eth"> AVAX</span></span>
       </div>
 
       <!-- Quantity -->
@@ -857,22 +857,22 @@
       <!-- Total -->
       <div class="total-row">
         <span class="total-label">TOTAL</span>
-        <span class="total-value" id="totalValue">2 AVAX</span>
+        <span class="total-value" id="totalValue">0.01 AVAX</span>
       </div>
 
       <!-- Mint Code -->
 
-      <!-- Cell Breakdown -->
-      <div class="cell-breakdown" id="cellBreakdown">
-        <div class="breakdown-row" id="baseCellsRow">
-          <span class="breakdown-label">Base cells</span>
-          <span class="breakdown-value" id="baseCellsValue">50 × 1 = 50</span>
+      <!-- Chip Breakdown -->
+      <div class="chip-breakdown" id="chipBreakdown">
+        <div class="breakdown-row" id="baseChipsRow">
+          <span class="breakdown-label">Base chips</span>
+          <span class="breakdown-value" id="baseChipsValue">50 × 1 = 50</span>
         </div>
         <div class="breakdown-row" id="partnerRow">
           <span class="breakdown-label">Partner NFT bonus</span>
           <span class="breakdown-value" id="partnerValue">Not detected</span>
         </div>
-        <div style="font-size:0.28rem; color:#6a5a3a; padding: 2px 0 4px 0; font-style: italic;">Max +100 cells from NFT friends</div>
+        <div style="font-size:0.28rem; color:#6a5a3a; padding: 2px 0 4px 0; font-style: italic;">Max +100 chips from NFT friends</div>
         <div id="partnerList" style="padding: 4px 0 2px 0;">
           <div class="breakdown-row" id="partner-little-burn" style="font-size:0.32rem; color:#555; padding:2px 0;">
             <span class="breakdown-label">— Little Burn</span><span class="breakdown-value" id="partner-little-burn-status">—</span>
@@ -892,8 +892,8 @@
         </div>
         <div class="breakdown-divider"></div>
         <div class="breakdown-row total">
-          <span class="breakdown-label">Total cells</span>
-          <span class="breakdown-value" id="totalCellsValue">50</span>
+          <span class="breakdown-label">Total chips</span>
+          <span class="breakdown-value" id="totalChipsValue">50</span>
         </div>
       </div>
 
@@ -922,16 +922,16 @@
       connectWallet, autoReconnect, disconnect,
       getSigner, getUserAddress, truncateAddress
     } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
+    import { CONTRACT_ADDRESS, READ_RPC, MEMBERS_ONLY_ABI } from './js/config.js';
 
     // ========== CONFIG ==========
-    const PRICE = 2;
-    const MAX_SUPPLY = 333;
+    const PRICE = 0.01;
+    const MAX_SUPPLY = 222;
     const MAX_MINT_PER_WALLET = 5;
-    const BASE_CELLS = 50;
+    const BASE_CHIPS = 50;
     const PARTNER_BONUS = 100;
 
-    const CONTRACT_ABI = LASTCHAD_ABI;
+    const CONTRACT_ABI = MEMBERS_ONLY_ABI;
 
     // ========== DOM ==========
     const slider = document.getElementById('qtySlider');
@@ -948,9 +948,9 @@
     const supplyFill = document.getElementById('supplyFill');
 
     const partnerRow = document.getElementById('partnerRow');
-    const baseCellsValue = document.getElementById('baseCellsValue');
+    const baseChipsValue = document.getElementById('baseChipsValue');
     const partnerValue = document.getElementById('partnerValue');
-    const totalCellsValue = document.getElementById('totalCellsValue');
+    const totalChipsValue = document.getElementById('totalChipsValue');
 
     // ========== READ PROVIDER ==========
     const readProvider = new ethers.providers.JsonRpcProvider(READ_RPC);
@@ -1032,7 +1032,7 @@
           if (row) row.style.color = '#555';
           if (status) status.textContent = '—';
         });
-        updateCellBreakdown();
+        updateChipBreakdown();
         return;
       }
       let anyFound = false;
@@ -1053,20 +1053,20 @@
       }
       if (callId !== _partnerCheckId) return; // stale — don't overwrite newer result
       hasPartner = anyFound;
-      updateCellBreakdown();
+      updateChipBreakdown();
     }
 
-    // ========== CELL BREAKDOWN ==========
-    function updateCellBreakdown() {
-      const base = BASE_CELLS * quantity;
+    // ========== CHIP BREAKDOWN ==========
+    function updateChipBreakdown() {
+      const base = BASE_CHIPS * quantity;
       const partner = hasPartner ? PARTNER_BONUS * quantity : 0;
       const total = base + partner;
 
-      baseCellsValue.textContent = BASE_CELLS + ' × ' + quantity + ' = ' + base;
+      baseChipsValue.textContent = BASE_CHIPS + ' × ' + quantity + ' = ' + base;
       partnerRow.style.display = 'flex';
       partnerRow.style.color = hasPartner ? '#4caf50' : '#888';
-      partnerValue.textContent = hasPartner ? '+100 Cells per mint' : 'Not detected';
-      totalCellsValue.textContent = total;
+      partnerValue.textContent = hasPartner ? '+100 Chips per mint' : 'Not detected';
+      totalChipsValue.textContent = total;
     }
 
     // ========== QUANTITY UI ==========
@@ -1103,7 +1103,7 @@
       qtyPlus.disabled = quantity >= max;
       const pips = pipsContainer.querySelectorAll('span');
       pips.forEach((p, i) => p.classList.toggle('active', i + 1 <= quantity));
-      updateCellBreakdown();
+      updateChipBreakdown();
     }
 
     slider.addEventListener('input', () => { quantity = parseInt(slider.value); updateUI(); });
@@ -1221,7 +1221,7 @@
 
       // Check contract is configured
       if (!CONTRACT_ADDRESS) {
-        alert('Mint contract not deployed yet.\n\nDeploy LastChad.sol and set CONTRACT_ADDRESS in mint.html.');
+        alert('Mint contract not deployed yet.\n\nDeploy MembersOnly.sol and set CONTRACT_ADDRESS in js/config.js.');
         return;
       }
 
@@ -1349,9 +1349,9 @@
         // Play "good luck... you're gonna need it"
         playMintSfx();
 
-        // Redirect to stats page after sounds finish (allow ~5s for both clips)
+        // Redirect to lobby after sounds finish (allow ~5s for both clips)
         setTimeout(() => {
-          window.location.href = 'stats.html?tokens=' + mintedIds.join(',');
+          window.location.href = 'chadbase.html';
         }, 5000);
 
       } catch (err) {
@@ -1372,12 +1372,6 @@
         } else if (msg.includes('Insufficient payment')) {
           showErr('Insufficient AVAX. Need ' + (quantity * PRICE) + ' AVAX.');
           btnText.textContent = 'MINT NOW';
-        } else if (msg.includes('Invalid code')) {
-          showErr('Invalid mint code.');
-          btnText.textContent = 'MINT NOW';
-        } else if (msg.includes('Code already used')) {
-          showErr('Mint code already used.');
-          btnText.textContent = 'MINT NOW';
         } else {
           const txHash = err.transaction?.hash || err.receipt?.transactionHash || '';
           const reason = err.reason || err.data?.message || err.error?.message || msg;
@@ -1391,7 +1385,7 @@
     });
 
     // Set correct initial state (grey, not green from CSS)
-    updateCellBreakdown();
+    updateChipBreakdown();
 
     // ========== AUTO-RECONNECT ==========
     (async () => {

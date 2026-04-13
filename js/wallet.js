@@ -1,5 +1,5 @@
 /**
- * wallet.js — Last Chad wallet connection via AppKit (Reown)
+ * wallet.js — Members Only wallet connection via AppKit (Reown)
  *
  * AppKit handles Core, Rabby, MetaMask, and WalletConnect automatically
  * across desktop and mobile without any wallet-specific code.
@@ -62,8 +62,8 @@ async function _initAppKit() {
     defaultNetwork: avalanche,
     projectId: WALLETCONNECT_PROJECT_ID,
     metadata: {
-      name: 'Last Chad',
-      description: 'NFT Adventure RPG on Avalanche',
+      name: 'Members Only',
+      description: 'NFT Casino on Avalanche',
       url: window.location.origin,
       icons: [window.location.origin + '/assets/mainbg.png']
     },

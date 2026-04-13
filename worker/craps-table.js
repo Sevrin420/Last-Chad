@@ -947,17 +947,17 @@ export class CrapsTable {
   // ═══════════════════════════════════════════════════════════════════════
 
   async _kickPlayer(ws, playerId, nonce, reason) {
-    // Log the kick + lost cells to KV for admin review
+    // Log the kick + lost chips to KV for admin review
     const pd = await this.state.storage.get(`player:${nonce}`);
     if (pd) {
-      let cellsLost = pd.stack || 0;
-      for (const v of Object.values(pd.bets || {})) cellsLost += v;
-      for (const v of Object.values(pd.comeBets || {})) cellsLost += v;
-      for (const v of Object.values(pd.comeOdds || {})) cellsLost += v;
+      let chipsLost = pd.stack || 0;
+      for (const v of Object.values(pd.bets || {})) chipsLost += v;
+      for (const v of Object.values(pd.comeBets || {})) chipsLost += v;
+      for (const v of Object.values(pd.comeOdds || {})) chipsLost += v;
       const logEntry = {
         wallet:    pd.player,
         tokenId:   pd.tokenId,
-        cellsLost,
+        chipsLost,
         stack:     pd.stack || 0,
         bets:      pd.bets || {},
         reason,

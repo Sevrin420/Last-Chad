@@ -1,7 +1,7 @@
 /**
  * registerPartners.js
  *
- * Registers all partner NFT collections on the deployed LastChad contract.
+ * Registers all partner NFT collections on the deployed MembersOnly contract.
  * Partners are read from partnernft.md.
  *
  * Usage:
@@ -20,7 +20,7 @@ const PARTNERS = [
   { name: "The Bobs",     address: "0x66e82a463e47f0656a45f136368cf62686d2a01f" },
 ];
 
-function readLastChadAddress() {
+function readContractAddress() {
   const src = fs.readFileSync(path.join(__dirname, "..", "js", "config.js"), "utf8");
   const m = src.match(/export const CONTRACT_ADDRESS\s*=\s*'([^']+)'/);
   if (!m) throw new Error("CONTRACT_ADDRESS not found in js/config.js");
@@ -28,19 +28,19 @@ function readLastChadAddress() {
 }
 
 async function main() {
-  const lastChadAddress = readLastChadAddress();
+  const contractAddress = readContractAddress();
   const [deployer] = await hre.ethers.getSigners();
 
   console.log("\n════════════════════════════════════════════");
-  console.log("Last Chad — Register Partner NFTs");
+  console.log("Members Only — Register Partner NFTs");
   console.log("════════════════════════════════════════════");
   console.log(`Network:   ${hre.network.name}`);
-  console.log(`Contract:  ${lastChadAddress}`);
+  console.log(`Contract:  ${contractAddress}`);
   console.log(`Deployer:  ${deployer.address}`);
   console.log(`Partners:  ${PARTNERS.length}`);
 
-  const LastChad = await hre.ethers.getContractFactory("LastChad");
-  const contract = LastChad.attach(lastChadAddress);
+  const MembersOnly = await hre.ethers.getContractFactory("MembersOnly");
+  const contract = MembersOnly.attach(contractAddress);
 
   // Check how many partners are already registered
   const existingCount = await contract.getPartnerCount();

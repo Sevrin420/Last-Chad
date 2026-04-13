@@ -6,13 +6,9 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-interface ILastChadElimination {
-    function eliminated(uint256 tokenId) external view returns (bool);
-}
-
 /**
  * @title Market
- * @notice NFT marketplace for Last Chad. Supports any approved ERC-721 and ERC-1155 contract.
+ * @notice NFT marketplace for Members Only. Supports any approved ERC-721 and ERC-1155 contract.
  *
  * Enumeration strategy
  * --------------------
@@ -60,8 +56,8 @@ contract Market is Ownable, ReentrancyGuard {
     /// @notice Total fees collected, withdrawable by owner
     uint256 public accumulatedFees;
 
-    /// @notice LastChad contract address for elimination checks (address(0) = disabled)
-    address public lastChadContract;
+    /// @notice Members Only contract address (kept for reference, no elimination checks)
+    address public membersOnlyContract;
 
     /// @notice NFT contracts allowed to be listed on this market
     mapping(address => bool) public approvedContracts;
@@ -140,8 +136,8 @@ contract Market is Ownable, ReentrancyGuard {
 
     // ========== ADMIN ==========
 
-    function setLastChadContract(address _lastChad) external onlyOwner {
-        lastChadContract = _lastChad;
+    function setMembersOnlyContract(address _membersOnly) external onlyOwner {
+        membersOnlyContract = _membersOnly;
     }
 
     function setApprovedContract(address nftContract, bool approved) external onlyOwner {
@@ -240,11 +236,6 @@ contract Market is Ownable, ReentrancyGuard {
         Listing storage l = listings[nftContract][tokenId];
         require(l.active, "Market: not listed");
         require(msg.value >= l.price, "Market: insufficient payment");
-
-        // Block purchase of eliminated Chads
-        if (lastChadContract != address(0) && nftContract == lastChadContract) {
-            require(!ILastChadElimination(lastChadContract).eliminated(tokenId), "Market: Chad is eliminated");
-        }
 
         address seller = l.seller;
         uint256 price  = l.price;

@@ -1,13 +1,14 @@
 (function () {
   var page = window.location.pathname.split('/').pop() || 'index.html';
   var active = {
-    'mint.html':      'mint',
-    'quest.html':     'base',
-    'game.html':      'base',
-    'stats.html':     'base',
-    'docs.html':      'docs',
-    'market.html':    'base',
-    'chadbase.html':  'base',
+    'mint.html':        'mint',
+    'game.html':        'lobby',
+    'gamble.html':      'lobby',
+    'craps.html':       'lobby',
+    'docs.html':        'docs',
+    'market.html':      'lobby',
+    'chadbase.html':    'lobby',
+    'tournament.html':  'lobby',
     'leaderboard.html': 'leaderboard'
   }[page] || '';
 
@@ -22,7 +23,7 @@
     '<div class="nav-wrapper">' +
       '<button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>' +
       '<div class="nav-dropdown" id="navDropdown">' +
-        link('/chadbase.html', 'BASE', 'base') +
+        link('/chadbase.html', 'LOBBY', 'lobby') +
         link('/mint.html',     'MINT', 'mint') +
         link('/leaderboard.html', 'LEADERBOARD', 'leaderboard') +
         link('/docs.html',     'DOCS', 'docs') +

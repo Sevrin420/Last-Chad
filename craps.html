@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Craps Table — Last Chad</title>
+  <title>Craps Table — Members Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
@@ -955,7 +955,7 @@ import { connectWallet as walletConnect, autoReconnect, disconnect,
 import { GAMBLE_ADDRESS, GAMBLE_ABI, getChadImageUrl } from './js/config.js';
 
 /* ===================================================================
-   CRAPS TABLE — Last Chad
+   CRAPS TABLE — Members Only
    Multiplayer craps with text chat
    Server-side dice via Cloudflare Worker — no client-side RNG
    =================================================================== */
@@ -1914,7 +1914,7 @@ async function cashOut() {
   if (STATE.nonce == null) { dealerSay("No active session!", 'sad'); return; }
 
   const forfeitMsg = lockedBets > 0 ? ` (${lockedBets} on pass line will be forfeited)` : '';
-  if (!(await gameConfirm(`Cash out ${totalPayout} cells?${forfeitMsg}`))) return;
+  if (!(await gameConfirm(`Cash out ${totalPayout} chips?${forfeitMsg}`))) return;
 
   hideTimer();
   cashingOut = true;
@@ -1970,7 +1970,7 @@ async function cashOut() {
       chadName: STATE.nftName || 'Chad #' + STATE.tokenId,
     }));
 
-    dealerSay("Claiming cells on-chain...", 'neutral');
+    dealerSay("Claiming chips on-chain...", 'neutral');
     const signer = await ensureSigner();
     if (!signer) throw new Error('Wallet not connected — please reconnect and try again');
     const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
@@ -2007,9 +2007,9 @@ async function exitTable() {
   if (STATE.nonce) {
     let betsOnTable = 0;
     for (const val of Object.values(STATE.bets)) betsOnTable += val;
-    const totalCells = STATE.stack + betsOnTable;
-    if (totalCells > 0) {
-      const msg = `You have ${totalCells} cells on the table! Leaving without cashing out means you LOSE all cells. Are you sure?`;
+    const totalChips = STATE.stack + betsOnTable;
+    if (totalChips > 0) {
+      const msg = `You have ${totalChips} chips on the table! Leaving without cashing out means you LOSE all chips. Are you sure?`;
       if (!(await gameConfirm(msg))) return;
     }
   }
@@ -2038,7 +2038,7 @@ function initPlayerFromSession() {
   updateLocalPlayerUI();
   const welcomeEl = document.getElementById('welcomeMsg');
   if (welcomeEl) welcomeEl.textContent = 'Welcome, ' + (STATE.nftName || STATE.playerName) + '!';
-  addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} cells.`);
+  addChatMsg('system', `${STATE.nftName || STATE.playerName} joined the table with ${STATE.stack} chips.`);
 
   dealerSay("Welcome! Place your bets.", 'happy');
 
@@ -2467,7 +2467,7 @@ window.addEventListener('beforeunload', (e) => {
   // Skip warning during cashout — WalletConnect may trigger navigation for signing
   if (!cashingOut && STATE.nonce && STATE.stack > 0) {
     e.preventDefault();
-    e.returnValue = 'You have cells on the table! Cash out first or they will be lost.';
+    e.returnValue = 'You have chips on the table! Cash out first or they will be lost.';
   }
   // Always close the WS so the DO fires _handleDisconnect and cleans up player:* data
   if (!cashingOut) disconnectTable();
@@ -2509,7 +2509,7 @@ window.copyInviteCode = copyInviteCode;
 window.enterTable = enterTable;
 window.exitTable = exitTable;
 window.pressBet = pressBet;
-// Intercept nav links — warn if player has cells on table
+// Intercept nav links — warn if player has chips on table
 document.addEventListener('click', (e) => {
   const link = e.target.closest('.nav-link');
   if (!link) return;
@@ -2519,7 +2519,7 @@ document.addEventListener('click', (e) => {
   if (total <= 0) return;
   e.preventDefault();
   const href = link.href;
-  const msg = `You have ${total} cells on the table! Leaving without cashing out means you LOSE all cells. Are you sure?`;
+  const msg = `You have ${total} chips on the table! Leaving without cashing out means you LOSE all chips. Are you sure?`;
   gameConfirm(msg).then((yes) => {
     if (yes) {
       sessionStorage.removeItem('craps_session');

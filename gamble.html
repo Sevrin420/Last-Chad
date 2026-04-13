@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gambling Den — Last Chad</title>
+  <title>Gambling Den — Members Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="nav.css" />
@@ -299,7 +299,7 @@
       font-size: clamp(0.5rem, 1.2vw, 0.65rem);
       line-height: 2.2;
     }
-    #chad-info .cells-count {
+    #chad-info .chips-count {
       color: #c9a84c;
       font-size: clamp(0.6rem, 1.4vw, 0.75rem);
     }
@@ -1104,8 +1104,8 @@
     <div class="craps-modal-box">
       <div class="craps-modal-title">CASH OUT</div>
       <div class="craps-modal-text" id="craps-cashout-text">
-        Your stack: <span id="craps-cashout-amount">0</span> cells<br>
-        Return these cells to your Chad?
+        Your stack: <span id="craps-cashout-amount">0</span> chips<br>
+        Return these chips to your Chad?
       </div>
       <div class="craps-modal-btns">
         <button class="craps-modal-btn cancel" id="craps-cashout-cancel">KEEP PLAYING</button>
@@ -1197,12 +1197,12 @@
       </div>
     </div>
     <div class="poker-stack-box" id="poker-stack-box">
-      <div class="poker-stack-label">CELLS</div>
+      <div class="poker-stack-label">CHIPS</div>
       <div class="poker-stack-value" id="poker-stack-value">0</div>
     </div>
     <!-- Win banner overlay -->
     <div class="poker-win-banner" id="poker-win-banner">
-      <div class="poker-win-text" id="poker-win-text">YOU WIN 0 CELLS</div>
+      <div class="poker-win-text" id="poker-win-text">YOU WIN 0 CHIPS</div>
     </div>
   </div>
 
@@ -1210,7 +1210,7 @@
   <script type="module">
     import { connectWallet, autoReconnect, disconnect,
              getSigner, ensureSigner, truncateAddress } from './js/wallet.js';
-    import { CONTRACT_ADDRESS, LASTCHAD_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI, getChadImageUrl } from './js/config.js';
+    import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, READ_RPC, GAMBLE_ADDRESS, GAMBLE_ABI, getChadImageUrl } from './js/config.js';
 
     // ── Music & Enter ──
     const jiptImage  = document.getElementById('jipt-image');
@@ -1256,12 +1256,12 @@
 
     // ── State ──
     let selectedTokenId = null;
-    let selectedCells   = 0;
+    let selectedChips   = 0;
     let selectedChadName = '';
     let wagerAmount     = 0;
     let currentGame     = 'craps'; // 'craps' or 'poker'
 
-    const CONTRACT_ABI = LASTCHAD_ABI;
+    const CONTRACT_ABI = MEMBERS_ONLY_ABI;
 
     // ── DOM refs ──
     const dialogueText      = document.getElementById('dialogue-text');
@@ -1421,7 +1421,7 @@
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readProvider);
       const gambleRead = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, readProvider);
 
-      // Check that Gamble is authorized in LastChad — if not, flip() will always revert
+      // Check that Gamble is authorized in MembersOnly — if not, flip() will always revert
       try {
         const authorized = await contract.authorizedGame(GAMBLE_ADDRESS);
         if (!authorized) {
@@ -1431,7 +1431,7 @@
           p.style.color = '#e53935';
           p.textContent = "The gambling den is closed for maintenance. Check back soon!";
           dialogueText.appendChild(p);
-          console.error('Gamble contract not authorized in LastChad. Owner must call setGameContract(GAMBLE_ADDRESS, true).');
+          console.error('Gamble contract not authorized in MembersOnly. Owner must call setGameContract(GAMBLE_ADDRESS, true).');
           return;
         }
       } catch (e) { /* RPC issue — proceed anyway */ }
@@ -1455,9 +1455,9 @@
       for (let idx = 0; idx < balance; idx++) {
         try {
           const id = (await contract.tokenOfOwnerByIndex(addr, idx)).toNumber();
-          const cells = (await contract.getCells(id)).toNumber();
+          const chips = (await contract.getChips(id)).toNumber();
           const chadName = await contract.tokenName(id) || ('Chad #' + id);
-          ownedTokens.push({ id, cells, chadName });
+          ownedTokens.push({ id, chips, chadName });
         } catch (e) { /* error */ }
       }
 
@@ -1471,7 +1471,7 @@
         return;
       }
 
-      if (ownedTokens.every(t => t.cells <= 0)) {
+      if (ownedTokens.every(t => t.chips <= 0)) {
         await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
         showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
         return;
@@ -1491,7 +1491,7 @@
         card.className = 'nft-card';
         card.innerHTML = `
           <img src="${getChadImageUrl(token.id)}" alt="Chad #${token.id}" />
-          <div class="nft-id">#${token.id} (${token.cells} cells)</div>
+          <div class="nft-id">#${token.id} (${token.chips} chips)</div>
         `;
         card.addEventListener('click', () => selectChad(token, ownedTokens));
         grid.appendChild(card);
@@ -1501,7 +1501,7 @@
     // ── Flow: Chad selected → show wager ──
     async function selectChad(token, allTokens) {
       selectedTokenId = token.id;
-      selectedCells = token.cells;
+      selectedChips = token.chips;
       selectedChadName = token.chadName || ('Chad #' + token.id);
 
       // Highlight selected card
@@ -1516,19 +1516,19 @@
       if (oldWager) oldWager.remove();
       choicesDiv.innerHTML = '';
 
-      if (token.cells <= 0) {
+      if (token.chips <= 0) {
         await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
         showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
         return;
       }
 
-      if (token.cells < _minWager) {
-        await showNpcText([`You need at least ${_minWager} cell${_minWager === 1 ? '' : 's'} to play. Go earn some first!`]);
+      if (token.chips < _minWager) {
+        await showNpcText([`You need at least ${_minWager} chip${_minWager === 1 ? '' : 's'} to play. Go earn some first!`]);
         showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
         return;
       }
 
-      const sliderMax = Math.min(token.cells, _maxWager);
+      const sliderMax = Math.min(token.chips, _maxWager);
       const sliderMin = _minWager;
 
       // Show selected chad
@@ -1538,7 +1538,7 @@
         <img src="${getChadImageUrl(token.id)}" alt="Chad #${token.id}" />
         <div id="chad-info">
           <div>Chad #${token.id}</div>
-          <div class="cells-count">${token.cells} cells</div>
+          <div class="chips-count">${token.chips} chips</div>
         </div>
       `;
       dialogueText.appendChild(sel);
@@ -1547,9 +1547,9 @@
       const wagerSec = document.createElement('div');
       wagerSec.id = 'wager-section';
       wagerSec.innerHTML = `
-        <div id="wager-label">WAGER CELLS (max ${sliderMax})</div>
+        <div id="wager-label">WAGER CHIPS (max ${sliderMax})</div>
         <input type="range" id="wager-slider" min="${sliderMin}" max="${sliderMax}" value="${sliderMin}" />
-        <div id="wager-amount">${sliderMin} cell${sliderMin === 1 ? '' : 's'}</div>
+        <div id="wager-amount">${sliderMin} chip${sliderMin === 1 ? '' : 's'}</div>
       `;
       dialogueText.appendChild(wagerSec);
 
@@ -1560,7 +1560,7 @@
       const amountDisplay = document.getElementById('wager-amount');
       slider.addEventListener('input', () => {
         wagerAmount = parseInt(slider.value);
-        amountDisplay.textContent = wagerAmount + (wagerAmount === 1 ? ' cell' : ' cells');
+        amountDisplay.textContent = wagerAmount + (wagerAmount === 1 ? ' chip' : ' chips');
       });
       wagerAmount = sliderMin;
 
@@ -1635,7 +1635,7 @@
         return;
       }
 
-      // Register session with worker (retry up to 3 times — cells are already committed)
+      // Register session with worker (retry up to 3 times — chips are already committed)
       statusEl.textContent = 'Setting up craps table...';
       let startData;
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -1782,7 +1782,7 @@
         if (crapsIsRolling) return;
         const betType = zone.dataset.bet;
         const amount = crapsGetBetAmount();
-        if (amount > crapsStack) { crapsSetMessage("Not enough cells! You have " + crapsStack); return; }
+        if (amount > crapsStack) { crapsSetMessage("Not enough chips! You have " + crapsStack); return; }
         if (betType === 'pass' && crapsPhase !== 'comeout') { crapsSetMessage("Pass line bets only on come-out roll!"); return; }
         if (betType === 'passOdds' && crapsPhase !== 'point') { crapsSetMessage("Odds bets only after point is set!"); return; }
         if (betType === 'passOdds' && !crapsBets.pass) { crapsSetMessage("Place a pass line bet first!"); return; }
@@ -1792,7 +1792,7 @@
         crapsUpdateStack();
         crapsUpdateBetDisplays();
         crapsUpdateBetZones();
-        crapsSetMessage(betType.toUpperCase().replace(/([0-9])/g, ' $1') + ' — ' + amount + ' cells');
+        crapsSetMessage(betType.toUpperCase().replace(/([0-9])/g, ' $1') + ' — ' + amount + ' chips');
       });
     });
 
@@ -1916,7 +1916,7 @@
       const detail = document.getElementById('craps-result-detail');
       text.textContent = 'BUSTED';
       text.className = 'craps-result-text lose';
-      detail.textContent = 'You lost all your cells.';
+      detail.textContent = 'You lost all your chips.';
       overlay.classList.add('active');
 
       duckMusic(0.06);
@@ -2008,7 +2008,7 @@
         }
 
         // Call claimWinnings with oracle signature
-        statusEl.textContent = 'Claiming cells on-chain...';
+        statusEl.textContent = 'Claiming chips on-chain...';
         const signer = await ensureSigner();
         if (!signer) throw new Error('Wallet not connected');
         const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
@@ -2027,7 +2027,7 @@
         if (profit > 0) {
           text.textContent = 'WINNER!';
           text.className = 'craps-result-text win';
-          detail.textContent = '+' + profit + ' cells profit!';
+          detail.textContent = '+' + profit + ' chips profit!';
           duckMusic(0.06);
           const sfx = document.getElementById('sfx-win');
           sfx.volume = 0.5; sfx.currentTime = 0; sfx.play().catch(() => {});
@@ -2035,7 +2035,7 @@
         } else if (profit < 0) {
           text.textContent = 'TOUGH LUCK';
           text.className = 'craps-result-text lose';
-          detail.textContent = profit + ' cells';
+          detail.textContent = profit + ' chips';
           duckMusic(0.06);
           const sfx = document.getElementById('sfx-lose');
           sfx.volume = 0.5; sfx.currentTime = 0; sfx.play().catch(() => {});
@@ -2043,7 +2043,7 @@
         } else {
           text.textContent = 'BREAK EVEN';
           text.className = 'craps-result-text win';
-          detail.textContent = 'Got your cells back!';
+          detail.textContent = 'Got your chips back!';
         }
 
         overlay.classList.add('active');
@@ -2167,7 +2167,7 @@
                   const tx = await gamble.claimWinnings(data.tokenId, data.payout, data.nonce, data.signature);
                   await tx.wait();
                   localStorage.removeItem('lc_poker_cashout');
-                  await showNpcText(["There ya go! Your cells are back."]);
+                  await showNpcText(["There ya go! Your chips are back."]);
                   showIntro = origShowIntro;
                   await showPlayAgain();
                 } catch (err) {
@@ -2198,11 +2198,11 @@
             const chadLabel = crapsData.chadName || ('Chad #' + crapsData.tokenId);
             await showNpcText([
               "Hey, hold on a sec...",
-              `${chadLabel} has ${cellCount} unclaimed cells from a craps table.`,
+              `${chadLabel} has ${cellCount} unclaimed chips from a craps table.`,
               "Let me get those for ya."
             ]);
             showChoices([{
-              label: `CLAIM ${cellCount} CELLS`, action: async () => {
+              label: `CLAIM ${cellCount} CHIPS`, action: async () => {
                 choicesDiv.innerHTML = '';
                 try {
                   const signer = await ensureSigner();
@@ -2212,7 +2212,7 @@
                   await showNpcText(["Confirming on-chain..."]);
                   await tx.wait();
                   localStorage.removeItem('lc_craps_cashout');
-                  await showNpcText([`${cellCount} cells claimed! You're all square.`]);
+                  await showNpcText([`${cellCount} chips claimed! You're all square.`]);
                   showIntro = origShowIntro;
                   await showPlayAgain();
                 } catch (err) {
@@ -2301,7 +2301,7 @@
       choicesDiv.innerHTML = '';
       pokerWager = wagerAmount;
 
-      // TX 1: Commit wager on-chain — cells deducted immediately
+      // TX 1: Commit wager on-chain — chips deducted immediately
       clearDialogue();
       const msg = document.createElement('p');
       dialogueText.appendChild(msg);
@@ -2357,7 +2357,7 @@
         clearDialogue();
         const errMsg = document.createElement('p');
         dialogueText.appendChild(errMsg);
-        await typewrite(errMsg, "Session error. Your cells are committed — retrying...", 40);
+        await typewrite(errMsg, "Session error. Your chips are committed — retrying...", 40);
         showChoices([
           { label: 'RETRY', action: startPokerWorkerSession },
           { label: 'BACK (nonce saved)', action: () => {
@@ -2383,7 +2383,7 @@
       document.getElementById('poker-stack-value').textContent = pokerStack;
     }
 
-    async function animateCellCounter(from, to, durationMs) {
+    async function animateChipCounter(from, to, durationMs) {
       const el = document.getElementById('poker-stack-value');
       const diff = to - from;
       if (diff <= 0) { el.textContent = to; return; }
@@ -2419,14 +2419,14 @@
       dealBtn.textContent = 'DEALING...';
       dealBtn.disabled = true;
 
-      // Bet 1 cell per hand (or remaining stack if < 1)
+      // Bet 1 chip per hand (or remaining stack if < 1)
       const handWager = Math.min(1, pokerStack);
       if (handWager < 1) {
-        // Out of cells — force cashout
+        // Out of chips — force cashout
         pokerPhase = 'idle';
         dealBtn.textContent = 'CASH OUT';
         dealBtn.disabled = false;
-        document.getElementById('poker-result').textContent = 'OUT OF CELLS';
+        document.getElementById('poker-result').textContent = 'OUT OF CHIPS';
         document.getElementById('poker-result').className = 'poker-result lose';
         return;
       }
@@ -2645,12 +2645,12 @@
           // Show big win banner
           const winBanner = document.getElementById('poker-win-banner');
           const winText = document.getElementById('poker-win-text');
-          winText.textContent = `YOU WIN ${data.winnings} CELLS`;
+          winText.textContent = `YOU WIN ${data.winnings} CHIPS`;
           winBanner.classList.add('active');
 
-          // Animate cell counter rolling up to new total
+          // Animate chip counter rolling up to new total
           const oldStack = pokerStack - data.winnings;
-          await animateCellCounter(oldStack, pokerStack, 1500);
+          await animateChipCounter(oldStack, pokerStack, 1500);
 
           // Hold banner for a moment then dismiss
           await delay(1200);

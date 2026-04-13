@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Game | Last Chad</title>
+  <title>Game | Members Only</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="nav.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
@@ -208,8 +208,8 @@
       min-width: 0;
     }
 
-    /* --- Cells panel --- */
-    .cells-panel {
+    /* --- Chips panel --- */
+    .chips-panel {
       background: rgba(10, 8, 4, 0.75);
       border: 2px solid #5c4409;
       border-radius: 4px;
@@ -221,21 +221,21 @@
       box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
     }
 
-    .cells-panel img {
+    .chips-panel img {
       width: 100%;
       aspect-ratio: 1;
       object-fit: contain;
       image-rendering: pixelated;
     }
 
-    .cells-label {
+    .chips-label {
       font-size: 0.38rem;
       color: #c9a84c;
       text-shadow: 0 0 8px rgba(201, 168, 76, 0.35);
       text-align: center;
     }
 
-    .cells-value {
+    .chips-value {
       font-size: 0.45rem;
       color: #f5e6c8;
       text-align: center;
@@ -810,7 +810,7 @@
       </div>
 
       <div class="right-panels">
-        <!-- Stats + Cells column -->
+        <!-- Stats + Chips column -->
         <div class="stats-col">
         <div class="stats-panel" id="statsPanel">
           <div class="stats-panel-header" id="chadLabel">CHAD #—</div>
@@ -818,42 +818,14 @@
             <span>LVL</span>
             <span class="stat-level-val" id="statLevel">—</span>
           </div>
-          <div class="stat-level-row">
-            <span>XP</span>
-            <span class="stat-level-val" id="statXp">—</span>
-          </div>
 
-          <div style="border-top: 1px solid #3d2e0a; margin: 4px 0;"></div>
-
-          <div class="stat-row-g">
-            <span class="stat-label-g">STR</span>
-            <div class="stat-bar-g"><div class="stat-bar-fill-g str" id="barStr"></div></div>
-            <span class="stat-val-g" id="valStr">—</span>
-          </div>
-          <div class="stat-row-g">
-            <span class="stat-label-g">INT</span>
-            <div class="stat-bar-g"><div class="stat-bar-fill-g int" id="barInt"></div></div>
-            <span class="stat-val-g" id="valInt">—</span>
-          </div>
-          <div class="stat-row-g">
-            <span class="stat-label-g">DEX</span>
-            <div class="stat-bar-g"><div class="stat-bar-fill-g dex" id="barDex"></div></div>
-            <span class="stat-val-g" id="valDex">—</span>
-          </div>
-          <div class="stat-row-g">
-            <span class="stat-label-g">CHA</span>
-            <div class="stat-bar-g"><div class="stat-bar-fill-g cha" id="barCha"></div></div>
-            <span class="stat-val-g" id="valCha">—</span>
-          </div>
-
-          <div class="stats-loading" id="statsLoading">Loading stats...</div>
+          <div class="stats-loading" id="statsLoading">Loading...</div>
         </div>
 
-        <!-- Cells panel -->
-        <div class="cells-panel">
-          <img src="assets/cells.png" alt="cells">
-          <div class="cells-label">CELLS</div>
-          <div class="cells-value" id="cellsValue">—</div>
+        <!-- Chips panel -->
+        <div class="chips-panel">
+          <div class="chips-label">CHIPS</div>
+          <div class="chips-value" id="chipsValue">—</div>
         </div>
         </div><!-- end stats-col -->
 
@@ -911,7 +883,6 @@
       </div>
 
       <div class="roll-section">
-        <button class="roll-btn" id="beginQuestBtn" style="display:none">BEGIN QUEST</button>
         <button class="roll-btn" id="rollBtn">ROLL</button>
         <div class="rolls-left" id="rollsLeft">3 ROLLS LEFT</div>
       </div>
@@ -940,34 +911,14 @@
     </div>
   </main>
 
-  <!-- Quest Warning Modal -->
-  <div class="modal-overlay" id="questModal">
-    <div class="modal-box">
-      <div class="modal-title">!! WARNING !!</div>
-      <div class="modal-text">
-        YOUR CHAD NFT WILL BE<br>
-        <span class="danger">LOCKED IN A SMART CONTRACT.</span><br><br>
-        IF YOU FAIL THIS QUEST,<br>
-        <span class="danger">YOUR NFT WILL BE BURNED.</span><br><br>
-        THIS CANNOT BE UNDONE.
-      </div>
-      <div class="modal-btns">
-        <button class="modal-btn cancel" id="modalCancel">RETREAT</button>
-        <button class="modal-btn confirm" id="modalConfirm">ACCEPT RISK</button>
-      </div>
-      <div class="modal-status" id="modalStatus"></div>
-    </div>
-  </div>
-
   <script type="module">
-    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, QUEST_REWARDS_ADDRESS, READ_RPC,
-             LASTCHAD_ABI, ITEMS_ABI, getChadImageUrl } from './js/config.js';
+    import { CONTRACT_ADDRESS, ITEMS_CONTRACT_ADDRESS, READ_RPC,
+             MEMBERS_ONLY_ABI, ITEMS_ABI, getChadImageUrl } from './js/config.js';
 
     // ========== GET CHAD FROM URL ==========
     const params = new URLSearchParams(window.location.search);
     const chadId = params.get('chad');
-    const questId = params.get('questId'); // optional; if absent, dice work immediately (demo mode)
-    if (!chadId) { window.location.replace('quest.html'); }
+    if (!chadId) { window.location.replace('chadbase.html'); }
     const chadImg = getChadImageUrl(chadId);
 
     document.getElementById('portraitImg').src = chadImg;
@@ -975,73 +926,37 @@
     document.getElementById('chadLabel').textContent = 'CHAD #' + chadId;
 
     // ========== LOAD STATS FROM CHAIN ==========
-    const STATS_ABI = LASTCHAD_ABI;
-    const MAX_STAT = 10;
-
-    function setBar(id, val) {
-      const pct = Math.min(100, (val / MAX_STAT) * 100);
-      document.getElementById(id).style.width = pct + '%';
-    }
-
     async function loadStats() {
-      let str = 0, intel = 0, dex = 0, cha = 0, level = 1;
+      let level = 1, chips = 0;
       try {
         const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, STATS_ABI, provider);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, provider);
 
-        // Fire requests in parallel
-        const [statsResult, levelResult, cellsResult] = await Promise.all([
-          contract.getStats(chadId),
+        const [levelResult, chipsResult] = await Promise.all([
           contract.getLevel(chadId),
-          contract.getCells(chadId)
+          contract.getChips(chadId)
         ]);
 
-        str   = statsResult.strength.toNumber();
-        intel = statsResult.intelligence.toNumber();
-        dex   = statsResult.dexterity.toNumber();
-        cha   = statsResult.charisma.toNumber();
         level = levelResult.toNumber ? levelResult.toNumber() : Number(levelResult);
-
-        // Try to get XP (may not be on all contract versions)
-        let xpText = '—';
-        try {
-          const xp = await contract.getExperience(chadId);
-          const xpNum = xp.toNumber ? xp.toNumber() : Number(xp);
-          const nextLevel = (level + 1) * 100;
-          xpText = xpNum + ' / ' + nextLevel;
-        } catch (_) {}
+        chips = chipsResult.toNumber ? chipsResult.toNumber() : Number(chipsResult);
 
         document.getElementById('statLevel').textContent = level;
-        document.getElementById('statXp').textContent = xpText;
-        document.getElementById('valStr').textContent = str;
-        document.getElementById('valInt').textContent = intel;
-        document.getElementById('valDex').textContent = dex;
-        document.getElementById('valCha').textContent = cha;
-        setBar('barStr', str);
-        setBar('barInt', intel);
-        setBar('barDex', dex);
-        setBar('barCha', cha);
-
-        const cellsNum = cellsResult.toNumber ? cellsResult.toNumber() : Number(cellsResult);
-        document.getElementById('cellsValue').textContent = cellsNum;
-
+        document.getElementById('chipsValue').textContent = chips;
         document.getElementById('statsLoading').style.display = 'none';
       } catch (err) {
         console.warn('Stats load failed:', err);
-        document.getElementById('statsLoading').textContent = 'Stats unavailable';
+        document.getElementById('statsLoading').textContent = 'Unavailable';
       }
-      startBriefing(str, intel, dex, cha, level);
+      startBriefing(level, chips);
     }
 
     // ========== MISSION BRIEFING TYPEWRITER ==========
-    function startBriefing(str, intel, dex, cha, level) {
-      const p = (n) => String(n).padStart(2, ' ');
+    function startBriefing(level, chips) {
       const lines = [
-        '> MISSION: EPISODE I - DAY 1 RECON',
+        '> MEMBERS ONLY CASINO — DICE TABLE',
         '> OPERATIVE: CHAD #' + chadId + '   LVL ' + level,
+        '> CHIPS: ' + chips,
         '> --------------------------------',
-        '> STR: ' + p(str) + '   INT: ' + p(intel) + '   DEX: ' + p(dex) + '   CHA: ' + p(cha),
-        '> DIFFICULTY: STANDARD',
         '> OBJECTIVE: ROLL SHIP \u00b7 CAPTAIN \u00b7 MATE',
         '> AWAITING ORDERS...',
       ];
@@ -1101,77 +1016,9 @@
 
     loadItems();
 
-    // ========== QUEST ESCROW FLOW ==========
+    // ========== DICE STATE ==========
     const rollBtn = document.getElementById('rollBtn');
     const rollsLeftText = document.getElementById('rollsLeft');
-    const beginQuestBtn = document.getElementById('beginQuestBtn');
-
-    if (questId !== null) {
-      // Real quest mode — lock dice until NFT is secured on-chain
-      rollBtn.disabled = true;
-      rollBtn.textContent = 'AWAITING LOCK';
-      beginQuestBtn.style.display = '';
-      beginQuestBtn.addEventListener('click', () => {
-        document.getElementById('questModal').classList.add('active');
-      });
-    }
-
-    document.getElementById('modalCancel').addEventListener('click', () => {
-      document.getElementById('questModal').classList.remove('active');
-      document.getElementById('modalStatus').textContent = '';
-    });
-
-    document.getElementById('modalConfirm').addEventListener('click', beginQuestOnChain);
-
-    async function beginQuestOnChain() {
-      const status = document.getElementById('modalStatus');
-      const confirmBtn = document.getElementById('modalConfirm');
-      confirmBtn.disabled = true;
-      status.textContent = '';
-
-      try {
-        if (!window.ethereum) throw new Error('No wallet detected');
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send('eth_requestAccounts', []);
-        const signer = provider.getSigner();
-
-        // Step 1: Approve QuestRewards to transfer the NFT
-        status.textContent = 'STEP 1/2: APPROVING...';
-        const chadContract = new ethers.Contract(
-          CONTRACT_ADDRESS,
-          ['function approve(address to, uint256 tokenId)'],
-          signer
-        );
-        const approveTx = await chadContract.approve(QUEST_REWARDS_ADDRESS, chadId);
-        status.textContent = 'CONFIRMING APPROVAL...';
-        await approveTx.wait();
-
-        // Step 2: Lock NFT in QuestRewards contract
-        status.textContent = 'STEP 2/2: LOCKING NFT...';
-        const questContract = new ethers.Contract(
-          QUEST_REWARDS_ADDRESS,
-          ['function startQuest(uint256 tokenId, uint8 questId)'],
-          signer
-        );
-        const startTx = await questContract.startQuest(chadId, questId);
-        status.textContent = 'SECURING IN CONTRACT...';
-        await startTx.wait();
-
-        // Success — close modal and unlock dice
-        document.getElementById('questModal').classList.remove('active');
-        beginQuestBtn.style.display = 'none';
-        rollBtn.disabled = false;
-        rollBtn.textContent = 'ROLL';
-        status.textContent = '';
-
-      } catch (err) {
-        const msg = err.reason || err.data?.message || err.message || 'Transaction failed';
-        status.textContent = 'ERROR: ' + msg.toUpperCase().slice(0, 60);
-        confirmBtn.disabled = false;
-      }
-    }
-
-    // ========== DICE STATE ==========
     const NUM_DICE = 5;
     let diceValues = [0, 0, 0, 0, 0];
     let kept = [false, false, false, false, false];

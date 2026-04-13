@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Leaderboard | Last Chad</title>
+  <title>Leaderboard | Members Only</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="nav.css">
   <style>
@@ -62,21 +63,7 @@
       padding: 0 16px;
     }
 
-    /* ── Cull Banner ── */
-    .cull-banner {
-      background: rgba(255,68,68,0.15);
-      border: 2px solid #ff4444;
-      border-radius: 6px;
-      padding: 14px 18px;
-      margin-bottom: 20px;
-      font-size: 0.42rem;
-      color: #ff8888;
-      display: none;
-    }
-    .cull-banner .cull-title { color: #ff4444; font-size: 0.5rem; margin-bottom: 6px; }
-    .cull-banner .cull-detail { color: #ff8888; }
-
-    /* ── Stats Summary ── */
+    /* ── Summary Stats ── */
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -126,8 +113,6 @@
     .rank-2 td { color: #c0c0c0; }
     .rank-3 td { color: #cd7f32; }
 
-    .eliminated-row td { opacity: 0.4; text-decoration: line-through; }
-
     .loading-msg {
       text-align: center;
       padding: 40px;
@@ -155,18 +140,11 @@
   </header>
 
   <main>
-    <!-- Cull Announcement Banner -->
-    <div class="cull-banner" id="cullBanner">
-      <div class="cull-title">CULL INCOMING</div>
-      <div class="cull-detail" id="cullDetail"></div>
-    </div>
-
     <!-- Summary Stats -->
     <div class="summary-grid" id="summaryGrid">
       <div class="summary-card"><div class="label">TOTAL MINTED</div><div class="value" id="statMinted">—</div></div>
-      <div class="summary-card"><div class="label">ALIVE</div><div class="value" id="statAlive">—</div></div>
-      <div class="summary-card"><div class="label">ELIMINATED</div><div class="value" id="statEliminated">—</div></div>
-      <div class="summary-card"><div class="label">CULL TARGET</div><div class="value" id="statCullTarget">—</div></div>
+      <div class="summary-card"><div class="label">MAX SUPPLY</div><div class="value" id="statMax">222</div></div>
+      <div class="summary-card"><div class="label">TOP CHIPS</div><div class="value" id="statTopChips">—</div></div>
     </div>
 
     <!-- Players Table -->
@@ -177,9 +155,9 @@
           <tr>
             <th>#</th>
             <th>CHAD</th>
-            <th>LOCKED</th>
-            <th>TOTAL</th>
+            <th>CHIPS</th>
             <th>LEVEL</th>
+            <th>TIER</th>
           </tr>
         </thead>
         <tbody id="playerBody"></tbody>
@@ -190,77 +168,51 @@
   <script src="nav.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script type="module">
-    import { CONTRACT_ADDRESS, READ_RPC, LASTCHAD_ABI } from './js/config.js';
-
-    const ABI = LASTCHAD_ABI;
+    import { CONTRACT_ADDRESS, READ_RPC, MEMBERS_ONLY_ABI } from './js/config.js';
 
     const provider = new ethers.providers.JsonRpcProvider(READ_RPC);
-    const nft = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+    const nft = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, provider);
 
-    // ── Data ──
-    let players = [];   // [{ tokenId, name, openCells, closedCells, totalCells, level, eliminated }]
+    let players = [];
 
     async function loadAll() {
       if (!CONTRACT_ADDRESS) return;
 
       try {
-        const [total, elimCount, cullCount, cullAnnounced, cullAfter, cullModeVal, cullVal] = await Promise.all([
-          nft.totalMinted(),
-          nft.eliminatedCount(),
-          nft.getCullCount(),
-          nft.cullAnnouncedAt(),
-          nft.cullExecuteAfter(),
-          nft.cullMode(),
-          nft.cullValue(),
-        ]);
+        const total = await nft.totalMinted();
+        const totalNum = total.toNumber ? total.toNumber() : Number(total);
 
-        const totalNum = total.toNumber();
-        const elimNum = elimCount.toNumber();
-        const aliveNum = totalNum - elimNum;
-
-        // Summary stats
         document.getElementById('statMinted').textContent = totalNum;
-        document.getElementById('statAlive').textContent = aliveNum;
-        document.getElementById('statEliminated').textContent = elimNum;
-        document.getElementById('statCullTarget').textContent = cullCount.toNumber();
 
-        // Cull banner
-        if (cullAnnounced.toNumber() > 0 && cullAfter.toNumber() > 0) {
-          const cullBanner = document.getElementById('cullBanner');
-          const cullDetail = document.getElementById('cullDetail');
-          const cullDate = new Date(cullAfter.toNumber() * 1000);
-          const modeStr = cullModeVal === 1 ? (cullVal.toNumber() / 100) + '%' : cullVal.toNumber() + ' fixed';
-          cullDetail.textContent = 'Next cull: ' + cullDate.toLocaleDateString() + ' — ' +
-            cullCount.toNumber() + ' Chads will be eliminated (' + modeStr + ')';
-          cullBanner.style.display = 'block';
-        }
-
-        // Load all players
+        // Load all players in parallel
         players = [];
         const batch = [];
         for (let i = 1; i <= totalNum; i++) {
           batch.push((async (tid) => {
-            const [dead, open, closed, level, name] = await Promise.all([
-              nft.eliminated(tid),
-              nft.getOpenCells(tid),
-              nft.getClosedCells(tid),
-              nft.getLevel(tid),
-              nft.tokenName(tid).catch(() => ''),
-            ]);
-            const o = open.toNumber();
-            const c = closed.toNumber();
-            players.push({
-              tokenId: tid,
-              name: name || 'CHAD #' + tid,
-              openCells: o,
-              closedCells: c,
-              totalCells: o + c,
-              level: level.toNumber(),
-              eliminated: dead,
-            });
+            try {
+              const [chips, level, tier, name] = await Promise.all([
+                nft.getChips(tid),
+                nft.getLevel(tid),
+                nft.tokenTier(tid),
+                nft.tokenName(tid).catch(() => ''),
+              ]);
+              players.push({
+                tokenId: tid,
+                name: name || ('CHAD #' + tid),
+                chips: chips.toNumber ? chips.toNumber() : Number(chips),
+                level: level.toNumber ? level.toNumber() : Number(level),
+                tier: tier.toNumber ? tier.toNumber() : Number(tier),
+              });
+            } catch (_) {}
           })(i));
         }
         await Promise.all(batch);
+
+        // Summary
+        if (players.length > 0) {
+          const topChips = Math.max(...players.map(p => p.chips));
+          document.getElementById('statTopChips').textContent = topChips;
+        }
 
         renderPlayers();
 
@@ -275,24 +227,18 @@
       const table = document.getElementById('playerTable');
       const body  = document.getElementById('playerBody');
 
-      // Sort by locked cells descending (alive first)
-      const sorted = [...players].sort((a, b) => {
-        if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
-        return b.closedCells - a.closedCells;
-      });
+      const sorted = [...players].sort((a, b) => b.chips - a.chips);
 
       body.innerHTML = sorted.slice(0, 100).map((p, i) => {
         const rank = i + 1;
-        const cls = [];
-        if (rank <= 3 && !p.eliminated) cls.push('rank-' + rank);
-        if (p.eliminated) cls.push('eliminated-row');
-        const classStr = cls.length ? ' class="' + cls.join(' ') + '"' : '';
-        return `<tr${classStr}>
+        const cls = rank <= 3 ? ` class="rank-${rank}"` : '';
+        const tierStr = p.tier > 0 ? 'T' + p.tier : '—';
+        return `<tr${cls}>
           <td>${rank}</td>
           <td>${p.name}</td>
-          <td>${p.closedCells}</td>
-          <td>${p.totalCells}</td>
+          <td>${p.chips}</td>
           <td>${p.level}</td>
+          <td>${tierStr}</td>
         </tr>`;
       }).join('');
 

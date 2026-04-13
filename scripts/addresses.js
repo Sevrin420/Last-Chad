@@ -4,7 +4,7 @@
  * Reads js/config.js (ES module) and re-exports addresses as CommonJS
  * so every Hardhat script can just:
  *
- *   const { LAST_CHAD, ITEMS, QUEST_REWARDS, MARKET, GAMBLE } = require('./addresses');
+ *   const { MEMBERS_ONLY, ITEMS, MARKET, GAMBLE, TOURNAMENT } = require('./addresses');
  */
 
 const fs   = require('fs');
@@ -27,11 +27,10 @@ function extractOptional(name) {
 }
 
 module.exports = {
-  LAST_CHAD:     extract('CONTRACT_ADDRESS'),
-  ITEMS:         extract('ITEMS_CONTRACT_ADDRESS'),
-  QUEST_REWARDS: extract('QUEST_REWARDS_ADDRESS'),
-  MARKET:        extract('MARKET_ADDRESS'),
-  GAMBLE:        extract('GAMBLE_ADDRESS'),
-  TOURNAMENT:    extractOptional('TOURNAMENT_ADDRESS'),
-  READ_RPC:      extract('READ_RPC'),
+  MEMBERS_ONLY: extract('CONTRACT_ADDRESS'),
+  ITEMS:        extract('ITEMS_CONTRACT_ADDRESS'),
+  MARKET:       extract('MARKET_ADDRESS'),
+  GAMBLE:       extract('GAMBLE_ADDRESS'),
+  TOURNAMENT:   extractOptional('TOURNAMENT_ADDRESS'),
+  READ_RPC:     extract('READ_RPC'),
 };

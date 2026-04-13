@@ -1,10 +1,10 @@
 /**
  * authorizeContracts.js
  *
- * Authorizes the deployed QuestRewards contract in both LastChad and
- * LastChadItems by calling setGameContract(questRewardsAddress, true).
+ * Authorizes Gamble and Tournament contracts in both MembersOnly and
+ * MembersOnlyItems by calling setGameContract(address, true).
  *
- * Run this after deploying a new QuestRewards contract.
+ * Run this after deploying new contracts.
  *
  * Usage:
  *   npx hardhat run scripts/authorizeContracts.js --network fuji
@@ -15,7 +15,7 @@
  */
 
 const hre = require("hardhat");
-const { LAST_CHAD: LAST_CHAD_ADDRESS, ITEMS: LAST_CHAD_ITEMS_ADDRESS, QUEST_REWARDS: QUEST_REWARDS_ADDRESS } = require('./addresses');
+const { MEMBERS_ONLY, ITEMS, GAMBLE, TOURNAMENT } = require('./addresses');
 
 const SET_GAME_CONTRACT_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
@@ -25,30 +25,34 @@ async function main() {
   const [owner] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
-  console.log(`\nAuthorizing QuestRewards on [${network}]`);
-  console.log(`Owner:         ${owner.address}`);
-  console.log(`LastChad:      ${LAST_CHAD_ADDRESS}`);
-  console.log(`LastChadItems: ${LAST_CHAD_ITEMS_ADDRESS}`);
-  console.log(`QuestRewards:  ${QUEST_REWARDS_ADDRESS}\n`);
+  console.log(`\nAuthorizing game contracts on [${network}]`);
+  console.log(`Owner:          ${owner.address}`);
+  console.log(`MembersOnly:    ${MEMBERS_ONLY}`);
+  console.log(`MembersOnlyItems: ${ITEMS}`);
+  console.log(`Gamble:         ${GAMBLE}`);
+  console.log(`Tournament:     ${TOURNAMENT}\n`);
 
-  const lastChad = new hre.ethers.Contract(
-    LAST_CHAD_ADDRESS, SET_GAME_CONTRACT_ABI, owner
-  );
-  const lastChadItems = new hre.ethers.Contract(
-    LAST_CHAD_ITEMS_ADDRESS, SET_GAME_CONTRACT_ABI, owner
-  );
+  const membersOnly = new hre.ethers.Contract(MEMBERS_ONLY, SET_GAME_CONTRACT_ABI, owner);
+  const items       = new hre.ethers.Contract(ITEMS, SET_GAME_CONTRACT_ABI, owner);
 
-  console.log("Authorizing in LastChad...");
-  let tx = await lastChad.setGameContract(QUEST_REWARDS_ADDRESS, true);
-  await tx.wait();
-  console.log("  lastChad.setGameContract ✓");
+  const contracts = [
+    { name: 'Gamble', address: GAMBLE },
+    { name: 'Tournament', address: TOURNAMENT },
+  ].filter(c => c.address);
 
-  console.log("Authorizing in LastChadItems...");
-  tx = await lastChadItems.setGameContract(QUEST_REWARDS_ADDRESS, true);
-  await tx.wait();
-  console.log("  lastChadItems.setGameContract ✓");
+  for (const c of contracts) {
+    console.log(`Authorizing ${c.name} in MembersOnly...`);
+    let tx = await membersOnly.setGameContract(c.address, true);
+    await tx.wait();
+    console.log(`  setGameContract(${c.name}) on MembersOnly ✓`);
 
-  console.log("\nDone. QuestRewards is authorized on both contracts.");
+    console.log(`Authorizing ${c.name} in MembersOnlyItems...`);
+    tx = await items.setGameContract(c.address, true);
+    await tx.wait();
+    console.log(`  setGameContract(${c.name}) on MembersOnlyItems ✓`);
+  }
+
+  console.log("\nDone. All contracts authorized.");
 }
 
 main().catch((err) => {

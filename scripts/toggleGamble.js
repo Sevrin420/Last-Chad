@@ -2,7 +2,7 @@
  * toggleGamble.js
  *
  * Opens or closes the gambling den by authorizing / de-authorizing
- * the Gamble contract in LastChad.
+ * the Gamble contract in MembersOnly.
  *
  * Usage:
  *   GAMBLE_OPEN=true  npx hardhat run scripts/toggleGamble.js --network fuji
@@ -14,7 +14,7 @@
  */
 
 const hre = require("hardhat");
-const { LAST_CHAD: LAST_CHAD_ADDRESS, GAMBLE: GAMBLE_ADDRESS } = require('./addresses');
+const { MEMBERS_ONLY: CONTRACT_ADDRESS, GAMBLE: GAMBLE_ADDRESS } = require('./addresses');
 
 const SET_GAME_CONTRACT_ABI = [
   'function setGameContract(address gameContract, bool approved) external',
@@ -26,17 +26,15 @@ async function main() {
   const network = hre.network.name;
 
   console.log(`\n${open ? 'Opening' : 'Closing'} gambling den on [${network}]`);
-  console.log(`Owner:    ${owner.address}`);
-  console.log(`LastChad: ${LAST_CHAD_ADDRESS}`);
-  console.log(`Gamble:   ${GAMBLE_ADDRESS}\n`);
+  console.log(`Owner:        ${owner.address}`);
+  console.log(`MembersOnly:  ${CONTRACT_ADDRESS}`);
+  console.log(`Gamble:       ${GAMBLE_ADDRESS}\n`);
 
-  const lastChad = new hre.ethers.Contract(
-    LAST_CHAD_ADDRESS, SET_GAME_CONTRACT_ABI, owner
-  );
+  const contract = new hre.ethers.Contract(CONTRACT_ADDRESS, SET_GAME_CONTRACT_ABI, owner);
 
-  const tx = await lastChad.setGameContract(GAMBLE_ADDRESS, open);
+  const tx = await contract.setGameContract(GAMBLE_ADDRESS, open);
   await tx.wait();
-  console.log(`  lastChad.setGameContract(Gamble, ${open}) ✓`);
+  console.log(`  setGameContract(Gamble, ${open}) ✓`);
   console.log(`\nDone. Gambling den is now ${open ? 'OPEN' : 'CLOSED (maintenance)'}.`);
 }
 
