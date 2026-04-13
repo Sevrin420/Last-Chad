@@ -1,7 +1,7 @@
 name: Compress Member Images
 
-# Compresses all images in assets/members/ to WebP and renames them
-# 001.webp, 002.webp, etc. (sorted alphabetically by original filename).
+# Compresses all images in assets/members/ to PNG ~250KB each and renames
+# them 001.png, 002.png, etc. (sorted alphabetically by original filename).
 
 on:
   workflow_dispatch:
@@ -16,45 +16,69 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install cwebp
-        run: sudo apt-get update && sudo apt-get install -y webp
+      - name: Install pngquant and ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y pngquant imagemagick
 
       - name: Compress and rename images
         run: |
           SRC="assets/members"
           OUT="assets/members-compressed"
+          TARGET_KB=250
           mkdir -p "$OUT"
 
-          # Sort source images alphabetically, assign sequential numbers
           counter=1
           for img in $(ls "$SRC"/*.png "$SRC"/*.jpg "$SRC"/*.jpeg 2>/dev/null | sort); do
             num=$(printf "%03d" $counter)
-            echo "  $img → $OUT/$num.webp"
-            cwebp -q 60 -resize 800 0 "$img" -o "$OUT/$num.webp"
+            outfile="$OUT/$num.png"
+
+            # Convert to PNG (in case of jpg), resize down if very large
+            convert "$img" -resize '1200x1200>' "$outfile"
+
+            # Binary search for quality that lands near 250KB
+            lo=10 hi=95 best_q=60
+            for attempt in 1 2 3 4 5 6 7; do
+              mid=$(( (lo + hi) / 2 ))
+              pngquant --quality=$mid-$mid --force --output /tmp/test_compress.png "$outfile" 2>/dev/null || {
+                # pngquant may reject very low quality — try lower bound
+                lo=$((mid + 1))
+                continue
+              }
+              size_kb=$(( $(stat -c%s /tmp/test_compress.png) / 1024 ))
+              if [ "$size_kb" -gt "$TARGET_KB" ]; then
+                hi=$((mid - 1))
+              else
+                best_q=$mid
+                lo=$((mid + 1))
+              fi
+            done
+
+            # Final compress at best quality
+            pngquant --quality=$best_q-$best_q --force --output "$outfile.tmp" "$outfile" 2>/dev/null \
+              && mv "$outfile.tmp" "$outfile" \
+              || pngquant --quality=40-60 --force --output "$outfile.tmp" "$outfile" 2>/dev/null && mv "$outfile.tmp" "$outfile"
+
+            size_kb=$(( $(stat -c%s "$outfile") / 1024 ))
+            echo "  $img → $num.png (${size_kb}KB, q=$best_q)"
             counter=$((counter + 1))
           done
 
           echo ""
           echo "── Results ──"
           echo "Images compressed: $((counter - 1))"
-          echo ""
 
-          # Show size comparison
           ORIG_SIZE=$(du -sh "$SRC" | cut -f1)
           NEW_SIZE=$(du -sh "$OUT" | cut -f1)
-          echo "Original: $ORIG_SIZE"
+          echo "Original:   $ORIG_SIZE"
           echo "Compressed: $NEW_SIZE"
 
-          # Replace originals with compressed versions
+          # Replace originals
           rm -f "$SRC"/*.png "$SRC"/*.jpg "$SRC"/*.jpeg
-          mv "$OUT"/*.webp "$SRC"/
+          mv "$OUT"/*.png "$SRC"/
           rmdir "$OUT"
-
-          # Clean up test file if present
           rm -f "$SRC/test"
 
           echo ""
-          ls -la "$SRC"
+          ls -lh "$SRC"
 
       - name: Commit compressed images
         run: |
@@ -64,6 +88,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Compress member images: WebP 60q, 800px wide, sequential naming"
+            git commit -m "Compress member NFT images: PNG ~250KB, sequential naming"
             git push origin ${{ github.ref_name }}
           fi
