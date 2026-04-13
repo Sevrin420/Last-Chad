@@ -32,5 +32,6 @@ module.exports = {
   MARKET:       extract('MARKET_ADDRESS'),
   GAMBLE:       extract('GAMBLE_ADDRESS'),
   TOURNAMENT:   extractOptional('TOURNAMENT_ADDRESS'),
+  TREASURY:     extractOptional('TREASURY_ADDRESS'),
   READ_RPC:     extract('READ_RPC'),
 };

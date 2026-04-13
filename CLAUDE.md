@@ -65,7 +65,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 ---
 
-## Smart Contracts (5 total, in `/contracts`)
+## Smart Contracts (6 total, in `/contracts`)
 
 | Contract | Purpose |
 |----------|---------|
@@ -74,8 +74,9 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 | `Gamble.sol` | Chip wagering: commitWager/claimWinnings (craps), flip (coin), resolveGame (oracle) |
 | `Market.sol` | Player-to-player NFT trading |
 | `Tournament.sol` | Tournament system: enter, lock score, rebuy, leaderboard |
+| `Treasury.sol` | Yield vault: burn 10k chips/share, owner deposits AVAX monthly, shareholders claim proportional yield |
 
-**Authorization chain:** Owner must call `setGameContract(address, true)` on MembersOnly and MembersOnlyItems to authorize Gamble and Tournament.
+**Authorization chain:** Owner must call `setGameContract(address, true)` on MembersOnly to authorize Gamble, Tournament, and Treasury.
 
 **Key constants:**
 - `MAX_SUPPLY`: 222
@@ -96,6 +97,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 5. CRAPS        craps.html  → WebSocket to Durable Object     → multiplayer craps
 6. CASHOUT      craps.html  → Gamble.claimWinnings()          → oracle-signed payout
 7. TOURNAMENT   tournament.html → Tournament.enterTournament() → compete for prizes
+8. TREASURY     treasury.html → Treasury.burnForShares()      → burn 10k chips per yield share
 ```
 
 ---
@@ -107,6 +109,17 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 - **Spend**: Gamble/Tournament call `spendChips(tokenId, amount)` via authorized game contract
 - **Award**: `awardChips(tokenId, amount)` / `batchAwardChips([]tokenIds, []amounts)`
 - Leaderboard ranks by total chip count
+
+---
+
+## Treasury (Yield Vault)
+
+- Players burn **10,000 chips per share** via `Treasury.burnForShares(tokenId, numShares)` — permanent, chips are gone
+- Burn 20,000 = 2 shares, 30,000 = 3 shares, etc.
+- Owner deposits AVAX monthly via `depositYield()` — snapshots total shares at that moment
+- Shareholders claim proportional yield: `claimYield(tokenId, month)` or `batchClaimYield(tokenId, months[])`
+- Uses per-token checkpoints — shares acquired after a deposit don't retroactively claim past months
+- Treasury must be authorized as a game contract in MembersOnly (`setGameContract`)
 
 ---
 

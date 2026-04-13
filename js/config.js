@@ -14,6 +14,7 @@ export const ITEMS_CONTRACT_ADDRESS   = '0x0000000000000000000000000000000000000
 export const MARKET_ADDRESS           = '0x0000000000000000000000000000000000000000'; // Market
 export const GAMBLE_ADDRESS           = '0x0000000000000000000000000000000000000000'; // Gamble
 export const TOURNAMENT_ADDRESS       = '0x0000000000000000000000000000000000000000'; // Tournament
+export const TREASURY_ADDRESS         = '0x0000000000000000000000000000000000000000'; // Treasury
 
 // ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax.network/ext/bc/C/rpc';
