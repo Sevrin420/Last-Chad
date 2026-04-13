@@ -1,0 +1,69 @@
+name: Compress Member Images
+
+# Compresses all images in assets/members/ to WebP and renames them
+# 001.webp, 002.webp, etc. (sorted alphabetically by original filename).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compress:
+    name: Compress & Rename
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cwebp
+        run: sudo apt-get update && sudo apt-get install -y webp
+
+      - name: Compress and rename images
+        run: |
+          SRC="assets/members"
+          OUT="assets/members-compressed"
+          mkdir -p "$OUT"
+
+          # Sort source images alphabetically, assign sequential numbers
+          counter=1
+          for img in $(ls "$SRC"/*.png "$SRC"/*.jpg "$SRC"/*.jpeg 2>/dev/null | sort); do
+            num=$(printf "%03d" $counter)
+            echo "  $img → $OUT/$num.webp"
+            cwebp -q 60 -resize 800 0 "$img" -o "$OUT/$num.webp"
+            counter=$((counter + 1))
+          done
+
+          echo ""
+          echo "── Results ──"
+          echo "Images compressed: $((counter - 1))"
+          echo ""
+
+          # Show size comparison
+          ORIG_SIZE=$(du -sh "$SRC" | cut -f1)
+          NEW_SIZE=$(du -sh "$OUT" | cut -f1)
+          echo "Original: $ORIG_SIZE"
+          echo "Compressed: $NEW_SIZE"
+
+          # Replace originals with compressed versions
+          rm -f "$SRC"/*.png "$SRC"/*.jpg "$SRC"/*.jpeg
+          mv "$OUT"/*.webp "$SRC"/
+          rmdir "$OUT"
+
+          # Clean up test file if present
+          rm -f "$SRC/test"
+
+          echo ""
+          ls -la "$SRC"
+
+      - name: Commit compressed images
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/members/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Compress member images: WebP 60q, 800px wide, sequential naming"
+            git push origin ${{ github.ref_name }}
+          fi
