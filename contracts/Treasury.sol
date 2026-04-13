@@ -3,86 +3,81 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-interface IMembersOnly {
+interface IMembersOnlyForTreasury {
     function ownerOf(uint256 tokenId) external view returns (address);
-    function spendChips(uint256 tokenId, uint256 amount) external;
+}
+
+interface IMembersOnlyItemsForTreasury {
+    function burnChips(address from, uint256 amount) external;
 }
 
 /**
  * @title Treasury
- * @notice Yield-sharing vault for Members Only NFT holders.
+ * @notice Yield vault for Members Only NFT holders.
  *
- *  Players burn 10,000 chips per share (permanent).
- *  Owner deposits AVAX monthly — shareholders claim proportional yield.
- *  Uses per-token checkpoints so share changes don't affect past months.
+ *  Each month: players burn 10,000 chips per share, owner deposits AVAX,
+ *  shareholders claim proportional yield. Shares reset every month.
+ *
+ *  Must be authorized in MembersOnlyItems: items.setGameContract(treasury, true)
  */
 contract Treasury is Ownable {
 
-    IMembersOnly public immutable membersOnly;
+    IMembersOnlyForTreasury public immutable membersOnly;
+    IMembersOnlyItemsForTreasury public immutable items;
 
     uint256 public constant CHIPS_PER_SHARE = 10_000;
 
-    // ── Share state ─────────────────────────────────────────────
-    mapping(uint256 => uint256) public shares;      // tokenId => current shares
-    uint256 public totalShares;
-
-    // Checkpoint: records share balance at a given month
-    struct Checkpoint {
-        uint256 month;
-        uint256 value;
-    }
-    mapping(uint256 => Checkpoint[]) private _tokenCkpts; // tokenId => history
-    Checkpoint[] private _totalCkpts;                      // global history
-
-    // ── Monthly yield ───────────────────────────────────────────
+    // ── Monthly state ───────────────────────────────────────────
     uint256 public currentMonth;
-    mapping(uint256 => uint256) public monthlyDeposit;       // month => AVAX
-    mapping(uint256 => uint256) public monthlyTotalShares;   // month => snapshot
+
+    mapping(uint256 => uint256) public monthlyDeposit;      // month => AVAX deposited
+    mapping(uint256 => uint256) public monthlyTotalShares;  // month => total shares
+
+    // Per-token per-month shares
+    mapping(uint256 => mapping(uint256 => uint256)) public monthlyShares; // month => tokenId => shares
 
     // ── Claims ──────────────────────────────────────────────────
     mapping(uint256 => mapping(uint256 => bool)) public claimed; // tokenId => month => claimed
 
     // ── Events ──────────────────────────────────────────────────
-    event SharesBurned(uint256 indexed tokenId, uint256 numShares, uint256 chipsBurned);
-    event YieldDeposited(uint256 indexed month, uint256 amount, uint256 snapshotShares);
+    event SharesBurned(uint256 indexed tokenId, uint256 indexed month, uint256 numShares, uint256 chipsBurned);
+    event YieldDeposited(uint256 indexed month, uint256 amount, uint256 totalShares);
     event YieldClaimed(uint256 indexed tokenId, uint256 indexed month, uint256 amount);
 
-    constructor(address _membersOnly) Ownable(msg.sender) {
-        membersOnly = IMembersOnly(_membersOnly);
+    constructor(address _membersOnly, address _items) Ownable(msg.sender) {
+        membersOnly = IMembersOnlyForTreasury(_membersOnly);
+        items = IMembersOnlyItemsForTreasury(_items);
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  Burn chips → permanent shares
+    //  Burn chips → shares for the current month
     // ─────────────────────────────────────────────────────────────
 
     function burnForShares(uint256 tokenId, uint256 numShares) external {
         require(msg.sender == membersOnly.ownerOf(tokenId), "Not token owner");
         require(numShares > 0, "Zero shares");
+        require(monthlyDeposit[currentMonth] == 0, "Month already finalized");
 
         uint256 cost = numShares * CHIPS_PER_SHARE;
-        membersOnly.spendChips(tokenId, cost);
+        items.burnChips(msg.sender, cost);
 
-        shares[tokenId] += numShares;
-        totalShares += numShares;
+        monthlyShares[currentMonth][tokenId] += numShares;
+        monthlyTotalShares[currentMonth] += numShares;
 
-        _writeCheckpoint(_tokenCkpts[tokenId], shares[tokenId]);
-        _writeCheckpoint(_totalCkpts, totalShares);
-
-        emit SharesBurned(tokenId, numShares, cost);
+        emit SharesBurned(tokenId, currentMonth, numShares, cost);
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  Owner deposits AVAX yield for current month
+    //  Owner deposits AVAX yield, finalizes the month
     // ─────────────────────────────────────────────────────────────
 
     function depositYield() external payable onlyOwner {
         require(msg.value > 0, "No AVAX sent");
-        require(totalShares > 0, "No shareholders");
+        require(monthlyTotalShares[currentMonth] > 0, "No shareholders");
 
         monthlyDeposit[currentMonth] = msg.value;
-        monthlyTotalShares[currentMonth] = totalShares;
 
-        emit YieldDeposited(currentMonth, msg.value, totalShares);
+        emit YieldDeposited(currentMonth, msg.value, monthlyTotalShares[currentMonth]);
         currentMonth++;
     }
 
@@ -96,7 +91,7 @@ contract Treasury is Ownable {
         require(!claimed[tokenId][month], "Already claimed");
         require(monthlyDeposit[month] > 0, "No deposit");
 
-        uint256 playerShares = _sharesAt(_tokenCkpts[tokenId], month);
+        uint256 playerShares = monthlyShares[month][tokenId];
         require(playerShares > 0, "No shares that month");
 
         claimed[tokenId][month] = true;
@@ -120,7 +115,7 @@ contract Treasury is Ownable {
             if (claimed[tokenId][m]) continue;
             if (monthlyDeposit[m] == 0) continue;
 
-            uint256 playerShares = _sharesAt(_tokenCkpts[tokenId], m);
+            uint256 playerShares = monthlyShares[m][tokenId];
             if (playerShares == 0) continue;
 
             claimed[tokenId][m] = true;
@@ -144,46 +139,17 @@ contract Treasury is Ownable {
         if (claimed[tokenId][month]) return 0;
         if (monthlyDeposit[month] == 0) return 0;
 
-        uint256 playerShares = _sharesAt(_tokenCkpts[tokenId], month);
+        uint256 playerShares = monthlyShares[month][tokenId];
         if (playerShares == 0) return 0;
 
         return (monthlyDeposit[month] * playerShares) / monthlyTotalShares[month];
     }
 
-    function getSharesAt(uint256 tokenId, uint256 month) external view returns (uint256) {
-        return _sharesAt(_tokenCkpts[tokenId], month);
+    function getShares(uint256 tokenId) external view returns (uint256) {
+        return monthlyShares[currentMonth][tokenId];
     }
 
-    // ─────────────────────────────────────────────────────────────
-    //  Internal: checkpoint read / write
-    // ─────────────────────────────────────────────────────────────
-
-    function _writeCheckpoint(Checkpoint[] storage ckpts, uint256 value) private {
-        uint256 len = ckpts.length;
-        if (len > 0 && ckpts[len - 1].month == currentMonth) {
-            ckpts[len - 1].value = value;
-        } else {
-            ckpts.push(Checkpoint(currentMonth, value));
-        }
-    }
-
-    function _sharesAt(Checkpoint[] storage ckpts, uint256 month) private view returns (uint256) {
-        uint256 len = ckpts.length;
-        if (len == 0) return 0;
-        if (ckpts[len - 1].month <= month) return ckpts[len - 1].value;
-        if (ckpts[0].month > month) return 0;
-
-        // Binary search for latest checkpoint at or before `month`
-        uint256 lo = 0;
-        uint256 hi = len - 1;
-        while (lo < hi) {
-            uint256 mid = (lo + hi + 1) / 2;
-            if (ckpts[mid].month <= month) {
-                lo = mid;
-            } else {
-                hi = mid - 1;
-            }
-        }
-        return ckpts[lo].value;
+    function getTotalShares() external view returns (uint256) {
+        return monthlyTotalShares[currentMonth];
     }
 }

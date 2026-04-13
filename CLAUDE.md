@@ -76,7 +76,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 | `Tournament.sol` | Tournament system: enter, lock score, rebuy, leaderboard |
 | `Treasury.sol` | Yield vault: burn 10k chips/share, owner deposits AVAX monthly, shareholders claim proportional yield |
 
-**Authorization chain:** Owner must call `setGameContract(address, true)` on MembersOnly to authorize Gamble, Tournament, and Treasury.
+**Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, Tournament, and Treasury (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
 
 **Key constants:**
 - `MAX_SUPPLY`: 222
@@ -104,22 +104,23 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 ## Chip System
 
-- **Chips** = on-chain balance on each NFT (`_chips` mapping in MembersOnly.sol)
-- **Weekly claim**: `claimWeeklyChips(tokenId)` → awards `tierChipReward[tier] + levelBonusChips[level]`
-- **Spend**: Gamble/Tournament call `spendChips(tokenId, amount)` via authorized game contract
-- **Award**: `awardChips(tokenId, amount)` / `batchAwardChips([]tokenIds, []amounts)`
-- Leaderboard ranks by total chip count
+- **Chips** = ERC-1155 token (ID 0) in MembersOnlyItems — **per-wallet, tradeable**
+- Players can freely transfer chips between wallets via standard ERC-1155 transfers
+- **Mint at mint**: MembersOnly calls `items.mintChips(wallet, amount)` on NFT mint
+- **Weekly claim**: `claimWeeklyChips(tokenId)` → mints `tierChipReward[tier] + levelBonusChips[level]` chips to wallet
+- **Spend**: Gamble/Tournament/Treasury call `items.burnChips(wallet, amount)` — must be authorized in Items
+- **Award**: Gamble calls `items.mintChips(wallet, amount)` for winnings
+- **Authorization**: All contracts that mint/burn chips must be authorized in MembersOnlyItems via `setGameContract`
 
 ---
 
 ## Treasury (Yield Vault)
 
-- Players burn **10,000 chips per share** via `Treasury.burnForShares(tokenId, numShares)` — permanent, chips are gone
-- Burn 20,000 = 2 shares, 30,000 = 3 shares, etc.
-- Owner deposits AVAX monthly via `depositYield()` — snapshots total shares at that moment
+- Each month: players burn **10,000 chips per share** via `Treasury.burnForShares(tokenId, numShares)` — shares reset monthly
+- Burn 20,000 = 2 shares that month, etc.
+- Owner deposits AVAX via `depositYield()` — finalizes the month, advances to next
 - Shareholders claim proportional yield: `claimYield(tokenId, month)` or `batchClaimYield(tokenId, months[])`
-- Uses per-token checkpoints — shares acquired after a deposit don't retroactively claim past months
-- Treasury must be authorized as a game contract in MembersOnly (`setGameContract`)
+- Treasury must be authorized in MembersOnlyItems (`items.setGameContract`)
 
 ---
 

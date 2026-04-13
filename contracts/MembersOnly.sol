@@ -9,6 +9,10 @@ interface IERC721Minimal {
     function balanceOf(address owner) external view returns (uint256);
 }
 
+interface IMembersOnlyItems {
+    function mintChips(address to, uint256 amount) external;
+}
+
 contract MembersOnly is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 222;
     uint256 public constant MINT_PRICE = 0.01 ether;              // 0.01 AVAX
@@ -41,12 +45,12 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     mapping(uint256 => mapping(uint256 => bool)) public weekClaimed; // tokenId => week => claimed
 
     // ── Core State ──
+    IMembersOnlyItems public items;
     uint256 public totalMinted;
     string private _baseTokenURI;
     mapping(uint256 => string) private _tokenURIs;
     mapping(uint256 => string) public tokenName;
     mapping(bytes32 => bool) private _usedNames;
-    mapping(uint256 => uint256) private _chips;
     mapping(address => bool) public authorizedGame;
     mapping(address => uint256) public mintedPerWallet;
     mapping(uint256 => bool) public isActive;
@@ -55,8 +59,6 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ── Events ──
     event NameSet(uint256 indexed tokenId, string name);
     event GameContractSet(address indexed game, bool enabled);
-    event ChipsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalChips);
-    event ChipsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingChips);
     event PartnerRegistered(uint256 indexed partnerId, string name, address nftContract);
     event PartnerUpdated(uint256 indexed partnerId, bool active);
     event TierSet(uint256 indexed tokenId, uint8 tier);
@@ -175,8 +177,8 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         for (uint256 i = 0; i < quantity; i++) {
             totalMinted++;
             _safeMint(msg.sender, totalMinted);
-            _chips[totalMinted] = chipsPerMint;
         }
+        items.mintChips(msg.sender, chipsPerMint * quantity);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -276,10 +278,9 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         require(reward > 0, "No chips to claim");
 
         weekClaimed[tokenId][currentWeek] = true;
-        _chips[tokenId] += reward;
+        items.mintChips(msg.sender, reward);
 
         emit WeeklyChipsClaimed(tokenId, currentWeek, reward);
-        emit ChipsAwarded(tokenId, reward, _chips[tokenId]);
     }
 
     function advanceWeek() external onlyOwner {
@@ -297,47 +298,16 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     }
 
     // ─────────────────────────────────────────────────────────
-    // Chip Management (game/owner)
+    // Items Contract (chips live in MembersOnlyItems as ERC-1155)
     // ─────────────────────────────────────────────────────────
-    function awardChips(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
-        require(_ownerOf(tokenId) != address(0), "Token does not exist");
-        require(amount > 0, "Amount must be > 0");
-        _chips[tokenId] += amount;
-        emit ChipsAwarded(tokenId, amount, _chips[tokenId]);
-    }
-
-    function batchAwardChips(uint256[] calldata tokenIds, uint256[] calldata amounts) external onlyGameOrOwner {
-        require(tokenIds.length == amounts.length, "Array length mismatch");
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            require(_ownerOf(tokenIds[i]) != address(0), "Token does not exist");
-            require(amounts[i] > 0, "Amount must be > 0");
-            _chips[tokenIds[i]] += amounts[i];
-            emit ChipsAwarded(tokenIds[i], amounts[i], _chips[tokenIds[i]]);
-        }
-    }
-
-    function spendChips(uint256 tokenId, uint256 amount) external onlyGameOrOwner {
-        require(amount > 0, "Amount must be > 0");
-        require(_chips[tokenId] >= amount, "Insufficient chips");
-        _chips[tokenId] -= amount;
-        emit ChipsSpent(tokenId, amount, _chips[tokenId]);
+    function setItems(address _items) external onlyOwner {
+        require(_items != address(0), "Invalid address");
+        items = IMembersOnlyItems(_items);
     }
 
     // ─────────────────────────────────────────────────────────
     // View Functions
     // ─────────────────────────────────────────────────────────
-    function getChips(uint256 tokenId) external view returns (uint256) {
-        return _chips[tokenId];
-    }
-
-    function getChipsBatch(uint256[] calldata tokenIds) external view returns (uint256[] memory) {
-        uint256[] memory result = new uint256[](tokenIds.length);
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            result[i] = _chips[tokenIds[i]];
-        }
-        return result;
-    }
-
     function getWeeklyReward(uint256 tokenId) external view returns (uint256) {
         uint8 tier = tokenTier[tokenId];
         uint256 reward = tierChipReward[tier];

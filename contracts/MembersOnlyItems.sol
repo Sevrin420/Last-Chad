@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 interface IMembersOnlyForItems {
     function ownerOf(uint256 tokenId) external view returns (address);
-    function awardChips(uint256 tokenId, uint256 amount) external;
 }
 
 /**
@@ -16,9 +15,13 @@ interface IMembersOnlyForItems {
  *      Owner defines new item types at any time.
  *      Items can give weekly chip bonuses, one-time chip claims, or unlock areas.
  *      Items lock to an NFT when utilized and can be unlocked for trading.
+ *      Chips (token ID 0) are a built-in stackable ERC-1155 token, tradeable between wallets.
  */
 contract MembersOnlyItems is ERC1155, Ownable {
     using Strings for uint256;
+
+    /// @notice Token ID 0 = Chips (stackable, unlimited, tradeable)
+    uint256 public constant CHIPS_ID = 0;
 
     enum ItemType { None, WeeklyChipBonus, OneTimeChipClaim, AreaAccess }
 
@@ -160,6 +163,25 @@ contract MembersOnlyItems is ERC1155, Ownable {
     }
 
     // ─────────────────────────────────────────────
+    //  Chip operations (token ID 0)
+    // ─────────────────────────────────────────────
+
+    function mintChips(address to, uint256 amount) external onlyAuthorized {
+        require(amount > 0, "Amount must be > 0");
+        _mint(to, CHIPS_ID, amount, "");
+    }
+
+    function burnChips(address from, uint256 amount) external onlyAuthorized {
+        require(amount > 0, "Amount must be > 0");
+        require(balanceOf(from, CHIPS_ID) >= amount, "Insufficient chips");
+        _burn(from, CHIPS_ID, amount);
+    }
+
+    function getChips(address wallet) external view returns (uint256) {
+        return balanceOf(wallet, CHIPS_ID);
+    }
+
+    // ─────────────────────────────────────────────
     //  Wallet-based claiming
     // ─────────────────────────────────────────────
 
@@ -242,7 +264,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
             require(bonus > 0, "No bonus amount");
 
             weeklyBonusClaimed[tokenId][itemId][currentWeek] = true;
-            membersOnly.awardChips(tokenId, bonus);
+            _mint(msg.sender, CHIPS_ID, bonus, "");
 
             emit WeeklyBonusClaimed(tokenId, itemId, currentWeek, bonus);
         }
@@ -259,7 +281,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
         require(bonus > 0, "No bonus amount");
 
         oneTimeClaimed[tokenId][itemId] = true;
-        membersOnly.awardChips(tokenId, bonus);
+        _mint(msg.sender, CHIPS_ID, bonus, "");
 
         emit OneTimeBonusClaimed(tokenId, itemId, bonus);
     }

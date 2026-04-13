@@ -7,8 +7,11 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 interface IMembersOnly {
     function ownerOf(uint256 tokenId) external view returns (address);
     function isActive(uint256 tokenId) external view returns (bool);
-    function spendChips(uint256 tokenId, uint256 amount) external;
-    function awardChips(uint256 tokenId, uint256 amount) external;
+}
+
+interface IMembersOnlyItems {
+    function burnChips(address from, uint256 amount) external;
+    function mintChips(address to, uint256 amount) external;
 }
 
 /// @title Gamble — chip-wagering games for Members Only
@@ -22,11 +25,12 @@ interface IMembersOnly {
 ///                      settles chips atomically.
 ///   3. commitWager() / claimWinnings() — two-tx settlement for craps, poker.
 ///
-/// Must be authorized: membersOnly.setGameContract(gambleAddress, true)
+/// Must be authorized in MembersOnlyItems: items.setGameContract(gambleAddress, true)
 contract Gamble {
-    IMembersOnly public immutable membersOnly;
-    address      public immutable gameOwner;
-    address      public oracle;
+    IMembersOnly      public immutable membersOnly;
+    IMembersOnlyItems public immutable items;
+    address           public immutable gameOwner;
+    address           public oracle;
 
     uint256 public minWager = 1;
     uint256 public maxWager = 500;
@@ -72,9 +76,10 @@ contract Gamble {
     );
 
     // ── Constructor ──────────────────────────────────────────────────────────
-    constructor(address membersOnlyAddress, address _oracle) {
+    constructor(address membersOnlyAddress, address itemsAddress, address _oracle) {
         require(_oracle != address(0), "Oracle required");
         membersOnly = IMembersOnly(membersOnlyAddress);
+        items       = IMembersOnlyItems(itemsAddress);
         gameOwner   = msg.sender;
         oracle      = _oracle;
     }
@@ -108,7 +113,7 @@ contract Gamble {
         require(!membersOnly.isActive(tokenId), "Token is active");
         require(wager >= minWager && wager <= maxWager, "Wager out of range");
 
-        membersOnly.spendChips(tokenId, wager);
+        items.burnChips(msg.sender, wager);
 
         bytes32 seed = keccak256(abi.encodePacked(
             tokenId, wager, block.prevrandao, block.timestamp, msg.sender
@@ -116,7 +121,7 @@ contract Gamble {
         bool won = uint256(seed) % 100 < 40;
 
         if (won) {
-            membersOnly.awardChips(tokenId, wager * 2);
+            items.mintChips(msg.sender, wager * 2);
         }
 
         emit CoinFlip(tokenId, msg.sender, wager, won, seed);
@@ -147,9 +152,9 @@ contract Gamble {
         require(signer == oracle, "Invalid oracle signature");
 
         usedNonces[nonce] = true;
-        membersOnly.spendChips(tokenId, wager);
+        items.burnChips(msg.sender, wager);
         if (payout > 0) {
-            membersOnly.awardChips(tokenId, payout);
+            items.mintChips(msg.sender, payout);
         }
 
         emit GameResolved(tokenId, msg.sender, gameId, wager, payout);
@@ -166,7 +171,7 @@ contract Gamble {
         uint256 nonce = nextNonce++;
         wagerAmounts[nonce] = wager;
         wagerPlayers[nonce] = msg.sender;
-        membersOnly.spendChips(tokenId, wager);
+        items.burnChips(msg.sender, wager);
 
         emit WagerCommitted(tokenId, msg.sender, wager, nonce);
         return nonce;
@@ -198,7 +203,7 @@ contract Gamble {
         delete wagerPlayers[nonce];
 
         if (payout > 0) {
-            membersOnly.awardChips(tokenId, payout);
+            items.mintChips(msg.sender, payout);
         }
 
         emit WinningsClaimed(tokenId, msg.sender, payout, nonce);

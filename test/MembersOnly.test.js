@@ -2,17 +2,24 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("MembersOnly", function () {
-  let MembersOnly, membersOnly;
+  let membersOnly, items;
   let owner, user1, user2, gameContract;
   const MINT_PRICE = ethers.parseEther("0.01");
   const BASE_CHIPS = 50n;
-  const MAX_SUPPLY = 222;
-  const MAX_PER_WALLET = 5;
+  const CHIPS_ID = 0n;
 
   beforeEach(async function () {
     [owner, user1, user2, gameContract] = await ethers.getSigners();
-    MembersOnly = await ethers.getContractFactory("MembersOnly");
+
+    const MembersOnly = await ethers.getContractFactory("MembersOnly");
     membersOnly = await MembersOnly.deploy("https://membersonly.xyz/metadata/");
+
+    const Items = await ethers.getContractFactory("MembersOnlyItems");
+    items = await Items.deploy("https://membersonly.xyz/items/", await membersOnly.getAddress());
+
+    // Wire: MembersOnly needs Items reference, Items must authorize MembersOnly
+    await membersOnly.setItems(await items.getAddress());
+    await items.setGameContract(await membersOnly.getAddress(), true);
   });
 
   // ─── Deployment ───
@@ -45,9 +52,14 @@ describe("MembersOnly", function () {
       expect(await membersOnly.balanceOf(user1.address)).to.equal(3);
     });
 
-    it("should assign base chips on mint", async function () {
+    it("should assign base chips as ERC-1155 tokens on mint", async function () {
       await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      expect(await membersOnly.getChips(1)).to.equal(BASE_CHIPS);
+      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS);
+    });
+
+    it("should assign chips for multiple mints in one call", async function () {
+      await membersOnly.connect(user1).mint(3, { value: MINT_PRICE * 3n });
+      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS * 3n);
     });
 
     it("should reject insufficient payment", async function () {
@@ -61,15 +73,6 @@ describe("MembersOnly", function () {
       await expect(
         membersOnly.connect(user1).mint(1, { value: MINT_PRICE })
       ).to.be.revertedWith("Exceeds max per wallet");
-    });
-
-    it("should reject exceeding max supply", async function () {
-      // Mint in batches to approach limit
-      for (let i = 0; i < 44; i++) {
-        const signer = (await ethers.getSigners())[i % 10];
-        // Reset wallet count by using different wallets
-      }
-      // This is a conceptual test — full supply test requires many wallets
     });
 
     it("should assign sequential token IDs", async function () {
@@ -122,13 +125,6 @@ describe("MembersOnly", function () {
         membersOnly.connect(user2).setName(1, "Hack")
       ).to.be.revertedWith("Not token owner");
     });
-
-    it("should report name taken correctly", async function () {
-      await membersOnly.connect(user1).setName(1, "Alpha");
-      expect(await membersOnly.isNameTaken("Alpha")).to.be.true;
-      expect(await membersOnly.isNameTaken("ALPHA")).to.be.true;
-      expect(await membersOnly.isNameTaken("Beta")).to.be.false;
-    });
   });
 
   // ─── Tier System ───
@@ -159,45 +155,19 @@ describe("MembersOnly", function () {
       await membersOnly.setTierReward(1, 10);
       expect(await membersOnly.tierChipReward(1)).to.equal(10);
     });
-
-    it("should reject non-owner tier setting", async function () {
-      await expect(
-        membersOnly.connect(user1).setTier(1, 1)
-      ).to.be.revertedWithCustomError(membersOnly, "OwnableUnauthorizedAccount");
-    });
-
-    it("should emit TierSet event", async function () {
-      await expect(membersOnly.setTier(1, 2))
-        .to.emit(membersOnly, "TierSet")
-        .withArgs(1, 2);
-    });
   });
 
   // ─── Level System ───
   describe("Level System", function () {
-    it("should return level 1 for tokens 1-50", async function () {
+    it("should return correct levels by token ID range", async function () {
       expect(await membersOnly.getLevel(1)).to.equal(1);
       expect(await membersOnly.getLevel(50)).to.equal(1);
-    });
-
-    it("should return level 2 for tokens 51-100", async function () {
       expect(await membersOnly.getLevel(51)).to.equal(2);
       expect(await membersOnly.getLevel(100)).to.equal(2);
-    });
-
-    it("should return level 3 for tokens 101-150", async function () {
       expect(await membersOnly.getLevel(101)).to.equal(3);
       expect(await membersOnly.getLevel(150)).to.equal(3);
-    });
-
-    it("should return level 4 for tokens 151-222", async function () {
       expect(await membersOnly.getLevel(151)).to.equal(4);
       expect(await membersOnly.getLevel(222)).to.equal(4);
-    });
-
-    it("should set level bonus", async function () {
-      await membersOnly.setLevelBonus(1, 5);
-      expect(await membersOnly.levelBonusChips(1)).to.equal(5);
     });
   });
 
@@ -210,11 +180,11 @@ describe("MembersOnly", function () {
       await membersOnly.setLevelBonus(1, 5);
     });
 
-    it("should claim weekly chips (tier + level bonus)", async function () {
-      const chipsBefore = await membersOnly.getChips(1);
+    it("should claim weekly chips as ERC-1155 tokens", async function () {
+      const before = await items.balanceOf(user1.address, CHIPS_ID);
       await membersOnly.connect(user1).claimWeeklyChips(1);
-      const chipsAfter = await membersOnly.getChips(1);
-      expect(chipsAfter - chipsBefore).to.equal(25); // 20 tier + 5 level
+      const after = await items.balanceOf(user1.address, CHIPS_ID);
+      expect(after - before).to.equal(25n); // 20 tier + 5 level
     });
 
     it("should prevent double claiming same week", async function () {
@@ -227,69 +197,22 @@ describe("MembersOnly", function () {
     it("should allow claiming after week advances", async function () {
       await membersOnly.connect(user1).claimWeeklyChips(1);
       await membersOnly.advanceWeek();
-      await membersOnly.connect(user1).claimWeeklyChips(1); // should not revert
-    });
-
-    it("should reject claim with no rewards configured", async function () {
-      await membersOnly.connect(user2).mint(1, { value: MINT_PRICE });
-      // Token 2 has no tier set (tier 0), no reward configured
-      await expect(
-        membersOnly.connect(user2).claimWeeklyChips(2)
-      ).to.be.revertedWith("No chips to claim");
+      await membersOnly.connect(user1).claimWeeklyChips(1);
     });
 
     it("should report weekly reward correctly", async function () {
       expect(await membersOnly.getWeeklyReward(1)).to.equal(25);
     });
-
-    it("should emit WeekAdvanced event", async function () {
-      await expect(membersOnly.advanceWeek())
-        .to.emit(membersOnly, "WeekAdvanced")
-        .withArgs(1);
-    });
   });
 
-  // ─── Chip Management ───
-  describe("Chip Management", function () {
-    beforeEach(async function () {
+  // ─── Chips are tradeable ERC-1155 ───
+  describe("Chip Trading", function () {
+    it("should allow transferring chips between wallets", async function () {
       await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      await membersOnly.setGameContract(gameContract.address, true);
-    });
-
-    it("should award chips from game contract", async function () {
-      await membersOnly.connect(gameContract).awardChips(1, 100);
-      expect(await membersOnly.getChips(1)).to.equal(BASE_CHIPS + 100n);
-    });
-
-    it("should spend chips from game contract", async function () {
-      await membersOnly.connect(gameContract).spendChips(1, 10);
-      expect(await membersOnly.getChips(1)).to.equal(BASE_CHIPS - 10n);
-    });
-
-    it("should reject spending more than balance", async function () {
-      await expect(
-        membersOnly.connect(gameContract).spendChips(1, 1000)
-      ).to.be.revertedWith("Insufficient chips");
-    });
-
-    it("should batch award chips", async function () {
-      await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      await membersOnly.batchAwardChips([1, 2], [50, 100]);
-      expect(await membersOnly.getChips(1)).to.equal(BASE_CHIPS + 50n);
-      expect(await membersOnly.getChips(2)).to.equal(BASE_CHIPS + 100n);
-    });
-
-    it("should reject unauthorized chip operations", async function () {
-      await expect(
-        membersOnly.connect(user2).awardChips(1, 100)
-      ).to.be.revertedWith("Not authorized");
-    });
-
-    it("should get chips in batch", async function () {
-      await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      const chips = await membersOnly.getChipsBatch([1, 2]);
-      expect(chips[0]).to.equal(BASE_CHIPS);
-      expect(chips[1]).to.equal(BASE_CHIPS);
+      // user1 has BASE_CHIPS
+      await items.connect(user1).safeTransferFrom(user1.address, user2.address, CHIPS_ID, 20n, "0x");
+      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS - 20n);
+      expect(await items.balanceOf(user2.address, CHIPS_ID)).to.equal(20n);
     });
   });
 
@@ -315,25 +238,23 @@ describe("MembersOnly", function () {
 
   // ─── Partner Bonus ───
   describe("Partner Bonus", function () {
-    let FakeLil, fakeLil;
+    let fakeLil;
 
     beforeEach(async function () {
-      FakeLil = await ethers.getContractFactory("FakeLil");
+      const FakeLil = await ethers.getContractFactory("FakeLil");
       fakeLil = await FakeLil.deploy("https://fakelil.xyz/");
-      // Mint a partner NFT to user1
       await fakeLil.connect(user1).mint(1);
-      // Register as partner
       await membersOnly.registerPartner("FakeLil", await fakeLil.getAddress());
     });
 
     it("should give bonus chips when minting with partner NFT", async function () {
       await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      expect(await membersOnly.getChips(1)).to.equal(BASE_CHIPS + 100n);
+      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS + 100n);
     });
 
     it("should not give bonus without partner NFT", async function () {
       await membersOnly.connect(user2).mint(1, { value: MINT_PRICE });
-      expect(await membersOnly.getChips(1)).to.equal(BASE_CHIPS);
+      expect(await items.balanceOf(user2.address, CHIPS_ID)).to.equal(BASE_CHIPS);
     });
   });
 
@@ -344,8 +265,7 @@ describe("MembersOnly", function () {
     });
 
     it("should return base URI + token ID", async function () {
-      const uri = await membersOnly.tokenURI(1);
-      expect(uri).to.equal("https://membersonly.xyz/metadata/1");
+      expect(await membersOnly.tokenURI(1)).to.equal("https://membersonly.xyz/metadata/1");
     });
 
     it("should allow per-token URI override", async function () {

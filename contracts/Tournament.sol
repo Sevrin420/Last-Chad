@@ -6,8 +6,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface IMembersOnlyForTournament {
     function ownerOf(uint256 tokenId) external view returns (address);
-    function spendChips(uint256 tokenId, uint256 amount) external;
-    function awardChips(uint256 tokenId, uint256 amount) external;
+}
+
+interface IMembersOnlyItemsForTournament {
+    function burnChips(address from, uint256 amount) external;
 }
 
 /// @title Tournament — configurable tournaments for Members Only casino
@@ -23,6 +25,7 @@ interface IMembersOnlyForTournament {
 /// Rebuy: re-enter, new score only replaces old if higher.
 contract Tournament is Ownable, ReentrancyGuard {
     IMembersOnlyForTournament public immutable membersOnly;
+    IMembersOnlyItemsForTournament public immutable items;
 
     struct TournamentConfig {
         string  name;
@@ -60,8 +63,9 @@ contract Tournament is Ownable, ReentrancyGuard {
     event TournamentChipsAwarded(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 amount);
     event TournamentChipsSpent(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 amount);
 
-    constructor(address _membersOnly) Ownable(msg.sender) {
+    constructor(address _membersOnly, address _items) Ownable(msg.sender) {
         membersOnly = IMembersOnlyForTournament(_membersOnly);
+        items = IMembersOnlyItemsForTournament(_items);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -160,9 +164,9 @@ contract Tournament is Ownable, ReentrancyGuard {
             config.entryCount++;
         }
 
-        // Deduct chip cost if any
+        // Deduct chip cost if any (burns ERC-1155 chip tokens)
         if (config.chipCost > 0) {
-            membersOnly.spendChips(tokenId, config.chipCost);
+            items.burnChips(msg.sender, config.chipCost);
         }
 
         emit TournamentEntered(tournamentId, tokenId, config.tournamentChips);
