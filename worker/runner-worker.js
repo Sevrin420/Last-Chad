@@ -58,6 +58,8 @@ const POKER_PAYOUTS = {
   'JACKS OR BETTER':    1,
 };
 
+const BLACKJACK_SESSION_TTL = 600; // 10 min per session
+
 // ── HashCash Craps config ──
 const HASHCASH_PUBLIC_TABLES = [
   { name: 'hashcash-1', label: 'HASHCASH TABLE 1' },
@@ -102,6 +104,26 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/poker/cashout') {
         return await handlePokerCashout(request, env);
+      }
+
+      // Blackjack endpoints
+      if (request.method === 'POST' && url.pathname === '/blackjack/start') {
+        return await handleBlackjackStart(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/blackjack/deal') {
+        return await handleBlackjackDeal(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/blackjack/hit') {
+        return await handleBlackjackHit(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/blackjack/stand') {
+        return await handleBlackjackStand(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/blackjack/double') {
+        return await handleBlackjackDouble(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/blackjack/cashout') {
+        return await handleBlackjackCashout(request, env);
       }
 
       // Craps endpoints (game logic lives in CrapsTable DO;
@@ -433,6 +455,298 @@ async function handlePokerCashout(request, env) {
   await env.RUNNER_KV.delete(key);
 
   return json({ ok: true, payout, nonce: Number(nonce), signature });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BLACKJACK ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /blackjack/start  { tokenId, nonce, player }
+async function handleBlackjackStart(request, env) {
+  const { tokenId, nonce, player } = await parseBody(request);
+  if (tokenId == null || nonce == null || !player) return json({ error: 'Missing fields' }, 400);
+  if (!ethers.isAddress(player)) return json({ error: 'Invalid address' }, 400);
+
+  const provider = new ethers.JsonRpcProvider(env.READ_RPC);
+  const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
+  const wager    = Number(await gamble.wagerAmounts(BigInt(nonce)));
+  if (wager === 0) return json({ error: 'No active wager' }, 403);
+  const onChain = (await gamble.wagerPlayers(BigInt(nonce))).toLowerCase();
+  if (onChain !== player.toLowerCase()) return json({ error: 'Player mismatch' }, 403);
+
+  const sessionToken = await generateBlackjackToken(nonce, player.toLowerCase(), env);
+
+  const key = `bj:${nonce}`;
+  const existing = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (existing) {
+    await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: BLACKJACK_SESSION_TTL });
+    return json({ ok: true, stack: existing.stack, sessionToken });
+  }
+
+  await env.RUNNER_KV.put(key, JSON.stringify({
+    tokenId: String(tokenId),
+    player: player.toLowerCase(),
+    stack: wager,
+    phase: 'ready',  // ready | playing | resolved
+    deck: null,
+    playerHand: null,
+    dealerHand: null,
+    handWager: 0,
+    lastResult: null,
+    _expectedToken: sessionToken,
+  }), { expirationTtl: BLACKJACK_SESSION_TTL });
+
+  return json({ ok: true, stack: wager, sessionToken });
+}
+
+// POST /blackjack/deal  { nonce, handWager, sessionToken }
+async function handleBlackjackDeal(request, env) {
+  const { nonce, handWager, sessionToken } = await parseBody(request);
+  if (nonce == null || handWager == null) return json({ error: 'Missing fields' }, 400);
+
+  const key = `bj:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No session' }, 403);
+  if (session._expectedToken !== sessionToken) return json({ error: 'Invalid token' }, 403);
+  if (session.phase !== 'ready') return json({ error: 'Hand in progress' }, 400);
+
+  const bet = Math.max(1, Math.min(Number(handWager), session.stack));
+  const deck = shuffleDeckCrypto();
+
+  const playerHand = [deck.pop(), deck.pop()];
+  const dealerHand = [deck.pop(), deck.pop()];
+
+  session.deck = deck;
+  session.playerHand = playerHand;
+  session.dealerHand = dealerHand;
+  session.handWager = bet;
+  session.stack -= bet;
+  session.phase = 'playing';
+  session.lastResult = null;
+
+  // Check for natural blackjack
+  const pVal = bjHandValue(playerHand);
+  const dVal = bjHandValue(dealerHand);
+
+  if (pVal === 21 && playerHand.length === 2) {
+    // Player blackjack
+    if (dVal === 21 && dealerHand.length === 2) {
+      // Push — return bet
+      session.stack += bet;
+      session.phase = 'ready';
+      session.lastResult = { result: 'push', payout: bet };
+    } else {
+      // Blackjack pays 3:2
+      const payout = Math.floor(bet * 2.5);
+      session.stack += payout;
+      session.phase = 'ready';
+      session.lastResult = { result: 'blackjack', payout };
+    }
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: BLACKJACK_SESSION_TTL });
+    return json({
+      ok: true,
+      playerCards: playerHand.map(cardFromIndex),
+      dealerCards: dealerHand.map(cardFromIndex),  // reveal both on natural
+      playerValue: pVal,
+      dealerValue: dVal,
+      result: session.lastResult.result,
+      payout: session.lastResult.payout,
+      stack: session.stack,
+    });
+  }
+
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: BLACKJACK_SESSION_TTL });
+
+  return json({
+    ok: true,
+    playerCards: playerHand.map(cardFromIndex),
+    dealerCards: [cardFromIndex(dealerHand[0]), null],  // hide hole card
+    playerValue: pVal,
+    result: null,
+    stack: session.stack,
+  });
+}
+
+// POST /blackjack/hit  { nonce, sessionToken }
+async function handleBlackjackHit(request, env) {
+  const { nonce, sessionToken } = await parseBody(request);
+  const key = `bj:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No session' }, 403);
+  if (session._expectedToken !== sessionToken) return json({ error: 'Invalid token' }, 403);
+  if (session.phase !== 'playing') return json({ error: 'No active hand' }, 400);
+
+  session.playerHand.push(session.deck.pop());
+  const pVal = bjHandValue(session.playerHand);
+
+  if (pVal > 21) {
+    // Bust
+    session.phase = 'ready';
+    session.lastResult = { result: 'bust', payout: 0 };
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: BLACKJACK_SESSION_TTL });
+    return json({
+      ok: true,
+      playerCards: session.playerHand.map(cardFromIndex),
+      dealerCards: session.dealerHand.map(cardFromIndex),
+      playerValue: pVal,
+      dealerValue: bjHandValue(session.dealerHand),
+      result: 'bust',
+      payout: 0,
+      stack: session.stack,
+    });
+  }
+
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: BLACKJACK_SESSION_TTL });
+  return json({
+    ok: true,
+    playerCards: session.playerHand.map(cardFromIndex),
+    dealerCards: [cardFromIndex(session.dealerHand[0]), null],
+    playerValue: pVal,
+    result: null,
+    stack: session.stack,
+  });
+}
+
+// POST /blackjack/stand  { nonce, sessionToken }
+async function handleBlackjackStand(request, env) {
+  const { nonce, sessionToken } = await parseBody(request);
+  const key = `bj:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No session' }, 403);
+  if (session._expectedToken !== sessionToken) return json({ error: 'Invalid token' }, 403);
+  if (session.phase !== 'playing') return json({ error: 'No active hand' }, 400);
+
+  return resolveBlackjackHand(session, key, env);
+}
+
+// POST /blackjack/double  { nonce, sessionToken }
+async function handleBlackjackDouble(request, env) {
+  const { nonce, sessionToken } = await parseBody(request);
+  const key = `bj:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No session' }, 403);
+  if (session._expectedToken !== sessionToken) return json({ error: 'Invalid token' }, 403);
+  if (session.phase !== 'playing') return json({ error: 'No active hand' }, 400);
+  if (session.playerHand.length !== 2) return json({ error: 'Can only double on first two cards' }, 400);
+
+  const extraBet = Math.min(session.handWager, session.stack);
+  session.stack -= extraBet;
+  session.handWager += extraBet;
+
+  // Take exactly one card
+  session.playerHand.push(session.deck.pop());
+  const pVal = bjHandValue(session.playerHand);
+
+  if (pVal > 21) {
+    session.phase = 'ready';
+    session.lastResult = { result: 'bust', payout: 0 };
+    await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: BLACKJACK_SESSION_TTL });
+    return json({
+      ok: true,
+      playerCards: session.playerHand.map(cardFromIndex),
+      dealerCards: session.dealerHand.map(cardFromIndex),
+      playerValue: pVal,
+      dealerValue: bjHandValue(session.dealerHand),
+      result: 'bust',
+      payout: 0,
+      stack: session.stack,
+    });
+  }
+
+  return resolveBlackjackHand(session, key, env);
+}
+
+// POST /blackjack/cashout  { tokenId, nonce, sessionToken }
+async function handleBlackjackCashout(request, env) {
+  const { tokenId, nonce, sessionToken } = await parseBody(request);
+  if (tokenId == null || nonce == null) return json({ error: 'Missing fields' }, 400);
+
+  const key = `bj:${nonce}`;
+  const session = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!session) return json({ error: 'No session' }, 403);
+  if (session._expectedToken !== sessionToken) return json({ error: 'Invalid token' }, 403);
+  if (session.phase === 'playing') return json({ error: 'Finish hand first' }, 400);
+  if (String(tokenId) !== session.tokenId) return json({ error: 'Token mismatch' }, 403);
+
+  const payout = session.stack;
+  if (payout === 0) {
+    await env.RUNNER_KV.delete(key);
+    return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
+  }
+
+  const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
+  const messageHash  = ethers.solidityPackedKeccak256(
+    ['uint256', 'uint256', 'uint256', 'address'],
+    [BigInt(tokenId), BigInt(payout), BigInt(nonce), session.player]
+  );
+  const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
+  await env.RUNNER_KV.delete(key);
+
+  return json({ ok: true, payout, nonce: Number(nonce), signature });
+}
+
+// ── Blackjack helpers ──
+
+/** Dealer plays: hit on soft 17 and below, stand on hard 17+ */
+async function resolveBlackjackHand(session, key, env) {
+  // Dealer draws
+  while (bjHandValue(session.dealerHand) < 17) {
+    session.dealerHand.push(session.deck.pop());
+  }
+
+  const pVal = bjHandValue(session.playerHand);
+  const dVal = bjHandValue(session.dealerHand);
+  let result, payout;
+
+  if (dVal > 21) {
+    result = 'dealer_bust'; payout = session.handWager * 2;
+  } else if (pVal > dVal) {
+    result = 'win'; payout = session.handWager * 2;
+  } else if (pVal === dVal) {
+    result = 'push'; payout = session.handWager;
+  } else {
+    result = 'lose'; payout = 0;
+  }
+
+  session.stack += payout;
+  session.phase = 'ready';
+  session.lastResult = { result, payout };
+
+  await env.RUNNER_KV.put(key, JSON.stringify(session), { expirationTtl: BLACKJACK_SESSION_TTL });
+
+  return json({
+    ok: true,
+    playerCards: session.playerHand.map(cardFromIndex),
+    dealerCards: session.dealerHand.map(cardFromIndex),
+    playerValue: pVal,
+    dealerValue: dVal,
+    result,
+    payout,
+    stack: session.stack,
+  });
+}
+
+/** Calculate best hand value (aces count as 11 or 1) */
+function bjHandValue(hand) {
+  let total = 0, aces = 0;
+  for (const idx of hand) {
+    const rank = idx % 13; // 0=2, 1=3, ..., 8=10, 9=J, 10=Q, 11=K, 12=A
+    if (rank === 12) { aces++; total += 11; }
+    else if (rank >= 8) { total += 10; } // 10, J, Q, K
+    else { total += rank + 2; }
+  }
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return total;
+}
+
+async function generateBlackjackToken(nonce, player, env) {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(env.ORACLE_PRIVATE_KEY),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const data = new TextEncoder().encode(`blackjack:${nonce}:${player}`);
+  const sig = await crypto.subtle.sign('HMAC', key, data);
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // ---------------------------------------------------------------------------
