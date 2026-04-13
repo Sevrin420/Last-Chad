@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poker — Members Only</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="nav.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Press Start 2P',monospace;color:#ffe96a}
+
+    /* ── Lobby ── */
+    .lobby{
+      position:fixed;inset:0;z-index:500;
+      background-image:url('assets/mainbg.png');background-size:cover;background-position:center;
+      display:flex;flex-direction:column;align-items:center;overflow:hidden;
+    }
+    .lobby.hidden{display:none}
+    .lobby-chazzy{
+      position:absolute;bottom:42vh;left:50%;transform:translateX(-50%);
+      max-height:50vh;max-width:85vw;object-fit:contain;z-index:1;
+      opacity:0;transition:opacity 1s ease;
+    }
+    .lobby-chazzy.visible{opacity:1}
+    .lobby-chazzy.shrunk{max-height:22vh;bottom:auto;top:50px;transition:max-height 0.5s ease,top 0.5s ease,bottom 0.5s ease,opacity 1s ease}
+    .lobby-dialogue{
+      position:fixed;bottom:0;left:0;right:0;height:42vh;z-index:10;
+      background:linear-gradient(180deg,rgba(15,10,5,0.92),rgba(10,8,4,0.98));
+      border-top:2px solid #c9a84c;display:flex;flex-direction:column;padding:1.5em 2em;overflow:hidden;
+      opacity:0;pointer-events:none;transform:translateY(20px);transition:opacity 0.8s ease,transform 0.8s ease;
+    }
+    .lobby-dialogue.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
+    .lobby-dialogue.tall{height:calc(100vh - 22vh - 50px);transition:height 0.5s ease}
+    .lobby-text{overflow-y:auto;font-size:0.65rem;line-height:2.2;color:#c9a84c;flex:1}
+    .lobby-text .npc-name{color:#e8c060;font-size:0.7rem;margin-bottom:0.4em;display:block}
+    .lobby-choices{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:0.8em}
+    .lobby-choice{
+      font-family:'Press Start 2P',monospace;font-size:clamp(0.55rem,1.5vw,0.65rem);
+      color:#0a0a0f;background:#c9a84c;border:none;
+      border-bottom:5px solid #7a6020;border-right:5px solid #7a6020;
+      padding:14px 20px;cursor:pointer;width:100%;max-width:420px;text-align:center;
+    }
+    .lobby-choice:hover{background:#e8c060;border-color:#5c4409}
+    .lobby-choice:active{border-bottom-width:2px;border-right-width:2px;transform:translate(3px,3px)}
+    .wallet-btn{
+      font-family:'Press Start 2P',monospace;font-size:0.55rem;padding:10px 18px;
+      background:linear-gradient(180deg,#c9a84c,#8b6914);border:2px solid #d4a017;border-radius:4px;
+      color:#1a1005;cursor:pointer;
+    }
+    .wallet-btn:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
+    .wallet-btn.connected{font-size:0.5rem}
+    .lobby-wallet-btn{position:fixed;top:16px;right:16px;z-index:520}
+    .lobby-nft-grid{display:flex;gap:0.8em;flex-wrap:wrap;justify-content:center;margin-top:0.6em;max-height:18vh;overflow-y:auto}
+    .lobby-nft-card{width:80px;height:100px;border:2px solid #555;border-radius:6px;cursor:pointer;position:relative;overflow:hidden;transition:all 0.2s;background:rgba(0,0,0,0.5)}
+    .lobby-nft-card img{width:100%;height:70%;object-fit:cover;image-rendering:pixelated}
+    .lobby-nft-card .nft-id{font-size:0.4rem;text-align:center;padding:2px;color:#ffe96a}
+    .lobby-nft-card:hover{border-color:#ffaa40;transform:scale(1.06)}
+    .lobby-nft-card.selected{border-color:#ffaa40;box-shadow:0 0 14px rgba(255,170,64,0.5)}
+    .lobby-wager{margin-top:0.6em;text-align:center}
+    .lobby-wager input[type=range]{width:80%;max-width:300px;accent-color:#c9a84c}
+    .lobby-wager-val{font-size:0.7rem;color:#ffe96a;margin:0.4em 0}
+
+    /* ── Rules ── */
+    .rules-overlay{display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:20px}
+    .rules-overlay.active{display:flex}
+    .rules-box{background:linear-gradient(180deg,#1e1608,#140f05);border:3px solid #5c4409;border-radius:8px;padding:24px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto}
+    .rules-title{font-size:0.8rem;color:#c9a84c;text-align:center;margin-bottom:16px}
+    .rules-content p{font-size:0.5rem;color:#c9a84c;line-height:2;margin-bottom:10px}
+    .rules-content b{color:#ffe96a}
+    .rules-close{display:block;margin:16px auto 0;font-family:'Press Start 2P',monospace;font-size:0.55rem;color:#0a0a0f;background:#c9a84c;border:none;border-bottom:4px solid #7a6020;padding:12px 24px;cursor:pointer}
+    .rules-close:hover{background:#e8c060}
+
+    /* ── Coming Soon ── */
+    .coming-soon{
+      position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;
+      background:#0a0a0f;flex-direction:column;gap:20px;
+    }
+    .coming-soon h1{font-size:clamp(0.8rem,3vw,1.4rem);color:#c9a84c;text-align:center}
+    .coming-soon p{font-size:0.55rem;color:#7a6020;text-align:center}
+    .coming-soon a{font-family:'Press Start 2P',monospace;font-size:0.55rem;color:#c9a84c;text-decoration:none;border:2px solid #5c4409;padding:12px 20px;transition:all 0.15s}
+    .coming-soon a:hover{border-color:#c9a84c;background:rgba(201,168,76,0.1)}
+  </style>
+</head>
+<body>
+
+<div id="lobby" class="lobby">
+  <img id="lobbyChazzy" class="lobby-chazzy" src="assets/chazzyp/chazzypgamble.jpg" alt="Chazzy P">
+  <div id="lobbyDialogue" class="lobby-dialogue">
+    <div id="lobbyText" class="lobby-text"></div>
+    <div id="lobbyChoices" class="lobby-choices"></div>
+  </div>
+  <button id="lobbyWalletBtn" class="wallet-btn lobby-wallet-btn">CONNECT WALLET</button>
+</div>
+
+<div id="rulesOverlay" class="rules-overlay">
+  <div class="rules-box">
+    <h2 class="rules-title">VIDEO POKER RULES</h2>
+    <div class="rules-content">
+      <p><b>JACKS OR BETTER:</b> Standard 5-card draw video poker.</p>
+      <p><b>DEAL:</b> You get 5 cards. Choose which to HOLD, then DRAW replacements.</p>
+      <p><b>PAYOUTS:</b> Royal Flush 250:1, Straight Flush 50:1, Four of a Kind 25:1, Full House 9:1, Flush 6:1, Straight 4:1, Three of a Kind 3:1, Two Pair 2:1, Jacks or Better 1:1.</p>
+      <p><b>STRATEGY:</b> Always hold a paying hand. Hold high pairs (J+). Draw to flushes and straights.</p>
+    </div>
+    <button id="rulesCloseBtn" class="rules-close">GOT IT</button>
+  </div>
+</div>
+
+<!-- Poker game goes here when ready — for now redirect to gamble.html poker -->
+<div id="comingSoon" class="coming-soon" style="display:none">
+  <h1>POKER</h1>
+  <p>Redirecting to the poker table...</p>
+</div>
+
+<div id="nav-placeholder"></div>
+
+<script src="nav.js"></script>
+<script type="module">
+import { connectWallet, autoReconnect, disconnect, getSigner, ensureSigner, getUserAddress, truncateAddress } from './js/wallet.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, GAMBLE_ADDRESS, GAMBLE_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
+
+const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
+const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+
+let lobbyAddr = null;
+let lobbyTokenId = null;
+let lobbyChips = 0;
+let lobbyChadName = '';
+
+const lobbyChazzy  = document.getElementById('lobbyChazzy');
+const lobbyDlg     = document.getElementById('lobbyDialogue');
+const lobbyText    = document.getElementById('lobbyText');
+const lobbyChoices = document.getElementById('lobbyChoices');
+const lobbyWalletBtn = document.getElementById('lobbyWalletBtn');
+const rulesOverlay = document.getElementById('rulesOverlay');
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+async function typewrite(el, text, speed = 35) { for (let i = 0; i < text.length; i++) { el.textContent += text[i]; await delay(speed); } }
+function clearLobby() { lobbyText.innerHTML = ''; lobbyChoices.innerHTML = ''; }
+
+async function showNpc(lines) {
+  clearLobby();
+  for (const line of lines) {
+    const p = document.createElement('p');
+    lobbyText.appendChild(p);
+    await typewrite(p, line, 35);
+    await delay(300);
+  }
+}
+
+function showBtns(opts) {
+  lobbyChoices.innerHTML = '';
+  for (const o of opts) {
+    const b = document.createElement('button');
+    b.className = 'lobby-choice';
+    b.textContent = o.label;
+    b.addEventListener('click', o.action);
+    lobbyChoices.appendChild(b);
+  }
+}
+
+// Wallet
+function onConnected(addr) {
+  lobbyAddr = addr;
+  lobbyWalletBtn.textContent = truncateAddress(addr);
+  lobbyWalletBtn.classList.add('connected');
+}
+lobbyWalletBtn.addEventListener('click', () => connectWallet(onConnected));
+autoReconnect({ onConnected });
+
+// Rules
+document.getElementById('rulesCloseBtn').addEventListener('click', () => rulesOverlay.classList.remove('active'));
+rulesOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) rulesOverlay.classList.remove('active'); });
+
+// Intro
+await delay(400);
+lobbyChazzy.classList.add('visible');
+await delay(800);
+lobbyDlg.classList.add('visible');
+await delay(400);
+
+await showNpc([
+  "Ah, a poker face walks in.",
+  "Five cards. One draw. No bluffing the machine.",
+  "Jacks or better to win. You in?"
+]);
+showBtns([
+  { label: "Deal me in", action: startChadSelect },
+  { label: "Poker Rules", action: () => rulesOverlay.classList.add('active') }
+]);
+
+async function startChadSelect() {
+  clearLobby();
+  lobbyChazzy.classList.add('shrunk');
+  lobbyDlg.classList.add('tall');
+
+  if (!lobbyAddr) { lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>'; return; }
+  lobbyText.innerHTML = '<p class="loading">Loading your Chads...</p>';
+
+  const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+  let balance;
+  try { balance = (await contract.balanceOf(lobbyAddr)).toNumber(); } catch { balance = 0; }
+  if (balance === 0) { lobbyText.innerHTML = '<p style="color:#e53935">No Chads found. Mint one first!</p>'; return; }
+
+  lobbyText.innerHTML = '<p class="npc-name">Pick your Chad</p>';
+  const grid = document.createElement('div');
+  grid.className = 'lobby-nft-grid';
+
+  for (let i = 0; i < balance; i++) {
+    const tid = (await contract.tokenOfOwnerByIndex(lobbyAddr, i)).toNumber();
+    const name = await contract.tokenName(tid).catch(() => '');
+    const card = document.createElement('div');
+    card.className = 'lobby-nft-card';
+    card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
+    card.addEventListener('click', () => {
+      grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      lobbyTokenId = tid;
+      lobbyChadName = name || 'Chad #' + tid;
+      showWager();
+    });
+    grid.appendChild(card);
+  }
+  lobbyText.appendChild(grid);
+}
+
+async function showWager() {
+  const old = document.getElementById('lobbyWagerSec'); if (old) old.remove();
+
+  const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
+  try { lobbyChips = (await items.balanceOf(lobbyAddr, 0)).toNumber(); } catch { lobbyChips = 0; }
+
+  const gambleRead = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, readProv);
+  let minW = 1, maxW = 500;
+  try { minW = (await gambleRead.minWager()).toNumber(); maxW = (await gambleRead.maxWager()).toNumber(); } catch {}
+  const cap = Math.min(maxW, lobbyChips);
+
+  const sec = document.createElement('div');
+  sec.className = 'lobby-wager'; sec.id = 'lobbyWagerSec';
+  sec.innerHTML = `
+    <p style="font-size:0.55rem;color:#c9a84c;margin-bottom:4px">CHIPS: ${lobbyChips}</p>
+    <p class="lobby-wager-val">WAGER: <span id="lobbyWagerVal">${Math.min(minW, cap)}</span></p>
+    <input type="range" id="lobbyWagerSlider" min="${minW}" max="${cap}" value="${Math.min(minW, cap)}" step="1">
+  `;
+  lobbyText.appendChild(sec);
+  document.getElementById('lobbyWagerSlider').addEventListener('input', e => {
+    document.getElementById('lobbyWagerVal').textContent = e.target.value;
+  });
+
+  showBtns([
+    { label: "DEAL ME IN", action: () => commitAndEnter(parseInt(document.getElementById('lobbyWagerSlider').value)) },
+    { label: "Poker Rules", action: () => rulesOverlay.classList.add('active') }
+  ]);
+}
+
+async function commitAndEnter(wager) {
+  clearLobby();
+  lobbyText.innerHTML = '<p class="loading">Committing wager on-chain...</p>';
+
+  try {
+    const signer = await ensureSigner();
+    const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+    const tx = await gamble.commitWager(lobbyTokenId, wager);
+    const receipt = await tx.wait();
+
+    const iface = new ethers.utils.Interface(GAMBLE_ABI);
+    let nonce;
+    for (const log of receipt.logs) {
+      try { const p = iface.parseLog(log); if (p.name === 'WagerCommitted') { nonce = p.args.nonce.toNumber(); break; } } catch {}
+    }
+    if (nonce === undefined) throw new Error('WagerCommitted event not found');
+
+    // Store poker session and redirect to gamble.html which has the full poker game
+    sessionStorage.setItem('poker_launch', JSON.stringify({
+      nonce, tokenId: lobbyTokenId, chadName: lobbyChadName,
+      wager, player: lobbyAddr
+    }));
+    window.location.href = 'gamble.html?game=poker';
+  } catch (err) {
+    lobbyText.innerHTML = `<p style="color:#e53935">${err.message || 'Transaction failed'}</p>`;
+    showBtns([{ label: "Try Again", action: startChadSelect }]);
+  }
+}
+</script>
+</body>
+</html>

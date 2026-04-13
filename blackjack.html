@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blackjack — Members Only</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="nav.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Press Start 2P',monospace;color:#ffe96a}
+
+    .lobby{
+      position:fixed;inset:0;z-index:500;
+      background-image:url('assets/mainbg.png');background-size:cover;background-position:center;
+      display:flex;flex-direction:column;align-items:center;overflow:hidden;
+    }
+    .lobby-chazzy{
+      position:absolute;bottom:42vh;left:50%;transform:translateX(-50%);
+      max-height:50vh;max-width:85vw;object-fit:contain;z-index:1;
+      opacity:0;transition:opacity 1s ease;
+    }
+    .lobby-chazzy.visible{opacity:1}
+    .lobby-dialogue{
+      position:fixed;bottom:0;left:0;right:0;height:42vh;z-index:10;
+      background:linear-gradient(180deg,rgba(15,10,5,0.92),rgba(10,8,4,0.98));
+      border-top:2px solid #c9a84c;display:flex;flex-direction:column;padding:1.5em 2em;overflow:hidden;
+      opacity:0;pointer-events:none;transform:translateY(20px);transition:opacity 0.8s ease,transform 0.8s ease;
+    }
+    .lobby-dialogue.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
+    .lobby-text{overflow-y:auto;font-size:0.65rem;line-height:2.2;color:#c9a84c;flex:1}
+    .lobby-choices{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:0.8em}
+    .lobby-choice{
+      font-family:'Press Start 2P',monospace;font-size:clamp(0.55rem,1.5vw,0.65rem);
+      color:#0a0a0f;background:#c9a84c;border:none;
+      border-bottom:5px solid #7a6020;border-right:5px solid #7a6020;
+      padding:14px 20px;cursor:pointer;width:100%;max-width:420px;text-align:center;
+    }
+    .lobby-choice:hover{background:#e8c060;border-color:#5c4409}
+    .lobby-choice:active{border-bottom-width:2px;border-right-width:2px;transform:translate(3px,3px)}
+  </style>
+</head>
+<body>
+
+<div class="lobby">
+  <img id="lobbyChazzy" class="lobby-chazzy" src="assets/chazzyp/chazzypgamble.jpg" alt="Chazzy P">
+  <div id="lobbyDialogue" class="lobby-dialogue">
+    <div id="lobbyText" class="lobby-text"></div>
+    <div id="lobbyChoices" class="lobby-choices"></div>
+  </div>
+</div>
+
+<div id="nav-placeholder"></div>
+<script src="nav.js"></script>
+<script>
+(async function() {
+  const chazzy  = document.getElementById('lobbyChazzy');
+  const dlg     = document.getElementById('lobbyDialogue');
+  const text    = document.getElementById('lobbyText');
+  const choices = document.getElementById('lobbyChoices');
+
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+  async function typewrite(el, str, speed = 35) { for (let i = 0; i < str.length; i++) { el.textContent += str[i]; await delay(speed); } }
+
+  await delay(400);
+  chazzy.classList.add('visible');
+  await delay(800);
+  dlg.classList.add('visible');
+  await delay(400);
+
+  const lines = [
+    "Blackjack, huh?",
+    "21 or bust. Classic.",
+    "Table's not open yet... still hiring a dealer.",
+    "Check back soon, yeah?"
+  ];
+
+  for (const line of lines) {
+    const p = document.createElement('p');
+    text.appendChild(p);
+    await typewrite(p, line, 35);
+    await delay(300);
+  }
+
+  const btn = document.createElement('button');
+  btn.className = 'lobby-choice';
+  btn.textContent = 'Back to Lobby';
+  btn.addEventListener('click', () => { window.location.href = 'chadbase.html'; });
+  choices.appendChild(btn);
+
+  const btn2 = document.createElement('button');
+  btn2.className = 'lobby-choice';
+  btn2.textContent = 'Play Craps Instead';
+  btn2.addEventListener('click', () => { window.location.href = 'craps.html'; });
+  choices.appendChild(btn2);
+})();
+</script>
+</body>
+</html>

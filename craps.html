@@ -17,6 +17,83 @@
       color:#ffe96a;
     }
 
+    /* ── Craps Lobby Overlay ── */
+    .craps-lobby-overlay{
+      position:fixed;inset:0;z-index:500;
+      background-image:url('assets/mainbg.png');
+      background-size:cover;background-position:center;
+      display:flex;flex-direction:column;align-items:center;
+      overflow:hidden;
+    }
+    .craps-lobby-overlay.hidden{display:none}
+    .lobby-chazzy{
+      position:absolute;bottom:42vh;left:50%;transform:translateX(-50%);
+      max-height:50vh;max-width:85vw;object-fit:contain;z-index:1;
+      opacity:0;transition:opacity 1s ease;
+    }
+    .lobby-chazzy.visible{opacity:1}
+    .lobby-chazzy.shrunk{
+      max-height:22vh;bottom:auto;top:50px;
+      transition:max-height 0.5s ease,top 0.5s ease,bottom 0.5s ease,opacity 1s ease;
+    }
+    .lobby-dialogue{
+      position:fixed;bottom:0;left:0;right:0;height:42vh;z-index:10;
+      background:linear-gradient(180deg,rgba(15,10,5,0.92) 0%,rgba(10,8,4,0.98) 100%);
+      border-top:2px solid #c9a84c;
+      display:flex;flex-direction:column;padding:1.5em 2em;overflow:hidden;
+      opacity:0;pointer-events:none;transform:translateY(20px);
+      transition:opacity 0.8s ease,transform 0.8s ease;
+    }
+    .lobby-dialogue.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
+    .lobby-dialogue.tall{height:calc(100vh - 22vh - 50px);transition:height 0.5s ease}
+    .lobby-text{overflow-y:auto;font-size:0.65rem;line-height:2.2;color:#c9a84c;flex:1}
+    .lobby-text .npc-name{color:#e8c060;font-size:0.7rem;margin-bottom:0.4em;display:block}
+    .lobby-choices{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:0.8em}
+    .lobby-choice{
+      font-family:'Press Start 2P',monospace;font-size:clamp(0.55rem,1.5vw,0.65rem);
+      color:#0a0a0f;background:#c9a84c;border:none;
+      border-bottom:5px solid #7a6020;border-right:5px solid #7a6020;
+      padding:14px 20px;cursor:pointer;width:100%;max-width:420px;text-align:center;
+    }
+    .lobby-choice:hover{background:#e8c060;border-color:#5c4409}
+    .lobby-choice:active{border-bottom-width:2px;border-right-width:2px;transform:translate(3px,3px)}
+    .lobby-wallet-btn{position:fixed;top:16px;right:16px;z-index:520}
+    /* NFT grid in lobby */
+    .lobby-nft-grid{display:flex;gap:0.8em;flex-wrap:wrap;justify-content:center;margin-top:0.6em;max-height:18vh;overflow-y:auto}
+    .lobby-nft-card{
+      width:80px;height:100px;border:2px solid #555;border-radius:6px;cursor:pointer;
+      position:relative;overflow:hidden;transition:all 0.2s;background:rgba(0,0,0,0.5);
+    }
+    .lobby-nft-card img{width:100%;height:70%;object-fit:cover;image-rendering:pixelated}
+    .lobby-nft-card .nft-id{font-size:0.4rem;text-align:center;padding:2px;color:#ffe96a}
+    .lobby-nft-card:hover{border-color:#ffaa40;transform:scale(1.06)}
+    .lobby-nft-card.selected{border-color:#ffaa40;box-shadow:0 0 14px rgba(255,170,64,0.5)}
+    /* Wager slider in lobby */
+    .lobby-wager{margin-top:0.6em;text-align:center}
+    .lobby-wager input[type=range]{width:80%;max-width:300px;accent-color:#c9a84c}
+    .lobby-wager-val{font-size:0.7rem;color:#ffe96a;margin:0.4em 0}
+
+    /* ── Rules Overlay ── */
+    .rules-overlay{
+      display:none;position:fixed;inset:0;z-index:600;
+      background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:20px;
+    }
+    .rules-overlay.active{display:flex}
+    .rules-box{
+      background:linear-gradient(180deg,#1e1608,#140f05);
+      border:3px solid #5c4409;border-radius:8px;padding:24px;max-width:500px;width:100%;
+      max-height:80vh;overflow-y:auto;
+    }
+    .rules-title{font-size:0.8rem;color:#c9a84c;text-align:center;margin-bottom:16px}
+    .rules-content p{font-size:0.5rem;color:#c9a84c;line-height:2;margin-bottom:10px}
+    .rules-content b{color:#ffe96a}
+    .rules-close{
+      display:block;margin:16px auto 0;font-family:'Press Start 2P',monospace;
+      font-size:0.55rem;color:#0a0a0f;background:#c9a84c;border:none;
+      border-bottom:4px solid #7a6020;padding:12px 24px;cursor:pointer;
+    }
+    .rules-close:hover{background:#e8c060}
+
     :root{
       --p1-color:#4caf50;--p2-color:#42a5f5;--p3-color:#ab47bc;--p4-color:#ef5350;
       --p1-glow:rgba(76,175,80,0.5);--p2-glow:rgba(66,165,245,0.5);
@@ -724,6 +801,34 @@
 </head>
 <body>
 
+<!-- ── Craps Lobby (Chazzy P dialogue → chad select → wager) ── -->
+<div id="crapsLobby" class="craps-lobby-overlay">
+  <img id="lobbyChazzy" class="lobby-chazzy" src="assets/chazzyp/chazzypgamble.jpg" alt="Chazzy P" />
+  <div id="lobbyDialogue" class="lobby-dialogue">
+    <div id="lobbyText" class="lobby-text"></div>
+    <div id="lobbyChoices" class="lobby-choices"></div>
+  </div>
+  <button id="lobbyWalletBtn" class="wallet-btn lobby-wallet-btn">CONNECT WALLET</button>
+</div>
+
+<!-- ── Rules Overlay ── -->
+<div id="rulesOverlay" class="rules-overlay">
+  <div class="rules-box">
+    <h2 class="rules-title">CRAPS RULES</h2>
+    <div class="rules-content">
+      <p><b>COME OUT ROLL:</b> Shooter rolls. 7 or 11 = Pass Line wins. 2, 3, or 12 = Pass Line loses. Any other number becomes the POINT.</p>
+      <p><b>POINT PHASE:</b> Shooter keeps rolling. Hit the point = Pass Line wins. Roll a 7 = seven-out, Pass Line loses.</p>
+      <p><b>PASS LINE:</b> 1:1 payout. The bread and butter.</p>
+      <p><b>PASS ODDS:</b> True odds behind the Pass Line. Best bet in the house.</p>
+      <p><b>FIELD:</b> One-roll bet. Wins on 2,3,4,9,10,11,12. Loses on 5,6,7,8. Pays 2:1 on 2, 3:1 on 12.</p>
+      <p><b>PLACE BETS:</b> Bet a specific number hits before 7. Pays 7:6 on 6/8, 7:5 on 5/9, 9:5 on 4/10.</p>
+      <p><b>HARDWAYS:</b> Bet a number hits as doubles before 7 or easy way. Pays 7:1 on hard 4/10, 9:1 on hard 6/8.</p>
+      <p><b>COME BET:</b> Like Pass Line but placed during point phase. Your own personal come-out roll.</p>
+    </div>
+    <button id="rulesCloseBtn" class="rules-close">GOT IT</button>
+  </div>
+</div>
+
 <!-- ── Header ── -->
 <div class="game-header">
   <div class="header-left">
@@ -952,7 +1057,8 @@
 <script type="module">
 import { connectWallet as walletConnect, autoReconnect, disconnect,
          getSigner, ensureSigner, getUserAddress, truncateAddress } from './js/wallet.js';
-import { GAMBLE_ADDRESS, GAMBLE_ABI, getChadImageUrl } from './js/config.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI,
+         GAMBLE_ADDRESS, GAMBLE_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
 
 /* ===================================================================
    CRAPS TABLE — Members Only
@@ -991,13 +1097,228 @@ function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
 
 const PLAYER_COLORS = ['#4caf50','#42a5f5','#ab47bc','#ef5350'];
 
-const crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null');
+let crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null');
 
-// Gate: must enter through gamble.html (which sets craps_session)
+// ── Lobby flow (replaces gamble.html) ──────────────────────────────────
 if (!crapsSession) {
-  window.location.href = 'gamble.html';
-  throw new Error('No craps session — redirecting to Gamble Den');
+  (async function runLobby() {
+    const lobbyEl      = document.getElementById('crapsLobby');
+    const lobbyChazzy  = document.getElementById('lobbyChazzy');
+    const lobbyDlg     = document.getElementById('lobbyDialogue');
+    const lobbyText    = document.getElementById('lobbyText');
+    const lobbyChoices = document.getElementById('lobbyChoices');
+    const lobbyWalletBtn = document.getElementById('lobbyWalletBtn');
+    const rulesOverlay = document.getElementById('rulesOverlay');
+
+    const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
+    let lobbyAddr = null;
+    let lobbyTokenId = null;
+    let lobbyChips = 0;
+    let lobbyChadName = '';
+
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function typewrite(el, text, speed = 35) {
+      for (let i = 0; i < text.length; i++) {
+        el.textContent += text[i];
+        await delay(speed);
+      }
+    }
+
+    function clearLobby() { lobbyText.innerHTML = ''; lobbyChoices.innerHTML = ''; }
+
+    async function showNpc(lines) {
+      clearLobby();
+      for (const line of lines) {
+        const p = document.createElement('p');
+        lobbyText.appendChild(p);
+        await typewrite(p, line, 35);
+        await delay(300);
+      }
+    }
+
+    function showBtns(opts) {
+      lobbyChoices.innerHTML = '';
+      for (const o of opts) {
+        const b = document.createElement('button');
+        b.className = 'lobby-choice';
+        b.textContent = o.label;
+        b.addEventListener('click', o.action);
+        lobbyChoices.appendChild(b);
+      }
+    }
+
+    // Wallet
+    function onConnected(addr) {
+      lobbyAddr = addr;
+      lobbyWalletBtn.textContent = truncateAddress(addr);
+      lobbyWalletBtn.classList.add('connected');
+    }
+    lobbyWalletBtn.addEventListener('click', () => walletConnect(onConnected));
+    autoReconnect({ onConnected });
+
+    // Also update main header wallet
+    const mainWalletBtn = document.getElementById('walletBtn');
+
+    // Rules
+    document.getElementById('rulesCloseBtn').addEventListener('click', () => rulesOverlay.classList.remove('active'));
+    rulesOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) rulesOverlay.classList.remove('active'); });
+
+    // Show Chazzy P intro
+    await delay(400);
+    lobbyChazzy.classList.add('visible');
+    await delay(800);
+    lobbyDlg.classList.add('visible');
+    await delay(400);
+
+    await showNpc([
+      "Ugg, I do hate being on set.",
+      "The grime... The Smell!",
+      "Anyhow, let's play shall we?"
+    ]);
+    showBtns([
+      { label: "Hand me the bones Chazzy", action: startChadSelect },
+      { label: "Craps Rules", action: () => rulesOverlay.classList.add('active') }
+    ]);
+
+    // Chad select
+    async function startChadSelect() {
+      clearLobby();
+      lobbyChazzy.classList.add('shrunk');
+      lobbyDlg.classList.add('tall');
+
+      if (!lobbyAddr) {
+        lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>';
+        return;
+      }
+
+      lobbyText.innerHTML = '<p class="loading">Loading your Chads...</p>';
+
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+      let balance;
+      try { balance = (await contract.balanceOf(lobbyAddr)).toNumber(); } catch { balance = 0; }
+
+      if (balance === 0) {
+        lobbyText.innerHTML = '<p style="color:#e53935">No Chads found. Mint one first!</p>';
+        return;
+      }
+
+      lobbyText.innerHTML = '<p class="npc-name">Pick your Chad</p>';
+
+      const grid = document.createElement('div');
+      grid.className = 'lobby-nft-grid';
+
+      for (let i = 0; i < balance; i++) {
+        const tid = (await contract.tokenOfOwnerByIndex(lobbyAddr, i)).toNumber();
+        const name = await contract.tokenName(tid).catch(() => '');
+        const card = document.createElement('div');
+        card.className = 'lobby-nft-card';
+        card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
+        card.addEventListener('click', () => {
+          grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          lobbyTokenId = tid;
+          lobbyChadName = name || 'Chad #' + tid;
+          showWager(tid, name);
+        });
+        grid.appendChild(card);
+      }
+      lobbyText.appendChild(grid);
+    }
+
+    // Wager
+    async function showWager(tid) {
+      // Remove old wager section if any
+      const old = document.getElementById('lobbyWagerSec');
+      if (old) old.remove();
+
+      const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
+      try { lobbyChips = (await items.balanceOf(lobbyAddr, 0)).toNumber(); } catch { lobbyChips = 0; }
+
+      const gambleRead = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, readProv);
+      let minW = 1, maxW = 500;
+      try { minW = (await gambleRead.minWager()).toNumber(); maxW = (await gambleRead.maxWager()).toNumber(); } catch {}
+
+      const cap = Math.min(maxW, lobbyChips);
+      const sec = document.createElement('div');
+      sec.className = 'lobby-wager';
+      sec.id = 'lobbyWagerSec';
+      sec.innerHTML = `
+        <p style="font-size:0.55rem;color:#c9a84c;margin-bottom:4px">CHIPS: ${lobbyChips}</p>
+        <p class="lobby-wager-val">WAGER: <span id="lobbyWagerVal">${Math.min(minW, cap)}</span></p>
+        <input type="range" id="lobbyWagerSlider" min="${minW}" max="${cap}" value="${Math.min(minW, cap)}" step="1">
+      `;
+      lobbyText.appendChild(sec);
+
+      const slider = document.getElementById('lobbyWagerSlider');
+      const valEl  = document.getElementById('lobbyWagerVal');
+      slider.addEventListener('input', () => { valEl.textContent = slider.value; });
+
+      showBtns([
+        { label: "LET'S ROLL", action: () => commitAndEnter(parseInt(slider.value)) },
+        { label: "Craps Rules", action: () => rulesOverlay.classList.add('active') }
+      ]);
+    }
+
+    // Commit wager on-chain and create session
+    async function commitAndEnter(wager) {
+      clearLobby();
+      lobbyText.innerHTML = '<p class="loading">Committing wager on-chain...</p>';
+
+      try {
+        const signer = await ensureSigner();
+        const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+        const tx = await gamble.commitWager(lobbyTokenId, wager);
+        const receipt = await tx.wait();
+
+        // Extract nonce from WagerCommitted event
+        const iface = new ethers.utils.Interface(GAMBLE_ABI);
+        let nonce;
+        for (const log of receipt.logs) {
+          try {
+            const parsed = iface.parseLog(log);
+            if (parsed.name === 'WagerCommitted') { nonce = parsed.args.nonce.toNumber(); break; }
+          } catch {}
+        }
+        if (nonce === undefined) throw new Error('WagerCommitted event not found');
+
+        lobbyText.innerHTML = '<p class="loading">Starting session...</p>';
+
+        // Call worker to start craps session
+        const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+        const resp = await fetch(WORKER_URL + '/craps/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId: lobbyTokenId, nonce, player: lobbyAddr, wager })
+        });
+        if (!resp.ok) throw new Error('Worker rejected session: ' + await resp.text());
+        const data = await resp.json();
+
+        // Save session and launch game
+        crapsSession = {
+          nonce, tokenId: lobbyTokenId, chadName: lobbyChadName,
+          stack: data.stack || wager, sessionToken: data.sessionToken,
+          sessionTokenTs: data.sessionTokenTs, player: lobbyAddr, buyIn: wager
+        };
+        sessionStorage.setItem('craps_session', JSON.stringify(crapsSession));
+
+        // Reload page — now crapsSession exists, lobby is skipped, game loads
+        window.location.reload();
+      } catch (err) {
+        lobbyText.innerHTML = `<p style="color:#e53935">${err.message || 'Transaction failed'}</p>`;
+        showBtns([{ label: "Try Again", action: startChadSelect }]);
+      }
+    }
+
+    // Block — lobby is active, don't init game yet
+    return;
+  })();
+  // Stop execution of game code until lobby completes
+  throw new Error('__LOBBY_ACTIVE__');
 }
+
+// Session exists — hide lobby, show game
+document.getElementById('crapsLobby').classList.add('hidden');
 
 const STATE = {
   stack: crapsSession.stack,
@@ -2015,7 +2336,7 @@ async function exitTable() {
   }
   sessionStorage.removeItem('craps_session');
   disconnectTable();
-  window.location.href = 'gamble.html';
+  window.location.href = 'craps.html';
 }
 
 // ── Wallet ──
@@ -2332,7 +2653,7 @@ function handleWsMessage(data) {
       currentTableCode = null;
       sessionStorage.removeItem('craps_session');
       disconnectTable();
-      setTimeout(() => { window.location.href = 'gamble.html'; }, 3000);
+      setTimeout(() => { window.location.href = 'craps.html'; }, 3000);
       break;
     }
 
@@ -2346,7 +2667,7 @@ function handleWsMessage(data) {
         addChatMsg('system', 'Redirecting to Gambling Den to start a new session...');
         sessionStorage.removeItem('craps_session');
         disconnectTable();
-        setTimeout(() => { window.location.href = 'gamble.html'; }, 3000);
+        setTimeout(() => { window.location.href = 'craps.html'; }, 3000);
       }
       break;
     }
