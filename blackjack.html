@@ -1,100 +1,380 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blackjack — Members Only</title>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="nav.css">
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Press Start 2P',monospace;color:#ffe96a}
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackjack — Members Only</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Press Start 2P',monospace;color:#ffe96a}
 
-    .lobby{
-      position:fixed;inset:0;z-index:500;
-      background-image:url('assets/mainbg.png');background-size:cover;background-position:center;
-      display:flex;flex-direction:column;align-items:center;overflow:hidden;
-    }
-    .lobby-chazzy{
-      position:absolute;bottom:42vh;left:50%;transform:translateX(-50%);
-      max-height:50vh;max-width:85vw;object-fit:contain;z-index:1;
-      opacity:0;transition:opacity 1s ease;
-    }
-    .lobby-chazzy.visible{opacity:1}
-    .lobby-dialogue{
-      position:fixed;bottom:0;left:0;right:0;height:42vh;z-index:10;
-      background:linear-gradient(180deg,rgba(15,10,5,0.92),rgba(10,8,4,0.98));
-      border-top:2px solid #c9a84c;display:flex;flex-direction:column;padding:1.5em 2em;overflow:hidden;
-      opacity:0;pointer-events:none;transform:translateY(20px);transition:opacity 0.8s ease,transform 0.8s ease;
-    }
-    .lobby-dialogue.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
-    .lobby-text{overflow-y:auto;font-size:0.65rem;line-height:2.2;color:#c9a84c;flex:1}
-    .lobby-choices{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:0.8em}
-    .lobby-choice{
-      font-family:'Press Start 2P',monospace;font-size:clamp(0.55rem,1.5vw,0.65rem);
-      color:#0a0a0f;background:#c9a84c;border:none;
-      border-bottom:5px solid #7a6020;border-right:5px solid #7a6020;
-      padding:14px 20px;cursor:pointer;width:100%;max-width:420px;text-align:center;
-    }
-    .lobby-choice:hover{background:#e8c060;border-color:#5c4409}
-    .lobby-choice:active{border-bottom-width:2px;border-right-width:2px;transform:translate(3px,3px)}
-  </style>
+/* ── Lobby ── */
+.lobby{position:fixed;inset:0;z-index:500;background-image:url('assets/mainbg.png');background-size:cover;background-position:center;display:flex;flex-direction:column;align-items:center;overflow:hidden}
+.lobby.hidden{display:none}
+.lobby-chazzy{position:absolute;bottom:42vh;left:50%;transform:translateX(-50%);max-height:50vh;max-width:85vw;object-fit:contain;z-index:1;opacity:0;transition:opacity 1s ease}
+.lobby-chazzy.visible{opacity:1}
+.lobby-chazzy.shrunk{max-height:22vh;bottom:auto;top:50px;transition:max-height .5s,top .5s,bottom .5s,opacity 1s}
+.lobby-dlg{position:fixed;bottom:0;left:0;right:0;height:42vh;z-index:10;background:linear-gradient(180deg,rgba(15,10,5,.92),rgba(10,8,4,.98));border-top:2px solid #c9a84c;display:flex;flex-direction:column;padding:1.5em 2em;overflow:hidden;opacity:0;pointer-events:none;transform:translateY(20px);transition:opacity .8s,transform .8s}
+.lobby-dlg.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
+.lobby-dlg.tall{height:calc(100vh - 22vh - 50px)}
+.lobby-text{overflow-y:auto;font-size:.65rem;line-height:2.2;color:#c9a84c;flex:1}
+.lobby-text .npc{color:#e8c060;font-size:.7rem;margin-bottom:.4em;display:block}
+.lobby-choices{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:.8em}
+.lobby-btn{font-family:'Press Start 2P',monospace;font-size:clamp(.55rem,1.5vw,.65rem);color:#0a0a0f;background:#c9a84c;border:none;border-bottom:5px solid #7a6020;border-right:5px solid #7a6020;padding:14px 20px;cursor:pointer;width:100%;max-width:420px;text-align:center}
+.lobby-btn:hover{background:#e8c060;border-color:#5c4409}
+.lobby-btn:active{border-bottom-width:2px;border-right-width:2px;transform:translate(3px,3px)}
+.wallet-btn{font-family:'Press Start 2P',monospace;font-size:.5rem;padding:8px 14px;background:linear-gradient(180deg,#c9a84c,#8b6914);border:2px solid #d4a017;border-radius:4px;color:#1a1005;cursor:pointer;position:fixed;top:12px;right:12px;z-index:520}
+.wallet-btn:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
+.wallet-btn.connected{font-size:.45rem}
+.nft-grid{display:flex;gap:.8em;flex-wrap:wrap;justify-content:center;margin-top:.6em;max-height:18vh;overflow-y:auto}
+.nft-card{width:80px;height:100px;border:2px solid #555;border-radius:6px;cursor:pointer;overflow:hidden;transition:all .2s;background:rgba(0,0,0,.5)}
+.nft-card img{width:100%;height:70%;object-fit:cover;image-rendering:pixelated}
+.nft-card .nft-id{font-size:.4rem;text-align:center;padding:2px;color:#ffe96a}
+.nft-card:hover{border-color:#ffaa40;transform:scale(1.06)}
+.nft-card.selected{border-color:#ffaa40;box-shadow:0 0 14px rgba(255,170,64,.5)}
+.wager-sec{margin-top:.6em;text-align:center}
+.wager-sec input[type=range]{width:80%;max-width:300px;accent-color:#c9a84c}
+.wager-val{font-size:.7rem;color:#ffe96a;margin:.4em 0}
+
+/* ── Game table ── */
+.game-wrap{display:none;width:100vw;height:100vh;flex-direction:column;align-items:center;background:#0a0a0f}
+.game-wrap.active{display:flex}
+.game-header{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(10,10,15,.95);border-bottom:2px solid #2a5a1a;z-index:10}
+.game-header .stack{font-size:.7rem;color:#ffe96a}
+.game-header .stack span{color:#c9a84c}
+.hdr-btn{font-family:'Press Start 2P',monospace;font-size:.4rem;padding:6px 12px;border-radius:4px;cursor:pointer;border:2px solid #c62828;color:#fff;background:linear-gradient(180deg,#e53935,#b71c1c)}
+.hdr-btn:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
+.felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;width:100%;max-width:500px;padding:16px}
+.hand-label{font-size:.5rem;color:#7a6020;letter-spacing:2px}
+.cards{display:flex;gap:8px;justify-content:center;min-height:100px}
+.card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:linear-gradient(180deg,#1a1608,#0f0d06);position:relative}
+.card.red{color:#c94040}
+.card.black{color:#f5e6c8}
+.card.hole{background:linear-gradient(135deg,#1a3a1a,#0d1f0d);border-color:#2a5a2a}
+.card .rank{font-size:clamp(.8rem,3vw,1.2rem);line-height:1}
+.card .suit{font-size:clamp(.6rem,2vw,.9rem);margin-top:2px}
+.hand-total{font-size:.6rem;color:#c9a84c;margin-top:4px}
+.result-msg{font-size:clamp(.6rem,2vw,.9rem);min-height:1.2em;text-align:center}
+.result-msg.win{color:#4caf50}
+.result-msg.lose{color:#e53935}
+.result-msg.push{color:#c9a84c}
+.result-msg.bj{color:#ffe96a;text-shadow:0 0 10px rgba(255,233,106,.5)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.act-btn{font-family:'Press Start 2P',monospace;font-size:clamp(.45rem,1.3vw,.55rem);padding:12px 18px;cursor:pointer;border:none;border-bottom:4px solid #7a6020;color:#0a0a0f;background:#c9a84c}
+.act-btn:hover{background:#e8c060}
+.act-btn:active{border-bottom-width:2px;transform:translateY(2px)}
+.act-btn:disabled{opacity:.3;cursor:default;transform:none}
+</style>
 </head>
 <body>
-
-<div class="lobby">
+<!-- ── Lobby ── -->
+<div id="lobby" class="lobby">
   <img id="lobbyChazzy" class="lobby-chazzy" src="assets/chazzyp/chazzypgamble.jpg" alt="Chazzy P">
-  <div id="lobbyDialogue" class="lobby-dialogue">
+  <div id="lobbyDlg" class="lobby-dlg">
     <div id="lobbyText" class="lobby-text"></div>
     <div id="lobbyChoices" class="lobby-choices"></div>
   </div>
+  <button id="walletBtn" class="wallet-btn">CONNECT WALLET</button>
 </div>
 
-<div id="nav-placeholder"></div>
+<!-- ── Game ── -->
+<div id="gameWrap" class="game-wrap">
+  <div class="game-header">
+    <div class="stack">CHIPS: <span id="stackVal">0</span></div>
+    <div id="nav-placeholder"></div>
+    <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
+  </div>
+  <div class="felt">
+    <div class="hand-label">DEALER</div>
+    <div class="cards" id="dealerCards"></div>
+    <div class="hand-total" id="dealerTotal"></div>
+
+    <div id="resultMsg" class="result-msg"></div>
+
+    <div class="hand-label">YOU</div>
+    <div class="cards" id="playerCards"></div>
+    <div class="hand-total" id="playerTotal"></div>
+
+    <div class="actions" id="actions">
+      <button class="act-btn" id="btnDeal">DEAL</button>
+      <button class="act-btn" id="btnHit" disabled>HIT</button>
+      <button class="act-btn" id="btnStand" disabled>STAND</button>
+      <button class="act-btn" id="btnDouble" disabled>DOUBLE</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 <script src="nav.js"></script>
-<script>
-(async function() {
-  const chazzy  = document.getElementById('lobbyChazzy');
-  const dlg     = document.getElementById('lobbyDialogue');
-  const text    = document.getElementById('lobbyText');
-  const choices = document.getElementById('lobbyChoices');
+<script type="module">
+import { connectWallet, autoReconnect, disconnect, getSigner, ensureSigner, truncateAddress } from './js/wallet.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, GAMBLE_ADDRESS, GAMBLE_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
 
-  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-  async function typewrite(el, str, speed = 35) { for (let i = 0; i < str.length; i++) { el.textContent += str[i]; await delay(speed); } }
+const WORKER = 'https://last-chad-runner.severin20.workers.dev';
+const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
 
-  await delay(400);
-  chazzy.classList.add('visible');
-  await delay(800);
-  dlg.classList.add('visible');
-  await delay(400);
+// ── Lobby state ──
+let addr = null, tokenId = null, chips = 0, chadName = '';
+let bjNonce = null, bjStack = 0, bjToken = null;
 
-  const lines = [
-    "Blackjack, huh?",
-    "21 or bust. Classic.",
-    "Table's not open yet... still hiring a dealer.",
-    "Check back soon, yeah?"
-  ];
+const lobbyEl  = document.getElementById('lobby');
+const chazzy   = document.getElementById('lobbyChazzy');
+const dlg      = document.getElementById('lobbyDlg');
+const lText    = document.getElementById('lobbyText');
+const lChoices = document.getElementById('lobbyChoices');
+const wBtn     = document.getElementById('walletBtn');
 
-  for (const line of lines) {
-    const p = document.createElement('p');
-    text.appendChild(p);
-    await typewrite(p, line, 35);
-    await delay(300);
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)) }
+async function type(el,s,sp=35){ for(let i=0;i<s.length;i++){ el.textContent+=s[i]; await delay(sp) } }
+function clearL(){ lText.innerHTML=''; lChoices.innerHTML='' }
+
+async function npc(lines){
+  clearL();
+  for(const l of lines){ const p=document.createElement('p'); lText.appendChild(p); await type(p,l); await delay(300) }
+}
+
+function btns(opts){
+  lChoices.innerHTML='';
+  for(const o of opts){
+    const b=document.createElement('button'); b.className='lobby-btn'; b.textContent=o.label;
+    b.addEventListener('click',o.action); lChoices.appendChild(b);
   }
+}
 
-  const btn = document.createElement('button');
-  btn.className = 'lobby-choice';
-  btn.textContent = 'Back to Lobby';
-  btn.addEventListener('click', () => { window.location.href = 'chadbase.html'; });
-  choices.appendChild(btn);
+// Wallet
+function onConn(a){ addr=a; wBtn.textContent=truncateAddress(a); wBtn.classList.add('connected') }
+wBtn.addEventListener('click',()=>connectWallet(onConn));
+autoReconnect({onConnected:onConn});
 
-  const btn2 = document.createElement('button');
-  btn2.className = 'lobby-choice';
-  btn2.textContent = 'Play Craps Instead';
-  btn2.addEventListener('click', () => { window.location.href = 'craps.html'; });
-  choices.appendChild(btn2);
-})();
+// Intro
+await delay(400); chazzy.classList.add('visible');
+await delay(800); dlg.classList.add('visible');
+await delay(400);
+
+await npc(["Blackjack. 21 or bust.","Closest to 21 wins. Beat the dealer.","Cards are on me."]);
+btns([{label:"Sit down",action:pickChad}]);
+
+// Chad select
+async function pickChad(){
+  clearL(); chazzy.classList.add('shrunk'); dlg.classList.add('tall');
+  if(!addr){lText.innerHTML='<p style="color:#e53935">Connect wallet first!</p>';return}
+  lText.innerHTML='<p>Loading Chads...</p>';
+  const c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);
+  let bal; try{bal=(await c.balanceOf(addr)).toNumber()}catch{bal=0}
+  if(!bal){lText.innerHTML='<p style="color:#e53935">No Chads. Mint one first!</p>';return}
+  lText.innerHTML='<p class="npc">Pick your Chad</p>';
+  const g=document.createElement('div'); g.className='nft-grid';
+  for(let i=0;i<bal;i++){
+    const tid=(await c.tokenOfOwnerByIndex(addr,i)).toNumber();
+    const nm=await c.tokenName(tid).catch(()=>'');
+    const d=document.createElement('div'); d.className='nft-card';
+    d.innerHTML=`<img src="${getChadImageUrl(tid)}"><div class="nft-id">${nm||'#'+tid}</div>`;
+    d.addEventListener('click',()=>{
+      g.querySelectorAll('.nft-card').forEach(x=>x.classList.remove('selected'));
+      d.classList.add('selected'); tokenId=tid; chadName=nm||'Chad #'+tid; showWager();
+    });
+    g.appendChild(d);
+  }
+  lText.appendChild(g);
+}
+
+// Wager
+async function showWager(){
+  let old=document.getElementById('wagerSec'); if(old)old.remove();
+  const items=new ethers.Contract(ITEMS_CONTRACT_ADDRESS,ITEMS_ABI,readProv);
+  try{chips=(await items.balanceOf(addr,0)).toNumber()}catch{chips=0}
+  const gR=new ethers.Contract(GAMBLE_ADDRESS,GAMBLE_ABI,readProv);
+  let mn=1,mx=500;
+  try{mn=(await gR.minWager()).toNumber();mx=(await gR.maxWager()).toNumber()}catch{}
+  const cap=Math.min(mx,chips);
+  const s=document.createElement('div'); s.className='wager-sec'; s.id='wagerSec';
+  s.innerHTML=`<p style="font-size:.55rem;color:#c9a84c">CHIPS: ${chips}</p>
+    <p class="wager-val">WAGER: <span id="wVal">${Math.min(mn,cap)}</span></p>
+    <input type="range" id="wSlider" min="${mn}" max="${cap}" value="${Math.min(mn,cap)}">`;
+  lText.appendChild(s);
+  document.getElementById('wSlider').addEventListener('input',e=>{document.getElementById('wVal').textContent=e.target.value});
+  btns([{label:"LET'S GO",action:()=>commitWager(+document.getElementById('wSlider').value)}]);
+}
+
+// On-chain commit + worker session
+async function commitWager(wager){
+  clearL(); lText.innerHTML='<p>Committing wager...</p>';
+  try{
+    const signer=await ensureSigner();
+    const gamble=new ethers.Contract(GAMBLE_ADDRESS,GAMBLE_ABI,signer);
+    const tx=await gamble.commitWager(tokenId,wager);
+    const receipt=await tx.wait();
+    const iface=new ethers.utils.Interface(GAMBLE_ABI);
+    for(const log of receipt.logs){try{const p=iface.parseLog(log);if(p.name==='WagerCommitted'){bjNonce=p.args.nonce.toNumber();break}}catch{}}
+    if(bjNonce===undefined) throw new Error('No WagerCommitted event');
+
+    lText.innerHTML='<p>Starting session...</p>';
+    const res=await fetch(WORKER+'/blackjack/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,player:addr})});
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    bjStack=data.stack; bjToken=data.sessionToken;
+
+    // Enter game
+    lobbyEl.classList.add('hidden');
+    document.getElementById('gameWrap').classList.add('active');
+    document.getElementById('stackVal').textContent=bjStack;
+  }catch(e){
+    lText.innerHTML=`<p style="color:#e53935">${e.message||'Failed'}</p>`;
+    btns([{label:"Try again",action:pickChad}]);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  GAME LOGIC
+// ══════════════════════════════════════════════
+
+const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const SUITS=['♠','♥','♦','♣'];
+const RED_SUIT=[false,true,true,false];
+
+const dealerCardsEl=document.getElementById('dealerCards');
+const playerCardsEl=document.getElementById('playerCards');
+const dealerTotalEl=document.getElementById('dealerTotal');
+const playerTotalEl=document.getElementById('playerTotal');
+const resultEl=document.getElementById('resultMsg');
+const stackEl=document.getElementById('stackVal');
+const btnDeal=document.getElementById('btnDeal');
+const btnHit=document.getElementById('btnHit');
+const btnStand=document.getElementById('btnStand');
+const btnDouble=document.getElementById('btnDouble');
+const cashoutBtn=document.getElementById('cashoutBtn');
+
+let handWager=0;
+
+function renderCard(c){
+  if(!c) return '<div class="card hole"><span style="font-size:.5rem;color:#2a5a2a">?</span></div>';
+  const r=RANKS[c.rank], s=SUITS[c.suit], col=RED_SUIT[c.suit]?'red':'black';
+  return `<div class="card ${col}"><span class="rank">${r}</span><span class="suit">${s}</span></div>`;
+}
+
+function renderHand(el,cards){ el.innerHTML=cards.map(renderCard).join('') }
+
+function setButtons(deal,hit,stand,dbl){
+  btnDeal.disabled=!deal; btnHit.disabled=!hit;
+  btnStand.disabled=!stand; btnDouble.disabled=!dbl;
+}
+
+function showResult(text,cls){
+  resultEl.textContent=text; resultEl.className='result-msg'+(cls?' '+cls:'');
+}
+
+// DEAL
+btnDeal.addEventListener('click', async ()=>{
+  setButtons(false,false,false,false);
+  resultEl.textContent=''; dealerCardsEl.innerHTML=''; playerCardsEl.innerHTML='';
+  dealerTotalEl.textContent=''; playerTotalEl.textContent='';
+
+  handWager=Math.max(1,Math.min(1,bjStack));
+  if(bjStack<1){ showResult('OUT OF CHIPS — CASH OUT','lose'); return }
+
+  try{
+    const res=await fetch(WORKER+'/blackjack/deal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,handWager,sessionToken:bjToken})});
+    const d=await res.json(); if(!d.ok) throw new Error(d.error);
+    bjStack=d.stack; stackEl.textContent=bjStack;
+
+    renderHand(playerCardsEl, d.playerCards);
+    playerTotalEl.textContent=d.playerValue;
+
+    if(d.result){
+      renderHand(dealerCardsEl, d.dealerCards);
+      dealerTotalEl.textContent=d.dealerValue;
+      if(d.result==='blackjack') showResult('BLACKJACK! +'+d.payout,'bj');
+      else if(d.result==='push') showResult('PUSH','push');
+      setButtons(true,false,false,false);
+    } else {
+      renderHand(dealerCardsEl, d.dealerCards);
+      setButtons(false,true,true,bjStack>=handWager);
+    }
+  }catch(e){ showResult(e.message||'Deal error','lose'); setButtons(true,false,false,false) }
+});
+
+// HIT
+btnHit.addEventListener('click', async ()=>{
+  setButtons(false,false,false,false);
+  try{
+    const res=await fetch(WORKER+'/blackjack/hit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
+    const d=await res.json(); if(!d.ok) throw new Error(d.error);
+    bjStack=d.stack; stackEl.textContent=bjStack;
+    renderHand(playerCardsEl, d.playerCards);
+    playerTotalEl.textContent=d.playerValue;
+
+    if(d.result==='bust'){
+      renderHand(dealerCardsEl, d.dealerCards);
+      dealerTotalEl.textContent=d.dealerValue;
+      showResult('BUST','lose');
+      setButtons(true,false,false,false);
+    } else {
+      setButtons(false,true,true,false);
+    }
+  }catch(e){ showResult(e.message||'Hit error','lose'); setButtons(false,true,true,false) }
+});
+
+// STAND
+btnStand.addEventListener('click', async ()=>{
+  setButtons(false,false,false,false);
+  try{
+    const res=await fetch(WORKER+'/blackjack/stand',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
+    const d=await res.json(); if(!d.ok) throw new Error(d.error);
+    bjStack=d.stack; stackEl.textContent=bjStack;
+    renderHand(playerCardsEl, d.playerCards); playerTotalEl.textContent=d.playerValue;
+    renderHand(dealerCardsEl, d.dealerCards); dealerTotalEl.textContent=d.dealerValue;
+
+    if(d.result==='win'||d.result==='dealer_bust') showResult('WIN! +'+d.payout,'win');
+    else if(d.result==='push') showResult('PUSH','push');
+    else showResult('DEALER WINS','lose');
+    setButtons(true,false,false,false);
+  }catch(e){ showResult(e.message||'Stand error','lose'); setButtons(false,false,true,false) }
+});
+
+// DOUBLE
+btnDouble.addEventListener('click', async ()=>{
+  setButtons(false,false,false,false);
+  try{
+    const res=await fetch(WORKER+'/blackjack/double',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
+    const d=await res.json(); if(!d.ok) throw new Error(d.error);
+    bjStack=d.stack; stackEl.textContent=bjStack;
+    renderHand(playerCardsEl, d.playerCards); playerTotalEl.textContent=d.playerValue;
+    renderHand(dealerCardsEl, d.dealerCards); dealerTotalEl.textContent=d.dealerValue;
+
+    if(d.result==='bust') showResult('BUST','lose');
+    else if(d.result==='win'||d.result==='dealer_bust') showResult('WIN! +'+d.payout,'win');
+    else if(d.result==='push') showResult('PUSH','push');
+    else showResult('DEALER WINS','lose');
+    setButtons(true,false,false,false);
+  }catch(e){ showResult(e.message||'Double error','lose'); setButtons(true,false,false,false) }
+});
+
+// CASHOUT
+cashoutBtn.addEventListener('click', async ()=>{
+  cashoutBtn.disabled=true; cashoutBtn.textContent='CASHING OUT...';
+  try{
+    const res=await fetch(WORKER+'/blackjack/cashout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,sessionToken:bjToken})});
+    const d=await res.json(); if(!d.ok) throw new Error(d.error);
+
+    if(d.payout>0){
+      showResult('Claiming '+d.payout+' chips...','win');
+      const signer=await ensureSigner();
+      const gamble=new ethers.Contract(GAMBLE_ADDRESS,GAMBLE_ABI,signer);
+      const tx=await gamble.claimWinnings(tokenId,d.payout,d.nonce,d.signature);
+      await tx.wait();
+      showResult('CASHED OUT: '+d.payout+' chips!','win');
+    } else {
+      showResult('No chips to claim.','lose');
+    }
+    setButtons(false,false,false,false);
+    setTimeout(()=>{window.location.href='chadbase.html'},3000);
+  }catch(e){
+    showResult(e.message||'Cashout failed','lose');
+    cashoutBtn.disabled=false; cashoutBtn.textContent='CASH OUT';
+  }
+});
 </script>
 </body>
 </html>
