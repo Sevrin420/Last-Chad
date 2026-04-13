@@ -31,6 +31,7 @@ const SET_GAME_ABI = [
 
 const SET_ITEMS_ABI = [
   'function setItems(address _items) external',
+  'function setTierReward(uint8 tier, uint256 amount) external',
 ];
 
 const MARKET_WIRE_ABI = [
@@ -132,6 +133,15 @@ async function main() {
   tx = await marketContract.setApprovedContract(itemsAddress, true);
   await tx.wait();
   console.log("  Market.setApprovedContract(Items)          ✓");
+
+  // Set tier rewards: T1=20, T2=10, T3=5, T4=0
+  console.log("\n── Setting tier rewards ──────────────────────────────────");
+  const tierRewards = { 1: 20, 2: 10, 3: 5, 4: 0 };
+  for (const [tier, reward] of Object.entries(tierRewards)) {
+    tx = await moSetItems.setTierReward(tier, reward);
+    await tx.wait();
+    console.log(`  Tier ${tier}: +${reward} chips/week                    ✓`);
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   // PATCH CONFIG FILES

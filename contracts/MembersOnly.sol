@@ -225,7 +225,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function setTier(uint256 tokenId, uint8 tier) external onlyOwner {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
-        require(tier >= 1 && tier <= 3, "Tier must be 1, 2, or 3");
+        require(tier >= 1 && tier <= 4, "Tier must be 1-4");
         tokenTier[tokenId] = tier;
         emit TierSet(tokenId, tier);
     }
@@ -234,14 +234,14 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         require(tokenIds.length == tiers.length, "Array length mismatch");
         for (uint256 i = 0; i < tokenIds.length; i++) {
             require(_ownerOf(tokenIds[i]) != address(0), "Token does not exist");
-            require(tiers[i] >= 1 && tiers[i] <= 3, "Tier must be 1, 2, or 3");
+            require(tiers[i] >= 1 && tiers[i] <= 3, "Tier must be 1-4");
             tokenTier[tokenIds[i]] = tiers[i];
             emit TierSet(tokenIds[i], tiers[i]);
         }
     }
 
     function setTierReward(uint8 tier, uint256 amount) external onlyOwner {
-        require(tier >= 1 && tier <= 3, "Tier must be 1, 2, or 3");
+        require(tier >= 1 && tier <= 4, "Tier must be 1-4");
         tierChipReward[tier] = amount;
         emit TierRewardSet(tier, amount);
     }
