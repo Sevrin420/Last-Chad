@@ -1,5 +1,5 @@
 /**
- * deployLastChad.js (deploys MembersOnly)
+ * deployMembersOnly.js
  *
  * Re-deploys only the MembersOnly (ERC-721) contract.
  * Useful when the membership contract is updated without touching Items or Gamble.
