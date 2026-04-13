@@ -5,6 +5,14 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
+      network:
+        description: 'Network'
+        required: true
+        default: 'fuji'
+        type: choice
+        options:
+          - fuji
+          - avalanche
       target:
         description: 'What to deploy'
         required: true
@@ -44,7 +52,7 @@ jobs:
   # Job 1: Deploy contracts
   # ───────────────────────────────────────────────────────────────────────────
   deploy-contract:
-    name: Deploy Contracts (Avalanche Mainnet)
+    name: Deploy Contracts (${{ inputs.network }})
     runs-on: ubuntu-latest
     if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'gamble'
     environment: mainnet
@@ -66,20 +74,20 @@ jobs:
         env:
           PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: npx hardhat run scripts/deployEverything.js --network avalanche
+        run: npx hardhat run scripts/deployEverything.js --network ${{ inputs.network }}
 
       - name: Deploy all contracts (MembersOnly + Items)
         if: inputs.target == 'all-contracts'
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/deployAll.js --network avalanche
+        run: npx hardhat run scripts/deployAll.js --network ${{ inputs.network }}
 
       - name: Deploy Gamble only
         if: inputs.target == 'gamble'
         env:
           PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: npx hardhat run scripts/deployGamble.js --network avalanche
+        run: npx hardhat run scripts/deployGamble.js --network ${{ inputs.network }}
 
       - name: Commit updated js/config.js
         run: |
@@ -177,7 +185,7 @@ jobs:
       - name: Authorize game contracts in MembersOnly + MembersOnlyItems
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/authorizeContracts.js --network avalanche
+        run: npx hardhat run scripts/authorizeContracts.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 4: Verify contracts on Snowtrace
@@ -201,7 +209,7 @@ jobs:
       - name: Verify all contracts on Snowtrace
         env:
           SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
-        run: npx hardhat run scripts/verifyAll.js --network avalanche
+        run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 4b: Validate contracts on-chain (read-only, no secrets needed)
@@ -223,7 +231,7 @@ jobs:
       - run: npm ci
 
       - name: Validate all contracts on-chain
-        run: npx hardhat run scripts/validateContracts.js --network avalanche
+        run: npx hardhat run scripts/validateContracts.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 6: Open or close the gambling den
@@ -248,7 +256,7 @@ jobs:
         env:
           PRIVATE_KEY:  ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           GAMBLE_OPEN:  ${{ inputs.target == 'gamble-open' && 'true' || 'false' }}
-        run: npx hardhat run scripts/toggleGamble.js --network avalanche
+        run: npx hardhat run scripts/toggleGamble.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 7: Award chips to every Chad in the owner wallet
@@ -272,7 +280,7 @@ jobs:
       - name: Award chips to each Chad in owner wallet
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/awardOwnerCells.js --network avalanche
+        run: npx hardhat run scripts/awardOwnerCells.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 8: Whitelist MembersOnly + Items on the Market contract
@@ -296,7 +304,7 @@ jobs:
       - name: Whitelist MembersOnly + Items on Market contract
         env:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/approveMarketContracts.js --network avalanche
+        run: npx hardhat run scripts/approveMarketContracts.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job: Fix Worker — sync addresses from js/config.js and redeploy
