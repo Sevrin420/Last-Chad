@@ -1,7 +1,7 @@
 name: Compress Member Images
 
 # Converts all images in assets/members/ to PNG ~250KB each and renames
-# them member001.png, member002.png, etc. (sorted alphabetically).
+# them member001.png, member002.png, etc.
 
 on:
   workflow_dispatch:
@@ -16,54 +16,45 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install pngquant and ImageMagick
-        run: sudo apt-get update && sudo apt-get install -y pngquant imagemagick webp
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y imagemagick webp
 
       - name: Convert, compress and rename images
         run: |
           SRC="assets/members"
-          OUT="assets/members-compressed"
-          TARGET_KB=250
+          OUT="assets/members-out"
           mkdir -p "$OUT"
 
           counter=1
-          for img in $(ls "$SRC"/*.png "$SRC"/*.jpg "$SRC"/*.jpeg "$SRC"/*.webp 2>/dev/null | sort); do
+          for img in $(find "$SRC" -maxdepth 1 -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.webp' \) | sort); do
             num=$(printf "%03d" $counter)
-            outfile="$OUT/member${num}.png"
+            tmp="/tmp/member_${num}.png"
 
-            # Convert any format to PNG, cap dimensions
-            convert "$img" -resize '1200x1200>' "$outfile"
+            # Convert any format to PNG first
+            if [[ "$img" == *.webp ]]; then
+              dwebp "$img" -o "$tmp" 2>/dev/null
+            else
+              cp "$img" "$tmp"
+            fi
 
-            # Binary search for pngquant quality that lands near 250KB
-            lo=10 hi=95 best_q=60
-            for attempt in 1 2 3 4 5 6 7; do
-              mid=$(( (lo + hi) / 2 ))
-              pngquant --quality=$mid-$mid --force --output /tmp/test_compress.png "$outfile" 2>/dev/null || {
-                lo=$((mid + 1))
-                continue
-              }
-              size_kb=$(( $(stat -c%s /tmp/test_compress.png) / 1024 ))
-              if [ "$size_kb" -gt "$TARGET_KB" ]; then
-                hi=$((mid - 1))
-              else
-                best_q=$mid
-                lo=$((mid + 1))
-              fi
-            done
+            # Resize and compress to ~250KB using ImageMagick quality reduction
+            convert "$tmp" -resize '1200x1200>' -quality 85 -define png:compression-level=9 "$OUT/member${num}.png"
 
-            pngquant --quality=$best_q-$best_q --force --output "$outfile.tmp" "$outfile" 2>/dev/null \
-              && mv "$outfile.tmp" "$outfile" \
-              || pngquant --quality=40-60 --force --output "$outfile.tmp" "$outfile" 2>/dev/null && mv "$outfile.tmp" "$outfile"
+            # If still too big, reduce further
+            size_kb=$(( $(stat -c%s "$OUT/member${num}.png") / 1024 ))
+            if [ "$size_kb" -gt 300 ]; then
+              convert "$tmp" -resize '800x800>' -quality 80 -colors 256 -define png:compression-level=9 "$OUT/member${num}.png"
+              size_kb=$(( $(stat -c%s "$OUT/member${num}.png") / 1024 ))
+            fi
 
-            size_kb=$(( $(stat -c%s "$outfile") / 1024 ))
-            echo "  $img → member${num}.png (${size_kb}KB, q=$best_q)"
+            echo "  $(basename $img) → member${num}.png (${size_kb}KB)"
+            rm -f "$tmp"
             counter=$((counter + 1))
           done
 
           echo ""
           echo "── Results ──"
-          echo "Images compressed: $((counter - 1))"
-
+          echo "Images: $((counter - 1))"
           ORIG_SIZE=$(du -sh "$SRC" | cut -f1)
           NEW_SIZE=$(du -sh "$OUT" | cut -f1)
           echo "Original:   $ORIG_SIZE"
@@ -75,7 +66,6 @@ jobs:
           rmdir "$OUT"
           rm -f "$SRC/test"
 
-          echo ""
           ls -lh "$SRC"
 
       - name: Commit compressed images

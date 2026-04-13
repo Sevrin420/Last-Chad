@@ -55,7 +55,7 @@ async function main() {
   console.log(`  Oracle:    ${oracleAddress}\n`);
 
   // ── 1. MembersOnly ──────────────────────────────────────────────────────
-  const baseURI = "https://lastchad.xyz/metadata/";
+  const baseURI = "https://lastchad.xyz/members-metadata/";
   console.log("1/5  Deploying MembersOnly (ERC-721)...");
   const MembersOnly = await hre.ethers.getContractFactory("MembersOnly");
   const membersOnly = await MembersOnly.deploy(baseURI);
