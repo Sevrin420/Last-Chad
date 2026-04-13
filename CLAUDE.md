@@ -65,18 +65,17 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 ---
 
-## Smart Contracts (6 total, in `/contracts`)
+## Smart Contracts (5 total, in `/contracts`)
 
 | Contract | Purpose |
 |----------|---------|
-| `MembersOnly.sol` | ERC-721 NFT (222 max, 0.01 AVAX, chips, tiers, levels, weekly claims, partner bonus, Merkle whitelist) |
-| `MembersOnlyItems.sol` | ERC-1155 items (stackable/non-stackable, utilize/lock, wallet-claimable) |
+| `MembersOnly.sol` | ERC-721 NFT (222 max, 0.01 AVAX, tiers, levels, weekly chip claims, partner bonus, Merkle whitelist) |
+| `MembersOnlyItems.sol` | ERC-1155 items + chips (token ID 0) + treasury yield vault (burn 10k chips/share, monthly AVAX yield) |
 | `Gamble.sol` | Chip wagering: commitWager/claimWinnings (craps), flip (coin), resolveGame (oracle) |
 | `Market.sol` | Player-to-player NFT trading |
 | `Tournament.sol` | Tournament system: enter, lock score, rebuy, leaderboard |
-| `Treasury.sol` | Yield vault: burn 10k chips/share, owner deposits AVAX monthly, shareholders claim proportional yield |
 
-**Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, Tournament, and Treasury (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
+**Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, and Tournament (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
 
 **Key constants:**
 - `MAX_SUPPLY`: 222
@@ -97,7 +96,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 5. CRAPS        craps.html  → WebSocket to Durable Object     → multiplayer craps
 6. CASHOUT      craps.html  → Gamble.claimWinnings()          → oracle-signed payout
 7. TOURNAMENT   tournament.html → Tournament.enterTournament() → compete for prizes
-8. TREASURY     treasury.html → Treasury.burnForShares()      → burn 10k chips per yield share
+8. TREASURY     treasury.html → Items.burnForShares()         → burn 10k chips per yield share
 ```
 
 ---
@@ -108,19 +107,19 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 - Players can freely transfer chips between wallets via standard ERC-1155 transfers
 - **Mint at mint**: MembersOnly calls `items.mintChips(wallet, amount)` on NFT mint
 - **Weekly claim**: `claimWeeklyChips(tokenId)` → mints `tierChipReward[tier] + levelBonusChips[level]` chips to wallet
-- **Spend**: Gamble/Tournament/Treasury call `items.burnChips(wallet, amount)` — must be authorized in Items
+- **Spend**: Gamble/Tournament call `items.burnChips(wallet, amount)` — must be authorized in Items
 - **Award**: Gamble calls `items.mintChips(wallet, amount)` for winnings
 - **Authorization**: All contracts that mint/burn chips must be authorized in MembersOnlyItems via `setGameContract`
 
 ---
 
-## Treasury (Yield Vault)
+## Treasury (Yield Vault — built into MembersOnlyItems)
 
-- Each month: players burn **10,000 chips per share** via `Treasury.burnForShares(tokenId, numShares)` — shares reset monthly
+- Each month: players burn **10,000 chips per share** via `items.burnForShares(tokenId, numShares)` — shares reset monthly
 - Burn 20,000 = 2 shares that month, etc.
-- Owner deposits AVAX via `depositYield()` — finalizes the month, advances to next
-- Shareholders claim proportional yield: `claimYield(tokenId, month)` or `batchClaimYield(tokenId, months[])`
-- Treasury must be authorized in MembersOnlyItems (`items.setGameContract`)
+- Owner deposits AVAX via `items.depositYield()` — finalizes the month, advances to next
+- Shareholders claim proportional yield: `items.claimYield(tokenId, month)` or `items.batchClaimYield(tokenId, months[])`
+- No separate contract — treasury is part of MembersOnlyItems (chips are already there, so burning is internal)
 
 ---
 
