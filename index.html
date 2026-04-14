@@ -184,116 +184,9 @@
     /* index.html: nav positioned over the hero image */
     .nav-wrapper { position: absolute; top: 12px; left: 12px; z-index: 50; }
 
-    /* --- Intro video overlay --- */
-    .intro-video {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      z-index: 10;
-      background: #0a0a0f;
-    }
-
-    /* Tap-to-start overlay */
-    .tap-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 15;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      background: transparent;
-    }
-
-    .tap-label {
-      font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.55rem, 1.8vw, 1rem);
-      color: rgba(255, 255, 255, 0.75);
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      border-radius: 3px;
-      padding: 14px 28px;
-      letter-spacing: 3px;
-      pointer-events: none;
-      animation: tapPulse 1.8s ease-in-out infinite;
-    }
-
-    @keyframes tapPulse {
-      0%, 100% { opacity: 0.6; }
-      50%       { opacity: 1; }
-    }
-
-    /* Skip button */
-    .skip-btn {
-      position: absolute;
-      bottom: 5%;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      background: rgba(0, 0, 0, 0.35);
-      color: rgba(255, 255, 255, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 2px;
-      font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.35rem, 1vw, 0.55rem);
-      padding: 7px 16px;
-      cursor: pointer;
-      letter-spacing: 2px;
-      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-      white-space: nowrap;
-    }
-
-    .skip-btn:hover {
-      background: rgba(0, 0, 0, 0.6);
-      color: rgba(255, 255, 255, 0.88);
-      border-color: rgba(255, 255, 255, 0.35);
-    }
-
-    /* Sound toggle – top-right corner */
-    .sound-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 25;
-      width: 34px;
-      height: 34px;
-      background: rgba(0, 0, 0, 0.38);
-      color: rgba(255, 255, 255, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 3px;
-      font-size: 1rem;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-    }
-
-    .sound-btn:hover {
-      background: rgba(0, 0, 0, 0.62);
-      color: rgba(255, 255, 255, 0.92);
-      border-color: rgba(255, 255, 255, 0.38);
-    }
-
-    /* Buttons hidden until video ends, then fade in */
+    /* Buttons visible immediately */
     .mint-btn, .enter-btn {
-      opacity: 0;
-      pointer-events: none;
       z-index: 15;
-    }
-
-    @keyframes fadeInBtn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
-    }
-
-    .mint-btn.visible, .enter-btn.visible {
-      animation: fadeInBtn 1.3s ease both;
-      opacity: 1;
-      pointer-events: auto;
     }
 
     /* --- Game links row --- */
@@ -305,14 +198,6 @@
       display: flex;
       gap: clamp(12px, 3vw, 30px);
       z-index: 15;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .game-links.visible {
-      animation: fadeInBtn 1.3s ease 0.3s both;
-      opacity: 1;
-      pointer-events: auto;
     }
 
     .game-link {
@@ -347,29 +232,13 @@
   <div class="landing">
     <img src="assets/membersonly/home.jpg" alt="Members Only" class="hero-image">
 
-    <!-- Intro video (tries to autoplay with sound; last frame stays when done) -->
-    <video id="intro-video" class="intro-video" playsinline preload="auto">
-      <source src="assets/introvideo.mp4" type="video/mp4">
-    </video>
-
-    <!-- Tap-to-start overlay (needed for browser sound policy) -->
-    <div id="tap-overlay" class="tap-overlay">
-      <span class="tap-label">▶ TAP TO START</span>
-    </div>
-
-    <!-- Skip button shown while video plays (hidden until tap-to-start) -->
-    <button id="skip-btn" class="skip-btn" style="display:none">SKIP ▶</button>
-
-    <!-- Sound toggle – top right corner (hidden until tap-to-start) -->
-    <button id="sound-btn" class="sound-btn" style="display:none" title="Mute">🔊</button>
-
     <!-- Nav menu -->
     <div id="nav-placeholder"></div>
 
-    <a href="mint.html" class="btn mint-btn" aria-label="Mint"><span>Mint</span></a>
-    <a href="chadbase.html" class="btn enter-btn" aria-label="Enter"><span>Enter</span></a>
+    <a href="mint.html" class="btn mint-btn visible" aria-label="Mint"><span>Mint</span></a>
+    <a href="chadbase.html" class="btn enter-btn visible" aria-label="Enter"><span>Enter</span></a>
 
-    <div class="game-links">
+    <div class="game-links visible">
       <a href="poker.html" class="game-link">POKER</a>
       <a href="craps.html" class="game-link">CRAPS</a>
       <a href="blackjack.html" class="game-link">BLACKJACK</a>
@@ -377,69 +246,6 @@
   </div>
 
   <script>
-    // --- Intro video logic ---
-    (function() {
-      try {
-        var video      = document.getElementById('intro-video');
-        var skipBtn    = document.getElementById('skip-btn');
-        var soundBtn   = document.getElementById('sound-btn');
-        var tapOverlay = document.getElementById('tap-overlay');
-        var mintBtn  = document.querySelector('.mint-btn');
-        var enterBtn = document.querySelector('.enter-btn');
-
-        // --- Sound toggle ---
-        function setSoundState(muted) {
-          video.muted    = muted;
-          soundBtn.textContent = muted ? '🔇' : '🔊';
-          soundBtn.title       = muted ? 'Unmute' : 'Mute';
-        }
-
-        soundBtn.addEventListener('click', function() {
-          setSoundState(!video.muted);
-        });
-
-        // --- Reveal mint/enter buttons (called after video ends or skip) ---
-        var gameLinks = document.querySelector('.game-links');
-
-        function revealButtons() {
-          skipBtn.style.display  = 'none';
-          soundBtn.style.display = 'none';
-          mintBtn.classList.add('visible');
-          enterBtn.classList.add('visible');
-          gameLinks.classList.add('visible');
-        }
-
-        // --- Natural video end: 3-second pause then go to chadbase ---
-        video.addEventListener('ended', function() {
-          skipBtn.style.display  = 'none';
-          soundBtn.style.display = 'none';
-          setTimeout(function() {
-            window.location.href = 'chadbase.html';
-          }, 3000);
-        });
-
-        // --- Enter: navigate directly to chadbase (bypasses ENTER CAMP button) ---
-        skipBtn.addEventListener('click', function() {
-          window.location.href = 'chadbase.html';
-        });
-
-        // --- Tap to start (browsers require user gesture for sound) ---
-        tapOverlay.addEventListener('click', function() {
-          tapOverlay.style.display = 'none';
-          skipBtn.style.display  = '';
-          soundBtn.style.display = '';
-          video.muted = false;
-          var p = video.play();
-          if (p !== undefined) {
-            p.catch(function() {
-              // Play still blocked – go straight to chadbase
-              window.location.href = 'chadbase.html';
-            });
-          }
-        });
-      } catch(e) {}
-    })();
-
     // --- Ripple effects ---
     try {
       document.querySelectorAll('.btn').forEach(function(btn) {
