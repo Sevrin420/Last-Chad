@@ -2,299 +2,231 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Members Only</title>
-  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="nav.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press Start 2P',monospace;color:#ffe96a}
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      background: #0a0a0f;
-      overflow: hidden;
+    .front-door{
+      width:100%;height:100%;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:24px;
+      position:relative;
     }
 
-    .landing {
-      position: relative;
-      width: 100%;
-      height: 100vh;
-      height: 100svh;
-      margin: 0 auto;
-      overflow: hidden;
-    }
+    .title{font-size:clamp(1rem,4vw,2rem);color:#c9a84c;text-align:center;letter-spacing:3px;
+      text-shadow:0 0 20px rgba(201,168,76,0.3)}
+    .subtitle{font-size:clamp(0.4rem,1.5vw,0.6rem);color:#5c4409;letter-spacing:2px;text-align:center}
 
-    .hero-image {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: contain;
-      object-position: center center;
-      background: #000;
+    /* Buttons row */
+    .door-btns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+    .door-btn{
+      font-family:'Press Start 2P',monospace;font-size:clamp(0.45rem,1.4vw,0.6rem);
+      padding:14px 24px;cursor:pointer;border:2px solid #5c4409;border-radius:4px;
+      color:#c9a84c;background:rgba(30,22,8,0.8);letter-spacing:1px;
+      transition:all 0.15s;text-decoration:none;display:inline-block;
     }
+    .door-btn:hover{border-color:#c9a84c;background:rgba(60,44,16,0.8);color:#ffe96a}
+    .door-btn.gold{
+      background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005;border-color:#d4a017;
+      box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
+    }
+    .door-btn.gold:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
 
-    /* --- Pixel Art Buttons --- */
-    .btn {
-      position: absolute;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      text-decoration: none;
-      font-family: 'Press Start 2P', monospace;
-      color: #ffffff;
-      font-size: clamp(0.7rem, 2.5vw, 1.4rem);
-      letter-spacing: 2px;
-      text-shadow:
-        2px 2px 0 #000,
-        -2px -2px 0 #000,
-        2px -2px 0 #000,
-        -2px 2px 0 #000;
-      border-radius: 0;
-      border: 4px solid #000;
-      transition: transform 0.08s ease, filter 0.08s ease;
-      overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      touch-action: manipulation;
-      image-rendering: pixelated;
+    /* NFT grid */
+    .nft-area{display:none;flex-direction:column;align-items:center;gap:12px;margin-top:16px}
+    .nft-area.visible{display:flex}
+    .nft-label{font-size:0.5rem;color:#5c4409}
+    .nft-grid{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:500px}
+    .nft-card{
+      width:80px;height:100px;border:2px solid #333;border-radius:6px;cursor:pointer;
+      overflow:hidden;transition:all 0.3s;background:rgba(0,0,0,0.5);position:relative;
     }
+    .nft-card img{width:100%;height:70%;object-fit:cover;image-rendering:pixelated}
+    .nft-card .nft-id{font-size:0.35rem;text-align:center;padding:2px;color:#7a6020}
+    .nft-card:hover{border-color:#c9a84c;transform:scale(1.05)}
+    .nft-card.selected{border-color:#ffe96a;box-shadow:0 0 20px rgba(255,233,106,0.6)}
+    .nft-card.glow-gold{border-color:#ffe96a;box-shadow:0 0 25px rgba(255,233,106,0.8),0 0 50px rgba(201,168,76,0.4);
+      animation:goldPulse 1.5s ease-in-out infinite}
+    @keyframes goldPulse{0%,100%{box-shadow:0 0 25px rgba(255,233,106,0.8),0 0 50px rgba(201,168,76,0.4)}
+      50%{box-shadow:0 0 35px rgba(255,233,106,1),0 0 70px rgba(201,168,76,0.6)}}
 
-    /* Pixel dither texture */
-    .btn::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='2' height='2' fill='rgba(255,255,255,0.07)'/%3E%3Crect x='2' y='2' width='2' height='2' fill='rgba(255,255,255,0.07)'/%3E%3C/svg%3E");
-      z-index: 1;
-      pointer-events: none;
+    /* Result area */
+    .result{display:none;flex-direction:column;align-items:center;gap:16px;margin-top:20px}
+    .result.visible{display:flex}
+    .host-img{max-height:30vh;max-width:80vw;object-fit:contain;border-radius:8px;
+      border:2px solid #c9a84c;box-shadow:0 0 30px rgba(201,168,76,0.3)}
+    .welcome-msg{font-size:clamp(0.5rem,1.8vw,0.75rem);color:#c9a84c;text-align:center;line-height:2}
+    .enter-btn{
+      font-family:'Press Start 2P',monospace;font-size:clamp(0.5rem,1.6vw,0.7rem);
+      padding:16px 32px;cursor:pointer;border:none;
+      background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005;
+      border-bottom:5px solid #7a6020;letter-spacing:2px;
     }
+    .enter-btn:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
+    .enter-btn:active{border-bottom-width:2px;transform:translateY(3px)}
+    .mint-btn-reveal{
+      font-family:'Press Start 2P',monospace;font-size:clamp(0.45rem,1.4vw,0.6rem);
+      padding:14px 28px;cursor:pointer;border:2px solid #1a6b2a;border-radius:4px;
+      background:linear-gradient(180deg,#1a6b2a,#0d3515);color:#fff;letter-spacing:1px;
+    }
+    .mint-btn-reveal:hover{background:linear-gradient(180deg,#228b3a,#145a22)}
 
-    .btn::after {
-      content: none;
-    }
-
-    .btn span {
-      position: relative;
-      z-index: 2;
-    }
-
-    /* --- Mint button (dark pixel green) --- */
-    .mint-btn {
-      background: #1a6b2a;
-      border-color: #091a0e;
-      box-shadow:
-        inset 5px 5px 0 rgba(255, 255, 255, 0.22),
-        inset -5px -5px 0 rgba(0, 0, 0, 0.55),
-        0 6px 0 #091a0e,
-        0 8px 0 #030805,
-        0 10px 14px rgba(0, 0, 0, 0.75);
-    }
-
-    .mint-btn:hover {
-      filter: brightness(1.12);
-      box-shadow:
-        inset 5px 5px 0 rgba(255, 255, 255, 0.26),
-        inset -5px -5px 0 rgba(0, 0, 0, 0.5),
-        0 6px 0 #091a0e,
-        0 8px 0 #030805,
-        0 12px 18px rgba(0, 0, 0, 0.75),
-        0 0 20px rgba(26, 107, 42, 0.5);
-    }
-
-    .mint-btn:active {
-      transform: translateY(6px);
-      box-shadow:
-        inset 5px 5px 0 rgba(0, 0, 0, 0.45),
-        inset -2px -2px 0 rgba(255, 255, 255, 0.1),
-        0 1px 0 #091a0e,
-        0 3px 6px rgba(0, 0, 0, 0.7);
-    }
-
-    /* --- Enter button (dark pixel red) --- */
-    .enter-btn {
-      background: #8b1515;
-      border-color: #2a0505;
-      box-shadow:
-        inset 5px 5px 0 rgba(255, 255, 255, 0.18),
-        inset -5px -5px 0 rgba(0, 0, 0, 0.55),
-        0 6px 0 #2a0505,
-        0 8px 0 #0f0202,
-        0 10px 14px rgba(0, 0, 0, 0.75);
-    }
-
-    .enter-btn:hover {
-      filter: brightness(1.12);
-      box-shadow:
-        inset 5px 5px 0 rgba(255, 255, 255, 0.22),
-        inset -5px -5px 0 rgba(0, 0, 0, 0.5),
-        0 6px 0 #2a0505,
-        0 8px 0 #0f0202,
-        0 12px 18px rgba(0, 0, 0, 0.75),
-        0 0 20px rgba(139, 21, 21, 0.5);
-    }
-
-    .enter-btn:active {
-      transform: translateY(6px);
-      box-shadow:
-        inset 5px 5px 0 rgba(0, 0, 0, 0.45),
-        inset -2px -2px 0 rgba(255, 255, 255, 0.1),
-        0 1px 0 #2a0505,
-        0 3px 6px rgba(0, 0, 0, 0.7);
-    }
-
-    /* --- Ripple animation on click --- */
-    @keyframes ripple {
-      0% { transform: scale(0); opacity: 0.6; }
-      100% { transform: scale(4); opacity: 0; }
-    }
-
-    .ripple-effect {
-      position: absolute;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255, 255, 255, 0.5), transparent);
-      width: 50px;
-      height: 50px;
-      pointer-events: none;
-      z-index: 3;
-      animation: ripple 0.6s ease-out forwards;
-    }
-
-    /* --- Button positions --- */
-    .mint-btn {
-      left: 7%;
-      top: 65%;
-      width: 36%;
-      height: 8%;
-    }
-
-    .enter-btn {
-      left: 55%;
-      top: 65%;
-      width: 36%;
-      height: 8%;
-    }
-
-    /* index.html: nav positioned over the hero image */
-    .nav-wrapper { position: absolute; top: 12px; left: 12px; z-index: 50; }
-
-    /* Buttons visible immediately */
-    .mint-btn, .enter-btn {
-      z-index: 15;
-    }
-
-    /* --- Game links row --- */
-    .game-links {
-      position: absolute;
-      left: 50%;
-      top: 78%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: clamp(12px, 3vw, 30px);
-      z-index: 15;
-    }
-
-    .game-link {
-      font-family: 'Press Start 2P', monospace;
-      font-size: clamp(0.5rem, 1.8vw, 0.9rem);
-      color: #c9a84c;
-      text-decoration: none;
-      letter-spacing: 2px;
-      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
-      padding: 8px 16px;
-      border: 2px solid rgba(201, 168, 76, 0.3);
-      background: rgba(0, 0, 0, 0.5);
-      transition: color 0.15s, border-color 0.15s, background 0.15s;
-    }
-
-    .game-link:hover {
-      color: #ffe96a;
-      border-color: rgba(255, 233, 106, 0.5);
-      background: rgba(0, 0, 0, 0.7);
-    }
-
-    /* === Desktop === */
-    @media (min-width: 900px) {
-      .btn { font-size: clamp(0.7rem, 2.5vw, 1.4rem); }
-      .nav-wrapper { top: 12px; left: 12px; }
-      .sound-btn { top: 12px; right: 12px; }
-      .tap-label { padding: 14px 28px; }
-    }
-
-    .wallet-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 50;
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.5rem;
-      padding: 10px 16px;
-      background: linear-gradient(180deg, #c9a84c 0%, #8b6914 100%);
-      border: 2px solid #d4a017;
-      border-radius: 4px;
-      color: #1a1005;
-      cursor: pointer;
-      box-shadow: inset 0 1px 0 rgba(255, 220, 120, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5);
-    }
-    .wallet-btn:hover {
-      background: linear-gradient(180deg, #dabb5e 0%, #a07d1e 100%);
-    }
-    .wallet-btn.connected {
-      font-size: 0.45rem;
-    }
+    .status-msg{font-size:0.45rem;color:#5c4409;text-align:center;min-height:1em}
+    .nav-wrapper{position:absolute;top:12px;left:12px;z-index:50}
   </style>
 </head>
 <body>
-  <div class="landing">
-    <img src="assets/membersonly/home.jpg" alt="Members Only" class="hero-image">
+<div class="front-door">
+  <div id="nav-placeholder"></div>
 
-    <!-- Nav menu -->
-    <div id="nav-placeholder"></div>
+  <div class="title">MEMBERS ONLY</div>
+  <div class="subtitle">AN EXCLUSIVE CASINO ON AVALANCHE</div>
 
-    <button id="walletBtn" class="wallet-btn">CONNECT WALLET</button>
-
-    <div class="game-links visible">
-      <a href="poker.html" class="game-link">POKER</a>
-      <a href="craps.html" class="game-link">CRAPS</a>
-      <a href="blackjack.html" class="game-link">BLACKJACK</a>
-    </div>
+  <div class="door-btns" id="doorBtns">
+    <button class="door-btn gold" id="connectBtn">CONNECT WALLET</button>
+    <a href="docs.html" class="door-btn">DOCS</a>
   </div>
 
-  <script>
-    // --- Ripple effects ---
+  <div class="status-msg" id="statusMsg"></div>
+
+  <!-- NFT selection after wallet connects -->
+  <div class="nft-area" id="nftArea">
+    <div class="nft-label">YOUR NFTS</div>
+    <div class="nft-grid" id="nftGrid"></div>
+  </div>
+
+  <!-- Welcome message for Members Only NFT holders -->
+  <div class="result" id="memberResult">
+    <img class="host-img" src="assets/chazzyp/chazzypgamble.jpg" alt="Host" id="hostImg">
+    <div class="welcome-msg" id="welcomeMsg"></div>
+    <button class="enter-btn" id="enterClubBtn">ENTER THE CLUB</button>
+  </div>
+
+  <!-- Mint button for Token holders -->
+  <div class="result" id="tokenResult">
+    <button class="mint-btn-reveal" id="mintBtn">MINT YOUR MEMBERSHIP</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<script src="nav.js"></script>
+<script type="module">
+import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
+
+const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
+const connectBtn = document.getElementById('connectBtn');
+const statusMsg = document.getElementById('statusMsg');
+const nftArea = document.getElementById('nftArea');
+const nftGrid = document.getElementById('nftGrid');
+const memberResult = document.getElementById('memberResult');
+const tokenResult = document.getElementById('tokenResult');
+const welcomeMsg = document.getElementById('welcomeMsg');
+const enterClubBtn = document.getElementById('enterClubBtn');
+const mintBtn = document.getElementById('mintBtn');
+
+// TODO: Replace with actual Member Token contract address when deployed
+const MEMBER_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+const MEMBER_TOKEN_ABI = ['function balanceOf(address) view returns (uint256)'];
+
+let userAddr = null;
+
+async function onConnected(addr) {
+  userAddr = addr;
+  connectBtn.textContent = truncateAddress(addr);
+  connectBtn.classList.add('connected');
+  statusMsg.textContent = 'Checking your wallet...';
+  await loadNFTs(addr);
+}
+
+async function loadNFTs(addr) {
+  const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+  let memberBalance = 0;
+  try { memberBalance = (await contract.balanceOf(addr)).toNumber(); } catch {}
+
+  // Check for Member Token (invite NFT)
+  let hasToken = false;
+  if (MEMBER_TOKEN_ADDRESS !== '0x0000000000000000000000000000000000000000') {
     try {
-      document.querySelectorAll('.btn').forEach(function(btn) {
-        btn.addEventListener('click', function (e) {
-          try {
-            var ripple = document.createElement('div');
-            ripple.classList.add('ripple-effect');
-            var rect = this.getBoundingClientRect();
-            ripple.style.left = (e.clientX - rect.left - 25) + 'px';
-            ripple.style.top = (e.clientY - rect.top - 25) + 'px';
-            this.appendChild(ripple);
-            setTimeout(function() { ripple.remove(); }, 700);
-          } catch(err) {}
-        });
-      });
-    } catch(err) {}
-  </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <script src="nav.js"></script>
-  <script type="module">
-    import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
-    const btn = document.getElementById('walletBtn');
-    function onConnected(addr) {
-      btn.textContent = truncateAddress(addr);
-      btn.classList.add('connected');
-    }
-    btn.addEventListener('click', () => connectWallet(onConnected));
-    autoReconnect({ onConnected });
-  </script>
+      const tokenContract = new ethers.Contract(MEMBER_TOKEN_ADDRESS, MEMBER_TOKEN_ABI, readProv);
+      const tokenBal = (await tokenContract.balanceOf(addr)).toNumber();
+      hasToken = tokenBal > 0;
+    } catch {}
+  }
+
+  if (memberBalance === 0 && !hasToken) {
+    statusMsg.textContent = 'No membership found. You need an invite to enter.';
+    return;
+  }
+
+  statusMsg.textContent = 'Select an NFT';
+  nftArea.classList.add('visible');
+  nftGrid.innerHTML = '';
+
+  // Show Members Only NFTs
+  for (let i = 0; i < memberBalance; i++) {
+    const tid = (await contract.tokenOfOwnerByIndex(addr, i)).toNumber();
+    const name = await contract.tokenName(tid).catch(() => '');
+    const card = document.createElement('div');
+    card.className = 'nft-card';
+    card.dataset.type = 'member';
+    card.dataset.tid = tid;
+    card.dataset.name = name || 'Member #' + tid;
+    card.innerHTML = `<img src="${getChadImageUrl(tid)}"><div class="nft-id">${name || '#' + tid}</div>`;
+    card.addEventListener('click', () => selectNFT(card));
+    nftGrid.appendChild(card);
+  }
+
+  // Show Member Token if held (use a placeholder image)
+  if (hasToken) {
+    const card = document.createElement('div');
+    card.className = 'nft-card';
+    card.dataset.type = 'token';
+    card.innerHTML = `<div style="width:100%;height:70%;background:#1a1005;display:flex;align-items:center;justify-content:center;font-size:1.2rem">🎫</div><div class="nft-id">INVITE</div>`;
+    card.addEventListener('click', () => selectNFT(card));
+    nftGrid.appendChild(card);
+  }
+}
+
+function selectNFT(card) {
+  // Clear previous selections
+  nftGrid.querySelectorAll('.nft-card').forEach(c => {
+    c.classList.remove('selected', 'glow-gold');
+  });
+  memberResult.classList.remove('visible');
+  tokenResult.classList.remove('visible');
+
+  card.classList.add('selected');
+
+  if (card.dataset.type === 'member') {
+    // Members Only NFT — show welcome
+    card.classList.add('selected');
+    const name = card.dataset.name;
+    welcomeMsg.textContent = 'Welcome home ' + name;
+    memberResult.classList.add('visible');
+    statusMsg.textContent = '';
+  } else if (card.dataset.type === 'token') {
+    // Member Token — glow gold, show mint
+    card.classList.add('glow-gold');
+    tokenResult.classList.add('visible');
+    statusMsg.textContent = '';
+  }
+}
+
+enterClubBtn.addEventListener('click', () => {
+  window.location.href = 'clublounge.html';
+});
+
+mintBtn.addEventListener('click', () => {
+  window.location.href = 'mint.html';
+});
+
+connectBtn.addEventListener('click', () => connectWallet(onConnected));
+autoReconnect({ onConnected });
+</script>
 </body>
 </html>
