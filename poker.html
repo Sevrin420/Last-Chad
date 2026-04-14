@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Poker — Members Only</title>
+  <title>Poker — Members Only Casino</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="nav.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
@@ -97,9 +97,9 @@
 
 <div id="rulesOverlay" class="rules-overlay">
   <div class="rules-box">
-    <h2 class="rules-title">VIDEO POKER RULES</h2>
+    <h2 class="rules-title">POKER RULES</h2>
     <div class="rules-content">
-      <p><b>JACKS OR BETTER:</b> Standard 5-card draw video poker.</p>
+      <p><b>JACKS OR BETTER:</b> 5-card draw poker. Hand dealt.</p>
       <p><b>DEAL:</b> You get 5 cards. Choose which to HOLD, then DRAW replacements.</p>
       <p><b>PAYOUTS:</b> Royal Flush 250:1, Straight Flush 50:1, Four of a Kind 25:1, Full House 9:1, Flush 6:1, Straight 4:1, Three of a Kind 3:1, Two Pair 2:1, Jacks or Better 1:1.</p>
       <p><b>STRATEGY:</b> Always hold a paying hand. Hold high pairs (J+). Draw to flushes and straights.</p>
@@ -182,12 +182,12 @@ lobbyDlg.classList.add('visible');
 await delay(400);
 
 await showNpc([
-  "Ah, a poker face walks in.",
-  "Five cards. One draw. No bluffing the machine.",
-  "Jacks or better to win. You in?"
+  "My favorite member!",
+  "Welcome back chum.",
+  "Tonight you're getting lucky *winks*"
 ]);
 showBtns([
-  { label: "Deal me in", action: startChadSelect },
+  { label: "Deal me in baby doll", action: startChadSelect },
   { label: "Poker Rules", action: () => rulesOverlay.classList.add('active') }
 ]);
 
@@ -250,7 +250,7 @@ async function showWager() {
   });
 
   showBtns([
-    { label: "DEAL ME IN", action: () => commitAndEnter(parseInt(document.getElementById('lobbyWagerSlider').value)) },
+    { label: "Deal me in baby doll", action: () => commitAndEnter(parseInt(document.getElementById('lobbyWagerSlider').value)) },
     { label: "Poker Rules", action: () => rulesOverlay.classList.add('active') }
   ]);
 }
