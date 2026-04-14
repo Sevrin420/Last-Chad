@@ -129,9 +129,9 @@ const welcomeMsg = document.getElementById('welcomeMsg');
 const enterClubBtn = document.getElementById('enterClubBtn');
 const mintBtn = document.getElementById('mintBtn');
 
-// TODO: Replace with actual Member Token contract address when deployed
-const MEMBER_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
-const MEMBER_TOKEN_ABI = ['function balanceOf(address) view returns (uint256)'];
+// TODO: Replace with actual Invitation contract address when deployed
+const INVITATION_ADDRESS = '0x0000000000000000000000000000000000000000';
+const INVITATION_ABI = ['function balanceOf(address) view returns (uint256)'];
 
 let userAddr = null;
 
@@ -149,16 +149,16 @@ async function loadNFTs(addr) {
   try { memberBalance = (await contract.balanceOf(addr)).toNumber(); } catch {}
 
   // Check for Member Token (invite NFT)
-  let hasToken = false;
-  if (MEMBER_TOKEN_ADDRESS !== '0x0000000000000000000000000000000000000000') {
+  let hasInvitation = false;
+  if (INVITATION_ADDRESS !== '0x0000000000000000000000000000000000000000') {
     try {
-      const tokenContract = new ethers.Contract(MEMBER_TOKEN_ADDRESS, MEMBER_TOKEN_ABI, readProv);
-      const tokenBal = (await tokenContract.balanceOf(addr)).toNumber();
-      hasToken = tokenBal > 0;
+      const invContract = new ethers.Contract(INVITATION_ADDRESS, INVITATION_ABI, readProv);
+      const invBal = (await invContract.balanceOf(addr)).toNumber();
+      hasInvitation = invBal > 0;
     } catch {}
   }
 
-  if (memberBalance === 0 && !hasToken) {
+  if (memberBalance === 0 && !hasInvitation) {
     statusMsg.textContent = 'No membership found. You need an invite to enter.';
     return;
   }
@@ -182,11 +182,11 @@ async function loadNFTs(addr) {
   }
 
   // Show Member Token if held (use a placeholder image)
-  if (hasToken) {
+  if (hasInvitation) {
     const card = document.createElement('div');
     card.className = 'nft-card';
-    card.dataset.type = 'token';
-    card.innerHTML = `<div style="width:100%;height:70%;background:#1a1005;display:flex;align-items:center;justify-content:center;font-size:1.2rem">🎫</div><div class="nft-id">INVITE</div>`;
+    card.dataset.type = 'invitation';
+    card.innerHTML = `<div style="width:100%;height:70%;background:#1a1005;display:flex;align-items:center;justify-content:center;font-size:1.2rem">🎫</div><div class="nft-id">INVITATION</div>`;
     card.addEventListener('click', () => selectNFT(card));
     nftGrid.appendChild(card);
   }
@@ -209,8 +209,8 @@ function selectNFT(card) {
     welcomeMsg.textContent = 'Welcome home ' + name;
     memberResult.classList.add('visible');
     statusMsg.textContent = '';
-  } else if (card.dataset.type === 'token') {
-    // Member Token — glow gold, show mint
+  } else if (card.dataset.type === 'invitation') {
+    // Invitation — glow gold, show mint
     card.classList.add('glow-gold');
     tokenResult.classList.add('visible');
     statusMsg.textContent = '';

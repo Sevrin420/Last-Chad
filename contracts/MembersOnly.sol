@@ -9,6 +9,11 @@ interface IERC721Minimal {
     function balanceOf(address owner) external view returns (uint256);
 }
 
+interface IInvitation {
+    function ownerOf(uint256 tokenId) external view returns (address);
+    function burn(uint256 tokenId) external;
+}
+
 interface IMembersOnlyItems {
     function mintChips(address to, uint256 amount) external;
 }
@@ -45,6 +50,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     mapping(uint256 => mapping(uint256 => bool)) public weekClaimed; // tokenId => week => claimed
 
     // ── Core State ──
+    IInvitation public invitation;
     IMembersOnlyItems public items;
     uint256 public totalMinted;
     string private _baseTokenURI;
@@ -150,6 +156,14 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function mint(uint256 quantity) external payable {
         require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
+        _mintInternal(quantity);
+    }
+
+    function mintWithInvitation(uint256 quantity, uint256 invitationId) external payable {
+        require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
+        require(address(invitation) != address(0), "Invitation not set");
+        require(invitation.ownerOf(invitationId) == msg.sender, "Not invitation owner");
+        invitation.burn(invitationId);
         _mintInternal(quantity);
     }
 
@@ -303,6 +317,11 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     function setItems(address _items) external onlyOwner {
         require(_items != address(0), "Invalid address");
         items = IMembersOnlyItems(_items);
+    }
+
+    function setInvitation(address _invitation) external onlyOwner {
+        require(_invitation != address(0), "Invalid address");
+        invitation = IInvitation(_invitation);
     }
 
     // ─────────────────────────────────────────────────────────
