@@ -116,7 +116,7 @@
 <script src="nav.js"></script>
 <script type="module">
 import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
-import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
 
 const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
 const connectBtn = document.getElementById('connectBtn');
@@ -129,9 +129,9 @@ const welcomeMsg = document.getElementById('welcomeMsg');
 const enterClubBtn = document.getElementById('enterClubBtn');
 const mintBtn = document.getElementById('mintBtn');
 
-// TODO: Replace with actual Invitation contract address when deployed
-const INVITATION_ADDRESS = '0x0000000000000000000000000000000000000000';
-const INVITATION_ABI = ['function balanceOf(address) view returns (uint256)'];
+// Invitation is an ERC-1155 item in MembersOnlyItems
+// TODO: Set this to the item ID after creating the invitation item
+const INVITATION_ITEM_ID = 1;
 
 let userAddr = null;
 
@@ -150,13 +150,11 @@ async function loadNFTs(addr) {
 
   // Check for Member Token (invite NFT)
   let hasInvitation = false;
-  if (INVITATION_ADDRESS !== '0x0000000000000000000000000000000000000000') {
-    try {
-      const invContract = new ethers.Contract(INVITATION_ADDRESS, INVITATION_ABI, readProv);
-      const invBal = (await invContract.balanceOf(addr)).toNumber();
-      hasInvitation = invBal > 0;
-    } catch {}
-  }
+  try {
+    const itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
+    const invBal = (await itemsContract.balanceOf(addr, INVITATION_ITEM_ID)).toNumber();
+    hasInvitation = invBal > 0;
+  } catch {}
 
   if (memberBalance === 0 && !hasInvitation) {
     statusMsg.textContent = 'No membership found. You need an invite to enter.';

@@ -174,6 +174,16 @@ contract MembersOnlyItems is ERC1155, Ownable {
     }
 
     // ─────────────────────────────────────────────
+    //  Burn any item (authorized contracts only)
+    // ─────────────────────────────────────────────
+
+    function burnItem(address from, uint256 itemId, uint256 amount) external onlyAuthorized {
+        require(amount > 0, "Amount must be > 0");
+        require(balanceOf(from, itemId) >= amount, "Insufficient balance");
+        _burn(from, itemId, amount);
+    }
+
+    // ─────────────────────────────────────────────
     //  Chip operations (token ID 0)
     // ─────────────────────────────────────────────
 
