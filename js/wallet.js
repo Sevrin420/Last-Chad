@@ -65,7 +65,7 @@ async function _initAppKit() {
       name: 'Members Only',
       description: 'NFT Casino on Avalanche',
       url: window.location.origin,
-      icons: [window.location.origin + '/assets/mainbg.png']
+      icons: [window.location.origin + '/assets/membersonly/membersbg.jpg']
     },
     features: {
       analytics: false,
