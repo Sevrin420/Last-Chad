@@ -8,7 +8,7 @@ Mint a Chad. Earn chips weekly. Hit the tables. Top the leaderboard.
 
 ## Play
 
-**[lastchad.xyz](https://lastchad.xyz)**
+**[membersonly.cc](https://membersonly.cc)**
 
 ---
 

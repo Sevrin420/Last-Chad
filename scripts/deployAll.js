@@ -39,7 +39,7 @@ async function main() {
   console.log(`Deployer:  ${deployer.address}\n`);
 
   // ── 1. MembersOnly ───────────────────────────────────────────────────────
-  const baseURI = "https://lastchad.xyz/members-metadata/";
+  const baseURI = "https://membersonly.cc/members-metadata/";
   console.log("1/2  Deploying MembersOnly...");
   const MembersOnly = await hre.ethers.getContractFactory("MembersOnly");
   const membersOnly = await MembersOnly.deploy(baseURI);
@@ -48,7 +48,7 @@ async function main() {
   console.log("     MembersOnly deployed to:", membersOnlyAddress);
 
   // ── 2. MembersOnlyItems ──────────────────────────────────────────────────
-  const itemsBaseURI = "https://lastchad.xyz/items/";
+  const itemsBaseURI = "https://membersonly.cc/items/";
   console.log("\n2/2  Deploying MembersOnlyItems...");
   const MembersOnlyItems = await hre.ethers.getContractFactory("MembersOnlyItems");
   const membersOnlyItems = await MembersOnlyItems.deploy(itemsBaseURI);

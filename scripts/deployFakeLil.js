@@ -23,7 +23,7 @@ async function main() {
   console.log("   Address:", address);
   console.log("   Network:", hre.network.name);
   console.log("\nNext steps:");
-  console.log("  1. Upload NFT images to your hosting (e.g. lastchad.xyz/fake-lil/{id}.png)");
+  console.log("  1. Upload NFT images to your hosting (e.g. membersonly.cc/fake-lil/{id}.png)");
   console.log("  2. Create metadata JSON files (one per token, 1–20)");
   console.log("  3. Call setBaseURI('<your-metadata-base-url>') on the contract");
   console.log("  4. Open public mint");

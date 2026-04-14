@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  const baseURI = "https://lastchad.xyz/items/";
+  const baseURI = "https://membersonly.cc/items/";
 
   const Items = await hre.ethers.getContractFactory("MembersOnlyItems");
   const items = await Items.deploy(baseURI);

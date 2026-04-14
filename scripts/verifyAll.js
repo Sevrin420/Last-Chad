@@ -66,8 +66,8 @@ async function main() {
   if (cfg.gamble)     console.log(`Gamble:         ${cfg.gamble}`);
   if (cfg.tournament) console.log(`Tournament:     ${cfg.tournament}`);
 
-  await verify(cfg.membersOnly, ["https://lastchad.xyz/metadata/"], "MembersOnly");
-  await verify(cfg.items,       ["https://lastchad.xyz/items/"],    "MembersOnlyItems");
+  await verify(cfg.membersOnly, ["https://membersonly.cc/metadata/"], "MembersOnly");
+  await verify(cfg.items,       ["https://membersonly.cc/items/"],    "MembersOnlyItems");
 
   if (cfg.market) {
     const ownerAbi = ['function owner() view returns (address)'];

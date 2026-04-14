@@ -33,7 +33,7 @@ async function main() {
   console.log();
 
   // ── Deploy MembersOnly ────────────────────────────────────────────────────
-  const baseURI = "https://lastchad.xyz/metadata/";
+  const baseURI = "https://membersonly.cc/metadata/";
   console.log("Deploying MembersOnly...");
   const MembersOnly = await hre.ethers.getContractFactory("MembersOnly");
   const membersOnly = await MembersOnly.deploy(baseURI);

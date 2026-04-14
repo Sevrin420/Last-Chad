@@ -55,7 +55,7 @@ Use: `git push -u origin main`
 
 ## Project Overview
 
-**Members Only** is an NFT-gated casino on Avalanche. 222 Chad NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at lastchad.xyz.
+**Members Only** is an NFT-gated casino on Avalanche. 222 Chad NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
 
 ### Elevator Pitch
 

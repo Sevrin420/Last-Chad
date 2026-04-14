@@ -5,7 +5,7 @@
  * Required env vars:
  *   PRIVATE_KEY        — owner wallet private key
  *   FAKELIL_ADDRESS    — deployed FakeLil contract address
- *   BASE_URI           — base URI to set (e.g. https://lastchad.xyz/fake-lil/)
+ *   BASE_URI           — base URI to set (e.g. https://membersonly.cc/fake-lil/)
  */
 
 const hre = require("hardhat");
