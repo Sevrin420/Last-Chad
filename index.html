@@ -1,230 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Members Only</title>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="nav.css">
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{width:100vw;height:100vh;overflow:hidden;background:#000 url('assets/membersonly/entrance.jpg') center/cover no-repeat;font-family:'Press Start 2P',monospace;color:#ffe96a}
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax-test.network https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Members Only</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press Start 2P',monospace;color:#ffe96a}
 
-    .front-door{
-      width:100%;height:100%;display:flex;flex-direction:column;
-      align-items:center;justify-content:center;gap:24px;
-      position:relative;
-    }
+/* ── Door image ── */
+.door{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+.door img{width:100%;height:100%;object-fit:contain;object-position:center;background:#000}
 
-    .title{font-size:clamp(1rem,4vw,2rem);color:#c9a84c;text-align:center;letter-spacing:3px;
-      text-shadow:0 0 20px rgba(201,168,76,0.3)}
-    .subtitle{font-size:clamp(0.4rem,1.5vw,0.6rem);color:#5c4409;letter-spacing:2px;text-align:center}
+/* ── Knocker hotspot ── */
+.knocker{
+  position:absolute;width:12%;height:10%;
+  top:58%;left:55%;transform:translate(-50%,-50%);
+  cursor:pointer;border-radius:50%;z-index:10;
+  box-shadow:0 0 20px rgba(201,168,76,0.6),0 0 40px rgba(201,168,76,0.3);
+  animation:knockGlow 2s ease-in-out infinite;
+  border:2px solid rgba(201,168,76,0.4);
+  background:transparent;
+}
+@keyframes knockGlow{
+  0%,100%{box-shadow:0 0 20px rgba(201,168,76,0.6),0 0 40px rgba(201,168,76,0.3);border-color:rgba(201,168,76,0.4)}
+  50%{box-shadow:0 0 35px rgba(255,233,106,1),0 0 70px rgba(201,168,76,0.6),0 0 100px rgba(201,168,76,0.3);border-color:rgba(255,233,106,0.7)}
+}
+.knocker:hover{box-shadow:0 0 40px rgba(255,233,106,1),0 0 80px rgba(201,168,76,0.8)}
 
-    /* Buttons row */
-    .door-btns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:12px}
-    .door-btn{
-      font-family:'Press Start 2P',monospace;font-size:clamp(0.45rem,1.4vw,0.6rem);
-      padding:14px 24px;cursor:pointer;border:2px solid #5c4409;border-radius:4px;
-      color:#c9a84c;background:rgba(30,22,8,0.8);letter-spacing:1px;
-      transition:all 0.15s;text-decoration:none;display:inline-block;
-    }
-    .door-btn:hover{border-color:#c9a84c;background:rgba(60,44,16,0.8);color:#ffe96a}
-    .door-btn.gold{
-      background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005;border-color:#d4a017;
-      box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
-    }
-    .door-btn.gold:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
+/* ── Wallet button ── */
+.wallet-btn{
+  position:fixed;top:14px;right:14px;z-index:50;
+  font-family:'Press Start 2P',monospace;font-size:0.45rem;
+  padding:10px 16px;cursor:pointer;
+  background:linear-gradient(180deg,#c9a84c,#8b6914);
+  border:2px solid #d4a017;border-radius:4px;color:#1a1005;
+  box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
+}
+.wallet-btn:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
+.wallet-btn.connected{font-size:0.4rem}
 
-    /* NFT grid */
-    .nft-area{display:none;flex-direction:column;align-items:center;gap:12px;margin-top:16px}
-    .nft-area.visible{display:flex}
-    .nft-label{font-size:0.5rem;color:#5c4409}
-    .nft-grid{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:500px}
-    .nft-card{
-      width:80px;height:100px;border:2px solid #333;border-radius:6px;cursor:pointer;
-      overflow:hidden;transition:all 0.3s;background:rgba(0,0,0,0.5);position:relative;
-    }
-    .nft-card img{width:100%;height:70%;object-fit:cover;image-rendering:pixelated}
-    .nft-card .nft-id{font-size:0.35rem;text-align:center;padding:2px;color:#7a6020}
-    .nft-card:hover{border-color:#c9a84c;transform:scale(1.05)}
-    .nft-card.selected{border-color:#ffe96a;box-shadow:0 0 20px rgba(255,233,106,0.6)}
-    .nft-card.glow-gold{border-color:#ffe96a;box-shadow:0 0 25px rgba(255,233,106,0.8),0 0 50px rgba(201,168,76,0.4);
-      animation:goldPulse 1.5s ease-in-out infinite}
-    @keyframes goldPulse{0%,100%{box-shadow:0 0 25px rgba(255,233,106,0.8),0 0 50px rgba(201,168,76,0.4)}
-      50%{box-shadow:0 0 35px rgba(255,233,106,1),0 0 70px rgba(201,168,76,0.6)}}
+/* ── Black overlay for NFT selection ── */
+.overlay{
+  position:fixed;inset:0;z-index:100;background:#000;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;gap:16px;
+}
+.overlay.active{display:flex}
 
-    /* Result area */
-    .result{display:none;flex-direction:column;align-items:center;gap:16px;margin-top:20px}
-    .result.visible{display:flex}
-    .host-img{max-height:30vh;max-width:80vw;object-fit:contain;border-radius:8px;
-      border:2px solid #c9a84c;box-shadow:0 0 30px rgba(201,168,76,0.3)}
-    .welcome-msg{font-size:clamp(0.5rem,1.8vw,0.75rem);color:#c9a84c;text-align:center;line-height:2}
-    .enter-btn{
-      font-family:'Press Start 2P',monospace;font-size:clamp(0.5rem,1.6vw,0.7rem);
-      padding:16px 32px;cursor:pointer;border:none;
-      background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005;
-      border-bottom:5px solid #7a6020;letter-spacing:2px;
-    }
-    .enter-btn:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
-    .enter-btn:active{border-bottom-width:2px;transform:translateY(3px)}
-    .mint-btn-reveal{
-      font-family:'Press Start 2P',monospace;font-size:clamp(0.45rem,1.4vw,0.6rem);
-      padding:14px 28px;cursor:pointer;border:2px solid #1a6b2a;border-radius:4px;
-      background:linear-gradient(180deg,#1a6b2a,#0d3515);color:#fff;letter-spacing:1px;
-    }
-    .mint-btn-reveal:hover{background:linear-gradient(180deg,#228b3a,#145a22)}
+.ov-text{font-size:0.6rem;color:#c9a84c;text-align:center;line-height:2.2;min-height:2em}
 
-    .status-msg{font-size:0.45rem;color:#5c4409;text-align:center;min-height:1em}
-    .nav-wrapper{position:absolute;top:12px;left:12px;z-index:50}
-  </style>
+.nft-grid{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:500px;margin-top:12px}
+.nft-card{
+  width:80px;height:100px;border:2px solid #333;border-radius:6px;cursor:pointer;
+  overflow:hidden;transition:all 0.3s;background:rgba(0,0,0,0.5);
+}
+.nft-card img{width:100%;height:70%;object-fit:cover;image-rendering:pixelated}
+.nft-card .nft-id{font-size:0.35rem;text-align:center;padding:2px;color:#7a6020}
+.nft-card:hover{border-color:#c9a84c;transform:scale(1.05)}
+.nft-card.selected{border-color:#ffe96a;box-shadow:0 0 20px rgba(255,233,106,0.6)}
+.nft-card.glow-gold{border-color:#ffe96a;box-shadow:0 0 25px rgba(255,233,106,0.8),0 0 50px rgba(201,168,76,0.4);animation:cardGlow 1.5s ease-in-out infinite}
+@keyframes cardGlow{0%,100%{box-shadow:0 0 25px rgba(255,233,106,0.8),0 0 50px rgba(201,168,76,0.4)}50%{box-shadow:0 0 35px rgba(255,233,106,1),0 0 70px rgba(201,168,76,0.6)}}
+
+.welcome{font-size:clamp(0.6rem,2.5vw,1rem);color:#c9a84c;text-align:center;line-height:2;margin-top:20px}
+.status{font-size:0.4rem;color:#5c4409;text-align:center;min-height:1em;margin-top:8px}
+</style>
 </head>
 <body>
-<div class="front-door">
-  <div id="nav-placeholder"></div>
 
-  <div class="title">MEMBERS ONLY</div>
-  <div class="subtitle">AN EXCLUSIVE CASINO ON AVALANCHE</div>
+<!-- Door -->
+<div class="door">
+  <img src="assets/membersonly/entrance.jpg" alt="Members Only">
+  <div class="knocker" id="knocker"></div>
+</div>
 
-  <div class="door-btns" id="doorBtns">
-    <button class="door-btn gold" id="connectBtn">CONNECT WALLET</button>
-    <a href="docs.html" class="door-btn">DOCS</a>
-  </div>
+<button class="wallet-btn" id="walletBtn">CONNECT WALLET</button>
 
-  <div class="status-msg" id="statusMsg"></div>
-
-  <!-- NFT selection after wallet connects -->
-  <div class="nft-area" id="nftArea">
-    <div class="nft-label">YOUR NFTS</div>
-    <div class="nft-grid" id="nftGrid"></div>
-  </div>
-
-  <!-- Welcome message for Members Only NFT holders -->
-  <div class="result" id="memberResult">
-    <img class="host-img" src="assets/chazzyp/chazzypgamble.jpg" alt="Host" id="hostImg">
-    <div class="welcome-msg" id="welcomeMsg"></div>
-    <button class="enter-btn" id="enterClubBtn">ENTER THE CLUB</button>
-  </div>
-
-  <!-- Mint button for Token holders -->
-  <div class="result" id="tokenResult">
-    <button class="mint-btn-reveal" id="mintBtn">MINT YOUR MEMBERSHIP</button>
-  </div>
+<!-- Black overlay -->
+<div class="overlay" id="overlay">
+  <div class="ov-text" id="ovText"></div>
+  <div class="status" id="ovStatus"></div>
+  <div class="nft-grid" id="nftGrid"></div>
+  <div class="welcome" id="welcomeMsg"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-<script src="nav.js"></script>
 <script type="module">
-import { connectWallet, autoReconnect, disconnect, truncateAddress } from './js/wallet.js';
+import { connectWallet, autoReconnect, disconnect, ensureSigner, truncateAddress } from './js/wallet.js';
 import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
 
 const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
-const connectBtn = document.getElementById('connectBtn');
-const statusMsg = document.getElementById('statusMsg');
-const nftArea = document.getElementById('nftArea');
-const nftGrid = document.getElementById('nftGrid');
-const memberResult = document.getElementById('memberResult');
-const tokenResult = document.getElementById('tokenResult');
-const welcomeMsg = document.getElementById('welcomeMsg');
-const enterClubBtn = document.getElementById('enterClubBtn');
-const mintBtn = document.getElementById('mintBtn');
-
-// Invitation is an ERC-1155 item in MembersOnlyItems
-// TODO: Set this to the item ID after creating the invitation item
 const INVITATION_ITEM_ID = 1;
 
-let userAddr = null;
+let addr = null;
+const walletBtn = document.getElementById('walletBtn');
+const knocker = document.getElementById('knocker');
+const overlay = document.getElementById('overlay');
+const ovText = document.getElementById('ovText');
+const ovStatus = document.getElementById('ovStatus');
+const nftGrid = document.getElementById('nftGrid');
+const welcomeMsg = document.getElementById('welcomeMsg');
 
-async function onConnected(addr) {
-  userAddr = addr;
-  connectBtn.textContent = truncateAddress(addr);
-  connectBtn.classList.add('connected');
-  statusMsg.textContent = 'Checking your wallet...';
-  await loadNFTs(addr);
+function onConnected(a) {
+  addr = a;
+  walletBtn.textContent = truncateAddress(a);
+  walletBtn.classList.add('connected');
 }
 
-async function loadNFTs(addr) {
-  const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
-  let memberBalance = 0;
-  try { memberBalance = (await contract.balanceOf(addr)).toNumber(); } catch {}
+walletBtn.addEventListener('click', () => connectWallet(onConnected));
+autoReconnect({ onConnected });
 
-  // Check for Member Token (invite NFT)
-  let hasInvitation = false;
-  try {
-    const itemsContract = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
-    const invBal = (await itemsContract.balanceOf(addr, INVITATION_ITEM_ID)).toNumber();
-    hasInvitation = invBal > 0;
-  } catch {}
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  if (memberBalance === 0 && !hasInvitation) {
-    statusMsg.textContent = 'No membership found. You need an invite to enter.';
+async function typewrite(el, text, speed) {
+  el.textContent = '';
+  for (let i = 0; i < text.length; i++) {
+    el.textContent += text[i];
+    await delay(speed || 40);
+  }
+}
+
+knocker.addEventListener('click', async () => {
+  if (!addr) {
+    connectWallet(onConnected);
     return;
   }
 
-  statusMsg.textContent = 'Select an NFT';
-  nftArea.classList.add('visible');
+  overlay.classList.add('active');
+  nftGrid.innerHTML = '';
+  welcomeMsg.textContent = '';
+  ovStatus.textContent = '';
+
+  await typewrite(ovText, 'Who knocks at the door of Members Only?');
+  await delay(600);
+
+  ovStatus.textContent = 'Checking wallet...';
+
+  const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+  let memberBal = 0;
+  try { memberBal = (await contract.balanceOf(addr)).toNumber(); } catch {}
+
+  let hasInvitation = false;
+  try {
+    const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
+    const invBal = (await items.balanceOf(addr, INVITATION_ITEM_ID)).toNumber();
+    hasInvitation = invBal > 0;
+  } catch {}
+
+  if (memberBal === 0 && !hasInvitation) {
+    ovStatus.textContent = '';
+    await typewrite(ovText, 'No membership found. You need an invitation.');
+    return;
+  }
+
+  ovStatus.textContent = 'Select your NFT';
   nftGrid.innerHTML = '';
 
-  // Show Members Only NFTs
-  for (let i = 0; i < memberBalance; i++) {
+  for (let i = 0; i < memberBal; i++) {
     const tid = (await contract.tokenOfOwnerByIndex(addr, i)).toNumber();
     const name = await contract.tokenName(tid).catch(() => '');
     const card = document.createElement('div');
     card.className = 'nft-card';
     card.dataset.type = 'member';
-    card.dataset.tid = tid;
     card.dataset.name = name || 'Member #' + tid;
-    card.innerHTML = `<img src="${getChadImageUrl(tid)}"><div class="nft-id">${name || '#' + tid}</div>`;
-    card.addEventListener('click', () => selectNFT(card));
+    card.innerHTML = '<img src="' + getChadImageUrl(tid) + '"><div class="nft-id">' + (name || '#' + tid) + '</div>';
+    card.addEventListener('click', () => selectCard(card));
     nftGrid.appendChild(card);
   }
 
-  // Show Member Token if held (use a placeholder image)
   if (hasInvitation) {
     const card = document.createElement('div');
     card.className = 'nft-card';
     card.dataset.type = 'invitation';
-    card.innerHTML = `<img src="assets/membersonly/invitation.jpg" style="width:100%;height:70%;object-fit:cover"><div class="nft-id">INVITATION</div>`;
-    card.addEventListener('click', () => selectNFT(card));
+    card.innerHTML = '<img src="assets/membersonly/invitation.jpg" style="width:100%;height:70%;object-fit:cover"><div class="nft-id">INVITATION</div>';
+    card.addEventListener('click', () => selectCard(card));
     nftGrid.appendChild(card);
   }
-}
+});
 
-function selectNFT(card) {
-  // Clear previous selections
-  nftGrid.querySelectorAll('.nft-card').forEach(c => {
-    c.classList.remove('selected', 'glow-gold');
-  });
-  memberResult.classList.remove('visible');
-  tokenResult.classList.remove('visible');
-
+async function selectCard(card) {
+  nftGrid.querySelectorAll('.nft-card').forEach(c => c.classList.remove('selected', 'glow-gold'));
   card.classList.add('selected');
 
   if (card.dataset.type === 'member') {
-    // Members Only NFT — show welcome
-    card.classList.add('selected');
-    const name = card.dataset.name;
-    welcomeMsg.textContent = 'Welcome home ' + name;
-    memberResult.classList.add('visible');
-    statusMsg.textContent = '';
-  } else if (card.dataset.type === 'invitation') {
-    // Invitation — glow gold, show mint
+    ovStatus.textContent = '';
+    nftGrid.style.display = 'none';
+    await typewrite(welcomeMsg, 'Welcome home ' + card.dataset.name);
+    await delay(1500);
+    window.location.href = 'clublounge.html';
+  } else {
     card.classList.add('glow-gold');
-    tokenResult.classList.add('visible');
-    statusMsg.textContent = '';
+    ovStatus.textContent = '';
+    nftGrid.style.display = 'none';
+    await typewrite(welcomeMsg, 'Your invitation has been accepted.');
+    await delay(1500);
+    window.location.href = 'mint.html';
   }
 }
 
-enterClubBtn.addEventListener('click', () => {
-  window.location.href = 'clublounge.html';
+// Click outside overlay to close
+overlay.addEventListener('click', (e) => {
+  if (e.target === overlay) {
+    overlay.classList.remove('active');
+    nftGrid.style.display = '';
+  }
 });
-
-mintBtn.addEventListener('click', () => {
-  window.location.href = 'mint.html';
-});
-
-connectBtn.addEventListener('click', () => connectWallet(onConnected));
-autoReconnect({ onConnected });
 </script>
 </body>
 </html>
