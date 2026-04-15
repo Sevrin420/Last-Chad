@@ -156,20 +156,59 @@ export async function autoReconnect(callbacks) {
   }
 }
 
+// ========== NETWORK ENFORCEMENT ==========
+async function _ensureNetwork() {
+  if (!_provider) return;
+  const network = await _provider.getNetwork();
+  const targetId = parseInt(AVAX_CHAIN_ID, 16);
+  if (network.chainId === targetId) return;
+
+  // Ask wallet to switch
+  const rawProvider = _modal?.getWalletProvider();
+  if (!rawProvider) throw new Error('No wallet provider');
+
+  try {
+    await rawProvider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: AVAX_CHAIN_ID }],
+    });
+  } catch (switchErr) {
+    // Chain not added — try adding it
+    if (switchErr.code === 4902 || switchErr.code === -32603) {
+      await rawProvider.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: AVAX_CHAIN_ID,
+          chainName: AVAX_CHAIN.chainName,
+          nativeCurrency: AVAX_CHAIN.nativeCurrency,
+          rpcUrls: AVAX_CHAIN.rpcUrls,
+          blockExplorerUrls: AVAX_CHAIN.blockExplorerUrls,
+        }],
+      });
+    } else {
+      throw new Error('Please switch to ' + AVAX_CHAIN.chainName);
+    }
+  }
+
+  // Refresh provider after switch
+  const newRaw = _modal.getWalletProvider();
+  _provider = new ethers.providers.Web3Provider(newRaw);
+  _signer = _provider.getSigner();
+}
+
 // ========== ENSURE SIGNER ==========
 export async function ensureSigner() {
-  if (_signer) return _signer;
-  // Try to restore via AppKit if already initialised
-  if (_modal) {
+  if (!_signer && _modal) {
     try {
       const rawProvider = _modal.getWalletProvider();
       if (rawProvider) {
         _provider    = new ethers.providers.Web3Provider(rawProvider);
         _signer      = _provider.getSigner();
         _userAddress = await _signer.getAddress();
-        return _signer;
       }
     } catch (_) {}
   }
-  return null;
+  if (!_signer) return null;
+  await _ensureNetwork();
+  return _signer;
 }
