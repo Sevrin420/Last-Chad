@@ -857,28 +857,12 @@
           <span class="breakdown-label">Base chips</span>
           <span class="breakdown-value" id="baseChipsValue">50 × 1 = 50</span>
         </div>
-        <div class="breakdown-row" id="partnerRow">
+        <!-- Partner bonus hidden on testnet -->
+        <div class="breakdown-row" id="partnerRow" style="display:none">
           <span class="breakdown-label">Partner NFT bonus</span>
           <span class="breakdown-value" id="partnerValue">Not detected</span>
         </div>
-        <div style="font-size:0.28rem; color:#6a5a3a; padding: 2px 0 4px 0; font-style: italic;">Max +100 chips from NFT friends</div>
-        <div id="partnerList" style="padding: 4px 0 2px 0;">
-          <div class="breakdown-row" id="partner-little-burn" style="font-size:0.32rem; color:#555; padding:2px 0;">
-            <span class="breakdown-label">— Little Burn</span><span class="breakdown-value" id="partner-little-burn-status">—</span>
-          </div>
-          <div class="breakdown-row" id="partner-nochillio" style="font-size:0.32rem; color:#555; padding:2px 0;">
-            <span class="breakdown-label">— Nochillio</span><span class="breakdown-value" id="partner-nochillio-status">—</span>
-          </div>
-          <div class="breakdown-row" id="partner-salvors" style="font-size:0.32rem; color:#555; padding:2px 0;">
-            <span class="breakdown-label">— The Salvors</span><span class="breakdown-value" id="partner-salvors-status">—</span>
-          </div>
-          <div class="breakdown-row" id="partner-lucid-red" style="font-size:0.32rem; color:#555; padding:2px 0;">
-            <span class="breakdown-label">— Lucid RED</span><span class="breakdown-value" id="partner-lucid-red-status">—</span>
-          </div>
-          <div class="breakdown-row" id="partner-bobs" style="font-size:0.32rem; color:#555; padding:2px 0;">
-            <span class="breakdown-label">— The Bobs</span><span class="breakdown-value" id="partner-bobs-status">—</span>
-          </div>
-        </div>
+        <div id="partnerList" style="display:none"></div>
         <div class="breakdown-divider"></div>
         <div class="breakdown-row total">
           <span class="breakdown-label">Total chips</span>
@@ -1002,6 +986,7 @@
     }
 
     // ========== PARTNER NFT DETECTION ==========
+    const PARTNER_CHECKS_ENABLED = false; // flip to true on mainnet
     const PARTNERS = [
       { id: 'little-burn', name: 'Little Burn',  address: '0xf3513f263994a3536cc0a684209013d6808fe443' },
       { id: 'nochillio',   name: 'Nochillio',    address: '0x204b3ee3f9bdcde258ba3f74de76ea8eedf0a36a' },
@@ -1246,17 +1231,19 @@
 
         // Test each partner NFT contract individually — if one reverts, the contract's
         // hasPartnerNFT() will revert on every mint for wallets without a partner NFT.
-        const ERC721_BAL_ABI = ['function balanceOf(address owner) view returns (uint256)'];
-        for (const p of PARTNERS) {
-          try {
-            const nft = new ethers.Contract(p.address, ERC721_BAL_ABI, readProvider);
-            await nft.balanceOf(userAddr);
-          } catch (partnerErr) {
-            showErr('Partner contract broken: ' + p.name + ' (' + p.address.slice(0,8) + '...) — contact admin to disable it.');
-            btnText.textContent = 'MINT NOW';
-            mintBtn.disabled = false;
-            mintBtn.classList.add('ready');
-            return;
+        if (PARTNER_CHECKS_ENABLED) {
+          const ERC721_BAL_ABI = ['function balanceOf(address owner) view returns (uint256)'];
+          for (const p of PARTNERS) {
+            try {
+              const nft = new ethers.Contract(p.address, ERC721_BAL_ABI, readProvider);
+              await nft.balanceOf(userAddr);
+            } catch (partnerErr) {
+              showErr('Partner contract broken: ' + p.name + ' (' + p.address.slice(0,8) + '...) — contact admin to disable it.');
+              btnText.textContent = 'MINT NOW';
+              mintBtn.disabled = false;
+              mintBtn.classList.add('ready');
+              return;
+            }
           }
         }
 

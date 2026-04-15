@@ -1,6 +1,17 @@
-# plan.md — Going Live on Avalanche C-Chain
+# plan.md — Members Only Casino
 
-**The user cannot code or run code locally.** All scripts, deployments, and commands must be written by Claude, committed to the repo, and executed via GitHub Actions workflows.
+---
+
+## MAINNET CHECKLIST
+
+Before deploying to mainnet, do these:
+
+- [ ] **Flip `PARTNER_CHECKS_ENABLED` to `true`** in `mint.html` (line ~1005) — re-enables partner NFT validation
+- [ ] **Switch `js/config.js` back to mainnet** — RPC, chain ID, explorer URLs
+- [ ] **Deploy contracts to mainnet** via `deploy.yml` → target: `everything`, network: `avalanche`
+- [ ] **Create Invitation item** — call `items.createItem("Invitation", 0, 0, true, 0, 0)` then `membersOnly.setInvitationItemId(itemId)`
+- [ ] **Airdrop invitations** — call `items.batchAirdrop(wallets, invitationItemId, quantities)`
+- [ ] **Verify contracts on Snowtrace** — deploy.yml → target: `verify`
 
 ---
 
@@ -10,7 +21,7 @@
 
 ## Overview
 
-Deploy Last Chad directly to Avalanche mainnet. All 6 contracts deploy in a single workflow via `deployEverything.js`.
+Deploy Members Only to Avalanche mainnet. All 5 contracts deploy in a single workflow via `deployEverything.js`.
 
 **Supply:** 333 NFTs
 **Mint Price:** 2 AVAX (flat, no discounts)
