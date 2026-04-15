@@ -155,7 +155,8 @@ knocker.addEventListener('click', async () => {
     return;
   }
 
-  ovStatus.textContent = 'Select your NFT';
+  ovStatus.textContent = '';
+  await typewrite(ovText, 'Member or Invitation?');
   nftGrid.innerHTML = '';
 
   for (let i = 0; i < memberBal; i++) {
