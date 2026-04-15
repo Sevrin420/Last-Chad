@@ -202,7 +202,7 @@ async function startChadSelect() {
   const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
   let balance;
   try { balance = (await contract.balanceOf(lobbyAddr)).toNumber(); } catch { balance = 0; }
-  if (balance === 0) { lobbyText.innerHTML = '<p style="color:#e53935">No Chads found. Mint one first!</p>'; return; }
+  if (balance === 0) { lobbyText.innerHTML = '<p style="color:#e53935">Membership not found.</p>'; return; }
 
   lobbyText.innerHTML = '<p class="npc-name">Pick your Chad</p>';
   const grid = document.createElement('div');

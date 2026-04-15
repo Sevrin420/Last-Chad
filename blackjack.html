@@ -163,7 +163,7 @@ async function pickChad(){
   lText.innerHTML='<p>Loading Chads...</p>';
   const c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);
   let bal; try{bal=(await c.balanceOf(addr)).toNumber()}catch{bal=0}
-  if(!bal){lText.innerHTML='<p style="color:#e53935">No Chads. Mint one first!</p>';return}
+  if(!bal){lText.innerHTML='<p style="color:#e53935">Membership not found.</p>';return}
   lText.innerHTML='<p class="npc">Pick your Chad</p>';
   const g=document.createElement('div'); g.className='nft-grid';
   for(let i=0;i<bal;i++){

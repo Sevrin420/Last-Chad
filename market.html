@@ -1840,7 +1840,7 @@
         const nft   = new ethers.Contract(collAddr, ERC721_ABI, readProvider);
         const bal   = await nft.balanceOf(userAddress);
         if (bal.eq(0)) {
-          sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
+          sellToken.innerHTML = '<option value="">No membership found</option>';
           return;
         }
         // Use ERC721Enumerable tokenOfOwnerByIndex for O(owned) lookup
@@ -1867,7 +1867,7 @@
           hasAny = true;
         }
         if (!hasAny) {
-          sellToken.innerHTML = '<option value="">No Chads in wallet</option>';
+          sellToken.innerHTML = '<option value="">No membership found</option>';
         }
       } catch (err) {
         console.error('populateSellTokens error:', err);
