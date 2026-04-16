@@ -1473,7 +1473,7 @@
 
       if (ownedTokens.every(t => t.chips <= 0)) {
         await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
-        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'index.html'; } }]);
         return;
       }
 
@@ -1518,13 +1518,13 @@
 
       if (token.chips <= 0) {
         await showNpcText(["Heh, what is this a charity house? Get the fack outta here."]);
-        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'index.html'; } }]);
         return;
       }
 
       if (token.chips < _minWager) {
         await showNpcText([`You need at least ${_minWager} chip${_minWager === 1 ? '' : 's'} to play. Go earn some first!`]);
-        showChoices([{ label: "Leave", action: () => { window.location.href = 'chadbase.html'; } }]);
+        showChoices([{ label: "Leave", action: () => { window.location.href = 'index.html'; } }]);
         return;
       }
 
