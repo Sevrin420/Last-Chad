@@ -8,19 +8,44 @@ Compiled 30 Solidity files successfully (evm target: paris).
   MembersOnly:  0x6defA84b02efcEd65930341B1b20aDb6BC881809
   Items:        0x67FE75E74de7752EfcEE33f1c3ae72930B954fc3
   Gamble:       0xfE89BE7c7614e5Ce243BD7C492077FaFf8B12cB2
-  RPC:          https://rpc.ankr.com/avalanche_fuji
+  RPC:          https://api.avax-test.network/ext/bc/C/rpc
 ══════════════════════════════════════════════
 
 [1] Contract code check:
-JsonRpcProvider failed to detect network and cannot start up; retry in 1s (perhaps the URL is wrong or the node is not started)
-Diagnostic script crashed: Error: missing response for request (value=[ { "error": { "code": -32000, "message": "Unauthorized: You must authenticate your request with an API key. Create an account on https://www.ankr.com/rpc/ and generate your personal API key for free." }, "id": null, "jsonrpc": "2.0" } ], info={ "payload": { "id": 2, "jsonrpc": "2.0", "method": "eth_getCode", "params": [ "0x6defa84b02efced65930341b1b20adb6bc881809", "latest" ] } }, code=BAD_DATA, version=6.16.0)
-    at makeError (/home/runner/work/members-only/members-only/node_modules/ethers/src.ts/utils/errors.ts:698:21)
-    at /home/runner/work/members-only/members-only/node_modules/ethers/src.ts/providers/provider-jsonrpc.ts:561:56
-    at processTicksAndRejections (node:internal/process/task_queues:95:5) {
-  code: 'BAD_DATA',
-  value: [ { jsonrpc: '2.0', error: [Object], id: null } ],
-  info: {
-    payload: { method: 'eth_getCode', params: [Array], id: 2, jsonrpc: '2.0' }
-  },
-  shortMessage: 'missing response for request'
-}
+  ✓ MembersOnly has code (33732 bytes)
+  ✓ Items has code (36586 bytes)
+  ✓ Gamble has code (12728 bytes)
+
+[2] NFT ownership:
+  ✓ Wallet owns 3 NFT(s)
+  ℹ First token ID: 1
+
+[3] Chips balance:
+  ✓ Wallet has 366 chips
+
+[4] Token active status:
+  ✓ Token #1 is NOT active (good — commitWager requires inactive)
+
+[5] Gamble authorization:
+  ✓ Gamble authorized in MembersOnly
+  ✓ Gamble authorized in MembersOnlyItems
+
+[6] Gamble contract wiring:
+  ✓ Gamble.membersOnly() matches
+  ✓ Gamble.items() matches
+  ℹ Gamble.oracle() = 0xbD0339eF65EE5Eb6184b3e8Cf13365d8FB7F13AA
+  ℹ Wager limits: min=1, max=500
+
+[7] MembersOnly.items() wiring:
+  ✓ MembersOnly.items() matches
+
+[8] Simulate commitWager(tokenId, 1):
+  ✓ commitWager simulation succeeded (would not revert)
+
+[9] Worker reachability:
+  ✓ Worker /tables/list returned 200 ({"tables":[{"name":"public-1","label":"PUBLIC TABLE 1","players":0,"maxPlayers":4},{"name":"public-2...)
+
+══════════════════════════════════════════════
+  RESULT: 13 passed, 0 failed
+══════════════════════════════════════════════
+
