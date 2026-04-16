@@ -109,7 +109,7 @@ function onConnected(a) {
   walletBtn.classList.add('connected');
 }
 
-walletBtn.addEventListener('click', () => connectWallet(onConnected));
+walletBtn.addEventListener('click', () => connectWallet(null, { onConnected }));
 autoReconnect({ onConnected });
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -124,7 +124,7 @@ async function typewrite(el, text, speed) {
 
 knocker.addEventListener('click', async () => {
   if (!addr) {
-    connectWallet(onConnected);
+    connectWallet(null, { onConnected });
     return;
   }
 
