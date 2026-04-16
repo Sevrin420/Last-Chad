@@ -9,11 +9,11 @@
 // ══════════════════════════════════════════════════════════════════════
 
 // ── Contract addresses (update after deployment) ─────────────────────
-export const CONTRACT_ADDRESS        = '0x6defA84b02efcEd65930341B1b20aDb6BC881809'; // MembersOnly
-export const ITEMS_CONTRACT_ADDRESS  = '0x67FE75E74de7752EfcEE33f1c3ae72930B954fc3'; // MembersOnlyItems
-export const MARKET_ADDRESS          = '0x903cb1084f7B23dBcA91FcACd3e0968526465C19'; // Market
-export const GAMBLE_ADDRESS          = '0xfE89BE7c7614e5Ce243BD7C492077FaFf8B12cB2'; // Gamble
-export const TOURNAMENT_ADDRESS      = '0x702ab301C39f7ae610E83F4AA1f47237cbb2E019'; // Tournament
+export const CONTRACT_ADDRESS        = '0xEEd9f2b90465e31AcdAde93c0721A836941740cB'; // MembersOnly
+export const ITEMS_CONTRACT_ADDRESS  = '0xf86147d7ED06E5D16E62030a30b0Bfca07E2f15c'; // MembersOnlyItems
+export const MARKET_ADDRESS          = '0x17c4901e7a480EaEdc34CC26fe1677dF39154511'; // Market
+export const GAMBLE_ADDRESS          = '0xD27D0e0C39D578dC595bDEd58F99928f5eD6edb8'; // Gamble
+export const TOURNAMENT_ADDRESS      = '0xEc05D9922DD665b555AaBa18167F867EB778611f'; // Tournament
 
 // ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
@@ -33,9 +33,10 @@ export const AVAX_CHAIN = {
 export const WALLETCONNECT_PROJECT_ID = '3aa99496af6ef381ca5d78f464777c45';
 
 // ── NFT image URL ────────────────────────────────────────────────────
-// Single source of truth — asset folders are untouchable.
+// NFT image URL — uses members folder with zero-padded filenames
 export function getChadImageUrl(tokenId) {
-  return 'assets/Chads%20333/framed/chad_' + tokenId + '.png';
+  const num = String(tokenId).padStart(3, '0');
+  return 'assets/members/member' + num + '.png';
 }
 
 // ── Cloudflare Worker ────────────────────────────────────────────────
