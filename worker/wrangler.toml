@@ -25,7 +25,7 @@ new_sqlite_classes = ["HashCashTable"]
 [vars]
 CONTRACT_ADDRESS      = "0x6defA84b02efcEd65930341B1b20aDb6BC881809"
 GAMBLE_ADDRESS        = "0xfE89BE7c7614e5Ce243BD7C492077FaFf8B12cB2"
-READ_RPC              = "https://api.avax-test.network/ext/bc/C/rpc"
+READ_RPC              = "https://rpc.ankr.com/avalanche_fuji"
 AGORA_APP_ID          = "7917341a0c9c46a08328cc9a33989d75"
 
 # Secrets — never put these here. Set them with wrangler secret put:
