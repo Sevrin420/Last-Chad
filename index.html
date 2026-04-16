@@ -44,7 +44,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 
 /* ── Black overlay for NFT selection ── */
 .overlay{
-  position:fixed;inset:0;z-index:100;background:#000;
+  position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);
   display:none;flex-direction:column;align-items:center;justify-content:center;
   padding:20px;gap:16px;
 }
@@ -131,11 +131,7 @@ knocker.addEventListener('click', async () => {
   overlay.classList.add('active');
   nftGrid.innerHTML = '';
   welcomeMsg.textContent = '';
-  ovStatus.textContent = '';
-
-  await typewrite(ovText, 'Who knocks at the door of Members Only?');
-  await delay(600);
-
+  ovText.textContent = '';
   ovStatus.textContent = 'Checking wallet...';
 
   const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
