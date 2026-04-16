@@ -369,7 +369,7 @@ cashoutBtn.addEventListener('click', async ()=>{
       showResult('No chips to claim.','lose');
     }
     setButtons(false,false,false,false);
-    setTimeout(()=>{window.location.href='chadbase.html'},3000);
+    setTimeout(()=>{window.location.href='index.html'},3000);
   }catch(e){
     showResult(e.message||'Cashout failed','lose');
     cashoutBtn.disabled=false; cashoutBtn.textContent='CASH OUT';
