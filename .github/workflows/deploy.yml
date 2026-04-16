@@ -485,4 +485,8 @@ jobs:
       - name: Run craps diagnostic
         env:
           WALLET: ${{ vars.AIRDROP_TO || vars.AIRDROP_WALLETS }}
-        run: npx hardhat run scripts/diagnoseCraps.js --network ${{ inputs.network }}
+        run: |
+          npx hardhat run scripts/diagnoseCraps.js --network ${{ inputs.network }} 2>&1 | tee /tmp/diag.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/diag.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
