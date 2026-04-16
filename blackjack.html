@@ -147,15 +147,16 @@ function btns(opts){
 
 // Wallet
 function onConn(a){ addr=a; wBtn.textContent=truncateAddress(a); wBtn.classList.add('connected') }
-wBtn.addEventListener('click',()=>connectWallet(onConn));
-autoReconnect({onConnected:onConn});
+wBtn.addEventListener('click',()=>connectWallet(null,{onConnected:onConn}));
+await autoReconnect({onConnected:onConn});
+if(!addr) await delay(1500);
 
 // Step 1: Pick your member first
 await delay(400); chazzy.classList.add('visible');
 await delay(400); dlg.classList.add('visible');
 dlg.classList.add('tall'); chazzy.classList.add('shrunk');
 
-if(!addr){lText.innerHTML='<p style="color:#e53935">Connect wallet first!</p>'}
+if(!addr){lText.innerHTML='<p style="color:#e53935">Connect wallet first!</p>';btns([{label:'Connect Wallet',action:()=>{connectWallet(null,{onConnected:(a)=>{onConn(a);window.location.reload()}})}}])}
 else{
   lText.innerHTML='<p class="loading">Loading Members...</p>';
   let c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);

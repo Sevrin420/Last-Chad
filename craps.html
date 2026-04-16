@@ -1156,8 +1156,11 @@ if (!crapsSession) {
       lobbyWalletBtn.textContent = truncateAddress(addr);
       lobbyWalletBtn.classList.add('connected');
     }
-    lobbyWalletBtn.addEventListener('click', () => walletConnect(onConnected));
-    autoReconnect({ onConnected });
+    lobbyWalletBtn.addEventListener('click', () => walletConnect(null, { onConnected }));
+    await autoReconnect({ onConnected });
+
+    // Wait briefly for wallet session to restore
+    if (!lobbyAddr) await delay(1500);
 
     // Also update main header wallet
     const mainWalletBtn = document.getElementById('walletBtn');
@@ -1176,6 +1179,7 @@ if (!crapsSession) {
 
     if (!lobbyAddr) {
       lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>';
+      showBtns([{ label: 'Connect Wallet', action: () => { walletConnect(null, { onConnected: (a) => { onConnected(a); window.location.reload(); } }); } }]);
       return;
     }
 
