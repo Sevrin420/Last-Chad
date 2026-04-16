@@ -14,6 +14,7 @@ Before deploying to mainnet, do these:
 - [ ] **Verify contracts on Snowtrace** — deploy.yml → target: `verify`
 - [ ] **Fix mint.html network enforcement** — mint page doesn't call `ensureSigner()`, so wallet can stay on mainnet
 - [ ] **Restore knocker circle size** — currently 9% (shrunk for testing), change back to 13% in `index.html`
+- [ ] **wallet.js network auto-switch** — currently auto-selects Fuji based on config.js AVAX_CHAIN_ID. When switching to mainnet, just change config.js chain ID to `0xa86a` and it will auto-use mainnet (no wallet.js changes needed)
 
 ---
 
