@@ -119,9 +119,9 @@
 <script src="nav.js"></script>
 <script type="module">
 import { connectWallet, autoReconnect, disconnect, getSigner, ensureSigner, getUserAddress, truncateAddress } from './js/wallet.js';
-import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, GAMBLE_ADDRESS, GAMBLE_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, GAMBLE_ADDRESS, GAMBLE_ABI, READ_RPC, READ_RPC_FALLBACK, getChadImageUrl } from './js/config.js';
 
-const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
+let readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
 const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
 
 let lobbyAddr = null;
@@ -199,9 +199,21 @@ async function startChadSelect() {
   if (!lobbyAddr) { lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>'; return; }
   lobbyText.innerHTML = '<p class="loading">Loading your Members...</p>';
 
-  const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+  let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
   let balance;
-  try { balance = (await contract.balanceOf(lobbyAddr)).toNumber(); } catch { balance = 0; }
+  try {
+    balance = (await contract.balanceOf(lobbyAddr)).toNumber();
+  } catch (e) {
+    console.error('NFT check failed (primary RPC):', e.message || e);
+    try {
+      readProv = new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK);
+      contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+      balance = (await contract.balanceOf(lobbyAddr)).toNumber();
+    } catch (e2) {
+      console.error('NFT check failed (fallback RPC):', e2.message || e2);
+      balance = 0;
+    }
+  }
   if (balance === 0) { lobbyText.innerHTML = '<p style="color:#e53935">Membership not found.</p>'; return; }
 
   lobbyText.innerHTML = '<p class="npc-name">Pick your Member</p>';

@@ -110,10 +110,10 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 <script src="nav.js"></script>
 <script type="module">
 import { connectWallet, autoReconnect, disconnect, getSigner, ensureSigner, truncateAddress } from './js/wallet.js';
-import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, GAMBLE_ADDRESS, GAMBLE_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, GAMBLE_ADDRESS, GAMBLE_ABI, READ_RPC, READ_RPC_FALLBACK, getChadImageUrl } from './js/config.js';
 
 const WORKER = 'https://last-chad-runner.severin20.workers.dev';
-const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
+let readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
 
 // ── Lobby state ──
 let addr = null, tokenId = null, chips = 0, chadName = '';
@@ -161,8 +161,12 @@ async function pickChad(){
   clearL(); chazzy.classList.add('shrunk'); dlg.classList.add('tall');
   if(!addr){lText.innerHTML='<p style="color:#e53935">Connect wallet first!</p>';return}
   lText.innerHTML='<p>Loading Members...</p>';
-  const c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);
-  let bal; try{bal=(await c.balanceOf(addr)).toNumber()}catch{bal=0}
+  let c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);
+  let bal;
+  try{bal=(await c.balanceOf(addr)).toNumber()}catch(e){
+    console.error('NFT check failed (primary RPC):',e.message||e);
+    try{readProv=new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK);c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);bal=(await c.balanceOf(addr)).toNumber()}catch(e2){console.error('NFT check failed (fallback RPC):',e2.message||e2);bal=0}
+  }
   if(!bal){lText.innerHTML='<p style="color:#e53935">Membership not found.</p>';return}
   lText.innerHTML='<p class="npc">Pick your Member</p>';
   const g=document.createElement('div'); g.className='nft-grid';
