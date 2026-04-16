@@ -16,19 +16,19 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 
 /* ── Knocker hotspot ── */
 .knocker{
-  position:absolute;width:12%;height:10%;
-  top:58%;left:55%;transform:translate(-50%,-50%);
+  position:absolute;width:9%;height:8%;
+  top:72%;left:57%;transform:translate(-50%,-50%);
   cursor:pointer;border-radius:50%;z-index:10;
-  box-shadow:0 0 20px rgba(201,168,76,0.6),0 0 40px rgba(201,168,76,0.3);
-  animation:knockGlow 2s ease-in-out infinite;
-  border:2px solid rgba(201,168,76,0.4);
+  box-shadow:0 0 15px rgba(201,168,76,0.3),0 0 30px rgba(201,168,76,0.15);
+  animation:knockGlow 2.5s ease-in-out infinite;
+  border:none;
   background:transparent;
 }
 @keyframes knockGlow{
-  0%,100%{box-shadow:0 0 20px rgba(201,168,76,0.6),0 0 40px rgba(201,168,76,0.3);border-color:rgba(201,168,76,0.4)}
-  50%{box-shadow:0 0 35px rgba(255,233,106,1),0 0 70px rgba(201,168,76,0.6),0 0 100px rgba(201,168,76,0.3);border-color:rgba(255,233,106,0.7)}
+  0%,100%{box-shadow:0 0 12px rgba(201,168,76,0.2),0 0 25px rgba(201,168,76,0.1)}
+  50%{box-shadow:0 0 20px rgba(255,233,106,0.5),0 0 40px rgba(201,168,76,0.25)}
 }
-.knocker:hover{box-shadow:0 0 40px rgba(255,233,106,1),0 0 80px rgba(201,168,76,0.8)}
+.knocker:hover{box-shadow:0 0 25px rgba(255,233,106,0.6),0 0 50px rgba(201,168,76,0.3)}
 
 /* ── Wallet button ── */
 .wallet-btn{
