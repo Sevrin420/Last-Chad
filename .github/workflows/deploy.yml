@@ -34,6 +34,7 @@ on:
           - setup-invitation # Create invitation item + airdrop to wallets
           - airdrop-member   # Mint NFT + chips to a wallet
           - reset-tables     # Reset all 6 public craps tables (nuke stuck game state)
+          - diagnose-craps   # Run diagnostic checks for craps wager flow
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Required GitHub secrets (Repo → Settings → Secrets and variables → Actions):
@@ -465,3 +466,23 @@ jobs:
             exit 1
           fi
           echo "All tables reset successfully."
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job: Diagnose craps wager flow (read-only, no private key needed)
+  # ───────────────────────────────────────────────────────────────────────────
+  diagnose-craps:
+    name: Diagnose Craps (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'diagnose-craps'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run craps diagnostic
+        env:
+          WALLET: ${{ vars.AIRDROP_TO || vars.AIRDROP_WALLETS }}
+        run: npx hardhat run scripts/diagnoseCraps.js --network ${{ inputs.network }}
