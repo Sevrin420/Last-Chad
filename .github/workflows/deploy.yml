@@ -32,6 +32,7 @@ on:
           - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
           - approve-market   # Whitelist MembersOnly + Items on the Market contract
           - setup-invitation # Create invitation item + airdrop to wallets
+          - airdrop-member   # Mint NFT + chips to a wallet
           - reset-tables     # Reset all 6 public craps tables (nuke stuck game state)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -414,6 +415,28 @@ jobs:
           PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           AIRDROP_WALLETS: ${{ vars.AIRDROP_WALLETS || '' }}
         run: npx hardhat run scripts/setupInvitation.js --network ${{ inputs.network }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job: Airdrop a Member NFT + chips to a wallet
+  # ───────────────────────────────────────────────────────────────────────────
+  airdrop-member:
+    name: Airdrop Member (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'airdrop-member'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Mint NFT + award chips
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          AIRDROP_TO: ${{ vars.AIRDROP_TO || vars.AIRDROP_WALLETS }}
+          AIRDROP_CHIPS: ${{ vars.AIRDROP_CHIPS || '0' }}
+        run: npx hardhat run scripts/airdropMember.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job: Reset all public craps tables (nuke stuck game state in DOs)
