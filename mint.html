@@ -780,9 +780,57 @@
       color: #8a7a5a;
       margin-top: 28px;
     }
+
+    /* ── Naming Popup ── */
+    #nameOverlay{
+      display:none;position:fixed;inset:0;z-index:600;
+      background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:20px;
+    }
+    #nameOverlay.active{display:flex}
+    .name-box{
+      background:linear-gradient(180deg,#1e1608,#140f05);
+      border:3px solid #5c4409;border-radius:8px;padding:28px 24px;
+      max-width:400px;width:100%;text-align:center;
+    }
+    .name-title{font-size:0.7rem;color:#c9a84c;margin-bottom:16px}
+    .name-token{font-size:0.5rem;color:#7a6020;margin-bottom:12px}
+    .name-input{
+      width:100%;padding:12px;font-family:'Press Start 2P',monospace;font-size:0.5rem;
+      background:#0a0a0f;border:2px solid #5c4409;border-radius:4px;color:#ffe96a;
+      text-align:center;margin-bottom:8px;
+    }
+    .name-input:focus{outline:none;border-color:#c9a84c}
+    .name-hint{font-size:0.3rem;color:#5c4409;margin-bottom:16px}
+    .name-error{font-size:0.35rem;color:#e53935;margin-bottom:8px;min-height:1em}
+    .name-submit{
+      font-family:'Press Start 2P',monospace;font-size:0.5rem;
+      padding:12px 24px;cursor:pointer;border:none;
+      background:#c9a84c;color:#0a0a0f;border-bottom:4px solid #7a6020;
+    }
+    .name-submit:hover{background:#e8c060}
+    .name-submit:active{border-bottom-width:2px;transform:translateY(2px)}
+    .name-submit:disabled{opacity:0.4;cursor:default}
+    .name-skip{
+      display:block;margin:12px auto 0;font-family:'Press Start 2P',monospace;
+      font-size:0.35rem;color:#5c4409;background:none;border:none;cursor:pointer;
+    }
+    .name-skip:hover{color:#c9a84c}
   </style>
 </head>
 <body>
+
+  <!-- Naming Popup -->
+  <div id="nameOverlay">
+    <div class="name-box">
+      <div class="name-title">NAME YOUR MEMBER</div>
+      <div class="name-token" id="nameTokenId"></div>
+      <input class="name-input" id="nameInput" maxlength="12" placeholder="Enter name...">
+      <div class="name-hint">1-12 characters. Permanent. Must be unique.</div>
+      <div class="name-error" id="nameError"></div>
+      <button class="name-submit" id="nameSubmit">SET NAME</button>
+      <button class="name-skip" id="nameSkip">SKIP FOR NOW</button>
+    </div>
+  </div>
 
   <!-- Background -->
   <div class="bg">
@@ -1177,6 +1225,75 @@
       };
     }
 
+    // ========== NAMING POPUP ==========
+    async function showNamingPopup(tokenIds, contract) {
+      const overlay = document.getElementById('nameOverlay');
+      const tokenLabel = document.getElementById('nameTokenId');
+      const input = document.getElementById('nameInput');
+      const errEl = document.getElementById('nameError');
+      const submitBtn = document.getElementById('nameSubmit');
+      const skipBtn = document.getElementById('nameSkip');
+
+      for (let i = 0; i < tokenIds.length; i++) {
+        const tid = tokenIds[i];
+        tokenLabel.textContent = 'Member #' + tid + (tokenIds.length > 1 ? ' (' + (i+1) + ' of ' + tokenIds.length + ')' : '');
+        input.value = '';
+        errEl.textContent = '';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'SET NAME';
+        overlay.classList.add('active');
+
+        await new Promise((resolve) => {
+          function cleanup() {
+            submitBtn.removeEventListener('click', onSubmit);
+            skipBtn.removeEventListener('click', onSkip);
+          }
+
+          async function onSubmit() {
+            const name = input.value.trim();
+            if (!name) { errEl.textContent = 'Enter a name'; return; }
+            if (name.length > 12) { errEl.textContent = 'Max 12 characters'; return; }
+
+            try {
+              errEl.textContent = '';
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'SETTING...';
+
+              const taken = await contract.isNameTaken(name);
+              if (taken) { errEl.textContent = 'Name already taken'; submitBtn.disabled = false; submitBtn.textContent = 'SET NAME'; return; }
+
+              const signer = getSigner();
+              const writeContract = contract.connect(signer);
+              const tx = await writeContract.setName(tid, name);
+              await tx.wait();
+
+              submitBtn.textContent = 'NAMED!';
+              await new Promise(r => setTimeout(r, 1000));
+              overlay.classList.remove('active');
+              cleanup();
+              resolve();
+            } catch (e) {
+              errEl.textContent = e.reason || e.message || 'Failed';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'SET NAME';
+            }
+          }
+
+          function onSkip() {
+            overlay.classList.remove('active');
+            cleanup();
+            resolve();
+          }
+
+          submitBtn.addEventListener('click', onSubmit);
+          skipBtn.addEventListener('click', onSkip);
+        });
+      }
+
+      // All done — redirect to front door
+      window.location.href = 'index.html';
+    }
+
     // ========== MINT ==========
     mintBtn.addEventListener('click', async function (e) {
       if (this.disabled || !getSigner()) return;
@@ -1321,14 +1438,10 @@
         }
 
         btnText.textContent = 'MINTED!';
-
-        // Play "good luck... you're gonna need it"
         playMintSfx();
 
-        // Redirect to lobby after sounds finish (allow ~5s for both clips)
-        setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 5000);
+        // Show naming popup for each minted token
+        await showNamingPopup(mintedIds, contract);
 
       } catch (err) {
         console.error('Mint failed:', err);
