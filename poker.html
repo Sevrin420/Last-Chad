@@ -197,7 +197,7 @@ async function startChadSelect() {
   lobbyDlg.classList.add('tall');
 
   if (!lobbyAddr) { lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>'; return; }
-  lobbyText.innerHTML = '<p class="loading">Loading your Chads...</p>';
+  lobbyText.innerHTML = '<p class="loading">Loading your Members...</p>';
 
   const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
   let balance;
