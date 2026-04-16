@@ -160,6 +160,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
         require(invitationItemId > 0, "Invitation not set");
         require(items.balanceOf(msg.sender, invitationItemId) >= 1, "No invitation");
+        items.burnItem(msg.sender, invitationItemId, 1);
         _mintInternal(quantity);
     }
 
