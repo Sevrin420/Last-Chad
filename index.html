@@ -92,7 +92,6 @@ import { connectWallet, autoReconnect, disconnect, ensureSigner, truncateAddress
 import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, READ_RPC, READ_RPC_FALLBACK, getChadImageUrl } from './js/config.js';
 
 let readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
-const INVITATION_ITEM_ID = 1;
 
 let addr = null;
 const walletBtn = document.getElementById('walletBtn');
@@ -161,9 +160,12 @@ knocker.addEventListener('click', async () => {
 
   let hasInvitation = false;
   try {
-    const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
-    const invBal = (await items.balanceOf(addr, INVITATION_ITEM_ID)).toNumber();
-    hasInvitation = invBal > 0;
+    const invItemId = (await contract.invitationItemId()).toNumber();
+    if (invItemId > 0) {
+      const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
+      const invBal = (await items.balanceOf(addr, invItemId)).toNumber();
+      hasInvitation = invBal > 0;
+    }
   } catch (e) {
     console.error('Invitation check failed:', e.message || e);
   }

@@ -99,6 +99,10 @@ export const MEMBERS_ONLY_ABI = [
   // Active lock
   'function isActive(uint256 tokenId) view returns (bool)',
   'function setActive(uint256 tokenId, bool active)',
+  // Invitation
+  'function invitationItemId() view returns (uint256)',
+  'function mintWithInvitation(uint256 quantity) payable',
+  'function setInvitationItemId(uint256 itemId)',
   // Game auth
   'function authorizedGame(address game) view returns (bool)',
   'function setGameContract(address game, bool enabled)',
