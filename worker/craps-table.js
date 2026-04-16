@@ -273,6 +273,7 @@ export class CrapsTable {
             lastBetTime: Date.now(),
             lastActivity: Date.now(),
             _expectedToken: token,
+            _expectedTokenTs: tokenTs,
           };
           await this.state.storage.put(`player:${nonce}`, playerData);
         } else if (playerData._expectedToken !== token) {
