@@ -67,3 +67,24 @@ Compiled 30 Solidity files successfully (evm target: paris).
   RESULT: 15 passed, 2 failed
 ══════════════════════════════════════════════
 
+
+=== CURL CORS TESTS ===
+--- OPTIONS with Origin: https://membersonly.cc ---
+HTTP/2 204 
+access-control-allow-origin: https://lastchad.xyz
+access-control-allow-headers: Content-Type
+access-control-allow-methods: GET, POST, OPTIONS
+
+--- POST with Origin: https://membersonly.cc ---
+HTTP/2 403 
+access-control-allow-origin: https://lastchad.xyz
+access-control-allow-headers: Content-Type
+access-control-allow-methods: GET, POST, OPTIONS
+{"error":"No active wager for this nonce"}
+
+--- POST with NO origin ---
+HTTP/2 403 
+access-control-allow-origin: https://lastchad.xyz
+access-control-allow-headers: Content-Type
+access-control-allow-methods: GET, POST, OPTIONS
+{"error":"No active wager for this nonce"}
