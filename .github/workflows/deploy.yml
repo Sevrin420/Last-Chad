@@ -485,8 +485,12 @@ jobs:
       - name: Run craps diagnostic
         env:
           WALLET: ${{ vars.AIRDROP_TO || vars.AIRDROP_WALLETS }}
+        run: npx hardhat run scripts/diagnoseCraps.js --network ${{ inputs.network }} 2>&1 | tee diagnostic-output.txt; true
+
+      - name: Commit diagnostic results
         run: |
-          npx hardhat run scripts/diagnoseCraps.js --network ${{ inputs.network }} 2>&1 | tee /tmp/diag.txt
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/diag.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add diagnostic-output.txt
+          git commit -m "chore: craps diagnostic results [skip ci]" || true
+          git push origin main || true
