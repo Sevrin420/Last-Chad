@@ -918,7 +918,7 @@
     // ========== GET CHAD FROM URL ==========
     const params = new URLSearchParams(window.location.search);
     const chadId = params.get('chad');
-    if (!chadId) { window.location.replace('chadbase.html'); }
+    if (!chadId) { window.location.replace('index.html'); }
     const chadImg = getChadImageUrl(chadId);
 
     document.getElementById('portraitImg').src = chadImg;
