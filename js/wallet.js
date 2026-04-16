@@ -56,10 +56,24 @@ async function _initAppKit() {
   const { createAppKit, EthersAdapter, avalanche } = window.AppKitLib;
   const ethersAdapter = new EthersAdapter();
 
+  // Fuji testnet definition
+  const avalancheFuji = {
+    id: 43113,
+    name: 'Avalanche Fuji Testnet',
+    nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+    rpcUrls: { default: { http: ['https://api.avax-test.network/ext/bc/C/rpc'] } },
+    blockExplorers: { default: { name: 'Snowtrace', url: 'https://testnet.snowtrace.io' } },
+    testnet: true,
+  };
+
+  // Use Fuji for testnet, avalanche for mainnet — controlled by config.js AVAX_CHAIN_ID
+  const targetChainId = parseInt(AVAX_CHAIN_ID, 16);
+  const activeNetwork = targetChainId === 43113 ? avalancheFuji : avalanche;
+
   _modal = createAppKit({
     adapters: [ethersAdapter],
-    networks: [avalanche],
-    defaultNetwork: avalanche,
+    networks: [activeNetwork],
+    defaultNetwork: activeNetwork,
     projectId: WALLETCONNECT_PROJECT_ID,
     metadata: {
       name: 'Members Only',
