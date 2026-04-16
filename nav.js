@@ -7,7 +7,7 @@
     'craps.html':       'lobby',
     'docs.html':        'docs',
     'market.html':      'lobby',
-    'chadbase.html':    'lobby',
+    'index.html':    'lobby',
     'tournament.html':  'lobby',
     'leaderboard.html': 'leaderboard'
   }[page] || '';
