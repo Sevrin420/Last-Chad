@@ -1224,7 +1224,7 @@ if (!crapsSession) {
           card.addEventListener('click', () => {
             grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
-            resolve({ tid, name: name || 'Chad #' + tid });
+            resolve({ tid, name: name || 'Member #' + tid });
           });
           grid.appendChild(card);
         })();
@@ -1378,7 +1378,7 @@ const STATE = {
   dice: [5, 5],
   isRolling: false,
   playerName: 'Player',
-  nftName: crapsSession.chadName || 'Chad #' + crapsSession.tokenId,
+  nftName: crapsSession.chadName || 'ol pal',
   playerId: (crapsSession.player || '').toLowerCase() + '-' + crapsSession.tokenId,
   chadId: crapsSession.tokenId,
   seat: 0,
@@ -1649,7 +1649,7 @@ function shooterSeat() {
 
 function getShooterName() {
   const seat = shooterSeat();
-  if (seat === 0) return STATE.nftName || STATE.playerName || 'Chad';
+  if (seat === 0) return STATE.nftName || STATE.playerName || 'ol pal';
   if (seat > 0) return remotePlayers[seat].nftName || 'Player ' + (seat + 1);
   return 'Unknown';
 }
@@ -2335,7 +2335,7 @@ async function cashOut() {
       nonce: data.nonce,
       signature: data.signature,
       buyIn: STATE.buyIn,
-      chadName: STATE.nftName || 'Chad #' + STATE.tokenId,
+      chadName: STATE.nftName || 'ol pal',
     }));
 
     dealerSay("Claiming chips on-chain...", 'neutral');
@@ -2400,7 +2400,7 @@ function initPlayerFromSession() {
   }
   if (STATE.chadId) {
     setChadPortrait(0, STATE.chadId);
-    setPlayerName(0, STATE.nftName || 'Chad #' + STATE.chadId);
+    setPlayerName(0, STATE.nftName || 'ol pal');
     // Shooter is set by server via init/shooter messages — don't assume locally
   }
   updateLocalPlayerUI();
