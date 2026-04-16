@@ -168,6 +168,7 @@ else{
   else{
     lText.innerHTML='<p class="npc">Pick your Member</p>';
     const g=document.createElement('div'); g.className='nft-grid';
+    lText.appendChild(g);
     const sel=await new Promise((resolve)=>{
       for(let i=0;i<bal;i++){
         (async()=>{
@@ -184,7 +185,6 @@ else{
         })();
       }
     });
-    lText.appendChild(g);
     tokenId=sel.tid; chadName=sel.name;
 
     // Step 2: NPC dialogue with selected member's name

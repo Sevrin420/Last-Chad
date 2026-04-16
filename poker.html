@@ -208,6 +208,7 @@ else {
     lobbyText.innerHTML = '<p class="npc-name">Pick your Member</p>';
     const grid = document.createElement('div');
     grid.className = 'lobby-nft-grid';
+    lobbyText.appendChild(grid);
 
     const selected = await new Promise((resolve) => {
       for (let i = 0; i < balance; i++) {
@@ -226,7 +227,6 @@ else {
         })();
       }
     });
-    lobbyText.appendChild(grid);
 
     lobbyTokenId = selected.tid;
     lobbyChadName = selected.name;

@@ -1206,6 +1206,7 @@ if (!crapsSession) {
 
     const grid = document.createElement('div');
     grid.className = 'lobby-nft-grid';
+    lobbyText.appendChild(grid);
 
     // Wait for member selection via promise
     const selected = await new Promise((resolve) => {
@@ -1225,7 +1226,6 @@ if (!crapsSession) {
         })();
       }
     });
-    lobbyText.appendChild(grid);
 
     lobbyTokenId = selected.tid;
     lobbyChadName = selected.name;
