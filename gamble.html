@@ -1400,7 +1400,7 @@
 
     async function startChadSelect() {
       clearDialogue();
-      // Shrink the NPC portrait to make room for chad selection + wager
+      // Shrink the NPC portrait to make room for member selection + wager
       const jiptImg = document.getElementById('jipt-image');
       if (jiptImg) { jiptImg.classList.add('shrunk'); document.body.classList.add('portrait-shrunk'); }
       const addr = userAddress;
@@ -1478,7 +1478,7 @@
       }
 
       const prompt = document.createElement('p');
-      await typewrite(prompt, "Pick your Chad, brave soul...", 35);
+      await typewrite(prompt, "Pick your Member", 35);
       dialogueText.appendChild(prompt);
 
       // Show NFT grid
@@ -1553,7 +1553,7 @@
       `;
       dialogueText.appendChild(wagerSec);
 
-      // Auto-scroll to wager area after chad selection
+      // Auto-scroll to wager area after member selection
       wagerSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
       const slider = document.getElementById('wager-slider');
