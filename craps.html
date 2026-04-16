@@ -1319,14 +1319,18 @@ if (!crapsSession) {
       // Step 3: call worker to start craps session
       lobbyText.innerHTML = '<p class="loading">Starting session...</p>';
       try {
-        const resp = await fetchWithTimeout(WORKER_URL + '/craps/start', {
+        const payload = { tokenId: lobbyTokenId, nonce, player: lobbyAddr, wager };
+        console.log('POST /craps/start →', WORKER_URL, JSON.stringify(payload));
+        const resp = await fetch(WORKER_URL + '/craps/start', {
           method: 'POST',
+          mode: 'cors',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tokenId: lobbyTokenId, nonce, player: lobbyAddr, wager })
-        }, 30000);
+          body: JSON.stringify(payload)
+        });
+        console.log('Worker responded:', resp.status, resp.statusText);
         if (!resp.ok) {
           const body = await resp.text();
-          throw new Error('Worker error (' + resp.status + '): ' + body);
+          throw new Error('Worker ' + resp.status + ': ' + body);
         }
         const data = await resp.json();
 
@@ -1342,7 +1346,9 @@ if (!crapsSession) {
         window.location.reload();
       } catch (err) {
         console.error('Worker /craps/start failed:', err);
-        lobbyText.innerHTML = `<p style="color:#e53935">Session error: ${err.message}</p>`;
+        let detail = err.message || 'Unknown error';
+        if (err instanceof TypeError) detail = 'Network/CORS: ' + detail;
+        lobbyText.innerHTML = `<p style="color:#e53935">${detail}</p>`;
         showBtns([{ label: "Try Again", action: startChadSelect }]);
       }
     }
