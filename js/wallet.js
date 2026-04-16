@@ -61,7 +61,7 @@ async function _initAppKit() {
     id: 43113,
     name: 'Avalanche Fuji Testnet',
     nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
-    rpcUrls: { default: { http: ['https://api.avax-test.network/ext/bc/C/rpc'] } },
+    rpcUrls: { default: { http: ['https://rpc.ankr.com/avalanche_fuji'] } },
     blockExplorers: { default: { name: 'Snowtrace', url: 'https://testnet.snowtrace.io' } },
     testnet: true,
   };
