@@ -2019,7 +2019,7 @@ async function handleRollResult(data) {
     } catch (_) {}
     sessionStorage.removeItem('craps_session');
     STATE.nonce = null;
-    setTimeout(() => { window.location.href = 'chadbase.html'; }, 3000);
+    setTimeout(() => { window.location.href = 'index.html'; }, 3000);
     return;
   }
 
@@ -2276,7 +2276,7 @@ async function cashOut() {
       sessionStorage.removeItem('craps_session');
       localStorage.removeItem('lc_craps_cashout');
       STATE.nonce = null;
-      setTimeout(() => { window.location.href = 'chadbase.html'; }, 2000);
+      setTimeout(() => { window.location.href = 'index.html'; }, 2000);
       return;
     }
 
@@ -2315,7 +2315,7 @@ async function cashOut() {
     STATE.bets = {};
     STATE.stack = 0;
     renderAllBetChips();
-    setTimeout(() => { window.location.href = 'chadbase.html'; }, 2000);
+    setTimeout(() => { window.location.href = 'index.html'; }, 2000);
 
   } catch (err) {
     cashingOut = false;
