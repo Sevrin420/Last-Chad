@@ -1,0 +1,26 @@
+Downloading compiler 0.8.26
+Compiled 30 Solidity files successfully (evm target: paris).
+
+══════════════════════════════════════════════
+  CRAPS DIAGNOSTIC — fuji
+══════════════════════════════════════════════
+  Wallet:       0x2cbf16f9adbe5e1145c87319ecc2afc0274eac64
+  MembersOnly:  0x6defA84b02efcEd65930341B1b20aDb6BC881809
+  Items:        0x67FE75E74de7752EfcEE33f1c3ae72930B954fc3
+  Gamble:       0xfE89BE7c7614e5Ce243BD7C492077FaFf8B12cB2
+  RPC:          https://rpc.ankr.com/avalanche_fuji
+══════════════════════════════════════════════
+
+[1] Contract code check:
+JsonRpcProvider failed to detect network and cannot start up; retry in 1s (perhaps the URL is wrong or the node is not started)
+Diagnostic script crashed: Error: missing response for request (value=[ { "error": { "code": -32000, "message": "Unauthorized: You must authenticate your request with an API key. Create an account on https://www.ankr.com/rpc/ and generate your personal API key for free." }, "id": null, "jsonrpc": "2.0" } ], info={ "payload": { "id": 2, "jsonrpc": "2.0", "method": "eth_getCode", "params": [ "0x6defa84b02efced65930341b1b20adb6bc881809", "latest" ] } }, code=BAD_DATA, version=6.16.0)
+    at makeError (/home/runner/work/members-only/members-only/node_modules/ethers/src.ts/utils/errors.ts:698:21)
+    at /home/runner/work/members-only/members-only/node_modules/ethers/src.ts/providers/provider-jsonrpc.ts:561:56
+    at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  code: 'BAD_DATA',
+  value: [ { jsonrpc: '2.0', error: [Object], id: null } ],
+  info: {
+    payload: { method: 'eth_getCode', params: [Array], id: 2, jsonrpc: '2.0' }
+  },
+  shortMessage: 'missing response for request'
+}
