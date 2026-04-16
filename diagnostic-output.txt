@@ -47,14 +47,14 @@ Compiled 30 Solidity files successfully (evm target: paris).
 
 [10] Worker CORS preflight:
   ℹ OPTIONS status: 204
-  ℹ Access-Control-Allow-Origin: https://lastchad.xyz
+  ℹ Access-Control-Allow-Origin: https://membersonly.cc
   ℹ Access-Control-Allow-Methods: GET, POST, OPTIONS
   ℹ Access-Control-Allow-Headers: Content-Type
-  ✗ CORS preflight issue: status=204, origin=https://lastchad.xyz
+  ✓ CORS preflight passed for membersonly.cc
 
 [11] Worker POST /craps/start (test):
   ℹ POST status: 403
-  ℹ Response ACAO: https://lastchad.xyz
+  ℹ Response ACAO: https://membersonly.cc
   ℹ Body: {"error":"No active wager for this nonce"}
   ✓ Worker correctly rejects fake nonce with 403 + CORS headers
   ✓ Worker POST response has CORS headers
@@ -64,27 +64,27 @@ Compiled 30 Solidity files successfully (evm target: paris).
   ✗ Nonce check failed: gamble.usedNonces is not a function
 
 ══════════════════════════════════════════════
-  RESULT: 15 passed, 2 failed
+  RESULT: 16 passed, 1 failed
 ══════════════════════════════════════════════
 
 
 === CURL CORS TESTS ===
 --- OPTIONS with Origin: https://membersonly.cc ---
 HTTP/2 204 
-access-control-allow-origin: https://lastchad.xyz
+access-control-allow-origin: https://membersonly.cc
 access-control-allow-headers: Content-Type
 access-control-allow-methods: GET, POST, OPTIONS
 
 --- POST with Origin: https://membersonly.cc ---
 HTTP/2 403 
-access-control-allow-origin: https://lastchad.xyz
+access-control-allow-origin: https://membersonly.cc
 access-control-allow-headers: Content-Type
 access-control-allow-methods: GET, POST, OPTIONS
 {"error":"No active wager for this nonce"}
 
 --- POST with NO origin ---
 HTTP/2 403 
-access-control-allow-origin: https://lastchad.xyz
+access-control-allow-origin: *
 access-control-allow-headers: Content-Type
 access-control-allow-methods: GET, POST, OPTIONS
 {"error":"No active wager for this nonce"}
