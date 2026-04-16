@@ -209,6 +209,85 @@ async function main() {
     bad(`Worker unreachable: ${e.message}`);
   }
 
+  // 10. Worker CORS preflight (OPTIONS /craps/start)
+  console.log('\n[10] Worker CORS preflight:');
+  try {
+    const opts = await fetch(WORKER_URL + '/craps/start', {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'https://membersonly.cc',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type',
+      },
+    });
+    const acao = opts.headers.get('access-control-allow-origin') || '';
+    const acam = opts.headers.get('access-control-allow-methods') || '';
+    const acah = opts.headers.get('access-control-allow-headers') || '';
+    info(`OPTIONS status: ${opts.status}`);
+    info(`Access-Control-Allow-Origin: ${acao}`);
+    info(`Access-Control-Allow-Methods: ${acam}`);
+    info(`Access-Control-Allow-Headers: ${acah}`);
+    if (opts.status === 204 && acao === 'https://membersonly.cc') {
+      ok('CORS preflight passed for membersonly.cc');
+    } else {
+      bad(`CORS preflight issue: status=${opts.status}, origin=${acao}`);
+    }
+  } catch (e) {
+    bad(`CORS preflight failed: ${e.message}`);
+  }
+
+  // 11. Worker POST /craps/start (with test data — expect 403 since no real wager)
+  console.log('\n[11] Worker POST /craps/start (test):');
+  try {
+    const testResp = await fetch(WORKER_URL + '/craps/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': 'https://membersonly.cc',
+      },
+      body: JSON.stringify({ tokenId: tokenId || 1, nonce: 99999, player: WALLET, wager: 1 }),
+    });
+    const testBody = await testResp.text();
+    const respAcao = testResp.headers.get('access-control-allow-origin') || '';
+    info(`POST status: ${testResp.status}`);
+    info(`Response ACAO: ${respAcao}`);
+    info(`Body: ${testBody.slice(0, 200)}`);
+    if (testResp.status === 403 && testBody.includes('No active wager')) {
+      ok('Worker correctly rejects fake nonce with 403 + CORS headers');
+    } else if (testResp.status === 403) {
+      ok(`Worker returned 403: ${testBody.slice(0, 100)} (expected — no real wager)`);
+    } else if (testResp.status === 500) {
+      bad(`Worker 500 error: ${testBody.slice(0, 200)}`);
+    } else {
+      info(`Unexpected status ${testResp.status}: ${testBody.slice(0, 200)}`);
+    }
+    if (!respAcao) bad('Worker POST response missing Access-Control-Allow-Origin header!');
+    else ok('Worker POST response has CORS headers');
+  } catch (e) {
+    bad(`Worker POST /craps/start failed: ${e.message}`);
+  }
+
+  // 12. Check for stuck nonces (recent wagers that weren't claimed)
+  console.log('\n[12] Recent nonce status:');
+  try {
+    const nextNonce = Number(await gamble.nextNonce());
+    info(`Gamble.nextNonce() = ${nextNonce}`);
+    // Check last 5 nonces
+    for (let n = Math.max(1, nextNonce - 5); n < nextNonce; n++) {
+      const used = await gamble.usedNonces(BigInt(n));
+      const wagerAmt = Number(await gamble.wagerAmounts(BigInt(n)));
+      if (wagerAmt > 0 && !used) {
+        info(`Nonce ${n}: wager=${wagerAmt}, used=${used} ← ACTIVE (unclaimed)`);
+      } else if (used) {
+        info(`Nonce ${n}: claimed`);
+      } else {
+        info(`Nonce ${n}: empty`);
+      }
+    }
+  } catch (e) {
+    bad(`Nonce check failed: ${e.message}`);
+  }
+
   // Summary
   console.log(`\n══════════════════════════════════════════════`);
   console.log(`  RESULT: ${pass} passed, ${fail} failed`);
