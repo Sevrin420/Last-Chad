@@ -89,9 +89,9 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 <script type="module">
 import { connectWallet, autoReconnect, disconnect, ensureSigner, truncateAddress } from './js/wallet.js';
-import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, READ_RPC, getChadImageUrl } from './js/config.js';
+import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, READ_RPC, READ_RPC_FALLBACK, getChadImageUrl } from './js/config.js';
 
-const readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
+let readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
 const INVITATION_ITEM_ID = 1;
 
 let addr = null;
@@ -134,16 +134,39 @@ knocker.addEventListener('click', async () => {
   ovText.textContent = '';
   ovStatus.textContent = 'Checking wallet...';
 
-  const contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+  let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
   let memberBal = 0;
-  try { memberBal = (await contract.balanceOf(addr)).toNumber(); } catch {}
+  let rpcFailed = false;
+  try {
+    memberBal = (await contract.balanceOf(addr)).toNumber();
+  } catch (e) {
+    console.error('NFT balanceOf failed (primary RPC):', e.message || e);
+    rpcFailed = true;
+  }
+
+  // Fallback RPC if primary failed
+  if (rpcFailed) {
+    try {
+      ovStatus.textContent = 'Retrying...';
+      readProv = new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK);
+      contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+      memberBal = (await contract.balanceOf(addr)).toNumber();
+      rpcFailed = false;
+    } catch (e2) {
+      console.error('NFT balanceOf failed (fallback RPC):', e2.message || e2);
+      ovStatus.textContent = 'Cannot reach network — try again';
+      return;
+    }
+  }
 
   let hasInvitation = false;
   try {
     const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
     const invBal = (await items.balanceOf(addr, INVITATION_ITEM_ID)).toNumber();
     hasInvitation = invBal > 0;
-  } catch {}
+  } catch (e) {
+    console.error('Invitation check failed:', e.message || e);
+  }
 
   if (memberBal === 0 && !hasInvitation) {
     ovStatus.textContent = '';
