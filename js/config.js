@@ -16,8 +16,8 @@ export const GAMBLE_ADDRESS          = '0xfE89BE7c7614e5Ce243BD7C492077FaFf8B12c
 export const TOURNAMENT_ADDRESS      = '0x702ab301C39f7ae610E83F4AA1f47237cbb2E019'; // Tournament
 
 // ── RPC endpoints ────────────────────────────────────────────────────
-export const READ_RPC                 = 'https://rpc.ankr.com/avalanche_fuji';
-export const READ_RPC_FALLBACK        = 'https://api.avax-test.network/ext/bc/C/rpc';
+export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
+export const READ_RPC_FALLBACK        = 'https://rpc.ankr.com/avalanche_fuji';
 
 // ── Chain config ─────────────────────────────────────────────────────
 export const AVAX_CHAIN_ID = '0xa869'; // 43113 Avalanche Fuji Testnet
@@ -25,7 +25,7 @@ export const AVAX_CHAIN = {
   chainId: AVAX_CHAIN_ID,
   chainName: 'Avalanche Fuji Testnet',
   nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
-  rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc', 'https://rpc.ankr.com/avalanche_fuji'],
+  rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'],
   blockExplorerUrls: ['https://testnet.snowtrace.io/']
 };
 
