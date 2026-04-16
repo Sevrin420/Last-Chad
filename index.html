@@ -17,16 +17,16 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 /* ── Knocker hotspot ── */
 .knocker{
   position:absolute;width:13%;aspect-ratio:1;height:auto;
-  top:64%;left:59%;transform:translate(-50%,-50%);
+  top:61%;left:60%;transform:translate(-50%,-50%);
   cursor:pointer;border-radius:50%;z-index:10;
-  box-shadow:0 0 25px rgba(201,168,76,0.3),0 0 50px rgba(201,168,76,0.15);
+  box-shadow:0 0 30px rgba(201,168,76,0.3),0 0 60px rgba(201,168,76,0.15);
   animation:knockGlow 2.5s ease-in-out infinite;
   border:none;
   background:transparent;
 }
 @keyframes knockGlow{
-  0%,100%{box-shadow:0 0 12px rgba(201,168,76,0.2),0 0 25px rgba(201,168,76,0.1)}
-  50%{box-shadow:0 0 20px rgba(255,233,106,0.5),0 0 40px rgba(201,168,76,0.25)}
+  0%,100%{box-shadow:0 0 25px rgba(201,168,76,0.25),0 0 50px rgba(201,168,76,0.12),0 0 80px rgba(201,168,76,0.06)}
+  50%{box-shadow:0 0 35px rgba(255,233,106,0.5),0 0 70px rgba(201,168,76,0.3),0 0 110px rgba(201,168,76,0.15)}
 }
 .knocker:hover{box-shadow:0 0 25px rgba(255,233,106,0.6),0 0 50px rgba(201,168,76,0.3)}
 
