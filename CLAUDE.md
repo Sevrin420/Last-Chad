@@ -50,6 +50,8 @@ Use: `git push -u origin main`
 - **`assets/`** — Do NOT touch NFT images or asset folders.
 - **`metadata/`** — NEVER modify. NFT metadata is set and immutable.
 - **`chads/`** — NFT artwork, do not modify.
+- **`hashcash/`** — Do NOT modify any hashcash files unless explicitly asked.
+- **`freeplay/`** — Do NOT modify any freeplay/pieface files unless explicitly asked.
 
 ---
 

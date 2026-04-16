@@ -805,7 +805,7 @@
 
 <!-- ── Craps Lobby (Chazzy P dialogue → chad select → wager) ── -->
 <div id="crapsLobby" class="craps-lobby-overlay">
-  <img id="lobbyChazzy" class="lobby-chazzy" src="assets/membersonly/pokerlobby.jpg" alt="Lobby" />
+  <img id="lobbyChazzy" class="lobby-chazzy" src="assets/membersonly/m_craps.jpg" alt="Craps" />
   <div id="lobbyDialogue" class="lobby-dialogue">
     <div id="lobbyText" class="lobby-text"></div>
     <div id="lobbyChoices" class="lobby-choices"></div>
@@ -889,7 +889,7 @@
       <!-- Announcer Overlay -->
       <div class="announcer-overlay" id="announcerOverlay">
         <div class="announcer-inner">
-          <img class="announcer-portrait" id="announcerImg" src="assets/chazzyp/chazzypneutral.jpg" alt="Chazzy P" />
+          <img class="announcer-portrait" id="announcerImg" src="assets/ginny/ginnyglad.jpg" alt="Ginny" />
           <div class="announcer-content">
             <div class="announcer-dice" id="announcerDice"></div>
             <div class="announcer-call" id="announcerCall"></div>
@@ -2169,7 +2169,7 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint, isPointMade) {
       mood = entry.mood || 'neutral';
     }
   }
-  const moodMap = {neutral:'chazzypneutral.jpg',happy:'chazzyphappy.jpg',sad:'chazzypsad.jpg',concerned:'chazzypconcerned.jpg'};
+  const moodMap = {neutral:'ginnyglad.jpg',happy:'ginnystoked.jpg',sad:'ginnysad.jpg',concerned:'ginnysad.jpg'};
 
   const overlay = document.getElementById('announcerOverlay');
   const img = document.getElementById('announcerImg');
@@ -2177,7 +2177,7 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint, isPointMade) {
   const subEl = document.getElementById('announcerSub');
   const diceContainer = document.getElementById('announcerDice');
 
-  img.src = 'assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
+  img.src = 'assets/ginny/' + (moodMap[mood] || moodMap.neutral);
   call.textContent = callText;
   subEl.textContent = sub || '';
 
@@ -2210,14 +2210,14 @@ function showAnnouncer(d1, d2, phase, sub, isNewPoint, isPointMade) {
 
 function dealerSay(text, mood) {
   // Show via announcer overlay (no dice, just text)
-  const moodMap = {neutral:'chazzypneutral.jpg',happy:'chazzyphappy.jpg',sad:'chazzypsad.jpg',concerned:'chazzypconcerned.jpg'};
+  const moodMap = {neutral:'ginnyglad.jpg',happy:'ginnystoked.jpg',sad:'ginnysad.jpg',concerned:'ginnysad.jpg'};
   const overlay = document.getElementById('announcerOverlay');
   const img = document.getElementById('announcerImg');
   const call = document.getElementById('announcerCall');
   const subEl = document.getElementById('announcerSub');
   const diceContainer = document.getElementById('announcerDice');
 
-  img.src = 'assets/chazzyp/' + (moodMap[mood] || moodMap.neutral);
+  img.src = 'assets/ginny/' + (moodMap[mood] || moodMap.neutral);
   call.textContent = text;
   subEl.textContent = '';
   diceContainer.innerHTML = '';
