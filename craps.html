@@ -1279,33 +1279,50 @@ if (!crapsSession) {
       clearLobby();
       lobbyText.innerHTML = '<p class="loading">Committing wager on-chain...</p>';
 
+      let signer, receipt, nonce;
+      // Step 1: commit wager on-chain
       try {
-        const signer = await ensureSigner();
+        signer = await ensureSigner();
+        if (!signer) throw new Error('Wallet not connected');
         const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
         const tx = await gamble.commitWager(lobbyTokenId, wager);
-        const receipt = await tx.wait();
+        receipt = await tx.wait();
+      } catch (err) {
+        console.error('commitWager failed:', err);
+        const msg = err.reason || err.error?.message || err.message || 'Transaction failed';
+        lobbyText.innerHTML = `<p style="color:#e53935">On-chain error: ${msg}</p>`;
+        showBtns([{ label: "Try Again", action: startChadSelect }]);
+        return;
+      }
 
-        // Extract nonce from WagerCommitted event
+      // Step 2: extract nonce from event
+      try {
         const iface = new ethers.utils.Interface(GAMBLE_ABI);
-        let nonce;
         for (const log of receipt.logs) {
           try {
             const parsed = iface.parseLog(log);
             if (parsed.name === 'WagerCommitted') { nonce = parsed.args.nonce.toNumber(); break; }
           } catch {}
         }
-        if (nonce === undefined) throw new Error('WagerCommitted event not found');
+        if (nonce === undefined) throw new Error('WagerCommitted event not found in receipt');
+      } catch (err) {
+        lobbyText.innerHTML = `<p style="color:#e53935">${err.message}</p>`;
+        showBtns([{ label: "Try Again", action: startChadSelect }]);
+        return;
+      }
 
-        lobbyText.innerHTML = '<p class="loading">Starting session...</p>';
-
-        // Call worker to start craps session
-        const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
-        const resp = await fetch(WORKER_URL + '/craps/start', {
+      // Step 3: call worker to start craps session
+      lobbyText.innerHTML = '<p class="loading">Starting session...</p>';
+      try {
+        const resp = await fetchWithTimeout(WORKER_URL + '/craps/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tokenId: lobbyTokenId, nonce, player: lobbyAddr, wager })
         });
-        if (!resp.ok) throw new Error('Worker rejected session: ' + await resp.text());
+        if (!resp.ok) {
+          const body = await resp.text();
+          throw new Error('Worker error (' + resp.status + '): ' + body);
+        }
         const data = await resp.json();
 
         // Save session and launch game
@@ -1319,7 +1336,8 @@ if (!crapsSession) {
         // Reload page — now crapsSession exists, lobby is skipped, game loads
         window.location.reload();
       } catch (err) {
-        lobbyText.innerHTML = `<p style="color:#e53935">${err.message || 'Transaction failed'}</p>`;
+        console.error('Worker /craps/start failed:', err);
+        lobbyText.innerHTML = `<p style="color:#e53935">Session error: ${err.message}</p>`;
         showBtns([{ label: "Try Again", action: startChadSelect }]);
       }
     }
