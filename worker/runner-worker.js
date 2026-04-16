@@ -26,7 +26,7 @@ const ALLOWED_ORIGINS = ['https://membersonly.cc', 'https://www.membersonly.cc',
 function getCors(request) {
   const origin = request?.headers?.get('Origin') || '';
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
