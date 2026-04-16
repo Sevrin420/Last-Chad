@@ -129,7 +129,7 @@ const lChoices = document.getElementById('lobbyChoices');
 const wBtn     = document.getElementById('walletBtn');
 
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)) }
-async function type(el,s,sp=35){ for(let i=0;i<s.length;i++){ el.textContent+=s[i]; await delay(sp) } }
+async function type(el,s,sp=53){ for(let i=0;i<s.length;i++){ el.textContent+=s[i]; await delay(sp) } }
 function clearL(){ lText.innerHTML=''; lChoices.innerHTML='' }
 
 async function npc(lines){
@@ -150,18 +150,13 @@ function onConn(a){ addr=a; wBtn.textContent=truncateAddress(a); wBtn.classList.
 wBtn.addEventListener('click',()=>connectWallet(onConn));
 autoReconnect({onConnected:onConn});
 
-// Intro
+// Step 1: Pick your member first
 await delay(400); chazzy.classList.add('visible');
-await delay(800); dlg.classList.add('visible');
-await delay(400);
+await delay(400); dlg.classList.add('visible');
+dlg.classList.add('tall'); chazzy.classList.add('shrunk');
 
-await npc(["My favorite member!","Welcome back chum.","Tonight you're getting lucky *winks*"]);
-btns([{label:"Sit down",action:pickChad}]);
-
-// Chad select
-async function pickChad(){
-  clearL(); chazzy.classList.add('shrunk'); dlg.classList.add('tall');
-  if(!addr){lText.innerHTML='<p style="color:#e53935">Connect wallet first!</p>';return}
+if(!addr){lText.innerHTML='<p style="color:#e53935">Connect wallet first!</p>'}
+else{
   lText.innerHTML='<p class="loading">Loading Members...</p>';
   let c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);
   let bal;
@@ -169,21 +164,35 @@ async function pickChad(){
     console.error('NFT check failed (primary RPC):',e.message||e);
     try{readProv=new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK);c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);bal=(await c.balanceOf(addr)).toNumber()}catch(e2){console.error('NFT check failed (fallback RPC):',e2.message||e2);bal=0}
   }
-  if(!bal){lText.innerHTML='<p style="color:#e53935">Membership not found.</p>';return}
-  lText.innerHTML='<p class="npc">Pick your Member</p>';
-  const g=document.createElement('div'); g.className='nft-grid';
-  for(let i=0;i<bal;i++){
-    const tid=(await c.tokenOfOwnerByIndex(addr,i)).toNumber();
-    const nm=await c.tokenName(tid).catch(()=>'');
-    const d=document.createElement('div'); d.className='nft-card';
-    d.innerHTML=`<img src="${getChadImageUrl(tid)}"><div class="nft-id">${nm||'#'+tid}</div>`;
-    d.addEventListener('click',()=>{
-      g.querySelectorAll('.nft-card').forEach(x=>x.classList.remove('selected'));
-      d.classList.add('selected'); tokenId=tid; chadName=nm||'Chad #'+tid; showWager();
+  if(!bal){lText.innerHTML='<p style="color:#e53935">Membership not found.</p>'}
+  else{
+    lText.innerHTML='<p class="npc">Pick your Member</p>';
+    const g=document.createElement('div'); g.className='nft-grid';
+    const sel=await new Promise((resolve)=>{
+      for(let i=0;i<bal;i++){
+        (async()=>{
+          const tid=(await c.tokenOfOwnerByIndex(addr,i)).toNumber();
+          const nm=await c.tokenName(tid).catch(()=>'');
+          const d=document.createElement('div'); d.className='nft-card';
+          d.innerHTML=`<img src="${getChadImageUrl(tid)}"><div class="nft-id">${nm||'#'+tid}</div>`;
+          d.addEventListener('click',()=>{
+            g.querySelectorAll('.nft-card').forEach(x=>x.classList.remove('selected'));
+            d.classList.add('selected');
+            resolve({tid,name:nm||'Chad #'+tid});
+          });
+          g.appendChild(d);
+        })();
+      }
     });
-    g.appendChild(d);
+    lText.appendChild(g);
+    tokenId=sel.tid; chadName=sel.name;
+
+    // Step 2: NPC dialogue with selected member's name
+    clearL(); chazzy.classList.remove('shrunk'); dlg.classList.remove('tall');
+    await delay(300);
+    await npc(["Welcome "+chadName,"I think you're getting lucky tonight *winks*"]);
+    btns([{label:"Sit down",action:()=>{clearL();chazzy.classList.add('shrunk');dlg.classList.add('tall');showWager()}}]);
   }
-  lText.appendChild(g);
 }
 
 // Wager

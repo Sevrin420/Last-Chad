@@ -119,7 +119,7 @@ async function typewrite(el, text, speed) {
   el.textContent = '';
   for (let i = 0; i < text.length; i++) {
     el.textContent += text[i];
-    await delay(speed || 40);
+    await delay(speed || 60);
   }
 }
 

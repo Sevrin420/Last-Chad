@@ -139,7 +139,7 @@ const lobbyWalletBtn = document.getElementById('lobbyWalletBtn');
 const rulesOverlay = document.getElementById('rulesOverlay');
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-async function typewrite(el, text, speed = 35) { for (let i = 0; i < text.length; i++) { el.textContent += text[i]; await delay(speed); } }
+async function typewrite(el, text, speed = 53) { for (let i = 0; i < text.length; i++) { el.textContent += text[i]; await delay(speed); } }
 function clearLobby() { lobbyText.innerHTML = ''; lobbyChoices.innerHTML = ''; }
 
 async function showNpc(lines) {
@@ -147,7 +147,7 @@ async function showNpc(lines) {
   for (const line of lines) {
     const p = document.createElement('p');
     lobbyText.appendChild(p);
-    await typewrite(p, line, 35);
+    await typewrite(p, line, 53);
     await delay(300);
   }
 }
@@ -176,29 +176,16 @@ autoReconnect({ onConnected });
 document.getElementById('rulesCloseBtn').addEventListener('click', () => rulesOverlay.classList.remove('active'));
 rulesOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) rulesOverlay.classList.remove('active'); });
 
-// Intro
+// Step 1: Pick your member first
 await delay(400);
 lobbyChazzy.classList.add('visible');
-await delay(800);
-lobbyDlg.classList.add('visible');
 await delay(400);
+lobbyDlg.classList.add('visible');
+lobbyDlg.classList.add('tall');
+lobbyChazzy.classList.add('shrunk');
 
-await showNpc([
-  "My favorite member!",
-  "Welcome back chum.",
-  "Tonight you're getting lucky *winks*"
-]);
-showBtns([
-  { label: "Deal me in baby doll", action: startChadSelect },
-  { label: "Poker Rules", action: () => rulesOverlay.classList.add('active') }
-]);
-
-async function startChadSelect() {
-  clearLobby();
-  lobbyChazzy.classList.add('shrunk');
-  lobbyDlg.classList.add('tall');
-
-  if (!lobbyAddr) { lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>'; return; }
+if (!lobbyAddr) { lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>'; }
+else {
   lobbyText.innerHTML = '<p class="loading">Loading your Members...</p>';
 
   let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
@@ -216,28 +203,49 @@ async function startChadSelect() {
       balance = 0;
     }
   }
-  if (balance === 0) { lobbyText.innerHTML = '<p style="color:#e53935">Membership not found.</p>'; return; }
+  if (balance === 0) { lobbyText.innerHTML = '<p style="color:#e53935">Membership not found.</p>'; }
+  else {
+    lobbyText.innerHTML = '<p class="npc-name">Pick your Member</p>';
+    const grid = document.createElement('div');
+    grid.className = 'lobby-nft-grid';
 
-  lobbyText.innerHTML = '<p class="npc-name">Pick your Member</p>';
-  const grid = document.createElement('div');
-  grid.className = 'lobby-nft-grid';
-
-  for (let i = 0; i < balance; i++) {
-    const tid = (await contract.tokenOfOwnerByIndex(lobbyAddr, i)).toNumber();
-    const name = await contract.tokenName(tid).catch(() => '');
-    const card = document.createElement('div');
-    card.className = 'lobby-nft-card';
-    card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
-    card.addEventListener('click', () => {
-      grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      lobbyTokenId = tid;
-      lobbyChadName = name || 'Chad #' + tid;
-      showWager();
+    const selected = await new Promise((resolve) => {
+      for (let i = 0; i < balance; i++) {
+        (async () => {
+          const tid = (await contract.tokenOfOwnerByIndex(lobbyAddr, i)).toNumber();
+          const name = await contract.tokenName(tid).catch(() => '');
+          const card = document.createElement('div');
+          card.className = 'lobby-nft-card';
+          card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
+          card.addEventListener('click', () => {
+            grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            resolve({ tid, name: name || 'Chad #' + tid });
+          });
+          grid.appendChild(card);
+        })();
+      }
     });
-    grid.appendChild(card);
+    lobbyText.appendChild(grid);
+
+    lobbyTokenId = selected.tid;
+    lobbyChadName = selected.name;
+
+    // Step 2: NPC dialogue with the selected member's name
+    clearLobby();
+    lobbyChazzy.classList.remove('shrunk');
+    lobbyDlg.classList.remove('tall');
+    await delay(300);
+
+    await showNpc([
+      "Welcome " + lobbyChadName,
+      "I think you're getting lucky tonight *winks*"
+    ]);
+    showBtns([
+      { label: "Deal me in baby doll", action: () => { clearLobby(); lobbyChazzy.classList.add('shrunk'); lobbyDlg.classList.add('tall'); showWager(); } },
+      { label: "Poker Rules", action: () => rulesOverlay.classList.add('active') }
+    ]);
   }
-  lobbyText.appendChild(grid);
 }
 
 async function showWager() {

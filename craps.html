@@ -1120,7 +1120,7 @@ if (!crapsSession) {
 
     function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-    async function typewrite(el, text, speed = 35) {
+    async function typewrite(el, text, speed = 53) {
       for (let i = 0; i < text.length; i++) {
         el.textContent += text[i];
         await delay(speed);
@@ -1134,7 +1134,7 @@ if (!crapsSession) {
       for (const line of lines) {
         const p = document.createElement('p');
         lobbyText.appendChild(p);
-        await typewrite(p, line, 35);
+        await typewrite(p, line, 53);
         await delay(300);
       }
     }
@@ -1166,79 +1166,84 @@ if (!crapsSession) {
     document.getElementById('rulesCloseBtn').addEventListener('click', () => rulesOverlay.classList.remove('active'));
     rulesOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) rulesOverlay.classList.remove('active'); });
 
-    // Show Chazzy P intro
+    // Step 1: Pick your member first
     await delay(400);
     lobbyChazzy.classList.add('visible');
-    await delay(800);
-    lobbyDlg.classList.add('visible');
     await delay(400);
+    lobbyDlg.classList.add('visible');
+    lobbyDlg.classList.add('tall');
+    lobbyChazzy.classList.add('shrunk');
+
+    if (!lobbyAddr) {
+      lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>';
+      return;
+    }
+
+    lobbyText.innerHTML = '<p class="loading">Loading your Members...</p>';
+
+    let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+    let balance;
+    try {
+      balance = (await contract.balanceOf(lobbyAddr)).toNumber();
+    } catch (e) {
+      console.error('NFT check failed (primary RPC):', e.message || e);
+      try {
+        readProv = new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK);
+        contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
+        balance = (await contract.balanceOf(lobbyAddr)).toNumber();
+      } catch (e2) {
+        console.error('NFT check failed (fallback RPC):', e2.message || e2);
+        balance = 0;
+      }
+    }
+
+    if (balance === 0) {
+      lobbyText.innerHTML = '<p style="color:#e53935">Membership not found.</p>';
+      return;
+    }
+
+    lobbyText.innerHTML = '<p class="npc-name">Pick your Member</p>';
+
+    const grid = document.createElement('div');
+    grid.className = 'lobby-nft-grid';
+
+    // Wait for member selection via promise
+    const selected = await new Promise((resolve) => {
+      for (let i = 0; i < balance; i++) {
+        (async () => {
+          const tid = (await contract.tokenOfOwnerByIndex(lobbyAddr, i)).toNumber();
+          const name = await contract.tokenName(tid).catch(() => '');
+          const card = document.createElement('div');
+          card.className = 'lobby-nft-card';
+          card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
+          card.addEventListener('click', () => {
+            grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            resolve({ tid, name: name || 'Chad #' + tid });
+          });
+          grid.appendChild(card);
+        })();
+      }
+    });
+    lobbyText.appendChild(grid);
+
+    lobbyTokenId = selected.tid;
+    lobbyChadName = selected.name;
+
+    // Step 2: NPC dialogue with the selected member's name
+    clearLobby();
+    lobbyChazzy.classList.remove('shrunk');
+    lobbyDlg.classList.remove('tall');
+    await delay(300);
 
     await showNpc([
-      "My favorite member!",
-      "Welcome back chum.",
-      "Tonight you're getting lucky *winks*"
+      "Welcome " + lobbyChadName,
+      "I think you're getting lucky tonight *winks*"
     ]);
     showBtns([
-      { label: "Hand me the bones Missy", action: startChadSelect },
+      { label: "Hand me the bones Missy", action: () => { clearLobby(); lobbyChazzy.classList.add('shrunk'); lobbyDlg.classList.add('tall'); showWager(selected.tid, selected.name); } },
       { label: "Craps Rules", action: () => rulesOverlay.classList.add('active') }
     ]);
-
-    // Chad select
-    async function startChadSelect() {
-      clearLobby();
-      lobbyChazzy.classList.add('shrunk');
-      lobbyDlg.classList.add('tall');
-
-      if (!lobbyAddr) {
-        lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>';
-        return;
-      }
-
-      lobbyText.innerHTML = '<p class="loading">Loading your Members...</p>';
-
-      let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
-      let balance;
-      try {
-        balance = (await contract.balanceOf(lobbyAddr)).toNumber();
-      } catch (e) {
-        console.error('NFT check failed (primary RPC):', e.message || e);
-        try {
-          readProv = new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK);
-          contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
-          balance = (await contract.balanceOf(lobbyAddr)).toNumber();
-        } catch (e2) {
-          console.error('NFT check failed (fallback RPC):', e2.message || e2);
-          balance = 0;
-        }
-      }
-
-      if (balance === 0) {
-        lobbyText.innerHTML = '<p style="color:#e53935">Membership not found.</p>';
-        return;
-      }
-
-      lobbyText.innerHTML = '<p class="npc-name">Pick your Member</p>';
-
-      const grid = document.createElement('div');
-      grid.className = 'lobby-nft-grid';
-
-      for (let i = 0; i < balance; i++) {
-        const tid = (await contract.tokenOfOwnerByIndex(lobbyAddr, i)).toNumber();
-        const name = await contract.tokenName(tid).catch(() => '');
-        const card = document.createElement('div');
-        card.className = 'lobby-nft-card';
-        card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
-        card.addEventListener('click', () => {
-          grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
-          card.classList.add('selected');
-          lobbyTokenId = tid;
-          lobbyChadName = name || 'Chad #' + tid;
-          showWager(tid, name);
-        });
-        grid.appendChild(card);
-      }
-      lobbyText.appendChild(grid);
-    }
 
     // Wager
     async function showWager(tid) {
