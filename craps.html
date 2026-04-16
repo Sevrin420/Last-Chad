@@ -1323,7 +1323,7 @@ if (!crapsSession) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tokenId: lobbyTokenId, nonce, player: lobbyAddr, wager })
-        });
+        }, 30000);
         if (!resp.ok) {
           const body = await resp.text();
           throw new Error('Worker error (' + resp.status + '): ' + body);
