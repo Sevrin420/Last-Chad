@@ -160,7 +160,13 @@ knocker.addEventListener('click', async () => {
 
   let hasInvitation = false;
   try {
-    const invItemId = (await contract.invitationItemId()).toNumber();
+    let invItemId = 0;
+    try {
+      invItemId = (await contract.invitationItemId()).toNumber();
+    } catch (_) {
+      // Contract may not have invitationItemId — fall back to item 1
+      invItemId = 1;
+    }
     if (invItemId > 0) {
       const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
       const invBal = (await items.balanceOf(addr, invItemId)).toNumber();
