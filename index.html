@@ -66,6 +66,8 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 
 .welcome{font-size:clamp(0.6rem,2.5vw,1rem);color:#c9a84c;text-align:center;line-height:2;margin-top:20px}
 .status{font-size:0.4rem;color:#5c4409;text-align:center;min-height:1em;margin-top:8px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.status.loading{animation:blink 1.5s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -132,6 +134,7 @@ knocker.addEventListener('click', async () => {
   welcomeMsg.textContent = '';
   ovText.textContent = '';
   ovStatus.textContent = 'Checking wallet...';
+  ovStatus.classList.add('loading');
 
   let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
   let memberBal = 0;
@@ -177,12 +180,12 @@ knocker.addEventListener('click', async () => {
   }
 
   if (memberBal === 0 && !hasInvitation) {
-    ovStatus.textContent = '';
+    ovStatus.textContent = ''; ovStatus.classList.remove('loading');
     await typewrite(ovText, 'No membership found. You need an invitation.');
     return;
   }
 
-  ovStatus.textContent = '';
+  ovStatus.textContent = ''; ovStatus.classList.remove('loading');
   nftGrid.innerHTML = '';
 
   for (let i = 0; i < memberBal; i++) {
@@ -212,14 +215,14 @@ async function selectCard(card) {
   card.classList.add('selected');
 
   if (card.dataset.type === 'member') {
-    ovStatus.textContent = '';
+    ovStatus.textContent = ''; ovStatus.classList.remove('loading');
     nftGrid.style.display = 'none';
     await typewrite(welcomeMsg, 'Welcome home ' + card.dataset.name);
     await delay(1500);
     window.location.href = 'clublounge.html';
   } else {
     card.classList.add('glow-gold');
-    ovStatus.textContent = '';
+    ovStatus.textContent = ''; ovStatus.classList.remove('loading');
     nftGrid.style.display = 'none';
     await typewrite(welcomeMsg, 'Your invitation has been accepted.');
     await delay(1500);

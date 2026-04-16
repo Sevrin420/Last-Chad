@@ -35,6 +35,8 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .nft-card .nft-id{font-size:.4rem;text-align:center;padding:2px;color:#ffe96a}
 .nft-card:hover{border-color:#ffaa40;transform:scale(1.06)}
 .nft-card.selected{border-color:#ffaa40;box-shadow:0 0 14px rgba(255,170,64,.5)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.loading{animation:blink 1.5s ease-in-out infinite}
 .wager-sec{margin-top:.6em;text-align:center}
 .wager-sec input[type=range]{width:80%;max-width:300px;accent-color:#c9a84c}
 .wager-val{font-size:.7rem;color:#ffe96a;margin:.4em 0}
@@ -160,7 +162,7 @@ btns([{label:"Sit down",action:pickChad}]);
 async function pickChad(){
   clearL(); chazzy.classList.add('shrunk'); dlg.classList.add('tall');
   if(!addr){lText.innerHTML='<p style="color:#e53935">Connect wallet first!</p>';return}
-  lText.innerHTML='<p>Loading Members...</p>';
+  lText.innerHTML='<p class="loading">Loading Members...</p>';
   let c=new ethers.Contract(CONTRACT_ADDRESS,MEMBERS_ONLY_ABI,readProv);
   let bal;
   try{bal=(await c.balanceOf(addr)).toNumber()}catch(e){

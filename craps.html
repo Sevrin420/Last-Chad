@@ -68,6 +68,8 @@
     .lobby-nft-card .nft-id{font-size:0.4rem;text-align:center;padding:2px;color:#ffe96a}
     .lobby-nft-card:hover{border-color:#ffaa40;transform:scale(1.06)}
     .lobby-nft-card.selected{border-color:#ffaa40;box-shadow:0 0 14px rgba(255,170,64,0.5)}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+    .loading{animation:blink 1.5s ease-in-out infinite}
     /* Wager slider in lobby */
     .lobby-wager{margin-top:0.6em;text-align:center}
     .lobby-wager input[type=range]{width:80%;max-width:300px;accent-color:#c9a84c}
