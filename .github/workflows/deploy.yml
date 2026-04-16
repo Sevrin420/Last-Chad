@@ -487,6 +487,30 @@ jobs:
           WALLET: ${{ vars.AIRDROP_TO || vars.AIRDROP_WALLETS }}
         run: npx hardhat run scripts/diagnoseCraps.js --network ${{ inputs.network }} 2>&1 | tee diagnostic-output.txt; true
 
+      - name: CORS curl test
+        run: |
+          echo "" >> diagnostic-output.txt
+          echo "=== CURL CORS TESTS ===" >> diagnostic-output.txt
+          echo "--- OPTIONS with Origin: https://membersonly.cc ---" >> diagnostic-output.txt
+          curl -s -D - -o /dev/null -X OPTIONS \
+            -H "Origin: https://membersonly.cc" \
+            -H "Access-Control-Request-Method: POST" \
+            -H "Access-Control-Request-Headers: content-type" \
+            "https://last-chad-runner.severin20.workers.dev/craps/start" 2>&1 | grep -i "access-control\|HTTP/" >> diagnostic-output.txt
+          echo "" >> diagnostic-output.txt
+          echo "--- POST with Origin: https://membersonly.cc ---" >> diagnostic-output.txt
+          curl -s -D - -X POST \
+            -H "Origin: https://membersonly.cc" \
+            -H "Content-Type: application/json" \
+            -d '{"tokenId":1,"nonce":99999,"player":"0x0000000000000000000000000000000000000000","wager":1}' \
+            "https://last-chad-runner.severin20.workers.dev/craps/start" 2>&1 | grep -i "access-control\|HTTP/\|error" >> diagnostic-output.txt
+          echo "" >> diagnostic-output.txt
+          echo "--- POST with NO origin ---" >> diagnostic-output.txt
+          curl -s -D - -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"tokenId":1,"nonce":99999,"player":"0x0000000000000000000000000000000000000000","wager":1}' \
+            "https://last-chad-runner.severin20.workers.dev/craps/start" 2>&1 | grep -i "access-control\|HTTP/\|error" >> diagnostic-output.txt
+
       - name: Commit diagnostic results
         run: |
           git config user.name "github-actions[bot]"
