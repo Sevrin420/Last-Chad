@@ -69,6 +69,11 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .act-btn:hover{background:#e8c060}
 .act-btn:active{border-bottom-width:2px;transform:translateY(2px)}
 .act-btn:disabled{opacity:.3;cursor:default;transform:none}
+
+/* Dealer announcer */
+.bj-announcer{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:0 8px;background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px}
+.bj-announcer img{width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
+.bj-announcer-text{font-size:0.45rem;color:#c9a84c;line-height:2;flex:1}
 </style>
 </head>
 <body>
@@ -88,6 +93,10 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
     <div class="stack">CHIPS: <span id="stackVal">0</span></div>
     <div id="nav-placeholder"></div>
     <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
+  </div>
+  <div class="bj-announcer">
+    <img id="bjDealerImg" src="assets/ginny/ginnyglad.jpg" alt="Ginny">
+    <div class="bj-announcer-text" id="bjDealerText">Place your bet and deal!</div>
   </div>
   <div class="felt">
     <div class="hand-label">DEALER</div>
@@ -117,9 +126,18 @@ import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, 
 const WORKER = 'https://last-chad-runner.severin20.workers.dev';
 let readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
 
+// ── Session restore ──
+let bjSession = JSON.parse(sessionStorage.getItem('bj_session') || 'null');
+if (bjSession) {
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('gameWrap').classList.add('active');
+}
+
 // ── Lobby state ──
 let addr = null, tokenId = null, chips = 0, chadName = '';
-let bjNonce = null, bjStack = 0, bjToken = null;
+let bjNonce = bjSession ? bjSession.nonce : null;
+let bjStack = bjSession ? bjSession.stack : 0;
+let bjToken = bjSession ? bjSession.sessionToken : null;
 
 const lobbyEl  = document.getElementById('lobby');
 const chazzy   = document.getElementById('lobbyChazzy');
@@ -227,15 +245,18 @@ async function commitWager(wager){
     if(bjNonce===undefined) throw new Error('No WagerCommitted event');
 
     lText.innerHTML='<p>Starting session...</p>';
-    const res=await fetch(WORKER+'/blackjack/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,player:addr})});
+    const res=await fetch(WORKER+'/blackjack/start',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,player:addr})});
     if(!res.ok) throw new Error(await res.text());
     const data=await res.json();
     bjStack=data.stack; bjToken=data.sessionToken;
+    bjSession={nonce:bjNonce,tokenId,chadName,stack:bjStack,sessionToken:bjToken,player:addr};
+    sessionStorage.setItem('bj_session',JSON.stringify(bjSession));
 
     // Enter game
     lobbyEl.classList.add('hidden');
     document.getElementById('gameWrap').classList.add('active');
     document.getElementById('stackVal').textContent=bjStack;
+    dealerSay("Welcome "+chadName+". Let's play!",'happy');
   }catch(e){
     lText.innerHTML=`<p style="color:#e53935">${e.message||'Failed'}</p>`;
     btns([{label:"Try again",action:pickChad}]);
@@ -245,6 +266,14 @@ async function commitWager(wager){
 // ══════════════════════════════════════════════
 //  GAME LOGIC
 // ══════════════════════════════════════════════
+
+function dealerSay(text,mood){
+  const el=document.getElementById('bjDealerText');
+  const img=document.getElementById('bjDealerImg');
+  if(el) el.textContent=text;
+  const m={neutral:'ginnyglad.jpg',happy:'ginnystoked.jpg',sad:'ginnysad.jpg'};
+  if(img) img.src='assets/ginny/'+(m[mood]||m.neutral);
+}
 
 const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 const SUITS=['♠','♥','♦','♣'];
@@ -263,6 +292,15 @@ const btnDouble=document.getElementById('btnDouble');
 const cashoutBtn=document.getElementById('cashoutBtn');
 
 let handWager=0;
+
+// Restore session state into game UI
+if(bjSession){
+  tokenId=bjSession.tokenId;
+  chadName=bjSession.chadName||'';
+  addr=bjSession.player||null;
+  stackEl.textContent=bjStack;
+  dealerSay("Welcome back "+chadName+". Deal when ready!",'neutral');
+}
 
 function renderCard(c){
   if(!c) return '<div class="card hole"><span style="font-size:.5rem;color:#2a5a2a">?</span></div>';
@@ -288,10 +326,10 @@ btnDeal.addEventListener('click', async ()=>{
   dealerTotalEl.textContent=''; playerTotalEl.textContent='';
 
   handWager=Math.max(1,Math.min(1,bjStack));
-  if(bjStack<1){ showResult('OUT OF CHIPS — CASH OUT','lose'); return }
+  if(bjStack<1){ showResult('OUT OF CHIPS — CASH OUT','lose'); dealerSay("You're busted, toots.",'sad'); return }
 
   try{
-    const res=await fetch(WORKER+'/blackjack/deal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,handWager,sessionToken:bjToken})});
+    const res=await fetch(WORKER+'/blackjack/deal',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,handWager,sessionToken:bjToken})});
     const d=await res.json(); if(!d.ok) throw new Error(d.error);
     bjStack=d.stack; stackEl.textContent=bjStack;
 
@@ -301,11 +339,12 @@ btnDeal.addEventListener('click', async ()=>{
     if(d.result){
       renderHand(dealerCardsEl, d.dealerCards);
       dealerTotalEl.textContent=d.dealerValue;
-      if(d.result==='blackjack') showResult('BLACKJACK! +'+d.payout,'bj');
-      else if(d.result==='push') showResult('PUSH','push');
+      if(d.result==='blackjack'){showResult('BLACKJACK! +'+d.payout,'bj');dealerSay("Blackjack! "+d.payout+" chips!",'happy')}
+      else if(d.result==='push'){showResult('PUSH','push');dealerSay("Push — bet returned.",'neutral')}
       setButtons(true,false,false,false);
     } else {
       renderHand(dealerCardsEl, d.dealerCards);
+      dealerSay("You're at "+d.playerValue+". Hit, stand, or double?",'neutral');
       setButtons(false,true,true,bjStack>=handWager);
     }
   }catch(e){ showResult(e.message||'Deal error','lose'); setButtons(true,false,false,false) }
@@ -315,7 +354,7 @@ btnDeal.addEventListener('click', async ()=>{
 btnHit.addEventListener('click', async ()=>{
   setButtons(false,false,false,false);
   try{
-    const res=await fetch(WORKER+'/blackjack/hit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
+    const res=await fetch(WORKER+'/blackjack/hit',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
     const d=await res.json(); if(!d.ok) throw new Error(d.error);
     bjStack=d.stack; stackEl.textContent=bjStack;
     renderHand(playerCardsEl, d.playerCards);
@@ -325,8 +364,10 @@ btnHit.addEventListener('click', async ()=>{
       renderHand(dealerCardsEl, d.dealerCards);
       dealerTotalEl.textContent=d.dealerValue;
       showResult('BUST','lose');
+      dealerSay("Bust! Better luck next hand, toots.",'sad');
       setButtons(true,false,false,false);
     } else {
+      dealerSay("You're at "+d.playerValue+". Hit or stand?",'neutral');
       setButtons(false,true,true,false);
     }
   }catch(e){ showResult(e.message||'Hit error','lose'); setButtons(false,true,true,false) }
@@ -336,15 +377,15 @@ btnHit.addEventListener('click', async ()=>{
 btnStand.addEventListener('click', async ()=>{
   setButtons(false,false,false,false);
   try{
-    const res=await fetch(WORKER+'/blackjack/stand',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
+    const res=await fetch(WORKER+'/blackjack/stand',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
     const d=await res.json(); if(!d.ok) throw new Error(d.error);
     bjStack=d.stack; stackEl.textContent=bjStack;
     renderHand(playerCardsEl, d.playerCards); playerTotalEl.textContent=d.playerValue;
     renderHand(dealerCardsEl, d.dealerCards); dealerTotalEl.textContent=d.dealerValue;
 
-    if(d.result==='win'||d.result==='dealer_bust') showResult('WIN! +'+d.payout,'win');
-    else if(d.result==='push') showResult('PUSH','push');
-    else showResult('DEALER WINS','lose');
+    if(d.result==='win'||d.result==='dealer_bust'){showResult('WIN! +'+d.payout,'win');dealerSay("Winner! "+d.payout+" chips.",'happy')}
+    else if(d.result==='push'){showResult('PUSH','push');dealerSay("Push — bet returned.",'neutral')}
+    else{showResult('DEALER WINS','lose');dealerSay("Dealer takes it. Tough break, toots.",'sad')}
     setButtons(true,false,false,false);
   }catch(e){ showResult(e.message||'Stand error','lose'); setButtons(false,false,true,false) }
 });
@@ -353,16 +394,16 @@ btnStand.addEventListener('click', async ()=>{
 btnDouble.addEventListener('click', async ()=>{
   setButtons(false,false,false,false);
   try{
-    const res=await fetch(WORKER+'/blackjack/double',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
+    const res=await fetch(WORKER+'/blackjack/double',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
     const d=await res.json(); if(!d.ok) throw new Error(d.error);
     bjStack=d.stack; stackEl.textContent=bjStack;
     renderHand(playerCardsEl, d.playerCards); playerTotalEl.textContent=d.playerValue;
     renderHand(dealerCardsEl, d.dealerCards); dealerTotalEl.textContent=d.dealerValue;
 
-    if(d.result==='bust') showResult('BUST','lose');
-    else if(d.result==='win'||d.result==='dealer_bust') showResult('WIN! +'+d.payout,'win');
-    else if(d.result==='push') showResult('PUSH','push');
-    else showResult('DEALER WINS','lose');
+    if(d.result==='bust'){showResult('BUST','lose');dealerSay("Doubled and busted!",'sad')}
+    else if(d.result==='win'||d.result==='dealer_bust'){showResult('WIN! +'+d.payout,'win');dealerSay("Double down pays! "+d.payout+" chips!",'happy')}
+    else if(d.result==='push'){showResult('PUSH','push');dealerSay("Push on the double.",'neutral')}
+    else{showResult('DEALER WINS','lose');dealerSay("Dealer wins the double. Ouch.",'sad')}
     setButtons(true,false,false,false);
   }catch(e){ showResult(e.message||'Double error','lose'); setButtons(true,false,false,false) }
 });
@@ -371,20 +412,23 @@ btnDouble.addEventListener('click', async ()=>{
 cashoutBtn.addEventListener('click', async ()=>{
   cashoutBtn.disabled=true; cashoutBtn.textContent='CASHING OUT...';
   try{
-    const res=await fetch(WORKER+'/blackjack/cashout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,sessionToken:bjToken})});
+    const res=await fetch(WORKER+'/blackjack/cashout',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,sessionToken:bjToken})});
     const d=await res.json(); if(!d.ok) throw new Error(d.error);
 
     if(d.payout>0){
-      showResult('Claiming '+d.payout+' chips...','win');
+      dealerSay("Claiming "+d.payout+" chips on-chain...",'neutral');
       const signer=await ensureSigner();
       const gamble=new ethers.Contract(GAMBLE_ADDRESS,GAMBLE_ABI,signer);
       const tx=await gamble.claimWinnings(tokenId,d.payout,d.nonce,d.signature);
       await tx.wait();
       showResult('CASHED OUT: '+d.payout+' chips!','win');
+      dealerSay("See ya around toots.",'happy');
     } else {
       showResult('No chips to claim.','lose');
+      dealerSay("See ya around toots.",'neutral');
     }
     setButtons(false,false,false,false);
+    sessionStorage.removeItem('bj_session');
     setTimeout(()=>{window.location.href='clublounge.html'},3000);
   }catch(e){
     showResult(e.message||'Cashout failed','lose');
