@@ -79,7 +79,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .result-msg.push{color:#c9a84c}
 .result-msg.bj{color:#ffe96a;text-shadow:0 0 10px rgba(255,233,106,.5)}
 .bj-chip-tray{display:flex;gap:6px;align-items:center;justify-content:center}
-.bj-chip-tray .chip{width:clamp(36px,9vw,52px);height:clamp(36px,9vw,52px);border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;background-size:cover;background-position:center}
+.bj-chip-tray .chip{width:clamp(36px,9vw,52px);height:clamp(36px,9vw,52px);border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;background-size:130%;background-position:center}
 .bj-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
 .chip-1{background-image:url('assets/membersonly/chip1.png')}
 .chip-5{background-image:url('assets/membersonly/chip5.png')}
@@ -427,13 +427,13 @@ async function dealHandAnimated(el,cards,hideHole){
     const isHole=hideHole&&i===1&&!cards[i];
     const cardEl=isHole?makeCardEl(null):makeCardEl(cards[i],true);
     cardEl.style.opacity='0';el.appendChild(cardEl);
-    await delay(100);cardEl.style.opacity='1';
-    await delay(200);
+    await delay(150);cardEl.style.opacity='1';
+    await delay(300);
     if(!isHole&&cards[i]){
       cardEl.classList.add('flipping');
-      await delay(200);
+      await delay(300);
       revealCard(cardEl,cards[i]);
-      await delay(150);
+      await delay(225);
     }
   }
 }
