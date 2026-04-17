@@ -110,10 +110,10 @@
   </div>
 </div>
 
-<!-- Poker game goes here when ready — for now redirect to gamble.html poker -->
-<div id="comingSoon" class="coming-soon" style="display:none">
-  <h1>POKER</h1>
-  <p>Redirecting to the poker table...</p>
+<!-- Poker Game (hidden until session starts) -->
+<div id="pokerGame" style="display:none;flex-direction:column;height:100vh;background:#0a0a0f">
+  <!-- Filled by Phase 2 -->
+  <p style="color:#c9a84c;text-align:center;margin-top:40vh;font-size:0.7rem">Game loading...</p>
 </div>
 
 <div id="nav-placeholder"></div>
@@ -125,6 +125,14 @@ import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, 
 
 let readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
 const WORKER_URL = 'https://last-chad-runner.severin20.workers.dev';
+
+// Check for existing poker session — skip lobby if found
+let pokerSession = JSON.parse(sessionStorage.getItem('poker_session') || 'null');
+if (pokerSession) {
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('pokerGame').style.display = 'flex';
+  // initPokerGame called after function is defined (end of script)
+}
 
 let lobbyAddr = null;
 let lobbyTokenId = null;
@@ -285,30 +293,81 @@ async function commitAndEnter(wager) {
   clearLobby();
   lobbyText.innerHTML = '<p class="loading">Committing wager on-chain...</p>';
 
+  let signer, receipt, nonce;
+  // Step 1: commit wager on-chain
   try {
-    const signer = await ensureSigner();
+    signer = await ensureSigner();
+    if (!signer) throw new Error('Wallet not connected');
     const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
     const tx = await gamble.commitWager(lobbyTokenId, wager);
-    const receipt = await tx.wait();
+    receipt = await tx.wait();
+  } catch (err) {
+    console.error('commitWager failed:', err);
+    const msg = err.reason || err.error?.message || err.message || 'Transaction failed';
+    lobbyText.innerHTML = `<p style="color:#e53935">On-chain error: ${msg}</p>`;
+    showBtns([{ label: "Try Again", action: showWager }]);
+    return;
+  }
 
+  // Step 2: extract nonce
+  try {
     const iface = new ethers.utils.Interface(GAMBLE_ABI);
-    let nonce;
     for (const log of receipt.logs) {
       try { const p = iface.parseLog(log); if (p.name === 'WagerCommitted') { nonce = p.args.nonce.toNumber(); break; } } catch {}
     }
     if (nonce === undefined) throw new Error('WagerCommitted event not found');
-
-    // Store poker session and redirect to gamble.html which has the full poker game
-    sessionStorage.setItem('poker_launch', JSON.stringify({
-      nonce, tokenId: lobbyTokenId, chadName: lobbyChadName,
-      wager, player: lobbyAddr
-    }));
-    window.location.href = 'gamble.html?game=poker';
   } catch (err) {
-    lobbyText.innerHTML = `<p style="color:#e53935">${err.message || 'Transaction failed'}</p>`;
-    showBtns([{ label: "Try Again", action: startChadSelect }]);
+    lobbyText.innerHTML = `<p style="color:#e53935">${err.message}</p>`;
+    showBtns([{ label: "Try Again", action: showWager }]);
+    return;
+  }
+
+  // Step 3: call worker /poker/start
+  lobbyText.innerHTML = '<p class="loading">Starting session...</p>';
+  try {
+    const resp = await fetch(WORKER_URL + '/poker/start', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokenId: lobbyTokenId, nonce, player: lobbyAddr })
+    });
+    if (!resp.ok) throw new Error('Worker ' + resp.status + ': ' + await resp.text());
+    const data = await resp.json();
+
+    // Save session and launch game
+    pokerSession = {
+      nonce, tokenId: lobbyTokenId, chadName: lobbyChadName,
+      stack: data.stack || wager, sessionToken: data.sessionToken,
+      player: lobbyAddr
+    };
+    sessionStorage.setItem('poker_session', JSON.stringify(pokerSession));
+    launchGame();
+  } catch (err) {
+    console.error('Worker /poker/start failed:', err);
+    let detail = err.message || 'Unknown error';
+    if (err instanceof TypeError) detail = 'Network/CORS: ' + detail;
+    lobbyText.innerHTML = `<p style="color:#e53935">${detail}</p>`;
+    showBtns([{ label: "Try Again", action: showWager }]);
   }
 }
+
+function launchGame() {
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('pokerGame').style.display = 'flex';
+  initPokerGame();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  POKER GAME (Phases 2-6 will fill this in)
+// ═══════════════════════════════════════════════════════════════════════
+
+function initPokerGame() {
+  // Stub — Phase 2 will build the game UI and wire it up
+  console.log('Poker session:', pokerSession);
+}
+
+// If session was restored from sessionStorage, init now
+if (pokerSession) initPokerGame();
 </script>
 </body>
 </html>
