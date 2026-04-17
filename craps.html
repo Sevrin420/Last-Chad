@@ -59,7 +59,7 @@
     .lobby-choice:active{border-bottom-width:2px;border-right-width:2px;transform:translate(3px,3px)}
     .lobby-wallet-btn{position:fixed;top:16px;right:16px;z-index:520}
     /* NFT grid in lobby */
-    .lobby-nft-grid{display:flex;gap:0.8em;flex-wrap:wrap;justify-content:center;margin-top:0.6em;max-height:40vh;overflow-y:auto}
+    .lobby-nft-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6em;margin-top:0.6em;max-height:40vh;overflow-y:auto}
     .lobby-nft-card{
       width:120px;height:160px;border:2px solid transparent;border-radius:6px;cursor:pointer;
       position:relative;overflow:hidden;transition:all 0.2s;background:transparent;
@@ -1215,11 +1215,11 @@ if (!crapsSession) {
           const name = await contract.tokenName(tid).catch(() => '');
           const card = document.createElement('div');
           card.className = 'lobby-nft-card';
-          card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
+          card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Member #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
           card.addEventListener('click', () => {
             grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
-            resolve({ tid, name: name || 'Member #' + tid });
+            resolve({ tid, name: name || 'Member ' + tid });
           });
           grid.appendChild(card);
         })();
@@ -2416,7 +2416,7 @@ function setChadPortrait(seat, chadId) {
   const img = document.getElementById('avatarImg-' + seat);
   if (img && chadId) {
     img.src = getChadImageUrl(chadId);
-    img.alt = 'Chad #' + chadId;
+    img.alt = 'Member ' + chadId;
     img.classList.add('visible');
   }
 }

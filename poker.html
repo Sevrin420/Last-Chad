@@ -53,7 +53,7 @@
     .wallet-btn:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
     .wallet-btn.connected{font-size:0.5rem}
     .lobby-wallet-btn{position:fixed;top:16px;right:16px;z-index:520}
-    .lobby-nft-grid{display:flex;gap:0.8em;flex-wrap:wrap;justify-content:center;margin-top:0.6em;max-height:40vh;overflow-y:auto}
+    .lobby-nft-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6em;margin-top:0.6em;max-height:40vh;overflow-y:auto}
     .lobby-nft-card{width:120px;height:160px;border:2px solid transparent;border-radius:6px;cursor:pointer;position:relative;overflow:hidden;transition:all 0.2s;background:transparent}
     .lobby-nft-card img{width:100%;height:80%;object-fit:contain;image-rendering:pixelated}
     .lobby-nft-card .nft-id{font-size:0.4rem;text-align:center;padding:2px;color:#ffe96a}
@@ -440,11 +440,11 @@ else {
           const name = await contract.tokenName(tid).catch(() => '');
           const card = document.createElement('div');
           card.className = 'lobby-nft-card';
-          card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Chad #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
+          card.innerHTML = `<img src="${getChadImageUrl(tid)}" alt="Member #${tid}"><div class="nft-id">${name || '#' + tid}</div>`;
           card.addEventListener('click', () => {
             grid.querySelectorAll('.lobby-nft-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
-            resolve({ tid, name: name || 'Chad #' + tid });
+            resolve({ tid, name: name || 'Member ' + tid });
           });
           grid.appendChild(card);
         })();
