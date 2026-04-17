@@ -203,7 +203,6 @@
       border: none;
       background: none;
       transition: color 0.15s, transform 0.15s;
-      animation: gamePulse 2.5s ease-in-out infinite;
     }
 
     .game-link:hover {
@@ -211,9 +210,23 @@
       transform: scale(1.1);
     }
 
+    .game-link::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 220%; height: 160%;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 233, 106, 0.6);
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(255, 233, 106, 0.08) 70%, transparent 100%);
+      animation: gamePulse 2.5s ease-in-out infinite;
+      pointer-events: none;
+      z-index: -1;
+    }
+
     @keyframes gamePulse {
-      0%, 100% { box-shadow: 0 0 8px rgba(201, 168, 76, 0.2); }
-      50% { box-shadow: 0 0 18px rgba(255, 233, 106, 0.5); }
+      0%, 100% { box-shadow: 0 0 15px 5px rgba(201, 168, 76, 0.3); opacity: 0.7; }
+      50% { box-shadow: 0 0 30px 10px rgba(255, 233, 106, 0.6); opacity: 1; }
     }
 
     .game-link-craps { left: 10%; top: 61%; }
