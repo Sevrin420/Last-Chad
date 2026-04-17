@@ -604,8 +604,12 @@ function initPokerGame() {
     chip.addEventListener('click', () => {
       if (pokerState.phase !== 'ready') return;
       const val = parseInt(chip.dataset.value);
-      if (pokerState.handBet + val > pokerSession.stack) return;
-      pokerState.handBet += val;
+      const newBet = pokerState.handBet + val;
+      if (newBet > pokerSession.stack) {
+        dealerSay("Not enough chips for that bet, toots!", 'sad');
+        return;
+      }
+      pokerState.handBet = newBet;
       betVal.textContent = pokerState.handBet;
     });
   });
