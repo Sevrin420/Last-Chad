@@ -419,7 +419,11 @@ cashoutBtn.addEventListener('click', async ()=>{
   cashoutBtn.disabled=true; cashoutBtn.textContent='CASHING OUT...';
   try{
     const res=await fetch(WORKER+'/blackjack/cashout',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,sessionToken:bjToken})});
-    const d=await res.json(); if(!d.ok) throw new Error(d.error);
+    const d=await res.json();
+    if(!d.ok){
+      if((d.error||'').includes('No session')){dealerSay("Session expired. Chips lost — sorry toots.",'sad');sessionStorage.removeItem('bj_session');setTimeout(()=>{window.location.href='clublounge.html'},3000);return}
+      throw new Error(d.error);
+    }
 
     if(d.payout>0){
       dealerSay("Claiming "+d.payout+" chips on-chain...",'neutral');

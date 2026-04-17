@@ -32,7 +32,7 @@ function getCors(request) {
   };
 }
 
-const POKER_SESSION_TTL = 600;    // 10 minutes per session (reset on every interaction)
+const POKER_SESSION_TTL = 7200;    // 2 hours per session (reset on every interaction)
 const CRAPS_SESSION_TTL = 1200;   // 20 minutes per craps session (longer game)
 const TABLE_PRESENCE_TTL = 120;   // 2 minutes — heartbeat refreshes this
 const TABLE_STALE_MS = 90_000;    // 90s — entries older than this are filtered out
@@ -58,7 +58,7 @@ const POKER_PAYOUTS = {
   'JACKS OR BETTER':    1,
 };
 
-const BLACKJACK_SESSION_TTL = 600; // 10 min per session
+const BLACKJACK_SESSION_TTL = 7200; // 2 hours per session
 
 // ── HashCash Craps config ──
 const HASHCASH_PUBLIC_TABLES = [

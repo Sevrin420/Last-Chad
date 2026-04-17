@@ -792,7 +792,18 @@ async function handleCashOut() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tokenId: pokerSession.tokenId, nonce: pokerSession.nonce, sessionToken: pokerSession.sessionToken })
     });
-    if (!resp.ok) throw new Error(await resp.text());
+    if (!resp.ok) {
+      const body = await resp.text();
+      let msg = body;
+      try { msg = JSON.parse(body).error || body; } catch {}
+      if (msg.includes('No poker session') || msg.includes('No session')) {
+        dealerSay("Session expired. Chips lost — sorry toots.", 'sad');
+        sessionStorage.removeItem('poker_session');
+        setTimeout(() => { window.location.href = 'clublounge.html'; }, 3000);
+        return;
+      }
+      throw new Error(msg);
+    }
     const data = await resp.json();
 
     const payout = data.payout;
