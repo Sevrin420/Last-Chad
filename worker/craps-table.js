@@ -751,6 +751,7 @@ export class CrapsTable {
     const playerKeys = await this.state.storage.list({ prefix: 'player:' });
     const players = [];
     for (const [key, pd] of playerKeys) {
+      if (pd._disconnectedAt) continue;
       const nonce = key.replace('player:', '');
       players.push({
         playerId: pd.player + '-' + pd.tokenId,
@@ -848,7 +849,7 @@ export class CrapsTable {
     }
 
     // ── Disconnected player cleanup: remove after 2 min grace period ──
-    const DISCONNECT_GRACE_MS = 2 * 60 * 1000;
+    const DISCONNECT_GRACE_MS = 10 * 60 * 1000;
     const playerKeysForDisconnect = await this.state.storage.list({ prefix: 'player:' });
     for (const [key, pd] of playerKeysForDisconnect) {
       if (pd._disconnectedAt && (now - pd._disconnectedAt) >= DISCONNECT_GRACE_MS) {
@@ -928,16 +929,15 @@ export class CrapsTable {
       }
     }
 
-    // Reschedule: shorter interval when game phase is active
-    if (activeSockets > 0) {
+    // Reschedule: keep alarm alive if there are active sockets OR disconnected players pending cleanup
+    const hasDisconnected = [...(await this.state.storage.list({ prefix: 'player:' }))].some(([, pd]) => pd._disconnectedAt);
+    if (activeSockets > 0 || hasDisconnected) {
       const freshGame = await this._getGame();
       const freshNow = Date.now();
-      if (freshGame.turnDeadline && freshGame.turnDeadline > freshNow) {
-        // Active phase — poll frequently to catch deadline
+      if (activeSockets > 0 && freshGame.turnDeadline && freshGame.turnDeadline > freshNow) {
         const delay = Math.max(500, Math.min(2000, freshGame.turnDeadline - freshNow + 100));
         await this.state.storage.setAlarm(freshNow + delay);
       } else {
-        // Idle — heartbeat every 30s
         await this.state.storage.setAlarm(freshNow + 30_000);
       }
     }
