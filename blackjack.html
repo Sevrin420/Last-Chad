@@ -255,7 +255,7 @@ async function showWager(){
   try{mn=(await gR.minWager()).toNumber();mx=(await gR.maxWager()).toNumber()}catch{}
   const cap=Math.min(mx,chips);
   const s=document.createElement('div'); s.className='wager-sec'; s.id='wagerSec';
-  s.innerHTML=`<p style="font-size:.55rem;color:#c9a84c"><img src="assets/membersonly/chipstack.png" alt="" style="height:28px;vertical-align:middle"> ${chips}</p>
+  s.innerHTML=`<p style="font-size:1.1rem;color:#c9a84c"><img src="assets/membersonly/chipstack.png" alt="" style="height:56px;vertical-align:middle"> ${chips}</p>
     <p class="wager-val">WAGER: <span id="wVal">${Math.min(mn,cap)}</span></p>
     <input type="range" id="wSlider" min="${mn}" max="${cap}" value="${Math.min(mn,cap)}">`;
   lText.appendChild(s);

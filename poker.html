@@ -485,7 +485,7 @@ async function showWager() {
   const sec = document.createElement('div');
   sec.className = 'lobby-wager'; sec.id = 'lobbyWagerSec';
   sec.innerHTML = `
-    <p style="font-size:0.55rem;color:#c9a84c;margin-bottom:4px"><img src="assets/membersonly/chipstack.png" alt="" style="height:28px;vertical-align:middle"> ${lobbyChips}</p>
+    <p style="font-size:1.1rem;color:#c9a84c;margin-bottom:4px"><img src="assets/membersonly/chipstack.png" alt="" style="height:56px;vertical-align:middle"> ${lobbyChips}</p>
     <p class="lobby-wager-val">WAGER: <span id="lobbyWagerVal">${Math.min(minW, cap)}</span></p>
     <input type="range" id="lobbyWagerSlider" min="${minW}" max="${cap}" value="${Math.min(minW, cap)}" step="1">
   `;
