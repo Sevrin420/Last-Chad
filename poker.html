@@ -676,7 +676,46 @@ async function handleDraw() {
 }
 
 async function handleCashOut() {
-  // Phase 5 stub
+  if (pokerState.phase === 'dealt' || pokerState.phase === 'drawing') {
+    dealerSay("Finish your hand first!", 'neutral');
+    return;
+  }
+
+  document.getElementById('pokerDealBtn').disabled = true;
+  document.getElementById('pokerCashOutBtn').disabled = true;
+  dealerSay("Cashing out...", 'neutral');
+
+  try {
+    const resp = await fetch(WORKER_URL + '/poker/cashout', {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokenId: pokerSession.tokenId, nonce: pokerSession.nonce, sessionToken: pokerSession.sessionToken })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+
+    const payout = data.payout;
+
+    if (payout > 0) {
+      dealerSay("Claiming " + payout + " chips on-chain...", 'neutral');
+      const signer = await ensureSigner();
+      const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
+      const tx = await gamble.claimWinnings(pokerSession.tokenId, payout, data.nonce, data.signature);
+      dealerSay("Confirming transaction...", 'neutral');
+      await tx.wait();
+      dealerSay("See ya around toots.", 'happy');
+    } else {
+      dealerSay("See ya around toots.", 'neutral');
+    }
+
+    sessionStorage.removeItem('poker_session');
+    setTimeout(() => { window.location.href = 'clublounge.html'; }, 2000);
+  } catch (err) {
+    console.error('Cashout failed:', err);
+    dealerSay("Cashout failed: " + (err.reason || err.message || 'Unknown error'), 'sad');
+    document.getElementById('pokerDealBtn').disabled = false;
+    document.getElementById('pokerCashOutBtn').disabled = false;
+  }
 }
 
 // If session was restored from sessionStorage, init now
