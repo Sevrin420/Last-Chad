@@ -547,9 +547,29 @@ function initPokerGame() {
     });
   });
 
-  dealBtn.addEventListener('click', handleDeal);
-  drawBtn.addEventListener('click', handleDraw);
+  dealBtn.addEventListener('click', () => { resetIdleTimer(); handleDeal(); });
+  drawBtn.addEventListener('click', () => { resetIdleTimer(); handleDraw(); });
   cashOutBtn.addEventListener('click', handleCashOut);
+
+  // Idle timeout warnings (5min, 10min, 15min disconnect)
+  let lastActivity = Date.now();
+  let idleWarningLevel = 0;
+  function resetIdleTimer() { lastActivity = Date.now(); idleWarningLevel = 0; }
+  setInterval(() => {
+    const idle = Date.now() - lastActivity;
+    if (idle >= 15 * 60 * 1000 && idleWarningLevel < 3) {
+      idleWarningLevel = 3;
+      dealerSay("You've been away too long. Session closed.", 'sad');
+      sessionStorage.removeItem('poker_session');
+      setTimeout(() => { window.location.href = 'clublounge.html'; }, 3000);
+    } else if (idle >= 10 * 60 * 1000 && idleWarningLevel < 2) {
+      idleWarningLevel = 2;
+      dealerSay("Last warning toots — play or lose your chips!", 'sad');
+    } else if (idle >= 5 * 60 * 1000 && idleWarningLevel < 1) {
+      idleWarningLevel = 1;
+      dealerSay("You still there, toots? Table closes soon.", 'neutral');
+    }
+  }, 15000);
 
   dealerSay("Place your bets toots!", 'neutral');
 }
