@@ -103,7 +103,7 @@
       padding:10px 16px;margin:8px;
       background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px;
     }
-    .poker-announcer img{width:70px;height:70px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
+    .poker-announcer img{width:105px;height:105px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
     .poker-announcer-text{font-size:0.5rem;color:#c9a84c;line-height:2;flex:1}
 
     /* Card table area */
@@ -165,16 +165,27 @@
     }
     .poker-card.held .hold-label{display:block}
 
-    /* Bet per hand */
-    .poker-bet-row{
-      display:flex;align-items:center;gap:10px;justify-content:center;
+    /* Chip tray + bet box */
+    .poker-chip-tray{display:flex;gap:6px;align-items:center;justify-content:center}
+    .poker-chip-tray .chip{
+      width:clamp(36px,9vw,52px);height:clamp(36px,9vw,52px);
+      border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;
+      background-image:url('assets/membersonly/chipsprite.png');background-size:200% 200%;
+    }
+    .poker-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
+    .poker-bet-box{
+      display:flex;align-items:center;gap:8px;justify-content:center;
       font-size:0.45rem;color:#c9a84c;
     }
-    .poker-bet-row input[type=range]{width:120px;accent-color:#c9a84c}
-    .poker-bet-val{color:#ffe96a;min-width:2em;text-align:center}
+    .poker-bet-box .bet-amount{color:#ffe96a;font-size:0.6rem;min-width:2em;text-align:center}
+    .poker-bet-box .clear-bet{
+      font-family:'Press Start 2P',monospace;font-size:0.3rem;padding:4px 8px;
+      cursor:pointer;border:1px solid #5c4409;background:rgba(0,0,0,0.5);color:#c9a84c;border-radius:3px;
+    }
+    .poker-bet-box .clear-bet:hover{border-color:#c9a84c}
 
     /* Action buttons row */
-    .poker-actions{display:flex;gap:10px;justify-content:center;margin-top:8px}
+    .poker-actions{display:flex;gap:10px;justify-content:center;margin-top:4px}
     .poker-actions .poker-btn{font-size:0.5rem;padding:12px 24px}
   </style>
 </head>
@@ -212,7 +223,7 @@
         <div id="nav-placeholder-game"></div>
         <button class="poker-btn danger" id="pokerCashOutBtn">CASH OUT</button>
       </div>
-      <span class="poker-stack">CHIPS: <span id="pokerStackDisplay">0</span></span>
+      <span class="poker-stack"><img src="assets/membersonly/chipstack.png" alt="" style="height:22px;vertical-align:middle"> <span id="pokerStackDisplay">0</span></span>
     </div>
 
     <!-- Dealer Announcer -->
@@ -248,11 +259,19 @@
           <div class="poker-card face-down" data-idx="4"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
         </div>
 
-        <!-- Bet per hand -->
-        <div class="poker-bet-row" id="pokerBetRow">
-          <span>BET:</span>
-          <input type="range" id="pokerBetSlider" min="1" max="10" value="1">
-          <span class="poker-bet-val" id="pokerBetVal">1</span>
+        <!-- Chip tray + bet -->
+        <div id="pokerBetRow">
+          <div class="poker-chip-tray">
+            <div class="chip chip-1-sprite" data-value="1"></div>
+            <div class="chip chip-5-sprite" data-value="5"></div>
+            <div class="chip chip-25-sprite" data-value="25"></div>
+            <div class="chip chip-100-sprite" data-value="100"></div>
+          </div>
+          <div class="poker-bet-box">
+            <span>BET:</span>
+            <span class="bet-amount" id="pokerBetVal">0</span>
+            <button class="clear-bet" id="pokerClearBet">CLEAR</button>
+          </div>
         </div>
 
         <!-- Action buttons -->
@@ -424,7 +443,7 @@ async function showWager() {
   const sec = document.createElement('div');
   sec.className = 'lobby-wager'; sec.id = 'lobbyWagerSec';
   sec.innerHTML = `
-    <p style="font-size:0.55rem;color:#c9a84c;margin-bottom:4px">CHIPS: ${lobbyChips}</p>
+    <p style="font-size:0.55rem;color:#c9a84c;margin-bottom:4px"><img src="assets/membersonly/chipstack.png" alt="" style="height:28px;vertical-align:middle"> ${lobbyChips}</p>
     <p class="lobby-wager-val">WAGER: <span id="lobbyWagerVal">${Math.min(minW, cap)}</span></p>
     <input type="range" id="lobbyWagerSlider" min="${minW}" max="${cap}" value="${Math.min(minW, cap)}" step="1">
   `;
@@ -528,13 +547,22 @@ function initPokerGame() {
   const cashOutBtn = document.getElementById('pokerCashOutBtn');
 
   stackEl.textContent = pokerSession.stack;
-  betSlider.max = Math.min(pokerSession.stack, 50);
-  betSlider.value = Math.min(1, pokerSession.stack);
-  betVal.textContent = betSlider.value;
+  pokerState.handBet = 0;
+  betVal.textContent = '0';
 
-  betSlider.addEventListener('input', () => {
-    betVal.textContent = betSlider.value;
-    pokerState.handBet = parseInt(betSlider.value);
+  // Chip tray click-to-add
+  document.querySelectorAll('.poker-chip-tray .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (pokerState.phase !== 'ready') return;
+      const val = parseInt(chip.dataset.value);
+      if (pokerState.handBet + val > pokerSession.stack) return;
+      pokerState.handBet += val;
+      betVal.textContent = pokerState.handBet;
+    });
+  });
+  document.getElementById('pokerClearBet').addEventListener('click', () => {
+    pokerState.handBet = 0;
+    betVal.textContent = '0';
   });
 
   // Card click toggles hold (only during 'dealt' phase)
@@ -634,10 +662,6 @@ async function flipCardsOneByOne(cards) {
 
 function updateStack() {
   document.getElementById('pokerStackDisplay').textContent = pokerSession.stack;
-  const slider = document.getElementById('pokerBetSlider');
-  slider.max = Math.min(pokerSession.stack, 50);
-  if (parseInt(slider.value) > pokerSession.stack) slider.value = pokerSession.stack;
-  document.getElementById('pokerBetVal').textContent = slider.value;
 }
 
 function describeCard(c) {
@@ -662,8 +686,9 @@ function highlightPayout(handName) {
 
 async function handleDeal() {
   if (pokerState.phase !== 'ready') return;
-  const bet = parseInt(document.getElementById('pokerBetSlider').value);
-  if (bet < 1 || bet > pokerSession.stack) { dealerSay("Not enough chips!", 'sad'); return; }
+  const bet = pokerState.handBet;
+  if (bet < 1) { dealerSay("Place a bet first, toots!", 'neutral'); return; }
+  if (bet > pokerSession.stack) { dealerSay("Not enough chips!", 'sad'); return; }
 
   document.getElementById('pokerDealBtn').disabled = true;
   document.getElementById('pokerDrawBtn').disabled = true;
@@ -785,6 +810,10 @@ async function handleDraw() {
     await delay(isWin ? 4000 : 3000);
     renderCards(null);
     highlightPayout(null);
+    if (pokerState.handBet > pokerSession.stack) {
+      pokerState.handBet = 0;
+      document.getElementById('pokerBetVal').textContent = '0';
+    }
     dealerSay("Place your bets toots!", 'neutral');
     document.getElementById('pokerDealBtn').disabled = false;
     document.getElementById('pokerBetRow').style.display = '';

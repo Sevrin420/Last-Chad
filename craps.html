@@ -973,8 +973,7 @@
       <!-- On-table HUD: stack (left), chips (center), dice (right) -->
       <div class="table-hud">
         <div class="table-stack">
-          <div class="table-stack-label">CHIPS</div>
-          <div class="table-stack-value" id="tableStackDisplay">0</div>
+          <div class="table-stack-label"><img src="assets/membersonly/chipstack.png" alt="" style="height:20px;vertical-align:middle"> <span id="tableStackDisplay">0</span></div>
         </div>
         <div class="table-chip-tray">
           <div class="chip chip-1-sprite selected" data-value="1" onclick="selectChip(1)"></div>
@@ -1263,7 +1262,7 @@ if (!crapsSession) {
       sec.className = 'lobby-wager';
       sec.id = 'lobbyWagerSec';
       sec.innerHTML = `
-        <p style="font-size:0.55rem;color:#c9a84c;margin-bottom:4px">CHIPS: ${lobbyChips}</p>
+        <p style="font-size:0.55rem;color:#c9a84c;margin-bottom:4px"><img src="assets/membersonly/chipstack.png" alt="" style="height:28px;vertical-align:middle"> ${lobbyChips}</p>
         <p class="lobby-wager-val">WAGER: <span id="lobbyWagerVal">${Math.min(minW, cap)}</span></p>
         <input type="range" id="lobbyWagerSlider" min="${minW}" max="${cap}" value="${Math.min(minW, cap)}" step="1">
       `;

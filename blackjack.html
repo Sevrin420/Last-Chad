@@ -55,10 +55,13 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .bj-table > *:not(.table-bg){position:relative;z-index:1}
 .hand-label{font-size:.5rem;color:#7a6020;letter-spacing:2px}
 .cards{display:flex;gap:8px;justify-content:center;min-height:100px}
-.card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:linear-gradient(180deg,#1a1608,#0f0d06);position:relative}
-.card.red{color:#c94040}
-.card.black{color:#f5e6c8}
-.card.hole{background:linear-gradient(135deg,#1a3a1a,#0d1f0d);border-color:#2a5a2a}
+.card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:#f5f0e0;position:relative;transition:transform 0.4s ease;transform-style:preserve-3d}
+.card.red{color:#b71c1c}
+.card.black{color:#1a1a1a}
+.card.face-down{background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);background-size:8px 8px;border-color:#c9a84c}
+.card.face-down .rank,.card.face-down .suit{display:none}
+.card.flipping{transform:rotateY(90deg)}
+.card.hole{background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);background-size:8px 8px;border-color:#c9a84c}
 .card .rank{font-size:clamp(.8rem,3vw,1.2rem);line-height:1}
 .card .suit{font-size:clamp(.6rem,2vw,.9rem);margin-top:2px}
 .hand-total{font-size:.6rem;color:#c9a84c;margin-top:4px}
@@ -67,7 +70,18 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .result-msg.lose{color:#e53935}
 .result-msg.push{color:#c9a84c}
 .result-msg.bj{color:#ffe96a;text-shadow:0 0 10px rgba(255,233,106,.5)}
-.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.bj-chip-tray{display:flex;gap:6px;align-items:center;justify-content:center}
+.bj-chip-tray .chip{width:clamp(36px,9vw,52px);height:clamp(36px,9vw,52px);border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;background-image:url('assets/membersonly/chipsprite.png');background-size:200% 200%}
+.bj-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
+.chip-1-sprite{background-position:0% 0%}
+.chip-5-sprite{background-position:100% 0%}
+.chip-25-sprite{background-position:0% 100%}
+.chip-100-sprite{background-position:100% 100%}
+.bj-bet-box{display:flex;align-items:center;gap:8px;justify-content:center;font-size:.45rem;color:#c9a84c;margin:4px 0}
+.bj-bet-box .bet-amount{color:#ffe96a;font-size:.6rem;min-width:2em;text-align:center}
+.bj-bet-box .clear-bet{font-family:'Press Start 2P',monospace;font-size:.3rem;padding:4px 8px;cursor:pointer;border:1px solid #5c4409;background:rgba(0,0,0,.5);color:#c9a84c;border-radius:3px}
+.bj-bet-box .clear-bet:hover{border-color:#c9a84c}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px}
 .act-btn{font-family:'Press Start 2P',monospace;font-size:clamp(.45rem,1.3vw,.55rem);padding:12px 18px;cursor:pointer;border:none;border-bottom:4px solid #7a6020;color:#0a0a0f;background:#c9a84c}
 .act-btn:hover{background:#e8c060}
 .act-btn:active{border-bottom-width:2px;transform:translateY(2px)}
@@ -75,7 +89,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 
 /* Dealer announcer */
 .bj-announcer{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:0 8px;background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px}
-.bj-announcer img{width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
+.bj-announcer img{width:90px;height:90px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
 .bj-announcer-text{font-size:0.45rem;color:#c9a84c;line-height:2;flex:1}
 </style>
 </head>
@@ -93,7 +107,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 <!-- ── Game ── -->
 <div id="gameWrap" class="game-wrap">
   <div class="game-header">
-    <div class="stack">CHIPS: <span id="stackVal">0</span></div>
+    <div class="stack"><img src="assets/membersonly/chipstack.png" alt="" style="height:22px;vertical-align:middle"> <span id="stackVal">0</span></div>
     <div id="nav-placeholder"></div>
     <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
   </div>
@@ -114,6 +128,17 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
       <div class="cards" id="playerCards"></div>
       <div class="hand-total" id="playerTotal"></div>
 
+      <div class="bj-chip-tray" id="bjChipTray">
+        <div class="chip chip-1-sprite" data-value="1"></div>
+        <div class="chip chip-5-sprite" data-value="5"></div>
+        <div class="chip chip-25-sprite" data-value="25"></div>
+        <div class="chip chip-100-sprite" data-value="100"></div>
+      </div>
+      <div class="bj-bet-box">
+        <span>BET:</span>
+        <span class="bet-amount" id="bjBetVal">0</span>
+        <button class="clear-bet" id="bjClearBet">CLEAR</button>
+      </div>
       <div class="actions" id="actions">
         <button class="act-btn" id="btnDeal">DEAL</button>
         <button class="act-btn" id="btnHit" disabled>HIT</button>
@@ -230,7 +255,7 @@ async function showWager(){
   try{mn=(await gR.minWager()).toNumber();mx=(await gR.maxWager()).toNumber()}catch{}
   const cap=Math.min(mx,chips);
   const s=document.createElement('div'); s.className='wager-sec'; s.id='wagerSec';
-  s.innerHTML=`<p style="font-size:.55rem;color:#c9a84c">CHIPS: ${chips}</p>
+  s.innerHTML=`<p style="font-size:.55rem;color:#c9a84c"><img src="assets/membersonly/chipstack.png" alt="" style="height:28px;vertical-align:middle"> ${chips}</p>
     <p class="wager-val">WAGER: <span id="wVal">${Math.min(mn,cap)}</span></p>
     <input type="range" id="wSlider" min="${mn}" max="${cap}" value="${Math.min(mn,cap)}">`;
   lText.appendChild(s);
@@ -281,6 +306,19 @@ function dealerSay(text,mood){
   if(img) img.src='assets/ginny/'+(m[mood]||m.neutral);
 }
 
+// Chip tray bet logic
+let bjBet=0;
+const bjBetVal=document.getElementById('bjBetVal');
+document.querySelectorAll('.bj-chip-tray .chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    const v=parseInt(c.dataset.value);
+    if(bjBet+v>bjStack) return;
+    bjBet+=v;
+    bjBetVal.textContent=bjBet;
+  });
+});
+document.getElementById('bjClearBet').addEventListener('click',()=>{bjBet=0;bjBetVal.textContent='0'});
+
 const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 const SUITS=['♠','♥','♦','♣'];
 const RED_SUIT=[false,true,true,false];
@@ -328,13 +366,46 @@ setInterval(()=>{
   }
 },15000);
 
-function renderCard(c){
-  if(!c) return '<div class="card hole"><span style="font-size:.5rem;color:#2a5a2a">?</span></div>';
-  const r=RANKS[c.rank], s=SUITS[c.suit], col=RED_SUIT[c.suit]?'red':'black';
-  return `<div class="card ${col}"><span class="rank">${r}</span><span class="suit">${s}</span></div>`;
+function makeCardEl(c, faceDown){
+  const d=document.createElement('div');
+  if(!c){d.className='card hole';d.innerHTML='<span style="font-size:.5rem;color:#2a5a2a">?</span>';return d}
+  if(faceDown){d.className='card face-down';d.innerHTML='<span class="rank"></span><span class="suit"></span>';d._cardData=c;return d}
+  const col=RED_SUIT[c.suit]?'red':'black';
+  d.className='card '+col;
+  d.innerHTML=`<span class="rank">${RANKS[c.rank]}</span><span class="suit">${SUITS[c.suit]}</span>`;
+  return d;
 }
 
-function renderHand(el,cards){ el.innerHTML=cards.map(renderCard).join('') }
+function revealCard(el,c){
+  const col=RED_SUIT[c.suit]?'red':'black';
+  el.classList.remove('face-down','flipping');
+  el.classList.add(col);
+  el.querySelector('.rank').textContent=RANKS[c.rank];
+  el.querySelector('.suit').textContent=SUITS[c.suit];
+}
+
+function renderHand(el,cards){el.innerHTML=cards.map(c=>{
+  if(!c) return '<div class="card hole"><span style="font-size:.5rem;color:#2a5a2a">?</span></div>';
+  const col=RED_SUIT[c.suit]?'red':'black';
+  return `<div class="card ${col}"><span class="rank">${RANKS[c.rank]}</span><span class="suit">${SUITS[c.suit]}</span></div>`;
+}).join('')}
+
+async function dealHandAnimated(el,cards,hideHole){
+  el.innerHTML='';
+  for(let i=0;i<cards.length;i++){
+    const isHole=hideHole&&i===1&&!cards[i];
+    const cardEl=isHole?makeCardEl(null):makeCardEl(cards[i],true);
+    cardEl.style.opacity='0';el.appendChild(cardEl);
+    await delay(100);cardEl.style.opacity='1';
+    await delay(200);
+    if(!isHole&&cards[i]){
+      cardEl.classList.add('flipping');
+      await delay(200);
+      revealCard(cardEl,cards[i]);
+      await delay(150);
+    }
+  }
+}
 
 function setButtons(deal,hit,stand,dbl){
   btnDeal.disabled=!deal; btnHit.disabled=!hit;
@@ -352,7 +423,8 @@ btnDeal.addEventListener('click', async ()=>{
   resultEl.textContent=''; dealerCardsEl.innerHTML=''; playerCardsEl.innerHTML='';
   dealerTotalEl.textContent=''; playerTotalEl.textContent='';
 
-  handWager=Math.max(1,Math.min(1,bjStack));
+  handWager=bjBet;
+  if(bjBet<1){dealerSay("Place a bet first, toots!",'neutral');setButtons(true,false,false,false);return}
   if(bjStack<1){ showResult('OUT OF CHIPS — CASH OUT','lose'); dealerSay("You're busted, toots.",'sad'); return }
 
   try{
@@ -360,17 +432,20 @@ btnDeal.addEventListener('click', async ()=>{
     const d=await res.json(); if(!d.ok) throw new Error(d.error);
     bjStack=d.stack; stackEl.textContent=bjStack;
 
-    renderHand(playerCardsEl, d.playerCards);
+    // Deal player cards one at a time with flip
+    await dealHandAnimated(playerCardsEl, d.playerCards, false);
     playerTotalEl.textContent=d.playerValue;
 
     if(d.result){
-      renderHand(dealerCardsEl, d.dealerCards);
+      // Natural — reveal all dealer cards
+      await dealHandAnimated(dealerCardsEl, d.dealerCards, false);
       dealerTotalEl.textContent=d.dealerValue;
       if(d.result==='blackjack'){showResult('BLACKJACK! +'+d.payout,'bj');dealerSay("Blackjack! "+d.payout+" chips!",'happy')}
       else if(d.result==='push'){showResult('PUSH','push');dealerSay("Push — bet returned.",'neutral')}
       setButtons(true,false,false,false);
     } else {
-      renderHand(dealerCardsEl, d.dealerCards);
+      // Show dealer first card face-up, second face-down (hole)
+      await dealHandAnimated(dealerCardsEl, d.dealerCards, true);
       dealerSay("You're at "+d.playerValue+". Hit, stand, or double?",'neutral');
       setButtons(false,true,true,bjStack>=handWager);
     }
