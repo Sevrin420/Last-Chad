@@ -97,7 +97,7 @@
     .rules-close:hover{background:#e8c060}
 
     :root{
-      --p1-color:#4caf50;--p2-color:#42a5f5;--p3-color:#ab47bc;--p4-color:#ef5350;
+      --p1-color:#c9a84c;--p2-color:#c0c0c0;--p3-color:#808080;--p4-color:#b87333;
       --p1-glow:rgba(76,175,80,0.5);--p2-glow:rgba(66,165,245,0.5);
       --p3-glow:rgba(171,71,188,0.5);--p4-glow:rgba(239,83,80,0.5);
       --felt:#1a6b1a;--felt-dark:#145214;--felt-border:#c9a84c;
@@ -1095,7 +1095,7 @@ function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-const PLAYER_COLORS = ['#4caf50','#42a5f5','#ab47bc','#ef5350'];
+const PLAYER_COLORS = ['#c9a84c','#c0c0c0','#808080','#b87333'];
 
 let crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null');
 
