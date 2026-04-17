@@ -618,7 +618,61 @@ async function handleDeal() {
 }
 
 async function handleDraw() {
-  // Phase 4 stub
+  if (pokerState.phase !== 'dealt') return;
+
+  document.getElementById('pokerDrawBtn').disabled = true;
+  dealerSay("Drawing...", 'neutral');
+
+  // Disable card clicking during draw
+  pokerState.phase = 'drawing';
+
+  try {
+    const resp = await fetch(WORKER_URL + '/poker/draw', {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nonce: pokerSession.nonce, held: pokerState.held, sessionToken: pokerSession.sessionToken })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+
+    pokerSession.stack = data.stack;
+    pokerState.phase = 'ready';
+    pokerState.hand = data.cards;
+    sessionStorage.setItem('poker_session', JSON.stringify(pokerSession));
+
+    renderCards(data.cards);
+    updateStack();
+
+    // Clear holds
+    document.querySelectorAll('.poker-card').forEach(c => c.classList.remove('held'));
+    pokerState.held = [false, false, false, false, false];
+
+    // Show result
+    if (data.hand) {
+      highlightPayout(data.hand);
+      dealerSay(data.hand + "! You win " + data.winnings + " chips!", 'happy');
+    } else {
+      highlightPayout(null);
+      dealerSay("No hand. Better luck next time, toots.", 'sad');
+    }
+
+    // Check if busted
+    if (pokerSession.stack <= 0) {
+      dealerSay("You're busted! See ya around toots.", 'sad');
+      sessionStorage.removeItem('poker_session');
+      setTimeout(() => { window.location.href = 'clublounge.html'; }, 3000);
+      return;
+    }
+
+    // Re-enable deal
+    document.getElementById('pokerDealBtn').disabled = false;
+    document.getElementById('pokerBetRow').style.display = '';
+  } catch (err) {
+    console.error('Draw failed:', err);
+    dealerSay("Draw failed: " + (err.message || 'Unknown error'), 'sad');
+    pokerState.phase = 'dealt';
+    document.getElementById('pokerDrawBtn').disabled = false;
+  }
 }
 
 async function handleCashOut() {
