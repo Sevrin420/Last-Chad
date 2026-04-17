@@ -1424,7 +1424,7 @@ function selectChip(value) {
 async function placeBet(zone) {
   if (STATE.isRolling || betsLocked) return;
   const amount = STATE.selectedChip;
-  if (STATE.stack < amount) { dealerSay("Not enough chips!", 'sad'); return; }
+  if (STATE.stack < amount) { dealerSay("Not enough chips toots!", 'sad'); return; }
   // Client-side phase validation (fast feedback; DO re-validates server-side)
   if (zone.startsWith('place') && STATE.phase === 'comeout') {
     dealerSay("Place bets open after point.", 'neutral'); return;
@@ -1572,7 +1572,7 @@ function pressBet(zone) {
   const currentBet = STATE.bets[zone] || 0;
   const pressAmount = currentBet; // double the bet
   if (STATE.stack < pressAmount) {
-    dealerSay("Not enough chips to press!", 'sad');
+    dealerSay("Not enough chips toots!", 'sad');
     return;
   }
   // Optimistic update

@@ -313,7 +313,7 @@ document.querySelectorAll('.bj-chip-tray .chip').forEach(c=>{
   c.addEventListener('click',()=>{
     const v=parseInt(c.dataset.value);
     const newBet=bjBet+v;
-    if(newBet>bjStack){dealerSay("Not enough chips for that bet, toots!",'sad');return}
+    if(newBet>bjStack){dealerSay("Not enough chips toots!",'sad');return}
     bjBet=newBet;
     bjBetVal.textContent=bjBet;
   });

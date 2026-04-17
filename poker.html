@@ -606,7 +606,7 @@ function initPokerGame() {
       const val = parseInt(chip.dataset.value);
       const newBet = pokerState.handBet + val;
       if (newBet > pokerSession.stack) {
-        dealerSay("Not enough chips for that bet, toots!", 'sad');
+        dealerSay("Not enough chips toots!", 'sad');
         return;
       }
       pokerState.handBet = newBet;
@@ -741,7 +741,7 @@ async function handleDeal() {
   if (pokerState.phase !== 'ready') return;
   const bet = pokerState.handBet;
   if (bet < 1) { dealerSay("Place a bet first, toots!", 'neutral'); return; }
-  if (bet > pokerSession.stack) { dealerSay("Not enough chips!", 'sad'); return; }
+  if (bet > pokerSession.stack) { dealerSay("Not enough chips toots!", 'sad'); return; }
 
   document.getElementById('pokerDealBtn').disabled = true;
   document.getElementById('pokerDrawBtn').disabled = true;
