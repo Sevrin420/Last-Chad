@@ -485,13 +485,12 @@
       border-radius:50%;cursor:pointer;
       border:3px solid transparent;transition:all 0.15s;
       position:relative;overflow:hidden;
-      background-image:url('assets/membersonly/chipsprite.png');
-      background-size:200% 200%;
+      background-size:cover;background-position:center;
     }
-    .chip-1-sprite  {background-position:0% 0%}
-    .chip-5-sprite  {background-position:100% 0%}
-    .chip-25-sprite {background-position:0% 80%}
-    .chip-100-sprite{background-position:100% 80%}
+    .chip-1{background-image:url('assets/membersonly/chip1.png')}
+    .chip-5{background-image:url('assets/membersonly/chip5.png')}
+    .chip-25{background-image:url('assets/membersonly/chip25.png')}
+    .chip-100{background-image:url('assets/membersonly/chip100.png')}
     .table-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
     .table-chip-tray .chip.selected{border-color:var(--p1-color);box-shadow:0 0 14px var(--p1-glow);transform:scale(1.15)}
 
@@ -976,10 +975,10 @@
           <div class="table-stack-label"><img src="assets/membersonly/chipstack.png" alt="" style="height:20px;vertical-align:middle"> <span id="tableStackDisplay">0</span></div>
         </div>
         <div class="table-chip-tray">
-          <div class="chip chip-1-sprite selected" data-value="1" onclick="selectChip(1)"></div>
-          <div class="chip chip-5-sprite" data-value="5" onclick="selectChip(5)"></div>
-          <div class="chip chip-25-sprite" data-value="25" onclick="selectChip(25)"></div>
-          <div class="chip chip-100-sprite" data-value="100" onclick="selectChip(100)"></div>
+          <div class="chip chip-1 selected" data-value="1" onclick="selectChip(1)"></div>
+          <div class="chip chip-5" data-value="5" onclick="selectChip(5)"></div>
+          <div class="chip chip-25" data-value="25" onclick="selectChip(25)"></div>
+          <div class="chip chip-100" data-value="100" onclick="selectChip(100)"></div>
         </div>
         <div class="table-dice can-roll" id="tableDice" onclick="rollDice()">
           <div class="die" id="die1"><div class="die-face" id="face1"></div></div>

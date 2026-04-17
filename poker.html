@@ -162,12 +162,12 @@
     .poker-chip-tray .chip{
       width:clamp(40px,10vw,56px);height:clamp(40px,10vw,56px);
       border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;
-      background-image:url('assets/membersonly/chipsprite.png');background-size:220% 220%;
+      background-size:cover;background-position:center;
     }
-    .poker-chip-tray .chip.chip-1-sprite  {background-position:10% 10%}
-    .poker-chip-tray .chip.chip-5-sprite  {background-position:90% 10%}
-    .poker-chip-tray .chip.chip-25-sprite {background-position:10% 80%}
-    .poker-chip-tray .chip.chip-100-sprite{background-position:90% 80%}
+    .poker-chip-tray .chip.chip-1{background-image:url('assets/membersonly/chip1.png')}
+    .poker-chip-tray .chip.chip-5{background-image:url('assets/membersonly/chip5.png')}
+    .poker-chip-tray .chip.chip-25{background-image:url('assets/membersonly/chip25.png')}
+    .poker-chip-tray .chip.chip-100{background-image:url('assets/membersonly/chip100.png')}
     .poker-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
     .poker-bet-box{
       display:flex;align-items:center;gap:8px;justify-content:center;
@@ -274,10 +274,10 @@
       <!-- Chip tray + bet -->
       <div id="pokerBetRow">
         <div class="poker-chip-tray">
-          <div class="chip chip-1-sprite" data-value="1"></div>
-          <div class="chip chip-5-sprite" data-value="5"></div>
-          <div class="chip chip-25-sprite" data-value="25"></div>
-          <div class="chip chip-100-sprite" data-value="100"></div>
+          <div class="chip chip-1" data-value="1"></div>
+          <div class="chip chip-5" data-value="5"></div>
+          <div class="chip chip-25" data-value="25"></div>
+          <div class="chip chip-100" data-value="100"></div>
         </div>
         <div class="poker-bet-box">
           <span>BET:</span>
