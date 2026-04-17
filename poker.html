@@ -578,10 +578,52 @@ function highlightPayout(handName) {
   });
 }
 
-// Phase 3-5 handlers (stubs for now)
-async function handleDeal() {}
-async function handleDraw() {}
-async function handleCashOut() {}
+async function handleDeal() {
+  if (pokerState.phase !== 'ready') return;
+  const bet = parseInt(document.getElementById('pokerBetSlider').value);
+  if (bet < 1 || bet > pokerSession.stack) { dealerSay("Not enough chips!", 'sad'); return; }
+
+  document.getElementById('pokerDealBtn').disabled = true;
+  document.getElementById('pokerDrawBtn').disabled = true;
+  document.getElementById('pokerBetRow').style.display = 'none';
+  pokerState.held = [false, false, false, false, false];
+  renderCards(null);
+  dealerSay("Dealing your hand...", 'neutral');
+
+  try {
+    const resp = await fetch(WORKER_URL + '/poker/deal', {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nonce: pokerSession.nonce, handWager: bet, sessionToken: pokerSession.sessionToken })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+
+    pokerSession.stack = data.stack;
+    pokerState.phase = 'dealt';
+    pokerState.hand = data.cards;
+    pokerState.handBet = data.handWager;
+    sessionStorage.setItem('poker_session', JSON.stringify(pokerSession));
+
+    renderCards(data.cards);
+    updateStack();
+    dealerSay("Pick your holds, then draw!", 'neutral');
+    document.getElementById('pokerDrawBtn').disabled = false;
+  } catch (err) {
+    console.error('Deal failed:', err);
+    dealerSay("Deal failed: " + (err.message || 'Unknown error'), 'sad');
+    document.getElementById('pokerDealBtn').disabled = false;
+    document.getElementById('pokerBetRow').style.display = '';
+  }
+}
+
+async function handleDraw() {
+  // Phase 4 stub
+}
+
+async function handleCashOut() {
+  // Phase 5 stub
+}
 
 // If session was restored from sessionStorage, init now
 if (pokerSession) initPokerGame();
