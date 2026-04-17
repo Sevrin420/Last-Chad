@@ -102,24 +102,24 @@
       display:flex;align-items:center;gap:12px;
       padding:10px 16px;margin:8px;
       background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px;
+      height:125px;flex-shrink:0;
     }
-    .poker-announcer img{width:105px;height:105px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
-    .poker-announcer-text{font-size:0.5rem;color:#c9a84c;line-height:2;flex:1}
+    .poker-announcer img{width:105px;height:105px;object-fit:cover;border-radius:6px;border:2px solid #5c4409;flex-shrink:0}
+    .poker-announcer-text{font-size:0.5rem;color:#c9a84c;line-height:2;flex:1;overflow:hidden}
 
     /* Card table area */
     .poker-table{
       flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-      padding:12px;position:relative;
+      padding:4px;position:relative;
     }
     .poker-felt{
       position:relative;
-      width:90%;max-width:420px;
-      aspect-ratio:2/3;
+      width:100%;height:100%;max-width:none;
       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-      z-index:1;
+      z-index:1;padding:14px;
     }
     .poker-felt img.table-bg{
-      position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;
+      position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0;
       pointer-events:none;
     }
     .poker-felt > *:not(.table-bg){ position:relative; z-index:1; }
@@ -168,10 +168,14 @@
     /* Chip tray + bet box */
     .poker-chip-tray{display:flex;gap:6px;align-items:center;justify-content:center}
     .poker-chip-tray .chip{
-      width:clamp(36px,9vw,52px);height:clamp(36px,9vw,52px);
+      width:clamp(40px,10vw,56px);height:clamp(40px,10vw,56px);
       border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;
-      background-image:url('assets/membersonly/chipsprite.png');background-size:200% 200%;
+      background-image:url('assets/membersonly/chipsprite.png');background-size:220% 220%;
     }
+    .poker-chip-tray .chip.chip-1-sprite  {background-position:10% 10%}
+    .poker-chip-tray .chip.chip-5-sprite  {background-position:90% 10%}
+    .poker-chip-tray .chip.chip-25-sprite {background-position:10% 90%}
+    .poker-chip-tray .chip.chip-100-sprite{background-position:90% 90%}
     .poker-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
     .poker-bet-box{
       display:flex;align-items:center;gap:8px;justify-content:center;
@@ -187,6 +191,32 @@
     /* Action buttons row */
     .poker-actions{display:flex;gap:10px;justify-content:center;margin-top:4px}
     .poker-actions .poker-btn{font-size:0.5rem;padding:12px 24px}
+
+    /* Payouts popup */
+    .poker-payouts-overlay{
+      display:none;position:fixed;inset:0;z-index:600;
+      background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:20px;
+    }
+    .poker-payouts-overlay.active{display:flex}
+    .poker-payouts-box{
+      background:linear-gradient(180deg,#1e1608,#140f05);border:3px solid #5c4409;
+      border-radius:8px;padding:24px;max-width:380px;width:100%;
+    }
+    .poker-payouts-box h2{font-size:0.8rem;color:#c9a84c;text-align:center;margin-bottom:16px}
+    .poker-payouts-box .close-btn{
+      display:block;margin:16px auto 0;font-family:'Press Start 2P',monospace;font-size:0.55rem;
+      color:#0a0a0f;background:#c9a84c;border:none;border-bottom:4px solid #7a6020;padding:12px 24px;cursor:pointer;
+    }
+    .poker-payouts-box .close-btn:hover{background:#e8c060}
+
+    /* Floating chip counter — bottom left */
+    .poker-stack-floating{
+      position:fixed;left:12px;bottom:12px;z-index:50;
+      display:flex;align-items:center;gap:6px;
+      background:rgba(0,0,0,0.7);padding:8px 14px;border-radius:6px;border:2px solid #c9a84c;
+      font-size:0.75rem;color:#ffe96a;
+    }
+    .poker-stack-floating img{height:33px;vertical-align:middle}
   </style>
 </head>
 <body>
@@ -222,8 +252,33 @@
       <div class="poker-header-left">
         <div id="nav-placeholder-game"></div>
         <button class="poker-btn danger" id="pokerCashOutBtn">CASH OUT</button>
+        <button class="poker-btn" id="pokerPayoutsBtn">PAYOUTS</button>
       </div>
-      <span class="poker-stack"><img src="assets/membersonly/chipstack.png" alt="" style="height:22px;vertical-align:middle"> <span id="pokerStackDisplay">0</span></span>
+    </div>
+
+    <!-- Floating chip counter (bottom left) -->
+    <div class="poker-stack-floating">
+      <img src="assets/membersonly/chipstack.png" alt="">
+      <span id="pokerStackDisplay">0</span>
+    </div>
+
+    <!-- Payouts popup -->
+    <div class="poker-payouts-overlay" id="pokerPayoutsOverlay">
+      <div class="poker-payouts-box">
+        <h2>PAYOUTS</h2>
+        <div class="poker-payouts" id="pokerPayouts">
+          <span class="hand-name">Royal Flush</span><span class="hand-pay">250x</span>
+          <span class="hand-name">Straight Flush</span><span class="hand-pay">50x</span>
+          <span class="hand-name">Four of a Kind</span><span class="hand-pay">25x</span>
+          <span class="hand-name">Full House</span><span class="hand-pay">9x</span>
+          <span class="hand-name">Flush</span><span class="hand-pay">6x</span>
+          <span class="hand-name">Straight</span><span class="hand-pay">4x</span>
+          <span class="hand-name">Three of a Kind</span><span class="hand-pay">3x</span>
+          <span class="hand-name">Two Pair</span><span class="hand-pay">2x</span>
+          <span class="hand-name">Jacks or Better</span><span class="hand-pay">1x</span>
+        </div>
+        <button class="close-btn" id="pokerPayoutsClose">GOT IT</button>
+      </div>
     </div>
 
     <!-- Dealer Announcer -->
@@ -237,19 +292,6 @@
       <div class="poker-felt">
         <img class="table-bg" src="assets/membersonly/cardtable.png" alt="Card Table">
 
-        <!-- Payout Table -->
-        <div class="poker-payouts" id="pokerPayouts">
-          <span class="hand-name">Royal Flush</span><span class="hand-pay">250x</span>
-          <span class="hand-name">Straight Flush</span><span class="hand-pay">50x</span>
-          <span class="hand-name">Four of a Kind</span><span class="hand-pay">25x</span>
-          <span class="hand-name">Full House</span><span class="hand-pay">9x</span>
-          <span class="hand-name">Flush</span><span class="hand-pay">6x</span>
-          <span class="hand-name">Straight</span><span class="hand-pay">4x</span>
-          <span class="hand-name">Three of a Kind</span><span class="hand-pay">3x</span>
-          <span class="hand-name">Two Pair</span><span class="hand-pay">2x</span>
-          <span class="hand-name">Jacks or Better</span><span class="hand-pay">1x</span>
-        </div>
-
         <!-- Cards -->
         <div class="poker-cards" id="pokerCards">
           <div class="poker-card face-down" data-idx="0"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
@@ -257,6 +299,12 @@
           <div class="poker-card face-down" data-idx="2"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
           <div class="poker-card face-down" data-idx="3"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
           <div class="poker-card face-down" data-idx="4"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        </div>
+
+        <!-- Action buttons (above bet controls) -->
+        <div class="poker-actions">
+          <button class="poker-btn" id="pokerDealBtn">DEAL</button>
+          <button class="poker-btn" id="pokerDrawBtn" disabled>DRAW</button>
         </div>
 
         <!-- Chip tray + bet -->
@@ -272,12 +320,6 @@
             <span class="bet-amount" id="pokerBetVal">0</span>
             <button class="clear-bet" id="pokerClearBet">CLEAR</button>
           </div>
-        </div>
-
-        <!-- Action buttons -->
-        <div class="poker-actions">
-          <button class="poker-btn" id="pokerDealBtn">DEAL</button>
-          <button class="poker-btn" id="pokerDrawBtn" disabled>DRAW</button>
         </div>
       </div>
 
@@ -545,6 +587,13 @@ function initPokerGame() {
   const dealBtn = document.getElementById('pokerDealBtn');
   const drawBtn = document.getElementById('pokerDrawBtn');
   const cashOutBtn = document.getElementById('pokerCashOutBtn');
+  const payoutsBtn = document.getElementById('pokerPayoutsBtn');
+  const payoutsOverlay = document.getElementById('pokerPayoutsOverlay');
+  const payoutsClose = document.getElementById('pokerPayoutsClose');
+
+  payoutsBtn.addEventListener('click', () => payoutsOverlay.classList.add('active'));
+  payoutsClose.addEventListener('click', () => payoutsOverlay.classList.remove('active'));
+  payoutsOverlay.addEventListener('click', (e) => { if (e.target === payoutsOverlay) payoutsOverlay.classList.remove('active'); });
 
   stackEl.textContent = pokerSession.stack;
   pokerState.handBet = 0;
