@@ -34,7 +34,7 @@
     }
     .lobby-dialogue.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
     .lobby-dialogue.tall{height:calc(100vh - 22vh - 50px);transition:height 0.5s ease}
-    .lobby-text{overflow-y:auto;font-size:0.65rem;line-height:2.2;color:#c9a84c;flex:1}
+    .lobby-text{overflow-y:auto;font-size:0.65rem;line-height:2.2;color:#c9a84c}
     .lobby-text .npc-name{color:#e8c060;font-size:0.7rem;margin-bottom:0.4em;display:block}
     .lobby-choices{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:0.8em}
     .lobby-choice{
@@ -77,7 +77,7 @@
 
     /* ── Poker Game ── */
     .poker-wrap{
-      display:flex;flex-direction:column;height:100vh;
+      display:flex;flex-direction:column;height:100vh;overflow:hidden;
       background-image:url('assets/membersonly/membersbg.jpg');background-size:cover;background-position:center;
     }
     .poker-header{
@@ -124,15 +124,19 @@
     .poker-payouts .active{color:#ffe96a;font-weight:bold;text-shadow:0 0 8px rgba(255,233,106,0.6)}
 
     /* Cards */
-    .poker-cards{display:flex;gap:8px;justify-content:center;flex-wrap:nowrap}
+    .poker-cards{display:flex;gap:8px;justify-content:center;flex-wrap:nowrap;min-height:clamp(74px,20vw,100px)}
     .poker-card{
       width:clamp(52px,14vw,72px);aspect-ratio:2.5/3.5;
       background:#f5f0e0;border:2px solid #333;border-radius:6px;
       display:flex;flex-direction:column;align-items:center;justify-content:center;
       font-family:'Press Start 2P',monospace;
-      cursor:pointer;transition:all 0.2s;position:relative;
+      cursor:pointer;position:relative;
       box-shadow:0 2px 8px rgba(0,0,0,0.4);
+      transition:transform 0.4s ease, border-color 0.2s, box-shadow 0.2s;
+      transform-style:preserve-3d;
     }
+    .poker-card.flipping{transform:rotateY(90deg)}
+    .poker-card.flipped{transform:rotateY(0deg)}
     .poker-card.face-down{
       background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);
       background-size:8px 8px;border-color:#c9a84c;
@@ -202,7 +206,7 @@
     <!-- Dealer Announcer -->
     <div class="poker-announcer">
       <img id="pokerDealerImg" src="assets/ginny/ginnyglad.jpg" alt="Ginny">
-      <div class="poker-announcer-text" id="pokerDealerText">Place your bet and deal!</div>
+      <div class="poker-announcer-text" id="pokerDealerText">Place your bets toots!</div>
     </div>
 
     <!-- Table -->
@@ -532,7 +536,7 @@ function initPokerGame() {
   drawBtn.addEventListener('click', handleDraw);
   cashOutBtn.addEventListener('click', handleCashOut);
 
-  dealerSay("Place your bet and deal, toots!", 'neutral');
+  dealerSay("Place your bets toots!", 'neutral');
 }
 
 function dealerSay(text, mood) {
@@ -543,23 +547,54 @@ function dealerSay(text, mood) {
   if (img) img.src = 'assets/ginny/' + (moodMap[mood] || moodMap.neutral);
 }
 
+function setCardFace(el, c) {
+  el.classList.remove('face-down');
+  el.classList.toggle('red', RED_SUITS.has(c.suit));
+  el.classList.toggle('black', !RED_SUITS.has(c.suit));
+  el.querySelector('.card-rank').textContent = RANK_NAMES[c.rank];
+  el.querySelector('.card-suit').textContent = SUIT_SYMBOLS[c.suit];
+}
+
+function setCardDown(el) {
+  el.classList.add('face-down');
+  el.classList.remove('red', 'black', 'held', 'flipping', 'flipped');
+  el.querySelector('.card-rank').textContent = '';
+  el.querySelector('.card-suit').textContent = '';
+}
+
 function renderCards(cards) {
-  const cardEls = document.querySelectorAll('.poker-card');
-  cardEls.forEach((el, i) => {
-    if (cards && cards[i]) {
-      const c = cards[i];
-      el.classList.remove('face-down');
-      el.classList.toggle('red', RED_SUITS.has(c.suit));
-      el.classList.toggle('black', !RED_SUITS.has(c.suit));
-      el.querySelector('.card-rank').textContent = RANK_NAMES[c.rank];
-      el.querySelector('.card-suit').textContent = SUIT_SYMBOLS[c.suit];
-    } else {
-      el.classList.add('face-down');
-      el.classList.remove('red', 'black', 'held');
-      el.querySelector('.card-rank').textContent = '';
-      el.querySelector('.card-suit').textContent = '';
-    }
+  document.querySelectorAll('.poker-card').forEach((el, i) => {
+    if (cards && cards[i]) setCardFace(el, cards[i]);
+    else setCardDown(el);
   });
+}
+
+async function dealCardsOneByOne() {
+  const cardEls = document.querySelectorAll('.poker-card');
+  for (let i = 0; i < 5; i++) {
+    const el = cardEls[i];
+    el.style.opacity = '0';
+    setCardDown(el);
+  }
+  for (let i = 0; i < 5; i++) {
+    const el = cardEls[i];
+    el.style.opacity = '1';
+    await delay(200);
+  }
+}
+
+async function flipCardsOneByOne(cards) {
+  const cardEls = document.querySelectorAll('.poker-card');
+  for (let i = 0; i < 5; i++) {
+    const el = cardEls[i];
+    if (!cards[i]) { setCardDown(el); continue; }
+    el.classList.add('flipping');
+    await delay(200);
+    setCardFace(el, cards[i]);
+    el.classList.remove('flipping');
+    el.classList.add('flipped');
+    await delay(150);
+  }
 }
 
 function updateStack() {
@@ -600,7 +635,7 @@ async function handleDeal() {
   document.getElementById('pokerBetRow').style.display = 'none';
   pokerState.held = [false, false, false, false, false];
   renderCards(null);
-  dealerSay("Dealing your hand...", 'neutral');
+  dealerSay("Dealing...", 'neutral');
 
   try {
     const resp = await fetch(WORKER_URL + '/poker/deal', {
@@ -617,8 +652,10 @@ async function handleDeal() {
     pokerState.handBet = data.handWager;
     sessionStorage.setItem('poker_session', JSON.stringify(pokerSession));
 
-    renderCards(data.cards);
     updateStack();
+    await dealCardsOneByOne();
+    await delay(300);
+    await flipCardsOneByOne(data.cards);
     dealerSay(describeHand(data.cards) + " — pick your holds!", 'neutral');
     document.getElementById('pokerDrawBtn').disabled = false;
   } catch (err) {
@@ -652,15 +689,29 @@ async function handleDraw() {
     pokerState.hand = data.cards;
     sessionStorage.setItem('poker_session', JSON.stringify(pokerSession));
 
-    renderCards(data.cards);
     updateStack();
 
+    // Flip replacement cards one by one
+    const cardEls = document.querySelectorAll('.poker-card');
+    for (let i = 0; i < 5; i++) {
+      if (!pokerState.held[i] && data.cards[i]) {
+        cardEls[i].classList.add('flipping');
+        await delay(200);
+        setCardFace(cardEls[i], data.cards[i]);
+        cardEls[i].classList.remove('flipping');
+        cardEls[i].classList.add('flipped');
+        await delay(150);
+      }
+    }
+
     // Clear holds
-    document.querySelectorAll('.poker-card').forEach(c => c.classList.remove('held'));
+    cardEls.forEach(c => c.classList.remove('held'));
     pokerState.held = [false, false, false, false, false];
 
     // Show result with personality
+    let isWin = false;
     if (data.hand) {
+      isWin = true;
       highlightPayout(data.hand);
       const big = data.multiplier >= 9;
       const huge = data.multiplier >= 50;
@@ -681,7 +732,11 @@ async function handleDraw() {
       return;
     }
 
-    // Re-enable deal
+    // Reset table after delay (win=4s, loss=3s), then re-enable deal
+    await delay(isWin ? 4000 : 3000);
+    renderCards(null);
+    highlightPayout(null);
+    dealerSay("Place your bets toots!", 'neutral');
     document.getElementById('pokerDealBtn').disabled = false;
     document.getElementById('pokerBetRow').style.display = '';
   } catch (err) {
