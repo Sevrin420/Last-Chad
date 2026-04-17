@@ -570,6 +570,18 @@ function updateStack() {
   document.getElementById('pokerBetVal').textContent = slider.value;
 }
 
+function describeCard(c) {
+  const ranks = ['Ace','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Jack','Queen','King'];
+  const suits = ['Hearts','Diamonds','Clubs','Spades'];
+  return ranks[c.rank] + ' of ' + suits[c.suit];
+}
+
+function describeHand(cards) {
+  if (!cards || cards.length === 0) return '';
+  if (cards.length <= 3) return cards.map(describeCard).join(', ');
+  return cards.slice(0, 2).map(describeCard).join(', ') + ' and more...';
+}
+
 function highlightPayout(handName) {
   document.querySelectorAll('.poker-payouts .hand-name').forEach(el => {
     const match = handName && el.textContent.toLowerCase() === handName.toLowerCase();
@@ -607,7 +619,7 @@ async function handleDeal() {
 
     renderCards(data.cards);
     updateStack();
-    dealerSay("Pick your holds, then draw!", 'neutral');
+    dealerSay(describeHand(data.cards) + " — pick your holds!", 'neutral');
     document.getElementById('pokerDrawBtn').disabled = false;
   } catch (err) {
     console.error('Deal failed:', err);
@@ -647,13 +659,18 @@ async function handleDraw() {
     document.querySelectorAll('.poker-card').forEach(c => c.classList.remove('held'));
     pokerState.held = [false, false, false, false, false];
 
-    // Show result
+    // Show result with personality
     if (data.hand) {
       highlightPayout(data.hand);
-      dealerSay(data.hand + "! You win " + data.winnings + " chips!", 'happy');
+      const big = data.multiplier >= 9;
+      const huge = data.multiplier >= 50;
+      if (huge) dealerSay(data.hand + "!! " + data.winnings + " chips! I can't believe it!", 'happy');
+      else if (big) dealerSay(data.hand + "! " + data.winnings + " chips — hot hand, toots!", 'happy');
+      else dealerSay(data.hand + "! You win " + data.winnings + " chips.", 'happy');
     } else {
       highlightPayout(null);
-      dealerSay("No hand. Better luck next time, toots.", 'sad');
+      const quips = ["No hand this time.", "Not your round, toots.", "The cards will turn.", "Tough break, sugar."];
+      dealerSay(quips[Math.floor(Math.random() * quips.length)], 'sad');
     }
 
     // Check if busted
