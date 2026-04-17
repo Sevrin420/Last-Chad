@@ -42,17 +42,25 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .wager-val{font-size:.7rem;color:#ffe96a;margin:.4em 0}
 
 /* ── Game table ── */
-.game-wrap{display:none;width:100vw;height:100vh;flex-direction:column;align-items:center;background-image:url('assets/membersonly/membersbg.jpg');background-size:cover;background-position:center}
+.game-wrap{display:none;position:relative;width:100vw;height:100vh;flex-direction:column;align-items:center;overflow:hidden}
 .game-wrap.active{display:flex}
-.game-header{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(10,10,15,.95);border-bottom:2px solid #2a5a1a;z-index:10}
+.game-wrap > .table-bg-full{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;z-index:0;background:#0a0a0f}
+.game-wrap > *:not(.table-bg-full){position:relative;z-index:1}
+.game-header{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(0,0,0,.5);border-bottom:2px solid #c9a84c;z-index:10}
+/* Payouts popup */
+.bj-payouts-overlay{display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px}
+.bj-payouts-overlay.active{display:flex}
+.bj-payouts-box{background:linear-gradient(180deg,#1e1608,#140f05);border:3px solid #5c4409;border-radius:8px;padding:24px;max-width:380px;width:100%}
+.bj-payouts-box h2{font-size:.8rem;color:#c9a84c;text-align:center;margin-bottom:16px}
+.bj-payouts-box p{font-size:.5rem;color:#c9a84c;line-height:2;margin-bottom:6px}
+.bj-payouts-box b{color:#ffe96a}
+.bj-payouts-box .close-btn{display:block;margin:16px auto 0;font-family:'Press Start 2P',monospace;font-size:.55rem;color:#0a0a0f;background:#c9a84c;border:none;border-bottom:4px solid #7a6020;padding:12px 24px;cursor:pointer}
+.bj-payouts-box .close-btn:hover{background:#e8c060}
 .game-header .stack{font-size:.7rem;color:#ffe96a}
 .game-header .stack span{color:#c9a84c}
 .hdr-btn{font-family:'Press Start 2P',monospace;font-size:.4rem;padding:6px 12px;border-radius:4px;cursor:pointer;border:2px solid #c62828;color:#fff;background:linear-gradient(180deg,#e53935,#b71c1c)}
 .hdr-btn:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
-.felt{flex:1;display:flex;align-items:center;justify-content:center;padding:12px;width:100%}
-.bj-table{position:relative;width:90%;max-width:420px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
-.bj-table img.table-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;pointer-events:none}
-.bj-table > *:not(.table-bg){position:relative;z-index:1}
+.felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px;width:100%}
 .hand-label{font-size:.5rem;color:#7a6020;letter-spacing:2px}
 .cards{display:flex;gap:8px;justify-content:center;min-height:100px}
 .card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:#f5f0e0;position:relative;transition:transform 0.4s ease;transform-style:preserve-3d}
@@ -88,7 +96,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .act-btn:disabled{opacity:.3;cursor:default;transform:none}
 
 /* Dealer announcer */
-.bj-announcer{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:0 8px;background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px}
+.bj-announcer{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:0 8px;background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px;height:110px;flex-shrink:0}
 .bj-announcer img{width:90px;height:90px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
 .bj-announcer-text{font-size:0.45rem;color:#c9a84c;line-height:2;flex:1}
 </style>
@@ -106,45 +114,59 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 
 <!-- ── Game ── -->
 <div id="gameWrap" class="game-wrap">
+  <img class="table-bg-full" src="assets/membersonly/cardtable.png" alt="Card Table">
+
   <div class="game-header">
     <div class="stack"><img src="assets/membersonly/chipstack.png" alt="" style="height:22px;vertical-align:middle"> <span id="stackVal">0</span></div>
-    <div id="nav-placeholder"></div>
-    <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
+    <div style="display:flex;gap:6px">
+      <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
+      <button class="hdr-btn" id="bjPayoutsBtn" style="border-color:#c9a84c;background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005">PAYOUTS</button>
+    </div>
   </div>
   <div class="bj-announcer">
     <img id="bjDealerImg" src="assets/ginny/ginnyglad.jpg" alt="Ginny">
     <div class="bj-announcer-text" id="bjDealerText">Place your bet and deal!</div>
   </div>
   <div class="felt">
-    <div class="bj-table">
-      <img class="table-bg" src="assets/membersonly/cardtable.png" alt="Card Table">
-      <div class="hand-label">DEALER</div>
-      <div class="cards" id="dealerCards"></div>
-      <div class="hand-total" id="dealerTotal"></div>
+    <div class="hand-label">DEALER</div>
+    <div class="cards" id="dealerCards"></div>
+    <div class="hand-total" id="dealerTotal"></div>
 
-      <div id="resultMsg" class="result-msg"></div>
+    <div id="resultMsg" class="result-msg"></div>
 
-      <div class="hand-label">YOU</div>
-      <div class="cards" id="playerCards"></div>
-      <div class="hand-total" id="playerTotal"></div>
+    <div class="hand-label">YOU</div>
+    <div class="cards" id="playerCards"></div>
+    <div class="hand-total" id="playerTotal"></div>
 
-      <div class="bj-chip-tray" id="bjChipTray">
-        <div class="chip chip-1-sprite" data-value="1"></div>
-        <div class="chip chip-5-sprite" data-value="5"></div>
-        <div class="chip chip-25-sprite" data-value="25"></div>
-        <div class="chip chip-100-sprite" data-value="100"></div>
-      </div>
-      <div class="bj-bet-box">
-        <span>BET:</span>
-        <span class="bet-amount" id="bjBetVal">0</span>
-        <button class="clear-bet" id="bjClearBet">CLEAR</button>
-      </div>
-      <div class="actions" id="actions">
-        <button class="act-btn" id="btnDeal">DEAL</button>
-        <button class="act-btn" id="btnHit" disabled>HIT</button>
-        <button class="act-btn" id="btnStand" disabled>STAND</button>
-        <button class="act-btn" id="btnDouble" disabled>DOUBLE</button>
-      </div>
+    <div class="bj-chip-tray" id="bjChipTray">
+      <div class="chip chip-1-sprite" data-value="1"></div>
+      <div class="chip chip-5-sprite" data-value="5"></div>
+      <div class="chip chip-25-sprite" data-value="25"></div>
+      <div class="chip chip-100-sprite" data-value="100"></div>
+    </div>
+    <div class="bj-bet-box">
+      <span>BET:</span>
+      <span class="bet-amount" id="bjBetVal">0</span>
+      <button class="clear-bet" id="bjClearBet">CLEAR</button>
+    </div>
+    <div class="actions" id="actions">
+      <button class="act-btn" id="btnDeal">DEAL</button>
+      <button class="act-btn" id="btnHit" disabled>HIT</button>
+      <button class="act-btn" id="btnStand" disabled>STAND</button>
+      <button class="act-btn" id="btnDouble" disabled>DOUBLE</button>
+    </div>
+  </div>
+
+  <!-- Payouts popup -->
+  <div class="bj-payouts-overlay" id="bjPayoutsOverlay">
+    <div class="bj-payouts-box">
+      <h2>BLACKJACK PAYOUTS</h2>
+      <p><b>Blackjack:</b> 3:2</p>
+      <p><b>Win:</b> 2:1</p>
+      <p><b>Push:</b> Bet returned</p>
+      <p><b>Double Down:</b> Double bet, one card</p>
+      <p><b>Dealer hits on soft 17</b></p>
+      <button class="close-btn" id="bjPayoutsClose">GOT IT</button>
     </div>
   </div>
 </div>
@@ -335,6 +357,14 @@ const btnHit=document.getElementById('btnHit');
 const btnStand=document.getElementById('btnStand');
 const btnDouble=document.getElementById('btnDouble');
 const cashoutBtn=document.getElementById('cashoutBtn');
+
+// Payouts popup
+const bjPayoutsBtn=document.getElementById('bjPayoutsBtn');
+const bjPayoutsOverlay=document.getElementById('bjPayoutsOverlay');
+const bjPayoutsClose=document.getElementById('bjPayoutsClose');
+bjPayoutsBtn.addEventListener('click',()=>bjPayoutsOverlay.classList.add('active'));
+bjPayoutsClose.addEventListener('click',()=>bjPayoutsOverlay.classList.remove('active'));
+bjPayoutsOverlay.addEventListener('click',(e)=>{if(e.target===bjPayoutsOverlay)bjPayoutsOverlay.classList.remove('active')});
 
 let handWager=0;
 
