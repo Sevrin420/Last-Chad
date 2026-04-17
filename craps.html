@@ -71,7 +71,7 @@
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
     .loading{animation:blink 1.5s ease-in-out infinite}
     /* Wager slider in lobby */
-    .lobby-wager{margin-top:0.6em;text-align:center}
+    .lobby-wager{margin-top:0;text-align:center}
     .lobby-wager input[type=range]{width:80%;max-width:300px;accent-color:#c9a84c}
     .lobby-wager-val{font-size:0.7rem;color:#ffe96a;margin:0.4em 0}
 
@@ -1269,7 +1269,7 @@ if (!crapsSession) {
         <p class="lobby-wager-val">WAGER: <span id="lobbyWagerVal">${Math.min(minW, cap)}</span></p>
         <input type="range" id="lobbyWagerSlider" min="${minW}" max="${cap}" value="${Math.min(minW, cap)}" step="1">
       `;
-      lobbyText.appendChild(sec);
+      lobbyText.insertBefore(sec, lobbyText.firstChild);
 
       const slider = document.getElementById('lobbyWagerSlider');
       const valEl  = document.getElementById('lobbyWagerVal');
