@@ -2351,10 +2351,10 @@ async function cashOut() {
 
     const profit = data.payout - STATE.buyIn;
     if (profit > 0) {
-      dealerSay("Winner! See ya around, partner.", 'happy');
+      dealerSay("See ya around toots.", 'happy');
       showToast(`+${profit}`, 'win', 'Profit!');
     } else {
-      dealerSay("See ya around, partner.", 'neutral');
+      dealerSay("See ya around toots.", 'neutral');
     }
 
     sessionStorage.removeItem('craps_session');
