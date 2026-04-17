@@ -1099,7 +1099,7 @@ const PLAYER_COLORS = ['#c9a84c','#c0c0c0','#808080','#b87333'];
 
 let crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null');
 
-// ── Lobby flow (replaces gamble.html) ──────────────────────────────────
+// ── Lobby flow ──────────────────────────────────────────────────────────
 if (!crapsSession) {
   (async function runLobby() {
     const lobbyEl      = document.getElementById('crapsLobby');
@@ -2326,7 +2326,7 @@ async function cashOut() {
     }
 
     // Save signed payout to localStorage in case on-chain claim fails.
-    // Recovery check on gamble.html will let the player retry.
+    // Recovery: player can try again from craps lobby.
     localStorage.setItem('lc_craps_cashout', JSON.stringify({
       tokenId: STATE.tokenId,
       payout: data.payout,
@@ -2707,7 +2707,7 @@ function handleWsMessage(data) {
       console.error('[Craps WS error]', data.message);
       dealerSay(data.message || 'Connection error.', 'sad');
       addChatMsg('system', 'Error: ' + (data.message || 'Unknown error'));
-      // If it looks like an auth/session error, redirect to gamble.html after a delay
+      // If it looks like an auth/session error, redirect to craps lobby after a delay
       if (data.message && (data.message.toLowerCase().includes('session') || data.message.toLowerCase().includes('auth') || data.message.toLowerCase().includes('token') || data.message.toLowerCase().includes('nonce'))) {
         addChatMsg('system', 'Redirecting to Gambling Den to start a new session...');
         sessionStorage.removeItem('craps_session');

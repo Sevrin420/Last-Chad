@@ -3,8 +3,9 @@
   var active = {
     'mint.html':        'mint',
     'game.html':        'lobby',
-    'gamble.html':      'lobby',
+    'poker.html':       'lobby',
     'craps.html':       'lobby',
+    'blackjack.html':   'lobby',
     'docs.html':        'docs',
     'market.html':      'lobby',
     'index.html':    'lobby',
