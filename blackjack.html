@@ -44,7 +44,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 /* ── Game table ── */
 .game-wrap{display:none;position:relative;width:100vw;height:100vh;flex-direction:column;align-items:center;overflow:hidden}
 .game-wrap.active{display:flex}
-.game-wrap > .table-bg-full{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;z-index:0;background:#0a0a0f}
+.game-wrap > .table-bg-full{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0}
 .game-wrap > *:not(.table-bg-full){position:relative;z-index:1}
 .game-header{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(0,0,0,.5);border-bottom:2px solid #c9a84c;z-index:10}
 /* Payouts popup */
