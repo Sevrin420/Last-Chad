@@ -42,14 +42,17 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .wager-val{font-size:.7rem;color:#ffe96a;margin:.4em 0}
 
 /* ── Game table ── */
-.game-wrap{display:none;width:100vw;height:100vh;flex-direction:column;align-items:center;background:#0a0a0f}
+.game-wrap{display:none;width:100vw;height:100vh;flex-direction:column;align-items:center;background-image:url('assets/membersonly/membersbg.jpg');background-size:cover;background-position:center}
 .game-wrap.active{display:flex}
 .game-header{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(10,10,15,.95);border-bottom:2px solid #2a5a1a;z-index:10}
 .game-header .stack{font-size:.7rem;color:#ffe96a}
 .game-header .stack span{color:#c9a84c}
 .hdr-btn{font-family:'Press Start 2P',monospace;font-size:.4rem;padding:6px 12px;border-radius:4px;cursor:pointer;border:2px solid #c62828;color:#fff;background:linear-gradient(180deg,#e53935,#b71c1c)}
 .hdr-btn:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
-.felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;width:100%;max-width:500px;padding:16px}
+.felt{flex:1;display:flex;align-items:center;justify-content:center;padding:12px;width:100%}
+.bj-table{position:relative;width:90%;max-width:420px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.bj-table img.table-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;pointer-events:none}
+.bj-table > *:not(.table-bg){position:relative;z-index:1}
 .hand-label{font-size:.5rem;color:#7a6020;letter-spacing:2px}
 .cards{display:flex;gap:8px;justify-content:center;min-height:100px}
 .card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:linear-gradient(180deg,#1a1608,#0f0d06);position:relative}
@@ -99,21 +102,24 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
     <div class="bj-announcer-text" id="bjDealerText">Place your bet and deal!</div>
   </div>
   <div class="felt">
-    <div class="hand-label">DEALER</div>
-    <div class="cards" id="dealerCards"></div>
-    <div class="hand-total" id="dealerTotal"></div>
+    <div class="bj-table">
+      <img class="table-bg" src="assets/membersonly/cardtable.png" alt="Card Table">
+      <div class="hand-label">DEALER</div>
+      <div class="cards" id="dealerCards"></div>
+      <div class="hand-total" id="dealerTotal"></div>
 
-    <div id="resultMsg" class="result-msg"></div>
+      <div id="resultMsg" class="result-msg"></div>
 
-    <div class="hand-label">YOU</div>
-    <div class="cards" id="playerCards"></div>
-    <div class="hand-total" id="playerTotal"></div>
+      <div class="hand-label">YOU</div>
+      <div class="cards" id="playerCards"></div>
+      <div class="hand-total" id="playerTotal"></div>
 
-    <div class="actions" id="actions">
-      <button class="act-btn" id="btnDeal">DEAL</button>
-      <button class="act-btn" id="btnHit" disabled>HIT</button>
-      <button class="act-btn" id="btnStand" disabled>STAND</button>
-      <button class="act-btn" id="btnDouble" disabled>DOUBLE</button>
+      <div class="actions" id="actions">
+        <button class="act-btn" id="btnDeal">DEAL</button>
+        <button class="act-btn" id="btnHit" disabled>HIT</button>
+        <button class="act-btn" id="btnStand" disabled>STAND</button>
+        <button class="act-btn" id="btnDouble" disabled>DOUBLE</button>
+      </div>
     </div>
   </div>
 </div>

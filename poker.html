@@ -108,9 +108,21 @@
 
     /* Card table area */
     .poker-table{
-      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-      padding:12px;
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:12px;position:relative;
     }
+    .poker-felt{
+      position:relative;
+      width:90%;max-width:420px;
+      aspect-ratio:2/3;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+      z-index:1;
+    }
+    .poker-felt img.table-bg{
+      position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;
+      pointer-events:none;
+    }
+    .poker-felt > *:not(.table-bg){ position:relative; z-index:1; }
 
     /* Payout table */
     .poker-payouts{
@@ -211,40 +223,43 @@
 
     <!-- Table -->
     <div class="poker-table">
+      <div class="poker-felt">
+        <img class="table-bg" src="assets/membersonly/cardtable.png" alt="Card Table">
 
-      <!-- Payout Table -->
-      <div class="poker-payouts" id="pokerPayouts">
-        <span class="hand-name">Royal Flush</span><span class="hand-pay">250x</span>
-        <span class="hand-name">Straight Flush</span><span class="hand-pay">50x</span>
-        <span class="hand-name">Four of a Kind</span><span class="hand-pay">25x</span>
-        <span class="hand-name">Full House</span><span class="hand-pay">9x</span>
-        <span class="hand-name">Flush</span><span class="hand-pay">6x</span>
-        <span class="hand-name">Straight</span><span class="hand-pay">4x</span>
-        <span class="hand-name">Three of a Kind</span><span class="hand-pay">3x</span>
-        <span class="hand-name">Two Pair</span><span class="hand-pay">2x</span>
-        <span class="hand-name">Jacks or Better</span><span class="hand-pay">1x</span>
-      </div>
+        <!-- Payout Table -->
+        <div class="poker-payouts" id="pokerPayouts">
+          <span class="hand-name">Royal Flush</span><span class="hand-pay">250x</span>
+          <span class="hand-name">Straight Flush</span><span class="hand-pay">50x</span>
+          <span class="hand-name">Four of a Kind</span><span class="hand-pay">25x</span>
+          <span class="hand-name">Full House</span><span class="hand-pay">9x</span>
+          <span class="hand-name">Flush</span><span class="hand-pay">6x</span>
+          <span class="hand-name">Straight</span><span class="hand-pay">4x</span>
+          <span class="hand-name">Three of a Kind</span><span class="hand-pay">3x</span>
+          <span class="hand-name">Two Pair</span><span class="hand-pay">2x</span>
+          <span class="hand-name">Jacks or Better</span><span class="hand-pay">1x</span>
+        </div>
 
-      <!-- Cards -->
-      <div class="poker-cards" id="pokerCards">
-        <div class="poker-card face-down" data-idx="0"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="1"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="2"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="3"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="4"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-      </div>
+        <!-- Cards -->
+        <div class="poker-cards" id="pokerCards">
+          <div class="poker-card face-down" data-idx="0"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="1"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="2"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="3"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="4"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        </div>
 
-      <!-- Bet per hand -->
-      <div class="poker-bet-row" id="pokerBetRow">
-        <span>BET:</span>
-        <input type="range" id="pokerBetSlider" min="1" max="10" value="1">
-        <span class="poker-bet-val" id="pokerBetVal">1</span>
-      </div>
+        <!-- Bet per hand -->
+        <div class="poker-bet-row" id="pokerBetRow">
+          <span>BET:</span>
+          <input type="range" id="pokerBetSlider" min="1" max="10" value="1">
+          <span class="poker-bet-val" id="pokerBetVal">1</span>
+        </div>
 
-      <!-- Action buttons -->
-      <div class="poker-actions">
-        <button class="poker-btn" id="pokerDealBtn">DEAL</button>
-        <button class="poker-btn" id="pokerDrawBtn" disabled>DRAW</button>
+        <!-- Action buttons -->
+        <div class="poker-actions">
+          <button class="poker-btn" id="pokerDealBtn">DEAL</button>
+          <button class="poker-btn" id="pokerDrawBtn" disabled>DRAW</button>
+        </div>
       </div>
 
     </div>
@@ -691,8 +706,22 @@ async function handleDraw() {
 
     updateStack();
 
-    // Flip replacement cards one by one
+    // Deal replacement cards face-down first
     const cardEls = document.querySelectorAll('.poker-card');
+    for (let i = 0; i < 5; i++) {
+      if (!pokerState.held[i]) {
+        setCardDown(cardEls[i]);
+        cardEls[i].style.opacity = '0';
+      }
+    }
+    for (let i = 0; i < 5; i++) {
+      if (!pokerState.held[i]) {
+        cardEls[i].style.opacity = '1';
+        await delay(200);
+      }
+    }
+    await delay(300);
+    // Now flip replacements over one by one
     for (let i = 0; i < 5; i++) {
       if (!pokerState.held[i] && data.cards[i]) {
         cardEls[i].classList.add('flipping');
