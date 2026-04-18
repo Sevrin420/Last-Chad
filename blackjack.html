@@ -121,6 +121,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
     <div style="display:flex;gap:6px">
       <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
       <button class="hdr-btn" id="bjPayoutsBtn" style="border-color:#c9a84c;background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005">PAYOUTS</button>
+      <button class="hdr-btn" id="bjAbandonBtn" style="border-color:#666;background:linear-gradient(180deg,#666,#333);color:#fff">EXIT</button>
     </div>
   </div>
   <div class="bj-announcer">
@@ -366,6 +367,14 @@ bjPayoutsBtn.addEventListener('click',()=>bjPayoutsOverlay.classList.add('active
 bjPayoutsClose.addEventListener('click',()=>bjPayoutsOverlay.classList.remove('active'));
 bjPayoutsOverlay.addEventListener('click',(e)=>{if(e.target===bjPayoutsOverlay)bjPayoutsOverlay.classList.remove('active')});
 
+// EXIT button: abandon session locally
+document.getElementById('bjAbandonBtn').addEventListener('click',()=>{
+  if(confirm('Exit and abandon this session? Any unclaimed chips will be lost.')){
+    sessionStorage.removeItem('bj_session');
+    window.location.href='clublounge.html';
+  }
+});
+
 let handWager=0;
 
 // Restore session state into game UI
@@ -552,6 +561,7 @@ cashoutBtn.addEventListener('click', async ()=>{
     const d=await res.json();
     if(!d.ok){
       if((d.error||'').includes('No session')){dealerSay("Session expired. Chips lost — sorry toots.",'sad');sessionStorage.removeItem('bj_session');setTimeout(()=>{window.location.href='clublounge.html'},3000);return}
+      if((d.error||'').includes('Finish')){dealerSay("Finish your hand first!",'neutral');cashoutBtn.disabled=false;cashoutBtn.textContent='CASH OUT';return}
       throw new Error(d.error);
     }
 

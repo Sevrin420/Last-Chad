@@ -245,6 +245,7 @@
         <div id="nav-placeholder-game"></div>
         <button class="poker-btn danger" id="pokerCashOutBtn">CASH OUT</button>
         <button class="poker-btn" id="pokerPayoutsBtn">PAYOUTS</button>
+        <button class="poker-btn" id="pokerAbandonBtn" style="background:linear-gradient(180deg,#666,#333);color:#fff">EXIT</button>
       </div>
     </div>
 
@@ -619,6 +620,14 @@ function initPokerGame() {
   drawBtn.addEventListener('click', () => { resetIdleTimer(); handleDraw(); });
   cashOutBtn.addEventListener('click', handleCashOut);
 
+  // EXIT button: abandon session locally, return to lounge
+  document.getElementById('pokerAbandonBtn').addEventListener('click', () => {
+    if (confirm('Exit and abandon this session? Any unclaimed chips will be lost.')) {
+      sessionStorage.removeItem('poker_session');
+      window.location.href = 'clublounge.html';
+    }
+  });
+
   // Idle timeout warnings (5min, 10min, 15min disconnect)
   let lastActivity = Date.now();
   let idleWarningLevel = 0;
@@ -868,11 +877,6 @@ async function handleDraw() {
 }
 
 async function handleCashOut() {
-  if (pokerState.phase === 'dealt' || pokerState.phase === 'drawing') {
-    dealerSay("Finish your hand first!", 'neutral');
-    return;
-  }
-
   document.getElementById('pokerDealBtn').disabled = true;
   document.getElementById('pokerCashOutBtn').disabled = true;
   dealerSay("Cashing out...", 'neutral');
@@ -891,6 +895,12 @@ async function handleCashOut() {
         dealerSay("Session expired. Chips lost — sorry toots.", 'sad');
         sessionStorage.removeItem('poker_session');
         setTimeout(() => { window.location.href = 'clublounge.html'; }, 3000);
+        return;
+      }
+      if (msg.includes('Finish current hand') || msg.includes('Finish')) {
+        dealerSay("Finish your hand first!", 'neutral');
+        document.getElementById('pokerDealBtn').disabled = false;
+        document.getElementById('pokerCashOutBtn').disabled = false;
         return;
       }
       throw new Error(msg);
