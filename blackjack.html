@@ -56,11 +56,11 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .bj-payouts-box b{color:#ffe96a}
 .bj-payouts-box .close-btn{display:block;margin:16px auto 0;font-family:'Press Start 2P',monospace;font-size:.55rem;color:#0a0a0f;background:#c9a84c;border:none;border-bottom:4px solid #7a6020;padding:12px 24px;cursor:pointer}
 .bj-payouts-box .close-btn:hover{background:#e8c060}
-.game-header .stack{font-size:.7rem;color:#ffe96a}
+.game-header .stack{font-size:1.4rem;color:#ffe96a}
 .game-header .stack span{color:#c9a84c}
 .hdr-btn{font-family:'Press Start 2P',monospace;font-size:.4rem;padding:6px 12px;border-radius:4px;cursor:pointer;border:2px solid #c62828;color:#fff;background:linear-gradient(180deg,#e53935,#b71c1c)}
 .hdr-btn:hover{background:linear-gradient(180deg,#ef5350,#c62828)}
-.felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px;width:100%}
+.felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:18px;padding:12px 12px 24px;width:100%}
 .hand-label{font-size:.5rem;color:#7a6020;letter-spacing:2px}
 .cards{display:flex;gap:8px;justify-content:center;min-height:100px}
 .card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:#f5f0e0;position:relative;transition:transform 0.4s ease;transform-style:preserve-3d}
@@ -78,7 +78,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .result-msg.lose{color:#e53935}
 .result-msg.push{color:#c9a84c}
 .result-msg.bj{color:#ffe96a;text-shadow:0 0 10px rgba(255,233,106,.5)}
-.bj-chip-tray{display:flex;gap:6px;align-items:center;justify-content:center}
+.bj-chip-tray{display:flex;gap:14px;align-items:center;justify-content:center}
 .bj-chip-tray .chip{width:clamp(36px,9vw,52px);height:clamp(36px,9vw,52px);border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;background-size:130%;background-position:center}
 .bj-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
 .chip-1{background-image:url('assets/membersonly/chip1.png')}
@@ -117,7 +117,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
   <img class="table-bg-full" src="assets/membersonly/cardtable.png" alt="Card Table">
 
   <div class="game-header">
-    <div class="stack"><img src="assets/membersonly/chipstack.png" alt="" style="height:22px;vertical-align:middle"> <span id="stackVal">0</span></div>
+    <div class="stack"><img src="assets/membersonly/chipstack.png" alt="" style="height:44px;vertical-align:middle"> <span id="stackVal">0</span></div>
     <div style="display:flex;gap:6px">
       <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
       <button class="hdr-btn" id="bjPayoutsBtn" style="border-color:#c9a84c;background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005">PAYOUTS</button>
