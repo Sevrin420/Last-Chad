@@ -133,7 +133,7 @@ knocker.addEventListener('click', async () => {
   nftGrid.innerHTML = '';
   welcomeMsg.textContent = '';
   ovText.textContent = '';
-  ovStatus.textContent = 'Checking wallet...';
+  ovStatus.textContent = 'Verifying Membership';
   ovStatus.classList.add('loading');
 
   let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
