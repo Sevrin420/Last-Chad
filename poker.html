@@ -112,9 +112,17 @@
 
     /* Card table area */
     .poker-table{
-      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-      gap:18px;padding:14px 14px 24px;
+      flex:1;display:flex;flex-direction:column;align-items:center;
+      padding:14px 14px 24px;
+      position:relative;
     }
+    .poker-play-area{
+      position:absolute;
+      top:50%;
+      left:0;right:0;
+      display:flex;flex-direction:column;align-items:center;gap:18px;
+    }
+    #pokerBetRow{margin-top:auto;margin-bottom:32px}
 
     /* Payout table */
     .poker-payouts{
@@ -172,6 +180,7 @@
     .poker-bet-box{
       display:flex;align-items:center;gap:8px;justify-content:center;
       font-size:0.45rem;color:#c9a84c;
+      margin-top:42px;
     }
     .poker-bet-box .bet-amount{color:#ffe96a;font-size:0.6rem;min-width:2em;text-align:center}
     .poker-bet-box .clear-bet{
@@ -257,19 +266,19 @@
 
     <!-- Table content -->
     <div class="poker-table">
-      <!-- Cards -->
-      <div class="poker-cards" id="pokerCards">
-        <div class="poker-card face-down" data-idx="0" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="1" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="2" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="3" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="4" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-      </div>
-
-      <!-- Action buttons -->
-      <div class="poker-actions">
-        <button class="poker-btn" id="pokerDealBtn">DEAL</button>
-        <button class="poker-btn" id="pokerDrawBtn" disabled>DRAW</button>
+      <!-- Cards + Action buttons (positioned just below Members Only circle) -->
+      <div class="poker-play-area">
+        <div class="poker-cards" id="pokerCards">
+          <div class="poker-card face-down" data-idx="0" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="1" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="2" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="3" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+          <div class="poker-card face-down" data-idx="4" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        </div>
+        <div class="poker-actions">
+          <button class="poker-btn" id="pokerDealBtn">DEAL</button>
+          <button class="poker-btn" id="pokerDrawBtn" disabled>DRAW</button>
+        </div>
       </div>
 
       <!-- Chip tray + bet -->
