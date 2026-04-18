@@ -112,8 +112,8 @@
 
     /* Card table area */
     .poker-table{
-      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:12px;padding:14px;
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+      gap:18px;padding:14px 14px 24px;
     }
 
     /* Payout table */
@@ -158,7 +158,7 @@
     .poker-card.held .hold-label{display:block}
 
     /* Chip tray + bet box */
-    .poker-chip-tray{display:flex;gap:6px;align-items:center;justify-content:center}
+    .poker-chip-tray{display:flex;gap:14px;align-items:center;justify-content:center}
     .poker-chip-tray .chip{
       width:clamp(40px,10vw,56px);height:clamp(40px,10vw,56px);
       border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;
@@ -204,10 +204,10 @@
     /* Floating chip counter — bottom left */
     .poker-stack-floating{
       position:fixed;left:12px;bottom:12px;z-index:50;
-      display:flex;align-items:center;gap:6px;
-      font-size:0.75rem;color:#ffe96a;
+      display:flex;align-items:center;gap:8px;
+      font-size:1.5rem;color:#ffe96a;
     }
-    .poker-stack-floating img{height:33px;vertical-align:middle}
+    .poker-stack-floating img{height:66px;vertical-align:middle}
   </style>
 </head>
 <body>
@@ -258,11 +258,11 @@
     <div class="poker-table">
       <!-- Cards -->
       <div class="poker-cards" id="pokerCards">
-        <div class="poker-card face-down" data-idx="0"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="1"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="2"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="3"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
-        <div class="poker-card face-down" data-idx="4"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        <div class="poker-card face-down" data-idx="0" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        <div class="poker-card face-down" data-idx="1" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        <div class="poker-card face-down" data-idx="2" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        <div class="poker-card face-down" data-idx="3" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
+        <div class="poker-card face-down" data-idx="4" style="visibility:hidden"><span class="hold-label">HOLD</span><span class="card-rank"></span><span class="card-suit"></span></div>
       </div>
 
       <!-- Action buttons -->
@@ -667,8 +667,8 @@ function setCardDown(el) {
 
 function renderCards(cards) {
   document.querySelectorAll('.poker-card').forEach((el, i) => {
-    if (cards && cards[i]) setCardFace(el, cards[i]);
-    else setCardDown(el);
+    if (cards && cards[i]) { el.style.visibility = 'visible'; setCardFace(el, cards[i]); }
+    else { setCardDown(el); el.style.visibility = cards ? 'visible' : 'hidden'; }
   });
 }
 
@@ -676,11 +676,13 @@ async function dealCardsOneByOne() {
   const cardEls = document.querySelectorAll('.poker-card');
   for (let i = 0; i < 5; i++) {
     const el = cardEls[i];
+    el.style.visibility = 'hidden';
     el.style.opacity = '0';
     setCardDown(el);
   }
   for (let i = 0; i < 5; i++) {
     const el = cardEls[i];
+    el.style.visibility = 'visible';
     el.style.opacity = '1';
     await delay(300);
   }
