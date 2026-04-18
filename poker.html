@@ -570,18 +570,9 @@ function initPokerGame() {
   if (!pokerSession) return;
 
   const stackEl = document.getElementById('pokerStackDisplay');
-  const betSlider = document.getElementById('pokerBetSlider');
   const betVal = document.getElementById('pokerBetVal');
   const dealBtn = document.getElementById('pokerDealBtn');
   const drawBtn = document.getElementById('pokerDrawBtn');
-  const cashOutBtn = document.getElementById('pokerCashOutBtn');
-  const payoutsBtn = document.getElementById('pokerPayoutsBtn');
-  const payoutsOverlay = document.getElementById('pokerPayoutsOverlay');
-  const payoutsClose = document.getElementById('pokerPayoutsClose');
-
-  payoutsBtn.addEventListener('click', () => payoutsOverlay.classList.add('active'));
-  payoutsClose.addEventListener('click', () => payoutsOverlay.classList.remove('active'));
-  payoutsOverlay.addEventListener('click', (e) => { if (e.target === payoutsOverlay) payoutsOverlay.classList.remove('active'); });
 
   stackEl.textContent = pokerSession.stack;
   pokerState.handBet = 0;
@@ -618,15 +609,6 @@ function initPokerGame() {
 
   dealBtn.addEventListener('click', () => { resetIdleTimer(); handleDeal(); });
   drawBtn.addEventListener('click', () => { resetIdleTimer(); handleDraw(); });
-  cashOutBtn.addEventListener('click', handleCashOut);
-
-  // EXIT button: abandon session locally, return to lounge
-  document.getElementById('pokerAbandonBtn').addEventListener('click', () => {
-    if (confirm('Exit and abandon this session? Any unclaimed chips will be lost.')) {
-      sessionStorage.removeItem('poker_session');
-      window.location.href = 'clublounge.html';
-    }
-  });
 
   // Idle timeout warnings (5min, 10min, 15min disconnect)
   let lastActivity = Date.now();
@@ -930,6 +912,31 @@ async function handleCashOut() {
     document.getElementById('pokerCashOutBtn').disabled = false;
   }
 }
+
+// Global button handlers — attached on page load, work even if initPokerGame fails
+(function attachGlobalGameHandlers() {
+  const exitBtn = document.getElementById('pokerAbandonBtn');
+  if (exitBtn) {
+    exitBtn.addEventListener('click', () => {
+      sessionStorage.removeItem('poker_session');
+      window.location.href = 'clublounge.html';
+    });
+  }
+  const payoutsBtn = document.getElementById('pokerPayoutsBtn');
+  const payoutsOverlay = document.getElementById('pokerPayoutsOverlay');
+  const payoutsClose = document.getElementById('pokerPayoutsClose');
+  if (payoutsBtn && payoutsOverlay) {
+    payoutsBtn.addEventListener('click', (e) => { e.stopPropagation(); payoutsOverlay.classList.add('active'); });
+    payoutsClose && payoutsClose.addEventListener('click', () => payoutsOverlay.classList.remove('active'));
+    payoutsOverlay.addEventListener('click', (e) => { if (e.target === payoutsOverlay) payoutsOverlay.classList.remove('active'); });
+  }
+  const cashOutBtn = document.getElementById('pokerCashOutBtn');
+  if (cashOutBtn) {
+    cashOutBtn.addEventListener('click', () => {
+      if (typeof handleCashOut === 'function') handleCashOut();
+    });
+  }
+})();
 
 // If session was restored from sessionStorage, init now
 if (pokerSession) initPokerGame();

@@ -369,10 +369,8 @@ bjPayoutsOverlay.addEventListener('click',(e)=>{if(e.target===bjPayoutsOverlay)b
 
 // EXIT button: abandon session locally
 document.getElementById('bjAbandonBtn').addEventListener('click',()=>{
-  if(confirm('Exit and abandon this session? Any unclaimed chips will be lost.')){
-    sessionStorage.removeItem('bj_session');
-    window.location.href='clublounge.html';
-  }
+  sessionStorage.removeItem('bj_session');
+  window.location.href='clublounge.html';
 });
 
 let handWager=0;
