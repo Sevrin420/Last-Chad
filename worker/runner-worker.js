@@ -290,21 +290,14 @@ async function handlePokerStart(request, env) {
   const key = `poker:${nonce}`;
   const existing = await env.RUNNER_KV.get(key, { type: 'json' });
   if (existing) {
-    // If session is stuck mid-hand (player abandoned during dealt phase), auto-resolve it
-    // by drawing all cards with no holds so the frontend reconnects to a clean ready state.
-    if (existing.phase === 'dealt' && Array.isArray(existing.hand) && Array.isArray(existing.deck)) {
-      let drawIdx = 0;
-      for (let i = 0; i < 5; i++) {
-        existing.hand[i] = existing.deck[drawIdx++];
-      }
-      const cards  = existing.hand.map(cardFromIndex);
-      const result = evaluatePokerHand(cards);
-      const mult   = result ? POKER_PAYOUTS[result] : 0;
-      existing.stack += existing.handWager * mult;
-      existing.phase  = 'ready';
-      existing.deck   = null;
-      existing.hand   = null;
-      existing.lastDrawResult = { ok: true, cards, hand: result, multiplier: mult, winnings: existing.handWager * mult, stack: existing.stack };
+    // If session is stuck mid-hand (player abandoned during dealt phase), forfeit the hand
+    // bet and reset to ready — stack already had handWager deducted when the hand was dealt.
+    if (existing.phase === 'dealt') {
+      existing.phase         = 'ready';
+      existing.deck          = null;
+      existing.hand          = null;
+      existing.handWager     = 0;
+      existing.lastDrawResult = null;
     }
     await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: POKER_SESSION_TTL });
     return json({ ok: true, stack: existing.stack, sessionToken });
