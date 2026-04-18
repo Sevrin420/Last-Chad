@@ -118,11 +118,22 @@
     }
     .poker-play-area{
       position:absolute;
-      top:50%;
+      top:55%;
       left:0;right:0;
       display:flex;flex-direction:column;align-items:center;gap:18px;
     }
     #pokerBetRow{margin-top:auto;margin-bottom:32px}
+
+    /* Card deal animation */
+    @keyframes card-deal{
+      0%  {transform:translateY(-26px) rotate(-4deg);opacity:0}
+      55% {transform:translateY(4px)   rotate(0.4deg);opacity:1}
+      80% {transform:translateY(-2px)  rotate(0deg)}
+      100%{transform:translateY(0)     rotate(0deg);opacity:1}
+    }
+    .poker-card.dealing{
+      animation:card-deal 0.32s cubic-bezier(.25,.46,.45,.94) both;
+    }
 
     /* Payout table */
     .poker-payouts{
@@ -180,7 +191,7 @@
     .poker-bet-box{
       display:flex;align-items:center;gap:8px;justify-content:center;
       font-size:0.45rem;color:#c9a84c;
-      margin-top:42px;
+      margin-top:56px;
     }
     .poker-bet-box .bet-amount{color:#ffe96a;font-size:0.6rem;min-width:2em;text-align:center}
     .poker-bet-box .clear-bet{
@@ -677,14 +688,16 @@ async function dealCardsOneByOne() {
   for (let i = 0; i < 5; i++) {
     const el = cardEls[i];
     el.style.visibility = 'hidden';
-    el.style.opacity = '0';
     setCardDown(el);
+    el.classList.remove('dealing');
   }
   for (let i = 0; i < 5; i++) {
     const el = cardEls[i];
     el.style.visibility = 'visible';
-    el.style.opacity = '1';
-    await delay(300);
+    void el.offsetWidth; // force reflow so animation restarts
+    el.classList.add('dealing');
+    el.addEventListener('animationend', () => el.classList.remove('dealing'), { once: true });
+    await delay(280);
   }
 }
 
@@ -793,18 +806,20 @@ async function handleDraw() {
 
     updateStack();
 
-    // Deal replacement cards face-down first
+    // Deal replacement cards face-down with set-down animation
     const cardEls = document.querySelectorAll('.poker-card');
     for (let i = 0; i < 5; i++) {
       if (!pokerState.held[i]) {
         setCardDown(cardEls[i]);
-        cardEls[i].style.opacity = '0';
+        cardEls[i].classList.remove('dealing');
       }
     }
     for (let i = 0; i < 5; i++) {
       if (!pokerState.held[i]) {
-        cardEls[i].style.opacity = '1';
-        await delay(300);
+        void cardEls[i].offsetWidth;
+        cardEls[i].classList.add('dealing');
+        cardEls[i].addEventListener('animationend', () => cardEls[i].classList.remove('dealing'), { once: true });
+        await delay(280);
       }
     }
     await delay(450);
