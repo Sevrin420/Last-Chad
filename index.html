@@ -60,7 +60,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 }
 .overlay.active{display:flex}
 .ov-text{font-size:clamp(0.55rem,2vw,0.75rem);color:#c9a84c;text-align:center;line-height:2.2;min-height:1.5em}
-.status{font-size:clamp(0.55rem,2vw,0.75rem);color:#ffe96a;text-align:center;min-height:1em;letter-spacing:2px}
+.status{font-size:clamp(0.55rem,2vw,0.75rem);color:#ffe96a;text-align:center;min-height:1em;letter-spacing:2px;transition:opacity 0.6s ease}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
 .status.loading{animation:blink 0.9s ease-in-out infinite}
 
@@ -129,6 +129,14 @@ autoReconnect({ onConnected });
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+async function fadeOutStatus() {
+  ovStatus.classList.remove('loading');
+  ovStatus.style.opacity = '0';
+  await delay(650);
+  ovStatus.textContent = '';
+  ovStatus.style.opacity = '1';
+}
+
 async function typewrite(el, text, speed) {
   el.textContent = '';
   for (let i = 0; i < text.length; i++) {
@@ -162,14 +170,14 @@ async function startVerification() {
       rpcFailed = false;
     } catch (e2) {
       console.error('NFT balanceOf failed (fallback RPC):', e2.message || e2);
-      ovStatus.classList.remove('loading');
+      await fadeOutStatus();
       ovStatus.textContent = 'Cannot reach network — try again';
       return;
     }
   }
 
   if (memberBal > 0) {
-    ovStatus.classList.remove('loading');
+    await fadeOutStatus();
     await typewrite(ovText, 'Welcome Member');
     await delay(2000);
     window.location.href = 'clublounge.html';
@@ -193,7 +201,7 @@ async function startVerification() {
     console.error('Invitation check failed:', e.message || e);
   }
 
-  ovStatus.classList.remove('loading');
+  await fadeOutStatus();
 
   if (hasInvitation) {
     await typewrite(ovText, 'Invitation detected. Welcome.');
