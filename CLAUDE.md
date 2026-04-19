@@ -46,6 +46,9 @@ Use: `git push -u origin main`
 - If unclear, ask ONE precise question instead of guessing.
 - Keep responses short and focused.
 
+### Asset Path Convention
+All project assets (images, GIFs, audio, etc.) live in **`assets/membersonly/`** unless the user specifies otherwise. Always reference new assets from that path. Never guess a different location.
+
 ### Off-Limits Files
 - **`assets/`** — Do NOT touch NFT images or asset folders.
 - **`metadata/`** — NEVER modify. NFT metadata is set and immutable.
