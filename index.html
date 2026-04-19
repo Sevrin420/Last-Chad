@@ -122,7 +122,6 @@ function onConnected(a) {
   addr = a;
   walletBtn.textContent = truncateAddress(a);
   walletBtn.classList.add('connected');
-  startVerification();
 }
 
 walletBtn.addEventListener('click', () => connectWallet(null, { onConnected }));
@@ -134,7 +133,7 @@ async function typewrite(el, text, speed) {
   el.textContent = '';
   for (let i = 0; i < text.length; i++) {
     el.textContent += text[i];
-    await delay(speed || 60);
+    await delay(speed || 80);
   }
 }
 
@@ -172,7 +171,7 @@ async function startVerification() {
   if (memberBal > 0) {
     ovStatus.classList.remove('loading');
     await typewrite(ovText, 'Welcome Member');
-    await delay(800);
+    await delay(2000);
     window.location.href = 'clublounge.html';
     return;
   }
