@@ -105,6 +105,9 @@ export default {
       if (request.method === 'POST' && url.pathname === '/poker/cashout') {
         return await handlePokerCashout(request, env);
       }
+      if (request.method === 'POST' && url.pathname === '/poker/admin/reset-session') {
+        return await handlePokerAdminReset(request, env);
+      }
 
       // Blackjack endpoints
       if (request.method === 'POST' && url.pathname === '/blackjack/start') {
@@ -287,7 +290,15 @@ async function handlePokerStart(request, env) {
   const key = `poker:${nonce}`;
   const existing = await env.RUNNER_KV.get(key, { type: 'json' });
   if (existing) {
-    // Refresh TTL on reconnect
+    // If session is stuck mid-hand (player abandoned during dealt phase), forfeit the hand
+    // bet and reset to ready — stack already had handWager deducted when the hand was dealt.
+    if (existing.phase === 'dealt') {
+      existing.phase         = 'ready';
+      existing.deck          = null;
+      existing.hand          = null;
+      existing.handWager     = 0;
+      existing.lastDrawResult = null;
+    }
     await env.RUNNER_KV.put(key, JSON.stringify(existing), { expirationTtl: POKER_SESSION_TTL });
     return json({ ok: true, stack: existing.stack, sessionToken });
   }
@@ -455,6 +466,24 @@ async function handlePokerCashout(request, env) {
   await env.RUNNER_KV.delete(key);
 
   return json({ ok: true, payout, nonce: Number(nonce), signature });
+}
+
+// ---------------------------------------------------------------------------
+// POST /poker/admin/reset-session  { key, nonce }
+// Delete a stuck poker session from KV. Requires admin secret (first 16 chars of ORACLE_PRIVATE_KEY).
+// ---------------------------------------------------------------------------
+async function handlePokerAdminReset(request, env) {
+  const body = await parseBody(request);
+  const adminSecret = (env.ORACLE_PRIVATE_KEY || 'dev-key').slice(0, 16);
+  if (!body.key || body.key !== adminSecret) return json({ error: 'Unauthorized' }, 403);
+  if (body.nonce == null) return json({ error: 'Missing nonce' }, 400);
+
+  const kvKey = `poker:${body.nonce}`;
+  const session = await env.RUNNER_KV.get(kvKey, { type: 'json' });
+  if (!session) return json({ error: 'No session found for that nonce' }, 404);
+
+  await env.RUNNER_KV.delete(kvKey);
+  return json({ ok: true, message: `Poker session for nonce ${body.nonce} deleted`, player: session.player, stack: session.stack });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

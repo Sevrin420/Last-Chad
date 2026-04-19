@@ -69,6 +69,13 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .card.face-down{background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);background-size:8px 8px;border-color:#c9a84c}
 .card.face-down .rank,.card.face-down .suit{display:none}
 .card.flipping{transform:rotateY(90deg)}
+@keyframes card-deal{
+  0%  {transform:translateY(-26px) rotate(-4deg);opacity:0}
+  55% {transform:translateY(4px)   rotate(0.4deg);opacity:1}
+  80% {transform:translateY(-2px)  rotate(0deg)}
+  100%{transform:translateY(0)     rotate(0deg);opacity:1}
+}
+.card.dealing{animation:card-deal 0.32s cubic-bezier(.25,.46,.45,.94) both}
 .card.hole{background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);background-size:8px 8px;border-color:#c9a84c}
 .card .rank{font-size:clamp(.8rem,3vw,1.2rem);line-height:1}
 .card .suit{font-size:clamp(.6rem,2vw,.9rem);margin-top:2px}
@@ -433,9 +440,11 @@ async function dealHandAnimated(el,cards,hideHole){
   for(let i=0;i<cards.length;i++){
     const isHole=hideHole&&i===1&&!cards[i];
     const cardEl=isHole?makeCardEl(null):makeCardEl(cards[i],true);
-    cardEl.style.opacity='0';el.appendChild(cardEl);
-    await delay(150);cardEl.style.opacity='1';
-    await delay(300);
+    el.appendChild(cardEl);
+    void cardEl.offsetWidth; // force reflow so animation triggers
+    cardEl.classList.add('dealing');
+    cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
+    await delay(280);
     if(!isHole&&cards[i]){
       cardEl.classList.add('flipping');
       await delay(300);
