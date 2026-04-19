@@ -1163,13 +1163,14 @@ if (!crapsSession) {
     document.getElementById('rulesCloseBtn').addEventListener('click', () => rulesOverlay.classList.remove('active'));
     rulesOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) rulesOverlay.classList.remove('active'); });
 
-    // Step 1: Pick your member first
-    await delay(400);
+    // Show lobby image full-size first
     lobbyChazzy.classList.add('visible');
-    await delay(400);
+    await delay(2000);
+    // Then shrink and reveal dialogue
+    lobbyChazzy.classList.add('shrunk');
     lobbyDlg.classList.add('visible');
     lobbyDlg.classList.add('tall');
-    lobbyChazzy.classList.add('shrunk');
+    await delay(800);
 
     if (!lobbyAddr) {
       lobbyText.innerHTML = '<p style="color:#e53935">Connect your wallet first!</p>';
@@ -1200,7 +1201,11 @@ if (!crapsSession) {
       return;
     }
 
-    lobbyText.innerHTML = '<p class="npc-name">Pick your Member</p>';
+    const selectHeading = document.createElement('p');
+    selectHeading.className = 'npc-name';
+    lobbyText.innerHTML = '';
+    lobbyText.appendChild(selectHeading);
+    await typewrite(selectHeading, 'Select Player', 150);
 
     const grid = document.createElement('div');
     grid.className = 'lobby-nft-grid';
