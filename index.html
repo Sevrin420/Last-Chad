@@ -14,6 +14,16 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 .door{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
 .door img{width:100%;height:100%;object-fit:contain;object-position:center;background:#000}
 
+/* ── Rain overlay ── */
+.rain-overlay{
+  position:fixed;inset:0;z-index:5;
+  pointer-events:none;
+  mix-blend-mode:screen;
+}
+.rain-overlay img{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+
 /* ── Knocker hotspot ── */
 .knocker{
   position:absolute;width:9%;aspect-ratio:1;height:auto;
@@ -76,6 +86,11 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 <div class="door">
   <img src="assets/membersonly/door.jpg" alt="Members Only">
   <div class="knocker" id="knocker"></div>
+</div>
+
+<!-- Rain overlay (mix-blend-mode:screen makes black transparent, white rain visible) -->
+<div class="rain-overlay">
+  <img src="assets/rain.gif" alt="">
 </div>
 
 <button class="wallet-btn" id="walletBtn">CONNECT WALLET</button>
