@@ -194,7 +194,7 @@
       position: absolute;
       left: 18%;
       top: 52%;
-      width: 66%;
+      width: 44%;
       cursor: pointer;
       z-index: 15;
     }
@@ -204,20 +204,20 @@
       height: auto;
       display: block;
       clip-path: inset(0 0 75% 0);
-      transition: clip-path 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: clip-path 0.45s cubic-bezier(0.22, 1, 0.36, 1);
       transform-origin: 50% 0%;
     }
 
     @keyframes swingDrop {
       0%   { transform: rotate(0deg); }
-      20%  { transform: rotate(-5deg); }
-      45%  { transform: rotate(3.5deg); }
-      65%  { transform: rotate(-1.5deg); }
-      82%  { transform: rotate(0.5deg); }
+      20%  { transform: rotate(-3deg); }
+      45%  { transform: rotate(2deg); }
+      65%  { transform: rotate(-0.8deg); }
+      82%  { transform: rotate(0.3deg); }
       100% { transform: rotate(0deg); }
     }
     .placard-img.swinging {
-      animation: swingDrop 0.9s ease-out forwards;
+      animation: swingDrop 0.85s ease-out forwards;
     }
 
     .placard-link {
@@ -229,9 +229,12 @@
       cursor: pointer;
       text-decoration: none;
     }
+    .placard-top  { top: 0%;  }
     .placard-link-1 { top: 25%; } /* Blackjack */
     .placard-link-2 { top: 50%; } /* Craps */
     .placard-link-3 { top: 75%; } /* Poker */
+
+    .placard-top.rollup  { pointer-events: auto; cursor: pointer; }
 
     .placard-link.active {
       pointer-events: auto;
@@ -298,6 +301,7 @@
     <!-- Placard drop: Table Games → Blackjack → Craps → Poker -->
     <div class="placard-wrap" id="placardWrap">
       <img src="assets/membersonly/placard_games.png" class="placard-img" id="placardImg" alt="Table Games">
+      <div  class="placard-link placard-top"           id="plinkTop"></div>
       <a href="blackjack.html" class="placard-link placard-link-1" id="plink1"></a>
       <a href="craps.html"     class="placard-link placard-link-2" id="plink2"></a>
       <a href="poker.html"     class="placard-link placard-link-3" id="plink3"></a>
@@ -324,47 +328,63 @@
 
     // --- Placard drop ---
     (function() {
-      var wrap = document.getElementById('placardWrap');
-      var img  = document.getElementById('placardImg');
-      var dropped = false;
+      var wrap     = document.getElementById('placardWrap');
+      var img      = document.getElementById('placardImg');
+      var plinkTop = document.getElementById('plinkTop');
+      var dropped  = false;
+      var rolling  = false;
 
       function swing() {
         img.classList.remove('swinging');
-        void img.offsetWidth; // force reflow to restart animation
+        void img.offsetWidth;
         img.classList.add('swinging');
         img.addEventListener('animationend', function() {
           img.classList.remove('swinging');
         }, { once: true });
       }
 
-      wrap.addEventListener('click', function(e) {
-        if (dropped) return;
-        if (e.target.classList.contains('placard-link')) return;
-        dropped = true;
+      function rollDown() {
+        if (dropped || rolling) return;
+        rolling = true;
         wrap.style.cursor = 'default';
 
-        // Drop Blackjack
-        img.style.clipPath = 'inset(0 0 50% 0)';
-        swing();
-
+        img.style.clipPath = 'inset(0 0 50% 0)'; swing();
+        setTimeout(function() { img.style.clipPath = 'inset(0 0 25% 0)'; swing(); }, 500);
+        setTimeout(function() { img.style.clipPath = 'inset(0 0 0% 0)';  swing(); }, 1000);
         setTimeout(function() {
-          // Drop Craps
-          img.style.clipPath = 'inset(0 0 25% 0)';
-          swing();
-        }, 750);
-
-        setTimeout(function() {
-          // Drop Poker
-          img.style.clipPath = 'inset(0 0 0% 0)';
-          swing();
-        }, 1500);
-
-        setTimeout(function() {
-          // Activate clickable links
+          dropped = true; rolling = false;
           document.getElementById('plink1').classList.add('active');
           document.getElementById('plink2').classList.add('active');
           document.getElementById('plink3').classList.add('active');
-        }, 2300);
+          plinkTop.classList.add('rollup');
+        }, 1550);
+      }
+
+      function rollUp() {
+        if (!dropped || rolling) return;
+        rolling = true;
+        plinkTop.classList.remove('rollup');
+        document.getElementById('plink1').classList.remove('active');
+        document.getElementById('plink2').classList.remove('active');
+        document.getElementById('plink3').classList.remove('active');
+
+        img.style.clipPath = 'inset(0 0 25% 0)'; swing();
+        setTimeout(function() { img.style.clipPath = 'inset(0 0 50% 0)'; swing(); }, 500);
+        setTimeout(function() { img.style.clipPath = 'inset(0 0 75% 0)'; swing(); }, 1000);
+        setTimeout(function() {
+          dropped = false; rolling = false;
+          wrap.style.cursor = 'pointer';
+        }, 1400);
+      }
+
+      wrap.addEventListener('click', function(e) {
+        if (e.target.classList.contains('placard-link')) return;
+        rollDown();
+      });
+
+      plinkTop.addEventListener('click', function(e) {
+        e.stopPropagation();
+        rollUp();
       });
     })();
   </script>
