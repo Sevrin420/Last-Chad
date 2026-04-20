@@ -203,9 +203,21 @@
       width: 100%;
       height: auto;
       display: block;
-      mix-blend-mode: screen;
       clip-path: inset(0 0 75% 0);
       transition: clip-path 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: 50% 0%;
+    }
+
+    @keyframes swingDrop {
+      0%   { transform: rotate(0deg); }
+      20%  { transform: rotate(-5deg); }
+      45%  { transform: rotate(3.5deg); }
+      65%  { transform: rotate(-1.5deg); }
+      82%  { transform: rotate(0.5deg); }
+      100% { transform: rotate(0deg); }
+    }
+    .placard-img.swinging {
+      animation: swingDrop 0.9s ease-out forwards;
     }
 
     .placard-link {
@@ -216,7 +228,6 @@
       pointer-events: none;
       cursor: pointer;
       text-decoration: none;
-      mix-blend-mode: screen;
     }
     .placard-link-1 { top: 25%; } /* Blackjack */
     .placard-link-2 { top: 50%; } /* Craps */
@@ -224,12 +235,24 @@
 
     .placard-link.active {
       pointer-events: auto;
-      animation: placardPulse 1.5s ease-in-out infinite;
+    }
+    .placard-link.active::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 35%;
+      aspect-ratio: 1;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,190,40,0.55) 0%, transparent 70%);
+      animation: circlePulse 2s ease-in-out infinite;
+      pointer-events: none;
     }
 
-    @keyframes placardPulse {
-      0%,100% { background: rgba(0,0,0,0); }
-      50% { background: rgba(180,140,20,0.45); }
+    @keyframes circlePulse {
+      0%,100% { opacity: 0.12; }
+      50%     { opacity: 0.55; }
     }
 
     /* === Desktop === */
@@ -274,7 +297,7 @@
 
     <!-- Placard drop: Table Games → Blackjack → Craps → Poker -->
     <div class="placard-wrap" id="placardWrap">
-      <img src="assets/membersonly/placard_drop.jpg" class="placard-img" id="placardImg" alt="Table Games">
+      <img src="assets/membersonly/placard_games.png" class="placard-img" id="placardImg" alt="Table Games">
       <a href="blackjack.html" class="placard-link placard-link-1" id="plink1"></a>
       <a href="craps.html"     class="placard-link placard-link-2" id="plink2"></a>
       <a href="poker.html"     class="placard-link placard-link-3" id="plink3"></a>
@@ -305,6 +328,15 @@
       var img  = document.getElementById('placardImg');
       var dropped = false;
 
+      function swing() {
+        img.classList.remove('swinging');
+        void img.offsetWidth; // force reflow to restart animation
+        img.classList.add('swinging');
+        img.addEventListener('animationend', function() {
+          img.classList.remove('swinging');
+        }, { once: true });
+      }
+
       wrap.addEventListener('click', function(e) {
         if (dropped) return;
         if (e.target.classList.contains('placard-link')) return;
@@ -313,23 +345,26 @@
 
         // Drop Blackjack
         img.style.clipPath = 'inset(0 0 50% 0)';
+        swing();
 
         setTimeout(function() {
           // Drop Craps
           img.style.clipPath = 'inset(0 0 25% 0)';
-        }, 700);
+          swing();
+        }, 750);
 
         setTimeout(function() {
           // Drop Poker
           img.style.clipPath = 'inset(0 0 0% 0)';
-        }, 1400);
+          swing();
+        }, 1500);
 
         setTimeout(function() {
           // Activate clickable links
           document.getElementById('plink1').classList.add('active');
           document.getElementById('plink2').classList.add('active');
           document.getElementById('plink3').classList.add('active');
-        }, 2100);
+        }, 2300);
       });
     })();
   </script>
