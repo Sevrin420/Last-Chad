@@ -28,12 +28,12 @@
     .craps-lobby-overlay.hidden{display:none}
     .lobby-members{
       position:absolute;bottom:42vh;left:50%;transform:translateX(-50%);
-      max-height:65vh;max-width:85vw;object-fit:contain;z-index:1;
+      max-height:50vh;max-width:85vw;object-fit:contain;z-index:1;
       opacity:0;transition:opacity 1s ease;
     }
     .lobby-members.visible{opacity:1}
     .lobby-members.shrunk{
-      max-height:43vh;bottom:auto;top:50px;
+      max-height:33vh;bottom:auto;top:50px;
       transition:max-height 0.5s ease,top 0.5s ease,bottom 0.5s ease,opacity 1s ease;
     }
     .lobby-dialogue{
@@ -46,8 +46,8 @@
     }
     .lobby-dialogue.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
     .lobby-dialogue.tall{height:calc(100vh - 33vh - 50px);transition:height 0.5s ease}
-    .lobby-text{overflow-y:auto;font-size:0.85rem;line-height:2.2;color:#c9a84c}
-    .lobby-text .npc-name{color:#e8c060;font-size:0.91rem;margin-bottom:0.4em;display:block}
+    .lobby-text{overflow-y:auto;font-size:0.65rem;line-height:2.2;color:#c9a84c}
+    .lobby-text .npc-name{color:#e8c060;font-size:0.7rem;margin-bottom:0.4em;display:block}
     .lobby-choices{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:0.8em}
     .lobby-choice{
       font-family:'Press Start 2P',monospace;font-size:clamp(0.55rem,1.5vw,0.65rem);
