@@ -26,13 +26,13 @@
       overflow:hidden;
     }
     .craps-lobby-overlay.hidden{display:none}
-    .lobby-chazzy{
+    .lobby-members{
       position:absolute;bottom:42vh;left:50%;transform:translateX(-50%);
       max-height:65vh;max-width:85vw;object-fit:contain;z-index:1;
       opacity:0;transition:opacity 1s ease;
     }
-    .lobby-chazzy.visible{opacity:1}
-    .lobby-chazzy.shrunk{
+    .lobby-members.visible{opacity:1}
+    .lobby-members.shrunk{
       max-height:43vh;bottom:auto;top:50px;
       transition:max-height 0.5s ease,top 0.5s ease,bottom 0.5s ease,opacity 1s ease;
     }
@@ -802,7 +802,7 @@
 
 <!-- ── Craps Lobby (Chazzy P dialogue → chad select → wager) ── -->
 <div id="crapsLobby" class="craps-lobby-overlay">
-  <img id="lobbyChazzy" class="lobby-chazzy" src="assets/membersonly/pokerlobby.jpg" alt="Lobby" />
+  <img id="lobbyMembers" class="lobby-members" src="assets/membersonly/pokerlobby.jpg" alt="Lobby" />
   <div id="lobbyDialogue" class="lobby-dialogue">
     <div id="lobbyText" class="lobby-text"></div>
     <div id="lobbyChoices" class="lobby-choices"></div>
@@ -1099,7 +1099,7 @@ let crapsSession = JSON.parse(sessionStorage.getItem('craps_session') || 'null')
 if (!crapsSession) {
   (async function runLobby() {
     const lobbyEl      = document.getElementById('crapsLobby');
-    const lobbyChazzy  = document.getElementById('lobbyChazzy');
+    const lobbyMembers  = document.getElementById('lobbyMembers');
     const lobbyDlg     = document.getElementById('lobbyDialogue');
     const lobbyText    = document.getElementById('lobbyText');
     const lobbyChoices = document.getElementById('lobbyChoices');
@@ -1164,10 +1164,10 @@ if (!crapsSession) {
     rulesOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) rulesOverlay.classList.remove('active'); });
 
     // Show lobby image full-size first
-    lobbyChazzy.classList.add('visible');
+    lobbyMembers.classList.add('visible');
     await delay(2000);
     // Then shrink and reveal dialogue
-    lobbyChazzy.classList.add('shrunk');
+    lobbyMembers.classList.add('shrunk');
     lobbyDlg.classList.add('visible');
     lobbyDlg.classList.add('tall');
     await delay(800);
@@ -1235,7 +1235,7 @@ if (!crapsSession) {
 
     // Step 2: NPC dialogue with the selected member's name
     clearLobby();
-    lobbyChazzy.classList.remove('shrunk');
+    lobbyMembers.classList.remove('shrunk');
     lobbyDlg.classList.remove('tall');
     await delay(300);
 
@@ -1244,7 +1244,7 @@ if (!crapsSession) {
       "I think you're getting lucky tonight *winks*"
     ]);
     showBtns([
-      { label: "Hand me the bones Missy", action: () => { clearLobby(); lobbyChazzy.classList.add('shrunk'); lobbyDlg.classList.add('tall'); showWager(selected.tid, selected.name); } },
+      { label: "Hand me the bones Missy", action: () => { clearLobby(); lobbyMembers.classList.add('shrunk'); lobbyDlg.classList.add('tall'); showWager(selected.tid, selected.name); } },
       { label: "Craps Rules", action: () => rulesOverlay.classList.add('active') }
     ]);
 
