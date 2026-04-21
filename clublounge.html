@@ -241,6 +241,12 @@
 
     .placard-link.active {
       pointer-events: auto;
+      transition: transform 0.1s ease-out, background 0.1s ease-out;
+    }
+    .placard-link.active.pressing {
+      transform: translateY(4px);
+      background: rgba(40,20,0,0.2);
+      transition: none;
     }
     .placard-link.active::before {
       content: '';
@@ -356,9 +362,13 @@
         setTimeout(function() { img.style.clipPath = 'inset(4% 0 0% 0)';  swing(); }, 1000);
         setTimeout(function() {
           dropped = true; rolling = false;
-          document.getElementById('plink1').classList.add('active');
-          document.getElementById('plink2').classList.add('active');
-          document.getElementById('plink3').classList.add('active');
+          ['plink1','plink2','plink3'].forEach(function(id) {
+            var el = document.getElementById(id);
+            el.classList.add('active');
+            el.addEventListener('pointerdown', function() { el.classList.add('pressing'); });
+            el.addEventListener('pointerup',   function() { el.classList.remove('pressing'); });
+            el.addEventListener('pointerleave',function() { el.classList.remove('pressing'); });
+          });
           plinkTop.classList.add('rollup');
         }, 1550);
       }
