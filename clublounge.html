@@ -204,7 +204,7 @@
       width: 100%;
       height: auto;
       display: block;
-      clip-path: inset(4% 0 78% 0);
+      clip-path: inset(0% 0 75% 0);
       transition: clip-path 0.45s cubic-bezier(0.22, 1, 0.36, 1);
       transform-origin: 50% 0%;
     }
@@ -357,9 +357,9 @@
         rolling = true;
         wrap.style.cursor = 'default';
 
-        img.style.clipPath = 'inset(4% 0 50% 0)'; swing();
-        setTimeout(function() { img.style.clipPath = 'inset(4% 0 25% 0)'; swing(); }, 500);
-        setTimeout(function() { img.style.clipPath = 'inset(4% 0 0% 0)';  swing(); }, 1000);
+        img.style.clipPath = 'inset(0% 0 50% 0)'; swing();
+        setTimeout(function() { img.style.clipPath = 'inset(0% 0 25% 0)'; swing(); }, 500);
+        setTimeout(function() { img.style.clipPath = 'inset(0% 0 0% 0)';  swing(); }, 1000);
         setTimeout(function() {
           dropped = true; rolling = false;
           ['plink1','plink2','plink3'].forEach(function(id) {
@@ -381,9 +381,9 @@
         document.getElementById('plink2').classList.remove('active');
         document.getElementById('plink3').classList.remove('active');
 
-        img.style.clipPath = 'inset(4% 0 25% 0)'; swing();
-        setTimeout(function() { img.style.clipPath = 'inset(4% 0 50% 0)'; swing(); }, 500);
-        setTimeout(function() { img.style.clipPath = 'inset(4% 0 78% 0)'; swing(); }, 1000);
+        img.style.clipPath = 'inset(0% 0 25% 0)'; swing();
+        setTimeout(function() { img.style.clipPath = 'inset(0% 0 50% 0)'; swing(); }, 500);
+        setTimeout(function() { img.style.clipPath = 'inset(0% 0 75% 0)'; swing(); }, 1000);
         setTimeout(function() {
           dropped = false; rolling = false;
           wrap.style.cursor = 'pointer';
