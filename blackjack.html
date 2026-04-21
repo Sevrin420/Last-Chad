@@ -85,17 +85,22 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .result-msg.lose{color:#e53935}
 .result-msg.push{color:#c9a84c}
 .result-msg.bj{color:#ffe96a;text-shadow:0 0 10px rgba(255,233,106,.5)}
-.bj-chip-tray{display:flex;gap:14px;align-items:center;justify-content:center}
-.bj-chip-tray .chip{width:clamp(36px,9vw,52px);height:clamp(36px,9vw,52px);border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;background-size:130%;background-position:center}
+.bj-tray-row{display:flex;align-items:center;width:100%;padding:0 8px 0 4px}
+.bj-tray-left{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.bj-tray-left .stack-info{display:flex;align-items:center;gap:6px;font-size:.55rem;color:#c9a84c}
+.bj-tray-left .stack-info img{height:38px;vertical-align:middle}
+.bj-tray-left .stack-info span{color:#ffe96a}
+.bj-bet-box{display:flex;align-items:center;gap:8px;font-size:.55rem;color:#c9a84c}
+.bj-bet-box .bet-amount{color:#ffe96a;font-size:.75rem;min-width:2em;text-align:center}
+.bj-bet-box .clear-bet{font-family:'Press Start 2P',monospace;font-size:.35rem;padding:5px 10px;cursor:pointer;border:1px solid #5c4409;background:rgba(0,0,0,.5);color:#c9a84c;border-radius:3px}
+.bj-bet-box .clear-bet:hover{border-color:#c9a84c}
+.bj-chip-tray{display:flex;gap:14px;align-items:center;margin-left:auto}
+.bj-chip-tray .chip{width:clamp(52px,12vw,72px);height:clamp(52px,12vw,72px);border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;background-size:130%;background-position:center}
 .bj-chip-tray .chip:hover{transform:scale(1.15);filter:brightness(1.2)}
 .chip-1{background-image:url('assets/membersonly/chip1.png')}
 .chip-5{background-image:url('assets/membersonly/chip5.png')}
 .chip-25{background-image:url('assets/membersonly/chip25.png')}
 .chip-100{background-image:url('assets/membersonly/chip100.png')}
-.bj-bet-box{display:flex;align-items:center;gap:8px;justify-content:center;font-size:.45rem;color:#c9a84c;margin:4px 0}
-.bj-bet-box .bet-amount{color:#ffe96a;font-size:.6rem;min-width:2em;text-align:center}
-.bj-bet-box .clear-bet{font-family:'Press Start 2P',monospace;font-size:.3rem;padding:4px 8px;cursor:pointer;border:1px solid #5c4409;background:rgba(0,0,0,.5);color:#c9a84c;border-radius:3px}
-.bj-bet-box .clear-bet:hover{border-color:#c9a84c}
 .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px}
 .act-btn{font-family:'Press Start 2P',monospace;font-size:clamp(.45rem,1.3vw,.55rem);padding:12px 18px;cursor:pointer;border:none;border-bottom:4px solid #7a6020;color:#0a0a0f;background:#c9a84c}
 .act-btn:hover{background:#e8c060}
@@ -124,7 +129,6 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
   <img class="table-bg-full" src="assets/membersonly/cardtable.png" alt="Card Table">
 
   <div class="game-header">
-    <div class="stack"><img src="assets/membersonly/chipstack.png" alt="" style="height:44px;vertical-align:middle"> <span id="stackVal">0</span></div>
     <div style="display:flex;gap:6px">
       <button class="hdr-btn" id="cashoutBtn">CASH OUT</button>
       <button class="hdr-btn" id="bjPayoutsBtn" style="border-color:#c9a84c;background:linear-gradient(180deg,#c9a84c,#8b6914);color:#1a1005">PAYOUTS</button>
@@ -146,16 +150,21 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
     <div class="cards" id="playerCards"></div>
     <div class="hand-total" id="playerTotal"></div>
 
-    <div class="bj-chip-tray" id="bjChipTray">
-      <div class="chip chip-1" data-value="1"></div>
-      <div class="chip chip-5" data-value="5"></div>
-      <div class="chip chip-25" data-value="25"></div>
-      <div class="chip chip-100" data-value="100"></div>
-    </div>
-    <div class="bj-bet-box">
-      <span>BET:</span>
-      <span class="bet-amount" id="bjBetVal">0</span>
-      <button class="clear-bet" id="bjClearBet">CLEAR</button>
+    <div class="bj-tray-row">
+      <div class="bj-tray-left">
+        <div class="stack-info"><img src="assets/membersonly/chipstack.png" alt=""> <span id="stackVal">0</span></div>
+        <div class="bj-bet-box">
+          <span>BET:</span>
+          <span class="bet-amount" id="bjBetVal">0</span>
+          <button class="clear-bet" id="bjClearBet">CLEAR</button>
+        </div>
+      </div>
+      <div class="bj-chip-tray" id="bjChipTray">
+        <div class="chip chip-1" data-value="1"></div>
+        <div class="chip chip-5" data-value="5"></div>
+        <div class="chip chip-25" data-value="25"></div>
+        <div class="chip chip-100" data-value="100"></div>
+      </div>
     </div>
     <div class="actions" id="actions">
       <button class="act-btn" id="btnDeal">DEAL</button>
