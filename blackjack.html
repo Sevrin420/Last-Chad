@@ -63,7 +63,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:18px;padding:12px 12px 24px;width:100%}
 .hand-label{font-size:.5rem;color:#7a6020;letter-spacing:2px}
 .cards{display:flex;gap:8px;justify-content:center;min-height:100px}
-.card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:#f5f0e0;position:relative;transition:transform 0.4s ease;transform-style:preserve-3d}
+.card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:#f5f0e0;position:relative;transition:transform 1.0s ease;transform-style:preserve-3d}
 .card.red{color:#b71c1c}
 .card.black{color:#1a1a1a}
 .card.face-down{background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);background-size:8px 8px;border-color:#c9a84c}
@@ -75,7 +75,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
   80% {transform:translateY(-2px)  rotate(0deg)}
   100%{transform:translateY(0)     rotate(0deg);opacity:1}
 }
-.card.dealing{animation:card-deal 0.32s cubic-bezier(.25,.46,.45,.94) both}
+.card.dealing{animation:card-deal 0.8s cubic-bezier(.25,.46,.45,.94) both}
 .card.hole{background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);background-size:8px 8px;border-color:#c9a84c}
 .card .rank{font-size:clamp(.8rem,3vw,1.2rem);line-height:1}
 .card .suit{font-size:clamp(.6rem,2vw,.9rem);margin-top:2px}
@@ -444,12 +444,12 @@ async function dealHandAnimated(el,cards,hideHole){
     void cardEl.offsetWidth; // force reflow so animation triggers
     cardEl.classList.add('dealing');
     cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
-    await delay(280);
+    await delay(700);
     if(!isHole&&cards[i]){
       cardEl.classList.add('flipping');
-      await delay(300);
+      await delay(750);
       revealCard(cardEl,cards[i]);
-      await delay(225);
+      await delay(563);
     }
   }
 }
@@ -515,11 +515,11 @@ btnHit.addEventListener('click', async ()=>{
     void cardEl.offsetWidth;
     cardEl.classList.add('dealing');
     cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
-    await delay(280);
+    await delay(700);
     cardEl.classList.add('flipping');
-    await delay(300);
+    await delay(750);
     revealCard(cardEl,newCard);
-    await delay(225);
+    await delay(563);
     playerTotalEl.textContent=d.playerValue;
 
     if(d.result==='bust'){
@@ -572,11 +572,11 @@ btnDouble.addEventListener('click', async ()=>{
     void cardEl.offsetWidth;
     cardEl.classList.add('dealing');
     cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
-    await delay(280);
+    await delay(700);
     cardEl.classList.add('flipping');
-    await delay(300);
+    await delay(750);
     revealCard(cardEl,newCard);
-    await delay(225);
+    await delay(563);
     playerTotalEl.textContent=d.playerValue;
 
     // Animate dealer reveal
