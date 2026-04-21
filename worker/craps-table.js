@@ -825,7 +825,8 @@ export class CrapsTable {
           await this._startBetPhase();
         }
       } else if (game.turnPhase === 'rolling') {
-        // Roll timer expired — auto-roll for the shooter
+        // Roll timer expired — try to route through shooter's socket first,
+        // then fall back to a fully server-side auto-roll so the game never stalls.
         const shooter = await this.state.storage.get('shooter');
         let rolled = false;
         for (const ws of sockets) {
@@ -838,9 +839,8 @@ export class CrapsTable {
             }
           } catch (_) {}
         }
-        // If couldn't find shooter's socket, force next bet phase
         if (!rolled) {
-          await this._startBetPhase();
+          await this._serverAutoRoll(shooter);
         }
       } else if (game.turnPhase === 'result') {
         // Result display time elapsed — start next bet phase
@@ -1006,6 +1006,88 @@ export class CrapsTable {
       if (!pd._disconnectedAt) count++;
     }
     return count;
+  }
+
+  // Server-side auto-roll: used when roll timer expires and shooter has no active socket.
+  // Resolves all bets from storage so the game continues regardless of connectivity.
+  async _serverAutoRoll(shooterId) {
+    const game = await this._getGame();
+    if (game.rolling) return; // already in progress
+
+    const arr = new Uint32Array(2);
+    crypto.getRandomValues(arr);
+    const d1 = (arr[0] % 6) + 1;
+    const d2 = (arr[1] % 6) + 1;
+    const total = d1 + d2;
+    const isHard = (d1 === d2);
+
+    game.rolling = true;
+    await this.state.storage.put('game', game);
+
+    this._broadcast({ type: 'rolling', playerId: shooterId, name: 'auto' }, null);
+
+    const prevPhase = game.phase;
+    const prevPoint = game.point;
+
+    try {
+      // Resolve bets for every player in storage (connected or not)
+      const allPlayers = await this.state.storage.list({ prefix: 'player:' });
+      const results = new Map(); // nonce → { resolution, pd }
+      for (const [key, pd] of allPlayers) {
+        const nonce = key.replace('player:', '');
+        const resolution = resolveBets(pd, d1, d2, total, isHard, prevPhase, prevPoint);
+        await this.state.storage.put(key, pd);
+        results.set(nonce, { resolution, pd });
+      }
+
+      // Update game phase/point
+      if (prevPhase === 'comeout') {
+        if (total !== 7 && total !== 11 && total !== 2 && total !== 3 && total !== 12) {
+          game.point = total;
+          game.phase = 'point';
+        }
+      } else {
+        if (total === prevPoint || total === 7) {
+          game.phase = 'comeout';
+          game.point = 0;
+        }
+      }
+
+      // Send roll-result to any connected sockets
+      for (const ws of this.state.getWebSockets()) {
+        try {
+          const att = ws.deserializeAttachment();
+          if (!att || !att.authenticated || !att.nonce) continue;
+          const cached = results.get(att.nonce);
+          if (!cached) continue;
+          ws.send(JSON.stringify({
+            type: 'roll-result',
+            dice: [d1, d2],
+            total,
+            prevPhase,
+            prevPoint,
+            phase: game.phase,
+            point: game.point,
+            resolution: cached.resolution,
+            stack: cached.pd.stack,
+            bets: cached.pd.bets,
+            comeBets: cached.pd.comeBets,
+            comeOdds: cached.pd.comeOdds,
+            pressOptions: cached.resolution.pressOptions || {},
+          }));
+        } catch (_) {}
+      }
+    } finally {
+      game.rolling = false;
+      game.rollCount = (game.rollCount || 0) + 1;
+      await this.state.storage.put('game', game);
+    }
+
+    if (prevPhase === 'point' && total === 7) {
+      await this._advanceShooter(shooterId);
+    }
+
+    await this._startResultPhase();
   }
 
   async _startBetPhase() {
