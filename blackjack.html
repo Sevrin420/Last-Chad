@@ -549,8 +549,24 @@ btnDouble.addEventListener('click', async ()=>{
     const res=await fetch(WORKER+'/blackjack/double',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce:bjNonce,sessionToken:bjToken})});
     const d=await res.json(); if(!d.ok) throw new Error(d.error);
     bjStack=d.stack; stackEl.textContent=bjStack;
-    renderHand(playerCardsEl, d.playerCards); playerTotalEl.textContent=d.playerValue;
-    renderHand(dealerCardsEl, d.dealerCards); dealerTotalEl.textContent=d.dealerValue;
+
+    // Animate the one new player card
+    const newCard=d.playerCards[d.playerCards.length-1];
+    const cardEl=makeCardEl(newCard,true);
+    playerCardsEl.appendChild(cardEl);
+    void cardEl.offsetWidth;
+    cardEl.classList.add('dealing');
+    cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
+    await delay(280);
+    cardEl.classList.add('flipping');
+    await delay(300);
+    revealCard(cardEl,newCard);
+    await delay(225);
+    playerTotalEl.textContent=d.playerValue;
+
+    // Animate dealer reveal
+    await dealHandAnimated(dealerCardsEl, d.dealerCards, false);
+    dealerTotalEl.textContent=d.dealerValue;
 
     if(d.result==='bust'){showResult('BUST','lose');dealerSay("Doubled and busted!",'sad')}
     else if(d.result==='win'||d.result==='dealer_bust'){showResult('WIN! +'+d.payout,'win');dealerSay("Double down pays! "+d.payout+" chips!",'happy')}
