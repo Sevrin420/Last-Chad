@@ -447,6 +447,41 @@ function revealCard(el,c){
   el.querySelector('.suit').textContent=SUITS[c.suit];
 }
 
+// Flip hole card in place, then append any extra dealer draws — never clears existing cards
+async function revealDealerHand(cards){
+  const kids=Array.from(dealerCardsEl.children);
+  // Flip hole card (index 1)
+  if(kids.length>=2&&cards[1]){
+    const holeEl=kids[1];
+    holeEl.classList.add('flip-out');
+    await delay(350);
+    const col=RED_SUIT[cards[1].suit]?'red':'black';
+    holeEl.className='card '+col;
+    holeEl.innerHTML=`<span class="rank">${RANKS[cards[1].rank]}</span><span class="suit">${SUITS[cards[1].suit]}</span>`;
+    holeEl.classList.add('flip-in');
+    await delay(350);
+    holeEl.classList.remove('flip-in');
+  }
+  // Deal any extra cards the dealer drew
+  for(let i=2;i<cards.length;i++){
+    await delay(300);
+    const cardEl=makeCardEl(cards[i],true);
+    dealerCardsEl.appendChild(cardEl);
+    void cardEl.offsetWidth;
+    cardEl.classList.add('dealing');
+    cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
+    await delay(800);
+    await delay(500);
+    cardEl.classList.add('flip-out');
+    await delay(350);
+    revealCard(cardEl,cards[i]);
+    cardEl.classList.remove('flip-out');
+    cardEl.classList.add('flip-in');
+    await delay(350);
+    cardEl.classList.remove('flip-in');
+  }
+}
+
 function renderHand(el,cards){el.innerHTML=cards.map(c=>{
   if(!c) return '<div class="card hole"><span style="font-size:.5rem;color:#2a5a2a">?</span></div>';
   const col=RED_SUIT[c.suit]?'red':'black';
@@ -507,7 +542,7 @@ btnDeal.addEventListener('click', async ()=>{
 
     if(d.result){
       // Natural — reveal all dealer cards
-      await dealHandAnimated(dealerCardsEl, d.dealerCards, false);
+      await revealDealerHand(d.dealerCards);
       dealerTotalEl.textContent=d.dealerValue;
       if(d.result==='blackjack'){showResult('BLACKJACK! +'+d.payout,'bj');dealerSay("Blackjack! "+d.payout+" chips!",'happy')}
       else if(d.result==='push'){showResult('PUSH','push');dealerSay("Push — bet returned.",'neutral')}
@@ -548,7 +583,7 @@ btnHit.addEventListener('click', async ()=>{
     playerTotalEl.textContent=d.playerValue;
 
     if(d.result==='bust'){
-      await dealHandAnimated(dealerCardsEl, d.dealerCards, false);
+      await revealDealerHand(d.dealerCards);
       dealerTotalEl.textContent=d.dealerValue;
       showResult('BUST','lose');
       dealerSay("Bust! Better luck next hand, toots.",'sad');
@@ -570,7 +605,7 @@ btnStand.addEventListener('click', async ()=>{
     playerTotalEl.textContent=d.playerValue;
 
     // Animate dealer reveal
-    await dealHandAnimated(dealerCardsEl, d.dealerCards, false);
+    await revealDealerHand(d.dealerCards);
     dealerTotalEl.textContent=d.dealerValue;
 
     if(d.result==='win'||d.result==='dealer_bust'){showResult('WIN! +'+d.payout,'win');dealerSay("Winner! "+d.payout+" chips.",'happy')}
@@ -608,7 +643,7 @@ btnDouble.addEventListener('click', async ()=>{
     playerTotalEl.textContent=d.playerValue;
 
     // Animate dealer reveal
-    await dealHandAnimated(dealerCardsEl, d.dealerCards, false);
+    await revealDealerHand(d.dealerCards);
     dealerTotalEl.textContent=d.dealerValue;
 
     if(d.result==='bust'){showResult('BUST','lose');dealerSay("Doubled and busted!",'sad')}
