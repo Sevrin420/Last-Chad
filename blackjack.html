@@ -63,12 +63,15 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:18px;padding:12px 12px 24px;width:100%}
 .hand-label{font-size:.5rem;color:#7a6020;letter-spacing:2px}
 .cards{display:flex;gap:8px;justify-content:center;min-height:100px}
-.card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:#f5f0e0;position:relative;transition:transform 1.0s ease;transform-style:preserve-3d}
+.card{width:clamp(52px,14vw,72px);height:clamp(76px,20vw,104px);border-radius:6px;border:2px solid #3d2e0a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(.7rem,2.5vw,1rem);background:#f5f0e0;position:relative;transform-style:preserve-3d}
 .card.red{color:#b71c1c}
 .card.black{color:#1a1a1a}
 .card.face-down{background:linear-gradient(135deg,#1a3a5c 25%,#0f2440 25%,#0f2440 50%,#1a3a5c 50%,#1a3a5c 75%,#0f2440 75%);background-size:8px 8px;border-color:#c9a84c}
 .card.face-down .rank,.card.face-down .suit{display:none}
-.card.flipping{transform:rotateY(90deg)}
+@keyframes flip-out{from{transform:rotateY(0deg)}to{transform:rotateY(90deg)}}
+@keyframes flip-in{from{transform:rotateY(-90deg)}to{transform:rotateY(0deg)}}
+.card.flip-out{animation:flip-out 0.35s ease-in forwards}
+.card.flip-in{animation:flip-in 0.35s ease-out forwards}
 @keyframes card-deal{
   0%  {transform:translateY(-26px) rotate(-4deg);opacity:0}
   55% {transform:translateY(4px)   rotate(0.4deg);opacity:1}
@@ -110,7 +113,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 /* Dealer announcer */
 .bj-announcer{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:0 8px;background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px;height:200px;flex-shrink:0}
 .bj-announcer img{width:146px;height:172px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
-.bj-announcer-text{font-size:1.04rem;color:#c9a84c;line-height:2;flex:1}
+.bj-announcer-text{font-size:1.04rem;color:#c9a84c;line-height:2;flex:1;transition:opacity 1s ease}
 </style>
 </head>
 <body>
@@ -337,10 +340,16 @@ async function commitWager(wager){
 //  GAME LOGIC
 // ══════════════════════════════════════════════
 
+let _sayFadeTimer=null;
 function dealerSay(text,mood){
   const el=document.getElementById('bjDealerText');
   const img=document.getElementById('bjDealerImg');
-  if(el) el.textContent=text;
+  if(el){
+    el.style.opacity='1';
+    el.textContent=text;
+    clearTimeout(_sayFadeTimer);
+    _sayFadeTimer=setTimeout(()=>{ el.style.opacity='0'; },3000);
+  }
   const m={neutral:'ginnyglad.jpg',happy:'ginnystoked.jpg',sad:'ginnysad.jpg'};
   if(img) img.src='assets/ginny/'+(m[mood]||m.neutral);
 }
@@ -352,7 +361,7 @@ document.querySelectorAll('.bj-chip-tray .chip').forEach(c=>{
   c.addEventListener('click',()=>{
     const v=parseInt(c.dataset.value);
     const newBet=bjBet+v;
-    if(newBet>bjStack){dealerSay("Not enough chips toots!",'sad');return}
+    if(newBet>bjStack){return}
     bjBet=newBet;
     bjBetVal.textContent=bjBet;
   });
@@ -432,7 +441,7 @@ function makeCardEl(c, faceDown){
 
 function revealCard(el,c){
   const col=RED_SUIT[c.suit]?'red':'black';
-  el.classList.remove('face-down','flipping');
+  el.classList.remove('face-down');
   el.classList.add(col);
   el.querySelector('.rank').textContent=RANKS[c.rank];
   el.querySelector('.suit').textContent=SUITS[c.suit];
@@ -453,12 +462,16 @@ async function dealHandAnimated(el,cards,hideHole){
     void cardEl.offsetWidth; // force reflow so animation triggers
     cardEl.classList.add('dealing');
     cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
-    await delay(700);
+    await delay(800);
     if(!isHole&&cards[i]){
-      cardEl.classList.add('flipping');
-      await delay(750);
+      await delay(500);
+      cardEl.classList.add('flip-out');
+      await delay(350);
       revealCard(cardEl,cards[i]);
-      await delay(563);
+      cardEl.classList.remove('flip-out');
+      cardEl.classList.add('flip-in');
+      await delay(350);
+      cardEl.classList.remove('flip-in');
     }
   }
 }
@@ -480,7 +493,7 @@ btnDeal.addEventListener('click', async ()=>{
   dealerTotalEl.textContent=''; playerTotalEl.textContent='';
 
   handWager=bjBet;
-  if(bjBet<1){dealerSay("Place a bet first, toots!",'neutral');setButtons(true,false,false,false);return}
+  if(bjBet<1){setButtons(true,false,false,false);return}
   if(bjStack<1){ showResult('OUT OF CHIPS — CASH OUT','lose'); dealerSay("You're busted, toots.",'sad'); return }
 
   try{
@@ -502,7 +515,6 @@ btnDeal.addEventListener('click', async ()=>{
     } else {
       // Show dealer first card face-up, second face-down (hole)
       await dealHandAnimated(dealerCardsEl, d.dealerCards, true);
-      dealerSay("You're at "+d.playerValue+". Hit, stand, or double?",'neutral');
       setButtons(false,true,true,bjStack>=handWager);
     }
   }catch(e){ showResult(e.message||'Deal error','lose'); setButtons(true,false,false,false) }
@@ -524,11 +536,15 @@ btnHit.addEventListener('click', async ()=>{
     void cardEl.offsetWidth;
     cardEl.classList.add('dealing');
     cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
-    await delay(700);
-    cardEl.classList.add('flipping');
-    await delay(750);
+    await delay(800);
+    await delay(500);
+    cardEl.classList.add('flip-out');
+    await delay(350);
     revealCard(cardEl,newCard);
-    await delay(563);
+    cardEl.classList.remove('flip-out');
+    cardEl.classList.add('flip-in');
+    await delay(350);
+    cardEl.classList.remove('flip-in');
     playerTotalEl.textContent=d.playerValue;
 
     if(d.result==='bust'){
@@ -538,7 +554,6 @@ btnHit.addEventListener('click', async ()=>{
       dealerSay("Bust! Better luck next hand, toots.",'sad');
       setButtons(true,false,false,false);
     } else {
-      dealerSay("You're at "+d.playerValue+". Hit or stand?",'neutral');
       setButtons(false,true,true,false);
     }
   }catch(e){ showResult(e.message||'Hit error','lose'); setButtons(false,true,true,false) }
@@ -581,11 +596,15 @@ btnDouble.addEventListener('click', async ()=>{
     void cardEl.offsetWidth;
     cardEl.classList.add('dealing');
     cardEl.addEventListener('animationend',()=>cardEl.classList.remove('dealing'),{once:true});
-    await delay(700);
-    cardEl.classList.add('flipping');
-    await delay(750);
+    await delay(800);
+    await delay(500);
+    cardEl.classList.add('flip-out');
+    await delay(350);
     revealCard(cardEl,newCard);
-    await delay(563);
+    cardEl.classList.remove('flip-out');
+    cardEl.classList.add('flip-in');
+    await delay(350);
+    cardEl.classList.remove('flip-in');
     playerTotalEl.textContent=d.playerValue;
 
     // Animate dealer reveal
@@ -600,20 +619,23 @@ btnDouble.addEventListener('click', async ()=>{
   }catch(e){ showResult(e.message||'Double error','lose'); setButtons(true,false,false,false) }
 });
 
-// CASHOUT
+// CASHOUT — cache signature so a cancelled tx can retry without re-calling the worker
+let _bjCashoutData=null;
 cashoutBtn.addEventListener('click', async ()=>{
   cashoutBtn.disabled=true; cashoutBtn.textContent='CASHING OUT...';
   try{
-    const res=await fetch(WORKER+'/blackjack/cashout',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,sessionToken:bjToken})});
-    const d=await res.json();
-    if(!d.ok){
-      if((d.error||'').includes('No session')){dealerSay("Session expired. Chips lost — sorry toots.",'sad');sessionStorage.removeItem('bj_session');setTimeout(()=>{window.location.href='clublounge.html'},3000);return}
-      if((d.error||'').includes('Finish')){dealerSay("Finish your hand first!",'neutral');cashoutBtn.disabled=false;cashoutBtn.textContent='CASH OUT';return}
-      throw new Error(d.error);
+    if(!_bjCashoutData){
+      const res=await fetch(WORKER+'/blackjack/cashout',{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokenId,nonce:bjNonce,sessionToken:bjToken})});
+      const d=await res.json();
+      if(!d.ok){
+        if((d.error||'').includes('No session')){dealerSay("Session expired. Chips lost — sorry toots.",'sad');sessionStorage.removeItem('bj_session');setTimeout(()=>{window.location.href='clublounge.html'},3000);return}
+        if((d.error||'').includes('Finish')){cashoutBtn.disabled=false;cashoutBtn.textContent='CASH OUT';return}
+        throw new Error(d.error);
+      }
+      _bjCashoutData=d;
     }
-
+    const d=_bjCashoutData;
     if(d.payout>0){
-      dealerSay("Claiming "+d.payout+" chips on-chain...",'neutral');
       const signer=await ensureSigner();
       const gamble=new ethers.Contract(GAMBLE_ADDRESS,GAMBLE_ABI,signer);
       const tx=await gamble.claimWinnings(tokenId,d.payout,d.nonce,d.signature);
@@ -624,11 +646,12 @@ cashoutBtn.addEventListener('click', async ()=>{
       showResult('No chips to claim.','lose');
       dealerSay("See ya around toots.",'neutral');
     }
+    _bjCashoutData=null;
     setButtons(false,false,false,false);
     sessionStorage.removeItem('bj_session');
     setTimeout(()=>{window.location.href='clublounge.html'},3000);
   }catch(e){
-    showResult(e.message||'Cashout failed','lose');
+    showResult((e.message||'Cashout failed')+' — tap again to retry','lose');
     cashoutBtn.disabled=false; cashoutBtn.textContent='CASH OUT';
   }
 });

@@ -882,56 +882,55 @@ async function handleDraw() {
   }
 }
 
+let _pokerCashoutData = null;
 async function handleCashOut() {
   document.getElementById('pokerDealBtn').disabled = true;
   document.getElementById('pokerCashOutBtn').disabled = true;
-  dealerSay("Cashing out...", 'neutral');
 
   try {
-    const resp = await fetch(WORKER_URL + '/poker/cashout', {
-      method: 'POST', mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tokenId: pokerSession.tokenId, nonce: pokerSession.nonce, sessionToken: pokerSession.sessionToken })
-    });
-    if (!resp.ok) {
-      const body = await resp.text();
-      let msg = body;
-      try { msg = JSON.parse(body).error || body; } catch {}
-      if (msg.includes('No poker session') || msg.includes('No session')) {
-        dealerSay("Session expired. Chips lost — sorry toots.", 'sad');
-        sessionStorage.removeItem('poker_session');
-        setTimeout(() => { window.location.href = 'clublounge.html'; }, 3000);
-        return;
+    if (!_pokerCashoutData) {
+      const resp = await fetch(WORKER_URL + '/poker/cashout', {
+        method: 'POST', mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenId: pokerSession.tokenId, nonce: pokerSession.nonce, sessionToken: pokerSession.sessionToken })
+      });
+      if (!resp.ok) {
+        const body = await resp.text();
+        let msg = body;
+        try { msg = JSON.parse(body).error || body; } catch {}
+        if (msg.includes('No poker session') || msg.includes('No session')) {
+          dealerSay("Session expired. Chips lost — sorry toots.", 'sad');
+          sessionStorage.removeItem('poker_session');
+          setTimeout(() => { window.location.href = 'clublounge.html'; }, 3000);
+          return;
+        }
+        if (msg.includes('Finish current hand') || msg.includes('Finish')) {
+          document.getElementById('pokerDealBtn').disabled = false;
+          document.getElementById('pokerCashOutBtn').disabled = false;
+          return;
+        }
+        throw new Error(msg);
       }
-      if (msg.includes('Finish current hand') || msg.includes('Finish')) {
-        dealerSay("Finish your hand first!", 'neutral');
-        document.getElementById('pokerDealBtn').disabled = false;
-        document.getElementById('pokerCashOutBtn').disabled = false;
-        return;
-      }
-      throw new Error(msg);
+      _pokerCashoutData = await resp.json();
     }
-    const data = await resp.json();
+    const data = _pokerCashoutData;
 
-    const payout = data.payout;
-
-    if (payout > 0) {
-      dealerSay("Claiming " + payout + " chips on-chain...", 'neutral');
+    if (data.payout > 0) {
       const signer = await ensureSigner();
       const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
-      const tx = await gamble.claimWinnings(pokerSession.tokenId, payout, data.nonce, data.signature);
-      dealerSay("Confirming transaction...", 'neutral');
+      const tx = await gamble.claimWinnings(pokerSession.tokenId, data.payout, data.nonce, data.signature);
       await tx.wait();
       dealerSay("See ya around toots.", 'happy');
     } else {
       dealerSay("See ya around toots.", 'neutral');
     }
 
+    _pokerCashoutData = null;
     sessionStorage.removeItem('poker_session');
     setTimeout(() => { window.location.href = 'clublounge.html'; }, 2000);
   } catch (err) {
     console.error('Cashout failed:', err);
-    dealerSay("Cashout failed: " + (err.reason || err.message || 'Unknown error'), 'sad');
+    dealerSay("Tap again to retry.", 'sad');
     document.getElementById('pokerDealBtn').disabled = false;
     document.getElementById('pokerCashOutBtn').disabled = false;
   }
