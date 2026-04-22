@@ -111,9 +111,9 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
 .act-btn:disabled{opacity:.3;cursor:default;transform:none}
 
 /* Dealer announcer */
-.bj-announcer{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:0 8px;background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px;height:150px;flex-shrink:0}
+.bj-announcer{display:flex;align-items:center;gap:12px;padding:10px 16px;margin:0 8px;background:rgba(0,0,0,0.75);border:2px solid #c9a84c;border-radius:8px;height:150px;flex-shrink:0;transition:opacity 1s ease}
 .bj-announcer img{width:110px;height:129px;object-fit:cover;border-radius:6px;border:2px solid #5c4409}
-.bj-announcer-text{font-size:0.78rem;color:#c9a84c;line-height:2;flex:1;transition:opacity 1s ease}
+.bj-announcer-text{font-size:0.78rem;color:#c9a84c;line-height:2;flex:1}
 </style>
 </head>
 <body>
@@ -138,7 +138,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#0a0a0f;font-family:'Pr
       <button class="hdr-btn" id="bjAbandonBtn" style="border-color:#666;background:linear-gradient(180deg,#666,#333);color:#fff">EXIT</button>
     </div>
   </div>
-  <div class="bj-announcer">
+  <div class="bj-announcer" id="bjAnnouncer">
     <img id="bjDealerImg" src="assets/ginny/ginnyglad.jpg" alt="Ginny">
     <div class="bj-announcer-text" id="bjDealerText">Place your bet and deal!</div>
   </div>
@@ -342,13 +342,14 @@ async function commitWager(wager){
 
 let _sayFadeTimer=null;
 function dealerSay(text,mood){
+  const box=document.getElementById('bjAnnouncer');
   const el=document.getElementById('bjDealerText');
   const img=document.getElementById('bjDealerImg');
-  if(el){
-    el.style.opacity='1';
-    el.textContent=text;
+  if(el) el.textContent=text;
+  if(box){
+    box.style.opacity='1';
     clearTimeout(_sayFadeTimer);
-    _sayFadeTimer=setTimeout(()=>{ el.style.opacity='0'; },2000);
+    _sayFadeTimer=setTimeout(()=>{ box.style.opacity='0'; },2000);
   }
   const m={neutral:'ginnyglad.jpg',happy:'ginnystoked.jpg',sad:'ginnysad.jpg'};
   if(img) img.src='assets/ginny/'+(m[mood]||m.neutral);
