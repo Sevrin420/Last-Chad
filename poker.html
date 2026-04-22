@@ -905,6 +905,7 @@ async function handleCashOut() {
           return;
         }
         if (msg.includes('Finish current hand') || msg.includes('Finish')) {
+          dealerSay("Finish your hand first!", 'neutral');
           document.getElementById('pokerDealBtn').disabled = false;
           document.getElementById('pokerCashOutBtn').disabled = false;
           return;
@@ -916,6 +917,7 @@ async function handleCashOut() {
     const data = _pokerCashoutData;
 
     if (data.payout > 0) {
+      dealerSay("Claiming " + data.payout + " chips on-chain...", 'neutral');
       const signer = await ensureSigner();
       const gamble = new ethers.Contract(GAMBLE_ADDRESS, GAMBLE_ABI, signer);
       const tx = await gamble.claimWinnings(pokerSession.tokenId, data.payout, data.nonce, data.signature);

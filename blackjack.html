@@ -629,13 +629,14 @@ cashoutBtn.addEventListener('click', async ()=>{
       const d=await res.json();
       if(!d.ok){
         if((d.error||'').includes('No session')){dealerSay("Session expired. Chips lost — sorry toots.",'sad');sessionStorage.removeItem('bj_session');setTimeout(()=>{window.location.href='clublounge.html'},3000);return}
-        if((d.error||'').includes('Finish')){cashoutBtn.disabled=false;cashoutBtn.textContent='CASH OUT';return}
+        if((d.error||'').includes('Finish')){dealerSay("Finish your hand first!",'neutral');cashoutBtn.disabled=false;cashoutBtn.textContent='CASH OUT';return}
         throw new Error(d.error);
       }
       _bjCashoutData=d;
     }
     const d=_bjCashoutData;
     if(d.payout>0){
+      dealerSay("Claiming "+d.payout+" chips on-chain...",'neutral');
       const signer=await ensureSigner();
       const gamble=new ethers.Contract(GAMBLE_ADDRESS,GAMBLE_ABI,signer);
       const tx=await gamble.claimWinnings(tokenId,d.payout,d.nonce,d.signature);
