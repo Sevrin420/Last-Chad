@@ -285,7 +285,7 @@ else{
     chazzy.classList.remove('shrunk');  // return to centre position
     await delay(50);                    // tick so opacity:0 registers
     chazzy.classList.add('visible');    // fade in (1s CSS transition)
-    await delay(900);                   // wait for fade before printing
+    await delay(1000);                   // wait for fade before printing
     await npc(["Welcome "+chadName,"I think you're getting lucky tonight"]);
     btns([{label:"Sit down",action:()=>{clearL();chazzy.classList.add('shrunk');dlg.classList.add('tall');showWager()}}]);
   }
