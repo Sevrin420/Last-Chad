@@ -1492,6 +1492,12 @@ function killSpinIntervals() {
   if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
   if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
 }
+function killSpinInterval1() {
+  if (window._rollCycleInterval1) { clearInterval(window._rollCycleInterval1); window._rollCycleInterval1 = null; }
+}
+function killSpinInterval2() {
+  if (window._rollCycleInterval2) { clearInterval(window._rollCycleInterval2); window._rollCycleInterval2 = null; }
+}
 
 function startDiceSpin() {
   const die1El = document.getElementById('die1');
@@ -1976,14 +1982,19 @@ async function handleRollResult(data) {
     // Staggered settle: die1 first, die2 after delay
     await new Promise(r => setTimeout(r, wasAlreadyRolling ? 2500 : 800));
     if (_rollSeq !== mySeq) return;
-    killSpinIntervals();
+    // Settle die1 — kill only its pip interval, keep die2 cycling
+    killSpinInterval1();
+    if (window._rollingSafetyTimeout) { clearTimeout(window._rollingSafetyTimeout); window._rollingSafetyTimeout = null; }
     STATE.dice = [d1, d2];
     renderDie(document.getElementById('face1'), d1);
     die1El.classList.remove('rolling');
     die1El.classList.add('settled');
 
+    // die2 pips keep cycling during this wait
     await new Promise(r => setTimeout(r, 2400));
     if (_rollSeq !== mySeq) return;
+    // Now settle die2
+    killSpinInterval2();
     renderDie(document.getElementById('face2'), d2);
     die2El.classList.remove('rolling');
     die2El.classList.add('settled');
