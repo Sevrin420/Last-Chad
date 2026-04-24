@@ -279,10 +279,14 @@ else{
     });
     tokenId=sel.tid; chadName=sel.name;
 
-    // Step 2: NPC dialogue with selected member's name
-    clearL(); chazzy.classList.remove('shrunk'); dlg.classList.remove('tall');
-    await delay(300);
-    await npc(["Welcome "+chadName,"I think you're getting lucky tonight *winks*"]);
+    // Step 2: fade lobby image in before NPC dialogue
+    clearL(); dlg.classList.remove('tall');
+    chazzy.classList.remove('visible'); // drop to opacity 0
+    chazzy.classList.remove('shrunk');  // return to centre position
+    await delay(50);                    // tick so opacity:0 registers
+    chazzy.classList.add('visible');    // fade in (1s CSS transition)
+    await delay(900);                   // wait for fade before printing
+    await npc(["Welcome "+chadName,"I think you're getting lucky tonight"]);
     btns([{label:"Sit down",action:()=>{clearL();chazzy.classList.add('shrunk');dlg.classList.add('tall');showWager()}}]);
   }
 }

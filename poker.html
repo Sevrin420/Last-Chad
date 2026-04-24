@@ -462,15 +462,18 @@ else {
     lobbyTokenId = selected.tid;
     lobbyChadName = selected.name;
 
-    // Step 2: NPC dialogue with the selected member's name
+    // Step 2: fade lobby image in before NPC dialogue
     clearLobby();
-    lobbyChazzy.classList.remove('shrunk');
     lobbyDlg.classList.remove('tall');
-    await delay(300);
+    lobbyChazzy.classList.remove('visible');
+    lobbyChazzy.classList.remove('shrunk');
+    await delay(50);
+    lobbyChazzy.classList.add('visible');
+    await delay(900);
 
     await showNpc([
       "Welcome " + lobbyChadName,
-      "I think you're getting lucky tonight *winks*"
+      "I think you're getting lucky tonight"
     ]);
     showBtns([
       { label: "Deal me in baby doll", action: () => { clearLobby(); lobbyChazzy.classList.add('shrunk'); lobbyDlg.classList.add('tall'); showWager(); } },
