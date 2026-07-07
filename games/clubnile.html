@@ -12,7 +12,7 @@
    CLUB NILE — mobile-first shell.
    The console frame (egypt-console.png, 832x1248) scales to the
    viewport WIDTH first; every overlay (screen window, d-pad,
-   select/back buttons) is positioned in PERCENTAGES of the frame
+   A/B buttons, labels) is positioned in PERCENTAGES of the frame
    so it adapts to any phone size. The game canvas has a fixed
    internal retro resolution (240x240) stretched into the window.
    ============================================================ */
@@ -39,6 +39,7 @@ body {
   position: relative;
   width: min(100vw, calc(100dvh * 832 / 1248));
   aspect-ratio: 832 / 1248;
+  container-type: inline-size;
 }
 #console img.frame {
   position: absolute;
@@ -62,14 +63,32 @@ body {
   image-rendering: crisp-edges;
 }
 /* ---- Touch controls: transparent hotspots over the printed
-        d-pad and buttons, all in % of the frame ---- */
+        d-pad and buttons, all in % of the frame.
+        RIGHT button = A (select) · LEFT button = B (back) ---- */
 .hot { position: absolute; z-index: 3; touch-action: none; }
-#dpad   { left: 9%;  top: 68.5%; width: 34%;   height: 24%; }
-#btn-select { left: 51%; top: 78%; width: 23%; height: 15.5%; border-radius: 50%; }
-#btn-back   { left: 70%; top: 71%; width: 23%; height: 15.5%; border-radius: 50%; }
+#dpad  { left: 9%;  top: 68.5%; width: 34%; height: 24%; }
+#btn-b { left: 51%; top: 78%;   width: 23%; height: 15.5%; border-radius: 50%; }
+#btn-a { left: 70%; top: 71%;   width: 23%; height: 15.5%; border-radius: 50%; }
 .hot.pressed {
   background: radial-gradient(circle, rgba(255,235,170,0.28) 0%, rgba(255,235,170,0) 70%);
 }
+/* Small A / B letters under the buttons (sized in % of frame width) */
+.btn-label {
+  position: absolute;
+  z-index: 3;
+  width: 8%;
+  padding: 0.6cqw 0;
+  text-align: center;
+  color: #f2d488;
+  font-size: 3.2cqw;
+  letter-spacing: 0.2cqw;
+  background: rgba(24,14,4,0.5);
+  border-radius: 2cqw;
+  text-shadow: 0 1px 2px rgba(20,10,0,0.9);
+  pointer-events: none;
+}
+#label-b { left: 58.5%; top: 93.5%; }
+#label-a { left: 77.5%; top: 86.8%; }
 /* Desktop keyboard hint (hidden on touch devices) */
 #kbd-hint {
   position: fixed;
@@ -95,10 +114,12 @@ body {
   <canvas id="screen" width="240" height="240"></canvas>
   <img class="frame" src="../assets/membersonly/egypt-console.png" alt="Club Nile console">
   <div class="hot" id="dpad"></div>
-  <div class="hot" id="btn-select"></div>
-  <div class="hot" id="btn-back"></div>
+  <div class="hot" id="btn-b"></div>
+  <div class="hot" id="btn-a"></div>
+  <div class="btn-label" id="label-b">B</div>
+  <div class="btn-label" id="label-a">A</div>
 </div>
-<div id="kbd-hint">ARROWS / WASD MOVE &nbsp;·&nbsp; E / ENTER SELECT &nbsp;·&nbsp; ESC BACK</div>
+<div id="kbd-hint">ARROWS / WASD MOVE &nbsp;·&nbsp; E / ENTER = A &nbsp;·&nbsp; ESC = B</div>
 
 <script>
 'use strict';
@@ -106,6 +127,12 @@ body {
    CLUB NILE — a 1920s Egyptian speakeasy casino (top-down, LTTP-style).
    All art is procedural pixel art drawn at boot; no sprite sheets needed.
    Internal resolution: 240x240 (15x15 tiles of 16px), scaled by CSS.
+
+   Scenes: 'floor' (walkable casino) · 'blackjack' · 'craps' (table views).
+   Table scenes use a seat roster (seats[]) so that once wallet sign-in
+   lands, remote players from the Worker/Durable Object can fill seats —
+   mirroring the on-chain flow: Gamble.commitWager() buy-in → play off
+   chain → oracle-signed Gamble.claimWinnings() payout.
    ========================================================================== */
 
 const TS = 16, COLS = 15, ROWS = 15, W = 240, H = 240;
@@ -124,10 +151,13 @@ const C = {
   feltBlue:'#2b4d8c', feltBlueDark:'#22407a',
   gold:'#f5d76e', goldDark:'#c9a13b',
   white:'#f7f3e8', black:'#17121a',
+  red:'#c0392b',
   flame1:'#ffb347', flame2:'#ffd97a', flame3:'#ff8c42',
   leaf:'#3f8f4f', leafDark:'#2f6f3c', pot:'#b05c35', potDark:'#8e4628',
-  shadow:'rgba(20,10,5,0.25)'
+  shadow:'rgba(20,10,5,0.25)',
+  uiBg:'rgba(18,13,31,0.94)'
 };
+const FONT = '8px "Press Start 2P", monospace';
 
 /* ============================ sprites ============================ */
 /* 12x16 chibi characters: head (8 rows) + body (5) + legs (3).
@@ -186,7 +216,6 @@ function buildFrame(head, body, legs, pal, mirror) {
   mg.drawImage(c, 0, 0);
   return m;
 }
-/* returns { down:[f0,f1], up:[..], left:[..], right:[..] } */
 function makeCharacter(headStyle, bodyStyle, pal) {
   const hd = HEADS[headStyle], bd = BODIES[bodyStyle], lg = LEGS[bodyStyle];
   const out = {};
@@ -207,13 +236,9 @@ const SPRITES = {
 };
 
 /* ============================ map ============================ */
-/* Layout (cols 0-14, rows 0-14):
-   rows 0-1 back wall (bar shelf behind counter) · row 3 bar counter (cols 4-10)
-   craps table cols 2-5 rows 8-9 · blackjack cols 9-12 rows 8-9
-   palms in corners · rug center · door at (7,14)                       */
 const BAR = { c0:4, c1:10, row:3 };
-const CRAPS = { c0:2, c1:5, r0:8, r1:9 };
-const BJ = { c0:9, c1:12, r0:8, r1:9 };
+const CRAPS_T = { c0:2, c1:5, r0:8, r1:9 };
+const BJ_T = { c0:9, c1:12, r0:8, r1:9 };
 const PALMS = [[1,4],[13,4],[1,12],[13,12]];
 const DOOR = { c:7, r:14 };
 const RUG = { c0:5, c1:9, r0:5, r1:12 };
@@ -223,53 +248,57 @@ const key = (c,r) => c + ',' + r;
 for (let c = 0; c < COLS; c++) { solid.add(key(c,0)); solid.add(key(c,1)); solid.add(key(c,14)); }
 for (let r = 0; r < ROWS; r++) { solid.add(key(0,r)); solid.add(key(14,r)); }
 for (let c = BAR.c0; c <= BAR.c1; c++) solid.add(key(c, BAR.row));
-for (let c = CRAPS.c0; c <= CRAPS.c1; c++) for (let r = CRAPS.r0; r <= CRAPS.r1; r++) solid.add(key(c,r));
-for (let c = BJ.c0; c <= BJ.c1; c++) for (let r = BJ.r0; r <= BJ.r1; r++) solid.add(key(c,r));
+for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) solid.add(key(c,r));
+for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
 solid.add(key(7,2));   // bartender
 solid.add(key(3,7));   // craps dealer
 solid.add(key(11,7));  // blackjack dealer
 
-/* facing-tile → who you talk to */
 const talkMap = {};
 for (let c = BAR.c0; c <= BAR.c1; c++) talkMap[key(c, BAR.row)] = 'bartender';
 talkMap[key(7,2)] = 'bartender';
-for (let c = CRAPS.c0; c <= CRAPS.c1; c++) for (let r = CRAPS.r0; r <= CRAPS.r1; r++) talkMap[key(c,r)] = 'craps';
+for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) talkMap[key(c,r)] = 'craps';
 talkMap[key(3,7)] = 'craps';
-for (let c = BJ.c0; c <= BJ.c1; c++) for (let r = BJ.r0; r <= BJ.r1; r++) talkMap[key(c,r)] = 'blackjack';
+for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) talkMap[key(c,r)] = 'blackjack';
 talkMap[key(11,7)] = 'blackjack';
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
 
+/* ============================ chips ============================ */
+/* Local stand-in for on-chain chips (MembersOnlyItems token 0).
+   Table buy-ins/payouts mirror Gamble.commitWager/claimWinnings. */
+let chips = parseInt(localStorage.getItem('clubnile_chips') || '500', 10);
+function setChips(v) {
+  chips = Math.max(0, v);
+  localStorage.setItem('clubnile_chips', String(chips));
+}
+
 /* ============================ dialogue ============================ */
-/* The bartender is wired for a future AI backend: swap nextLine()
-   for a fetch to a Worker endpoint and stream the reply into pages. */
 const NPC_TALK = {
   bartender: {
     name: 'PTAH · BARTENDER',
     lines: [
       ["Welcome to Club Nile, friend. Finest speakeasy this side of the pyramids."],
       ["What'll it be? Gin fizz? Nile mud?", "...We serve chips. Only chips."],
-      ["See the dealers about a game. And keep your fez on straight."],
+      ["Hold on to your chips for tournament night. Big prizes for the top stacks."],
       ["Word is the pharaoh himself couldn't get a table on tournament night."]
     ]
   },
   craps: {
     name: 'NEFERU · CRAPS',
-    lines: [
-      ["Feeling lucky? The bones never lie... they just roll.", "(Craps mini-game coming soon.)"],
-      ["Seven out, all about. Come back when the felt is hot.", "(Craps mini-game coming soon.)"]
-    ]
+    lines: [["Feeling lucky? The bones are warm tonight.", "Take a seat at the craps table?  A: SIT · B: LATER"]],
+    action: 'craps',
+    broke: ["No chips, no dice, friend.", "Ptah pours courage at the bar. Come back with a stack."]
   },
   blackjack: {
     name: 'AMEN-RA · BLACKJACK',
-    lines: [
-      ["Twenty-one is a sacred number, you know.", "(Blackjack mini-game coming soon.)"],
-      ["The house always wins. The pyramid wasn't built by losers.", "(Blackjack mini-game coming soon.)"]
-    ]
+    lines: [["Twenty-one is a sacred number, you know.", "Take a seat at the blackjack table?  A: SIT · B: LATER"]],
+    action: 'blackjack',
+    broke: ["The felt is for players holding chips.", "Come back when your pockets jingle."]
   },
   door: {
     name: 'CLUB NILE',
-    lines: [["Leave the party?", "SELECT to head out. BACK to stay."]],
+    lines: [["Leave the party?", "A to head out. B to stay."]],
     action: 'exit'
   },
   guestF: {
@@ -290,10 +319,11 @@ const NPC_TALK = {
 const talkIdx = {};
 function nextLine(id) {
   const t = NPC_TALK[id];
+  if (t.action && t.broke && chips < 5) return { pages: t.broke, action: null };
   talkIdx[id] = (talkIdx[id] || 0);
   const pages = t.lines[talkIdx[id] % t.lines.length];
   talkIdx[id]++;
-  return pages;
+  return { pages, action: t.action || null };
 }
 
 /* ============================ entities ============================ */
@@ -308,21 +338,19 @@ const guests = [
   { id:'guestM', sprite:'guestM', x: 9.5*TS, y: 11.5*TS, dir:'left', frame:0, animT:0, moveT:0, dx:0, dy:0 }
 ];
 
-let chips = parseInt(localStorage.getItem('clubnile_chips') || '500', 10);
-
 /* ============================ input ============================ */
 const input = { up:false, down:false, left:false, right:false };
-let selectQueued = false, backQueued = false;
+let aQueued = false, bQueued = false;      // A = select · B = back
 
 addEventListener('keydown', e => {
   const k = e.key;
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
-  if (k === 'ArrowUp'    || k === 'w' || k === 'W') input.up = true;
-  if (k === 'ArrowDown'  || k === 's' || k === 'S') input.down = true;
-  if (k === 'ArrowLeft'  || k === 'a' || k === 'A') input.left = true;
-  if (k === 'ArrowRight' || k === 'd' || k === 'D') input.right = true;
-  if (!e.repeat && (k === 'Enter' || k === ' ' || k === 'e' || k === 'E' || k === 'z' || k === 'Z')) selectQueued = true;
-  if (!e.repeat && (k === 'Escape' || k === 'x' || k === 'X' || k === 'Backspace')) backQueued = true;
+  if (k === 'ArrowUp'    || k === 'w' || k === 'W') { input.up = true;    if (!e.repeat) tapQ.up = true; }
+  if (k === 'ArrowDown'  || k === 's' || k === 'S') { input.down = true;  if (!e.repeat) tapQ.down = true; }
+  if (k === 'ArrowLeft'  || k === 'a' || k === 'A') { input.left = true;  if (!e.repeat) tapQ.left = true; }
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') { input.right = true; if (!e.repeat) tapQ.right = true; }
+  if (!e.repeat && (k === 'Enter' || k === ' ' || k === 'e' || k === 'E' || k === 'z' || k === 'Z')) aQueued = true;
+  if (!e.repeat && (k === 'Escape' || k === 'x' || k === 'X' || k === 'Backspace')) bQueued = true;
 });
 addEventListener('keyup', e => {
   const k = e.key;
@@ -331,9 +359,20 @@ addEventListener('keyup', e => {
   if (k === 'ArrowLeft'  || k === 'a' || k === 'A') input.left = false;
   if (k === 'ArrowRight' || k === 'd' || k === 'D') input.right = false;
 });
+/* edge-triggered d-pad taps (menus). Taps are ALSO queued straight from
+   keydown so a quick press between frames is never lost. */
+let tapUp = false, tapDown = false, tapLeft = false, tapRight = false;
+const tapQ = { up:false, down:false, left:false, right:false };
+let prevIn = { up:false, down:false, left:false, right:false };
+function readTaps() {
+  tapUp = (input.up && !prevIn.up) || tapQ.up;
+  tapDown = (input.down && !prevIn.down) || tapQ.down;
+  tapLeft = (input.left && !prevIn.left) || tapQ.left;
+  tapRight = (input.right && !prevIn.right) || tapQ.right;
+  tapQ.up = tapQ.down = tapQ.left = tapQ.right = false;
+  prevIn = { ...input };
+}
 
-/* Touch: d-pad hotspot picks the dominant axis from the touch point
-   relative to the pad centre (all geometry in % of the pad box). */
 const dpadEl = document.getElementById('dpad');
 function dpadFrom(e) {
   const r = dpadEl.getBoundingClientRect();
@@ -356,17 +395,18 @@ function bindButton(id, fn) {
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('pressed'); fn(); });
   ['pointerup','pointercancel','pointerleave'].forEach(ev => el.addEventListener(ev, () => el.classList.remove('pressed')));
 }
-bindButton('btn-select', () => { selectQueued = true; });
-bindButton('btn-back',   () => { backQueued = true; });
+bindButton('btn-a', () => { aQueued = true; });   // right button = A = select
+bindButton('btn-b', () => { bQueued = true; });   // left button  = B = back
 
 /* ============================ dialogue box ============================ */
 const dlg = { open:false, id:null, name:'', pages:[], page:0, chars:0, action:null };
+const DLG_SPEED = 0.5;   // characters revealed per frame (slower = cosier)
 
 function wrapText(text, maxW) {
   const words = text.split(' ');
   const lines = [];
   let cur = '';
-  ctx.font = '8px "Press Start 2P", monospace';
+  ctx.font = FONT;
   for (const w of words) {
     const test = cur ? cur + ' ' + w : w;
     if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
@@ -377,10 +417,11 @@ function wrapText(text, maxW) {
 }
 function openDialog(id) {
   const t = NPC_TALK[id];
+  const line = nextLine(id);
   dlg.open = true; dlg.id = id; dlg.name = t.name;
-  dlg.pages = nextLine(id);
+  dlg.pages = line.pages;
   dlg.page = 0; dlg.chars = 0;
-  dlg.action = t.action || null;
+  dlg.action = line.action;
   const npc = npcs.find(n => n.id === id);
   if (npc) {
     if (player.y > npc.y + 8) npc.dir = 'down';
@@ -389,11 +430,13 @@ function openDialog(id) {
   }
 }
 function dialogSelect() {
-  const full = dlg.pages[dlg.page].length * 2;
+  const full = dlg.pages[dlg.page].length;
   if (dlg.chars < full) { dlg.chars = full; return; }
   if (dlg.page < dlg.pages.length - 1) { dlg.page++; dlg.chars = 0; return; }
-  if (dlg.action === 'exit') { window.location.href = '../clublounge.html'; return; }
   dlg.open = false;
+  if (dlg.action === 'exit') { window.location.href = '../clublounge.html'; return; }
+  if (dlg.action === 'craps') startTransition(() => enterCraps());
+  if (dlg.action === 'blackjack') startTransition(() => enterBlackjack());
 }
 
 /* ============================ interaction ============================ */
@@ -420,8 +463,10 @@ function interactTarget() {
 }
 
 /* ============================ movement ============================ */
+const WALK_SPEED = 0.8;      // slower stroll
+const GUEST_SPEED = 0.3;
+
 function blocked(px, py) {
-  /* feet hitbox: 8 wide, 6 tall around (px,py) */
   const pts = [[px-4,py-2],[px+3,py-2],[px-4,py+3],[px+3,py+3]];
   for (const [x,y] of pts) {
     if (solid.has(key(Math.floor(x/TS), Math.floor(y/TS)))) return true;
@@ -441,12 +486,11 @@ function moveEntity(ent, dx, dy, speed) {
   return moved;
 }
 
-/* ============================ background ============================ */
+/* ============================ floor background ============================ */
 const bg = document.createElement('canvas');
 bg.width = W; bg.height = H;
 (function paintBackground() {
   const g = bg.getContext('2d');
-  /* floor */
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       g.fillStyle = (c + r) % 2 ? C.floorA : C.floorB;
@@ -454,7 +498,6 @@ bg.width = W; bg.height = H;
       if ((c*7 + r*13) % 5 === 0) { g.fillStyle = C.floorDot; g.fillRect(c*TS+9, r*TS+6, 1, 1); }
     }
   }
-  /* rug */
   for (let r = RUG.r0; r <= RUG.r1; r++) {
     for (let c = RUG.c0; c <= RUG.c1; c++) {
       g.fillStyle = (r % 2) ? C.rug : C.rugDark;
@@ -473,23 +516,20 @@ bg.width = W; bg.height = H;
       }
     }
   }
-  /* back wall (rows 0-1): sandstone blocks + gold band + hieroglyphs */
   g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
   g.fillStyle = C.wallLine;
   for (let y = 8; y < 32; y += 8) g.fillRect(0, y, W, 1);
   for (let x = 0; x < W; x += 16) { g.fillRect(x + (Math.floor(x/16)%2 ? 8 : 0), 0, 1, 8); g.fillRect(x + 4, 16, 1, 8); }
   g.fillStyle = C.wallGold; g.fillRect(0, 29, W, 3);
   g.fillStyle = C.wallDark; g.fillRect(0, 28, W, 1);
-  /* hieroglyphs on the top band */
   g.fillStyle = C.wallGold;
   const glyph = (x) => {
     const kind = Math.floor(x / 24) % 3;
-    if (kind === 0) { /* ankh */ g.fillRect(x+2,2,1,2); g.fillRect(x+1,3,3,1); g.fillRect(x+2,4,1,3); g.fillRect(x,5,5,1); }
-    else if (kind === 1) { /* eye */ g.fillRect(x,4,5,1); g.fillRect(x+1,3,3,1); g.fillRect(x+2,5,1,1); g.fillRect(x+4,5,1,2); }
-    else { /* bird */ g.fillRect(x+1,3,2,1); g.fillRect(x,4,4,1); g.fillRect(x+2,5,1,2); g.fillRect(x+1,7,3,1); }
+    if (kind === 0) { g.fillRect(x+2,2,1,2); g.fillRect(x+1,3,3,1); g.fillRect(x+2,4,1,3); g.fillRect(x,5,5,1); }
+    else if (kind === 1) { g.fillRect(x,4,5,1); g.fillRect(x+1,3,3,1); g.fillRect(x+2,5,1,1); g.fillRect(x+4,5,1,2); }
+    else { g.fillRect(x+1,3,2,1); g.fillRect(x,4,4,1); g.fillRect(x+2,5,1,2); g.fillRect(x+1,7,3,1); }
   };
   for (let x = 6; x < W - 8; x += 24) glyph(x);
-  /* bar back-shelf with bottles (behind the counter) */
   g.fillStyle = '#3a2718'; g.fillRect(BAR.c0*TS, 10, (BAR.c1-BAR.c0+1)*TS, 18);
   g.fillStyle = C.woodDark; g.fillRect(BAR.c0*TS, 18, (BAR.c1-BAR.c0+1)*TS, 1);
   const bottleCols = ['#4f9e64','#c98f3b','#5b7fc4','#a34848','#4f9e64','#c98f3b'];
@@ -501,7 +541,6 @@ bg.width = W; bg.height = H;
     g.fillStyle = bottleCols[(i+2) % bottleCols.length];
     g.fillRect(bx+4, 20, 2, 6); g.fillRect(bx+4, 19, 1, 1);
   }
-  /* side + bottom walls */
   g.fillStyle = C.sideWall;
   g.fillRect(0, 2*TS, TS, H - 2*TS); g.fillRect(14*TS, 2*TS, TS, H - 2*TS);
   g.fillRect(0, 14*TS, W, TS);
@@ -509,7 +548,6 @@ bg.width = W; bg.height = H;
   for (let y = 2*TS; y < H; y += 8) { g.fillRect(0, y, TS, 1); g.fillRect(14*TS, y, TS, 1); }
   for (let x = 0; x < W; x += 8) g.fillRect(x, 14*TS, 1, TS);
   g.fillStyle = C.wallGold; g.fillRect(0, 14*TS, W, 2);
-  /* door (bottom centre) + mat */
   g.fillStyle = '#120c14'; g.fillRect(DOOR.c*TS + 2, 14*TS, TS - 4, TS);
   g.fillStyle = C.wallGold; g.fillRect(DOOR.c*TS + 1, 14*TS, 1, TS); g.fillRect(DOOR.c*TS + TS - 2, 14*TS, 1, TS);
   g.fillRect(DOOR.c*TS + 1, 14*TS, TS - 2, 1);
@@ -517,14 +555,13 @@ bg.width = W; bg.height = H;
   g.fillStyle = C.rugGold; g.fillRect(DOOR.c*TS + 2, 13*TS + 10, TS - 4, 1);
 })();
 
-/* ============================ big objects ============================ */
+/* ============================ floor objects ============================ */
 function makeCanvas(w, h, painter) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   painter(c.getContext('2d'));
   return c;
 }
-/* bar counter: cols 4-10 on row 3 */
 const barCanvas = makeCanvas((BAR.c1-BAR.c0+1)*TS, 22, g => {
   const w = g.canvas.width;
   g.fillStyle = C.woodDark; g.fillRect(0, 6, w, 16);
@@ -533,12 +570,10 @@ const barCanvas = makeCanvas((BAR.c1-BAR.c0+1)*TS, 22, g => {
   g.fillStyle = C.woodLight; g.fillRect(0, 0, w, 6);
   g.fillStyle = C.gold; g.fillRect(0, 0, w, 1);
   g.fillStyle = C.goldDark; g.fillRect(0, 5, w, 1);
-  /* glasses + cocktail on the counter */
   g.fillStyle = C.white; g.fillRect(18, 1, 2, 3); g.fillRect(w-24, 1, 2, 3);
   g.fillStyle = '#e05a70'; g.fillRect(w/2 - 2, 0, 3, 2);
   g.fillStyle = C.white; g.fillRect(w/2 - 1, 2, 1, 3);
 });
-/* craps table: 4x2 tiles, wood rail + green felt + dice */
 const crapsCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   const w = 4*TS, h = 2*TS;
   g.fillStyle = C.shadow; g.fillRect(2, h, w - 4, 4);
@@ -549,16 +584,13 @@ const crapsCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.strokeStyle = '#d8e8dc'; g.lineWidth = 1;
   g.strokeRect(8.5, 8.5, w-17, h-17);
   g.beginPath(); g.moveTo(w/2 + 0.5, 9); g.lineTo(w/2 + 0.5, h-9); g.stroke();
-  /* PASS line boxes */
   g.fillStyle = '#d8e8dc';
   g.fillRect(12, h-12, 8, 2); g.fillRect(w-20, h-12, 8, 2);
-  /* two dice */
   g.fillStyle = C.white; g.fillRect(w/2 - 8, 12, 5, 5); g.fillRect(w/2 + 3, 14, 5, 5);
   g.fillStyle = C.black;
   g.fillRect(w/2 - 6, 14, 1, 1);
   g.fillRect(w/2 + 4, 15, 1, 1); g.fillRect(w/2 + 6, 17, 1, 1);
 });
-/* blackjack table: 4x2 tiles, lapis felt half-round + cards */
 const bjCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   const w = 4*TS, h = 2*TS;
   g.fillStyle = C.shadow; g.fillRect(2, h, w - 4, 4);
@@ -570,18 +602,15 @@ const bjCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.beginPath(); g.moveTo(4,3); g.lineTo(w-4,3); g.lineTo(w-4,8); g.quadraticCurveTo(w/2, h+5, 4, 8); g.closePath(); g.fill();
   g.strokeStyle = C.gold; g.lineWidth = 1;
   g.beginPath(); g.moveTo(8, 9); g.quadraticCurveTo(w/2, h+1, w-8, 9); g.stroke();
-  /* cards */
   g.fillStyle = C.white;
   g.fillRect(w/2 - 10, 9, 5, 7); g.fillRect(w/2 - 3, 10, 5, 7); g.fillRect(w/2 + 5, 9, 5, 7);
   g.fillStyle = '#c0392b'; g.fillRect(w/2 - 9, 11, 2, 2); g.fillRect(w/2 + 6, 11, 2, 2);
   g.fillStyle = C.black; g.fillRect(w/2 - 2, 12, 2, 2);
-  /* chip stacks */
   g.fillStyle = '#c0392b'; g.fillRect(10, 6, 4, 2);
   g.fillStyle = C.gold; g.fillRect(10, 4, 4, 2);
   g.fillStyle = '#2f7f96'; g.fillRect(w-14, 6, 4, 2);
   g.fillStyle = C.white; g.fillRect(w-14, 4, 4, 2);
 });
-/* potted palm */
 const palmCanvas = makeCanvas(TS, TS + 10, g => {
   g.fillStyle = C.shadow; g.fillRect(2, 22, 12, 3);
   g.fillStyle = C.potDark; g.fillRect(3, 17, 10, 8);
@@ -597,16 +626,518 @@ const palmCanvas = makeCanvas(TS, TS + 10, g => {
   g.fillRect(6, 6, 4, 6);
 });
 
-/* draw list entries: {baseY, draw()} — painter's order by baseline */
 function spriteFor(ent) {
   const set = SPRITES[ent.sprite || 'player'];
-  const frames = set[ent.dir];
-  return frames[ent.frame || 0];
+  return set[ent.dir][ent.frame || 0];
 }
 function drawEntity(g, ent, bobT) {
   const img = spriteFor(ent);
   const bob = ent.staticNPC ? (Math.floor(bobT / 40) % 2) : 0;
   g.drawImage(img, Math.round(ent.x - 6), Math.round(ent.y - 15 + bob));
+}
+/* seated character: back view, top 13 rows, on a stool */
+function drawSeated(g, spriteKey, x, y) {
+  g.fillStyle = C.shadow; g.fillRect(x - 5, y + 1, 10, 3);
+  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 2, 8, 4);
+  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 2, 8, 1);
+  const img = SPRITES[spriteKey].up[0];
+  g.drawImage(img, 0, 0, 12, 13, Math.round(x - 6), Math.round(y - 14), 12, 13);
+}
+
+/* ============================ cards & dice ============================ */
+const CARD_W = 18, CARD_H = 24;
+const SUITS = [
+  { pix:['.#.#.','#####','#####','.###.','..#..'], col:'#c0392b' },  // hearts
+  { pix:['..#..','.###.','#####','.###.','..#..'], col:'#c0392b' },  // diamonds
+  { pix:['..#..','.###.','#####','..#..','.###.'], col:C.black },    // spades
+  { pix:['.###.','#####','#####','..#..','.###.'], col:C.black }     // clubs
+];
+const RANK_STR = ['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const cardCache = {};
+function cardFace(rank, suit) {
+  const k = rank + '-' + suit;
+  if (cardCache[k]) return cardCache[k];
+  const c = makeCanvas(CARD_W, CARD_H, g => {
+    g.fillStyle = '#b9b2a4'; g.fillRect(0, 0, CARD_W, CARD_H);
+    g.fillStyle = C.white; g.fillRect(1, 1, CARD_W-2, CARD_H-2);
+    const s = SUITS[suit];
+    g.font = FONT; g.textBaseline = 'top';
+    g.fillStyle = s.col;
+    if (rank === 10) { g.fillText('1', 1, 3); g.fillText('0', 8, 3); }
+    else g.fillText(RANK_STR[rank], 3, 3);
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
+      if (s.pix[y][x] === '#') g.fillRect(10 + x, 16 + y, 1, 1);
+    }
+  });
+  cardCache[k] = c;
+  return c;
+}
+const cardBack = makeCanvas(CARD_W, CARD_H, g => {
+  g.fillStyle = '#8a6733'; g.fillRect(0, 0, CARD_W, CARD_H);
+  g.fillStyle = '#2b4d8c'; g.fillRect(1, 1, CARD_W-2, CARD_H-2);
+  g.fillStyle = C.gold;
+  for (let y = 3; y < CARD_H - 3; y += 5) for (let x = 3; x < CARD_W - 3; x += 5) {
+    g.fillRect(x, y, 1, 1); g.fillRect(x+1, y+1, 1, 1); g.fillRect(x-1, y+1, 1, 1); g.fillRect(x, y+2, 1, 1);
+  }
+});
+function drawDie(g, x, y, val, size) {
+  const s = size || 12;
+  g.fillStyle = '#b9b2a4'; g.fillRect(x, y, s, s);
+  g.fillStyle = C.white; g.fillRect(x+1, y+1, s-2, s-2);
+  g.fillStyle = C.black;
+  const c = x + s/2 - 1, m = y + s/2 - 1, l = x + 2, r = x + s - 4, t = y + 2, b = y + s - 4;
+  const pips = {
+    1:[[c,m]], 2:[[l,t],[r,b]], 3:[[l,t],[c,m],[r,b]],
+    4:[[l,t],[r,t],[l,b],[r,b]], 5:[[l,t],[r,t],[c,m],[l,b],[r,b]],
+    6:[[l,t],[r,t],[l,m],[r,m],[l,b],[r,b]]
+  };
+  for (const [px,py] of pips[val]) g.fillRect(px, py, 2, 2);
+}
+function newDeck() {
+  const d = [];
+  for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) d.push({ r, s });
+  for (let i = d.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [d[i], d[j]] = [d[j], d[i]];
+  }
+  return d;
+}
+function handValue(hand) {
+  let v = 0, aces = 0;
+  for (const c of hand) {
+    if (c.r === 1) { aces++; v += 11; }
+    else v += Math.min(c.r, 10);
+  }
+  while (v > 21 && aces > 0) { v -= 10; aces--; }
+  return v;
+}
+
+/* ============================ table room backdrop ============================ */
+function paintTableRoom(g) {
+  g.fillStyle = '#241a30'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#2c2138';
+  for (let y = 0; y < H; y += 8) for (let x = (y % 16) ? 4 : 0; x < W; x += 8) g.fillRect(x, y, 1, 1);
+  /* wall band */
+  g.fillStyle = C.wall; g.fillRect(0, 0, W, 24);
+  g.fillStyle = C.wallLine;
+  for (let y = 8; y < 24; y += 8) g.fillRect(0, y, W, 1);
+  g.fillStyle = C.wallGold; g.fillRect(0, 21, W, 3);
+  g.fillStyle = C.wallGold;
+  for (let x = 10; x < W - 8; x += 30) { g.fillRect(x+2,4,1,2); g.fillRect(x+1,6,3,1); g.fillRect(x+2,7,1,4); g.fillRect(x,11,5,1); }
+}
+
+/* ============================ blackjack scene ============================ */
+const BJ_SEATS = [ {x:52,y:150}, {x:97,y:160}, {x:143,y:160}, {x:188,y:150} ];
+const BETS = [5, 10, 25, 50, 100];
+
+const bjRoom = makeCanvas(W, H, g => {
+  paintTableRoom(g);
+  /* lapis half-oval table */
+  g.fillStyle = C.woodDark;
+  g.beginPath(); g.ellipse(120, 52, 104, 92, 0, 0, Math.PI); g.fill();
+  g.fillRect(16, 44, 208, 10);
+  g.fillStyle = C.feltBlueDark;
+  g.beginPath(); g.ellipse(120, 52, 96, 84, 0, 0, Math.PI); g.fill();
+  g.fillRect(24, 46, 192, 8);
+  g.fillStyle = C.feltBlue;
+  g.beginPath(); g.ellipse(120, 52, 90, 78, 0, 0, Math.PI); g.fill();
+  g.fillRect(30, 48, 180, 6);
+  g.strokeStyle = C.gold; g.lineWidth = 1;
+  g.beginPath(); g.ellipse(120, 52, 74, 62, 0, 0.25, Math.PI - 0.25); g.stroke();
+  /* dealer chip tray */
+  g.fillStyle = C.woodDark; g.fillRect(94, 48, 52, 9);
+  const trayCols = ['#c0392b', C.gold, '#2f7f96', C.white, '#c0392b', C.gold];
+  for (let i = 0; i < 6; i++) { g.fillStyle = trayCols[i]; g.fillRect(97 + i*8, 50, 6, 5); }
+});
+
+const bj = {
+  state:'bet', betIdx:1, bet:0, deck:[], dealer:[], hole:true,
+  seats:[], timer:0, dealQ:[], menuIdx:0, result:'', flash:0
+};
+function enterBlackjack() {
+  scene = 'blackjack';
+  bj.state = 'bet'; bj.menuIdx = 0; bj.result = '';
+  bj.dealer = []; bj.hole = true;
+  /* seat roster — index 1 is always you; others may be lounge guests.
+     Future: remote players from the table Durable Object fill these. */
+  bj.seats = [null, null, null, null].map((_, i) => {
+    if (i === 1) return { sprite:'player', you:true, hand:[], done:false, out:false };
+    if (Math.random() < 0.5) return { sprite: (i % 2) ? 'guestM' : 'guestF', you:false, hand:[], done:false, out:false };
+    return null;
+  });
+}
+function bjOccupied() { return bj.seats.map((s,i)=>({s,i})).filter(o => o.s); }
+function bjStartHand() {
+  bj.bet = BETS[bj.betIdx];
+  setChips(chips - bj.bet);             // buy-in (≙ commitWager)
+  bj.deck = newDeck();
+  bj.dealer = []; bj.hole = true; bj.result = '';
+  for (const o of bjOccupied()) { o.s.hand = []; o.s.done = false; o.s.out = false; }
+  bj.dealQ = [];
+  for (let round = 0; round < 2; round++) {
+    for (const o of bjOccupied()) bj.dealQ.push(o.i);
+    bj.dealQ.push(-1);                  // dealer
+  }
+  bj.state = 'dealing'; bj.timer = 0;
+}
+function bjUpdate() {
+  const you = bj.seats[1];
+  if (bj.state === 'bet') {
+    if (chips < BETS[0]) {
+      if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
+      aQueued = false;
+      return;
+    }
+    if (tapUp)   { do { bj.betIdx = (bj.betIdx + 1) % BETS.length; } while (BETS[bj.betIdx] > chips); }
+    if (tapDown) { do { bj.betIdx = (bj.betIdx + BETS.length - 1) % BETS.length; } while (BETS[bj.betIdx] > chips); }
+    if (BETS[bj.betIdx] > chips) bj.betIdx = 0;
+    if (aQueued) { aQueued = false; bjStartHand(); }
+    if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
+  }
+  else if (bj.state === 'dealing') {
+    aQueued = bQueued = false;
+    if (++bj.timer >= 16) {
+      bj.timer = 0;
+      const next = bj.dealQ.shift();
+      if (next === -1) bj.dealer.push(bj.deck.pop());
+      else bj.seats[next].hand.push(bj.deck.pop());
+      if (!bj.dealQ.length) {
+        if (handValue(you.hand) === 21) { you.done = true; bj.state = 'others'; bj.timer = 0; }
+        else { bj.state = 'player'; bj.menuIdx = 0; }
+      }
+    }
+  }
+  else if (bj.state === 'player') {
+    const canDouble = you.hand.length === 2 && chips >= bj.bet;
+    const menu = canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'];
+    if (tapLeft)  bj.menuIdx = (bj.menuIdx + menu.length - 1) % menu.length;
+    if (tapRight) bj.menuIdx = (bj.menuIdx + 1) % menu.length;
+    if (bj.menuIdx >= menu.length) bj.menuIdx = 0;
+    if (aQueued) {
+      aQueued = false;
+      const pick = menu[bj.menuIdx];
+      if (pick === 'HIT') {
+        you.hand.push(bj.deck.pop());
+        const v = handValue(you.hand);
+        if (v > 21) { you.out = true; you.done = true; bj.state = 'others'; bj.timer = 0; }
+        else if (v === 21) { you.done = true; bj.state = 'others'; bj.timer = 0; }
+      } else if (pick === 'STAND') {
+        you.done = true; bj.state = 'others'; bj.timer = 0;
+      } else if (pick === 'DOUBLE') {
+        setChips(chips - bj.bet); bj.bet *= 2;
+        you.hand.push(bj.deck.pop());
+        if (handValue(you.hand) > 21) you.out = true;
+        you.done = true; bj.state = 'others'; bj.timer = 0;
+      }
+    }
+    bQueued = false;
+  }
+  else if (bj.state === 'others') {
+    /* seated guests play out their hands, one visible move at a time */
+    aQueued = bQueued = false;
+    if (++bj.timer >= 22) {
+      bj.timer = 0;
+      const g = bjOccupied().find(o => !o.s.you && !o.s.done);
+      if (g) {
+        if (handValue(g.s.hand) < 16) {
+          g.s.hand.push(bj.deck.pop());
+          if (handValue(g.s.hand) > 21) { g.s.out = true; g.s.done = true; }
+        } else g.s.done = true;
+      } else { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
+    }
+  }
+  else if (bj.state === 'dealerTurn') {
+    aQueued = bQueued = false;
+    if (++bj.timer >= 26) {
+      bj.timer = 0;
+      if (handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
+      else {
+        /* settle — payout mint (≙ oracle-signed claimWinnings) */
+        const dv = handValue(bj.dealer), pv = handValue(you.hand);
+        const natural = pv === 21 && you.hand.length === 2;
+        let payout = 0;
+        if (you.out) { bj.result = 'BUST  -' + bj.bet; }
+        else if (natural && !(dv === 21 && bj.dealer.length === 2)) {
+          payout = bj.bet + Math.floor(bj.bet * 1.5);
+          bj.result = 'BLACKJACK!  +' + Math.floor(bj.bet * 1.5);
+        }
+        else if (dv > 21 || pv > dv) { payout = bj.bet * 2; bj.result = 'YOU WIN  +' + bj.bet; }
+        else if (pv === dv) { payout = bj.bet; bj.result = 'PUSH'; }
+        else { bj.result = 'DEALER WINS  -' + bj.bet; }
+        if (payout) setChips(chips + payout);
+        bj.flash = payout > bj.bet ? 40 : 0;
+        bj.state = 'result';
+      }
+    }
+  }
+  else if (bj.state === 'result') {
+    if (bj.flash > 0) bj.flash--;
+    if (aQueued) { aQueued = false; bj.state = 'bet'; }
+    if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
+  }
+}
+function drawHand(g, hand, x, y, hideFirst) {
+  for (let i = 0; i < hand.length; i++) {
+    const img = (hideFirst && i === 0) ? cardBack : cardFace(hand[i].r, hand[i].s);
+    g.drawImage(img, x + i * 7, y - ((hideFirst && i === 0) ? 0 : 0));
+  }
+}
+function bjRender() {
+  ctx.drawImage(bjRoom, 0, 0);
+  drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
+  drawEntity(ctx, { sprite:'bjDealer', dir:'down', frame:0, x:120, y:42, staticNPC:true }, tick);
+  /* dealer hand */
+  drawHand(ctx, bj.dealer, 120 - Math.max(1, bj.dealer.length) * 7 / 2 - 5, 60, bj.hole);
+  if (!bj.hole && bj.dealer.length) {
+    ctx.font = FONT; ctx.fillStyle = C.white; ctx.textBaseline = 'top';
+    ctx.fillText(String(handValue(bj.dealer)), 154, 66);
+  }
+  /* seats, hands, totals */
+  for (let i = 0; i < 4; i++) {
+    const seat = bj.seats[i], pos = BJ_SEATS[i];
+    if (!seat) {
+      ctx.fillStyle = C.woodDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 4);
+      ctx.fillStyle = C.goldDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 1);
+      continue;
+    }
+    drawSeated(ctx, seat.sprite, pos.x, pos.y);
+    if (seat.hand.length) {
+      const hx = pos.x - 9 - (seat.hand.length - 1) * 3;
+      drawHand(ctx, seat.hand, hx, pos.y - 46);
+      ctx.font = FONT; ctx.textBaseline = 'top';
+      const v = handValue(seat.hand);
+      ctx.fillStyle = seat.out ? '#e05a70' : (seat.you ? C.gold : C.white);
+      ctx.fillText(String(v), pos.x - 4, pos.y - 56);
+    }
+    if (seat.you) {
+      ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textBaseline = 'top';
+      ctx.fillText('YOU', pos.x - 11, pos.y + 5);
+    }
+  }
+  /* UI band */
+  uiPanel();
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  if (bj.state === 'bet') {
+    if (chips < BETS[0]) {
+      uiText('OUT OF CHIPS', C.white, 190);
+      uiText('B: LEAVE TABLE', C.gold, 214);
+    } else {
+      uiText('PLACE YOUR BET:  ' + BETS[bj.betIdx], C.white, 190);
+      uiText('UP/DOWN: BET   A: DEAL   B: LEAVE', C.gold, 214);
+    }
+  } else if (bj.state === 'player') {
+    const canDouble = bj.seats[1].hand.length === 2 && chips >= bj.bet;
+    const menu = canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'];
+    let x = 22;
+    for (let i = 0; i < menu.length; i++) {
+      const sel = i === bj.menuIdx;
+      ctx.fillStyle = sel ? C.gold : '#8d8398';
+      ctx.fillText((sel ? '▶' : ' ') + menu[i], x, 196);
+      x += 12 + menu[i].length * 8 + 14;
+    }
+    uiText('BET ' + bj.bet, C.white, 218);
+  } else if (bj.state === 'result') {
+    const win = bj.flash > 0 && Math.floor(tick / 6) % 2;
+    uiText(bj.result, win ? C.gold : C.white, 190);
+    uiText('A: NEW HAND   B: LEAVE', C.gold, 214);
+  } else {
+    uiText(bj.state === 'dealing' ? 'DEALING...' : (bj.state === 'others' ? 'TABLE PLAYS...' : 'DEALER PLAYS...'), '#8d8398', 196);
+    uiText('BET ' + bj.bet, C.white, 218);
+  }
+}
+
+/* ============================ craps scene ============================ */
+const CR_SEATS = [ {x:52,y:162}, {x:97,y:167}, {x:143,y:167}, {x:188,y:162} ];
+const CR_NUMS = [4, 5, 6, 8, 9, 10];
+
+const crRoom = makeCanvas(W, H, g => {
+  paintTableRoom(g);
+  /* green rail table */
+  g.fillStyle = C.shadow; g.fillRect(22, 148, 196, 5);
+  g.fillStyle = C.woodDark; g.fillRect(20, 40, 200, 110);
+  g.fillStyle = C.wood; g.fillRect(23, 43, 194, 104);
+  g.fillStyle = C.feltGreenDark; g.fillRect(28, 48, 184, 94);
+  g.fillStyle = C.feltGreen; g.fillRect(30, 50, 180, 90);
+  /* number boxes */
+  g.font = FONT; g.textBaseline = 'top';
+  for (let i = 0; i < CR_NUMS.length; i++) {
+    const bx = 38 + i * 28;
+    g.strokeStyle = '#d8e8dc'; g.lineWidth = 1;
+    g.strokeRect(bx + 0.5, 58.5, 22, 17);
+    g.fillStyle = '#d8e8dc';
+    const n = CR_NUMS[i];
+    g.fillText(String(n), bx + (n === 10 ? 4 : 8), 63);
+  }
+  /* pass line */
+  g.strokeStyle = '#d8e8dc';
+  g.strokeRect(34.5, 120.5, 171, 15);
+  g.fillStyle = '#d8e8dc';
+  g.fillText('PASS LINE', 85, 124);
+  g.fillStyle = C.goldDark;
+  g.fillRect(30, 50, 180, 1);
+});
+const cr = {
+  state:'bet', betIdx:1, bet:0, point:0, dice:[3,4], rolling:0,
+  result:'', seats:[], flash:0, phase:'comeout'
+};
+function enterCraps() {
+  scene = 'craps';
+  cr.state = 'bet'; cr.point = 0; cr.result = ''; cr.rolling = 0;
+  cr.dice = [3, 4];
+  cr.seats = [null, null, null, null].map((_, i) => {
+    if (i === 1) return { sprite:'player', you:true };
+    if (Math.random() < 0.5) return { sprite: (i % 2) ? 'guestM' : 'guestF', you:false };
+    return null;
+  });
+}
+function crRoll() {
+  cr.rolling = 34;
+}
+function crSettle(win, msg) {
+  if (win) { setChips(chips + cr.bet * 2); cr.flash = 40; }   // 1:1 pass line
+  else cr.flash = 0;
+  cr.result = msg;
+  cr.state = 'result';
+  cr.point = 0;
+}
+function crUpdate() {
+  if (cr.rolling > 0) {
+    aQueued = bQueued = false;
+    if (cr.rolling % 4 === 0) {
+      cr.dice = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+    }
+    if (--cr.rolling === 0) {
+      const sum = cr.dice[0] + cr.dice[1];
+      if (cr.state === 'comeout') {
+        if (sum === 7 || sum === 11) crSettle(true, sum + '!  WINNER  +' + cr.bet);
+        else if (sum === 2 || sum === 3 || sum === 12) crSettle(false, 'CRAPS ' + sum + '  -' + cr.bet);
+        else { cr.point = sum; cr.state = 'point'; }
+      } else if (cr.state === 'point') {
+        if (sum === cr.point) crSettle(true, 'HIT THE POINT!  +' + cr.bet);
+        else if (sum === 7) crSettle(false, 'SEVEN OUT  -' + cr.bet);
+      }
+    }
+    return;
+  }
+  if (cr.state === 'bet') {
+    if (chips < BETS[0]) {
+      if (bQueued) { bQueued = false; startTransition(() => leaveTable('craps')); }
+      aQueued = false;
+      return;
+    }
+    if (tapUp)   { do { cr.betIdx = (cr.betIdx + 1) % BETS.length; } while (BETS[cr.betIdx] > chips); }
+    if (tapDown) { do { cr.betIdx = (cr.betIdx + BETS.length - 1) % BETS.length; } while (BETS[cr.betIdx] > chips); }
+    if (BETS[cr.betIdx] > chips) cr.betIdx = 0;
+    if (aQueued) {
+      aQueued = false;
+      cr.bet = BETS[cr.betIdx];
+      setChips(chips - cr.bet);          // pass-line stake (≙ commitWager)
+      cr.state = 'comeout';
+    }
+    if (bQueued) { bQueued = false; startTransition(() => leaveTable('craps')); }
+  }
+  else if (cr.state === 'comeout' || cr.state === 'point') {
+    if (aQueued) { aQueued = false; crRoll(); }
+    bQueued = false;
+  }
+  else if (cr.state === 'result') {
+    if (cr.flash > 0) cr.flash--;
+    if (aQueued) { aQueued = false; cr.state = 'bet'; }
+    if (bQueued) { bQueued = false; startTransition(() => leaveTable('craps')); }
+  }
+}
+function crRender() {
+  ctx.drawImage(crRoom, 0, 0);
+  drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
+  drawEntity(ctx, { sprite:'crapsDealer', dir:'down', frame:0, x:120, y:38, staticNPC:true }, tick);
+  /* puck */
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  if (cr.point) {
+    const i = CR_NUMS.indexOf(cr.point);
+    const px = 38 + i * 28 + 11;
+    ctx.fillStyle = C.white;
+    ctx.beginPath(); ctx.arc(px, 54, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C.black; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(px, 54, 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = C.black; ctx.fillRect(px - 2, 53, 5, 2);
+  } else {
+    ctx.fillStyle = C.black;
+    ctx.beginPath(); ctx.arc(41, 54, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  /* dice */
+  const shake = cr.rolling > 0 ? (tick % 2 ? 1 : -1) : 0;
+  drawDie(ctx, 100 + shake, 92, cr.dice[0], 14);
+  drawDie(ctx, 124 - shake, 94, cr.dice[1], 14);
+  if (!cr.rolling && (cr.state === 'point' || cr.state === 'result')) {
+    ctx.fillStyle = C.white;
+    ctx.fillText(String(cr.dice[0] + cr.dice[1]), 116, 82);
+  }
+  /* your chips on the pass line (left of the PASS LINE lettering) */
+  if (cr.bet && (cr.state === 'comeout' || cr.state === 'point')) {
+    ctx.fillStyle = C.red; ctx.fillRect(42, 128, 6, 3);
+    ctx.fillStyle = C.gold; ctx.fillRect(42, 125, 6, 3);
+    ctx.fillStyle = C.white; ctx.fillText(String(cr.bet), 52, 124);
+  }
+  /* seats around the rail */
+  for (let i = 0; i < 4; i++) {
+    const seat = cr.seats[i], pos = CR_SEATS[i];
+    if (!seat) {
+      ctx.fillStyle = C.woodDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 4);
+      ctx.fillStyle = C.goldDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 1);
+      continue;
+    }
+    const hop = (cr.flash > 0 && !((tick + i * 3) % 20 < 10)) ? -1 : 0;
+    drawSeated(ctx, seat.sprite, pos.x, pos.y + hop);
+    if (seat.you) {
+      ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textBaseline = 'top';
+      ctx.fillText('YOU', pos.x - 11, pos.y + 5);
+    }
+  }
+  /* UI band */
+  uiPanel();
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  if (cr.state === 'bet') {
+    if (chips < BETS[0]) {
+      uiText('OUT OF CHIPS', C.white, 190);
+      uiText('B: LEAVE TABLE', C.gold, 214);
+    } else {
+      uiText('PASS LINE BET:  ' + BETS[cr.betIdx], C.white, 190);
+      uiText('UP/DOWN: BET   A: SET   B: LEAVE', C.gold, 214);
+    }
+  } else if (cr.state === 'comeout') {
+    uiText(cr.rolling ? 'ROLLING...' : 'COME OUT ROLL', C.white, 190);
+    if (!cr.rolling) uiText('A: ROLL THE BONES', C.gold, 214);
+  } else if (cr.state === 'point') {
+    uiText('POINT IS ' + cr.point + '  ·  ROLL IT AGAIN', C.white, 190);
+    if (!cr.rolling) uiText('A: ROLL   (SEVEN LOSES)', C.gold, 214);
+  } else if (cr.state === 'result') {
+    const win = cr.flash > 0 && Math.floor(tick / 6) % 2;
+    uiText(cr.result, win ? C.gold : C.white, 190);
+    uiText('A: NEW BET   B: LEAVE', C.gold, 214);
+  }
+}
+
+/* ============================ scene helpers ============================ */
+let scene = 'floor';
+const trans = { active:false, t:0, mid:null };
+function startTransition(midFn) {
+  trans.active = true; trans.t = 0; trans.mid = midFn;
+}
+function leaveTable(which) {
+  scene = 'floor';
+  if (which === 'craps') { player.x = 3.5*TS; player.y = 10.8*TS; }
+  else { player.x = 11.5*TS; player.y = 10.8*TS; }
+  player.dir = 'up'; player.frame = 0;
+}
+function uiPanel() {
+  ctx.fillStyle = C.uiBg;
+  ctx.fillRect(4, 180, 232, 56);
+  ctx.strokeStyle = C.rugGold; ctx.lineWidth = 2;
+  ctx.strokeRect(5, 181, 230, 54);
+}
+function uiText(str, col, y) {
+  ctx.fillStyle = col;
+  ctx.fillText(str, Math.max(10, Math.round(120 - str.length * 4)), y);
 }
 
 /* ============================ particles ============================ */
@@ -623,50 +1154,40 @@ for (let i = 0; i < 14; i++) {
 /* ============================ title + state ============================ */
 let titleAlpha = 1, started = false, tick = 0;
 
-/* ============================ update ============================ */
-function update() {
-  tick++;
-  if (started && titleAlpha > 0) titleAlpha = Math.max(0, titleAlpha - 0.03);
-  if (!started && (input.up || input.down || input.left || input.right || selectQueued)) {
-    started = true; selectQueued = false;
-  }
-
+/* ============================ floor update ============================ */
+function floorUpdate() {
   if (dlg.open) {
-    dlg.chars += 2;
-    if (selectQueued) { selectQueued = false; dialogSelect(); }
-    if (backQueued)   { backQueued = false; dlg.open = false; }
-  } else if (started) {
-    /* player movement */
-    let dx = 0, dy = 0;
-    if (input.left) { dx = -1; player.dir = 'left'; }
-    else if (input.right) { dx = 1; player.dir = 'right'; }
-    if (input.up) { dy = -1; if (!dx) player.dir = 'up'; }
-    else if (input.down) { dy = 1; if (!dx) player.dir = 'down'; }
-    player.moving = !!(dx || dy);
-    if (player.moving) {
-      moveEntity(player, dx, dy, 1.1);
-      player.animT++;
-      if (player.animT % 10 === 0) player.frame = 1 - player.frame;
-    } else { player.frame = 0; }
-
-    if (selectQueued) {
-      selectQueued = false;
-      const t = interactTarget();
-      if (t) {
-        if (t.guest) {
-          t.guest.dir = player.x < t.guest.x ? 'left' : 'right';
-          t.guest.moveT = 90;
-          t.guest.dx = 0; t.guest.dy = 0;
-        }
-        openDialog(t.id);
-      }
-    }
-    if (backQueued) backQueued = false;
-  } else {
-    selectQueued = backQueued = false;
+    dlg.chars += DLG_SPEED;
+    if (aQueued) { aQueued = false; dialogSelect(); }
+    if (bQueued) { bQueued = false; dlg.open = false; }
+    return;
   }
+  let dx = 0, dy = 0;
+  if (input.left) { dx = -1; player.dir = 'left'; }
+  else if (input.right) { dx = 1; player.dir = 'right'; }
+  if (input.up) { dy = -1; if (!dx) player.dir = 'up'; }
+  else if (input.down) { dy = 1; if (!dx) player.dir = 'down'; }
+  player.moving = !!(dx || dy);
+  if (player.moving) {
+    moveEntity(player, dx, dy, WALK_SPEED);
+    player.animT++;
+    if (player.animT % 13 === 0) player.frame = 1 - player.frame;
+  } else { player.frame = 0; }
 
-  /* guests wander */
+  if (aQueued) {
+    aQueued = false;
+    const t = interactTarget();
+    if (t) {
+      if (t.guest) {
+        t.guest.dir = player.x < t.guest.x ? 'left' : 'right';
+        t.guest.moveT = 120;
+        t.guest.dx = 0; t.guest.dy = 0;
+      }
+      openDialog(t.id);
+    }
+  }
+  if (bQueued) bQueued = false;
+
   for (const g of guests) {
     if (dlg.open && dlg.id === g.id) continue;
     g.moveT--;
@@ -681,19 +1202,17 @@ function update() {
       }
     }
     if (g.dx || g.dy) {
-      const moved = moveEntity(g, g.dx, g.dy, 0.4);
+      const moved = moveEntity(g, g.dx, g.dy, GUEST_SPEED);
       if (!moved) { g.dx = 0; g.dy = 0; }
       else {
         g.animT++;
-        if (g.animT % 14 === 0) g.frame = 1 - g.frame;
+        if (g.animT % 18 === 0) g.frame = 1 - g.frame;
       }
     } else g.frame = 0;
-    /* keep guests on the open floor */
     g.x = Math.max(1.5*TS, Math.min(13.5*TS - 1, g.x));
     g.y = Math.max(4.5*TS, Math.min(13.5*TS - 1, g.y));
   }
 
-  /* confetti drift */
   for (const p of confetti) {
     p.y += p.v; p.sway += 0.02;
     p.x += Math.sin(p.sway) * 0.1;
@@ -701,7 +1220,7 @@ function update() {
   }
 }
 
-/* ============================ render ============================ */
+/* ============================ shared drawing ============================ */
 function drawFlame(g, x, y) {
   const f = Math.floor(tick / 8) % 2;
   g.fillStyle = C.goldDark; g.fillRect(x+2, y+6, 3, 2);
@@ -712,35 +1231,36 @@ function drawFlame(g, x, y) {
 }
 function drawHUD(g) {
   g.fillStyle = 'rgba(18,13,31,0.75)';
-  g.fillRect(3, 35, 62, 12);
+  g.fillRect(3, 30, 62, 12);
   g.strokeStyle = C.goldDark; g.lineWidth = 1;
-  g.strokeRect(3.5, 35.5, 61, 11);
+  g.strokeRect(3.5, 30.5, 61, 11);
   g.fillStyle = C.gold;
-  g.beginPath(); g.arc(10, 41, 3, 0, Math.PI * 2); g.fill();
-  g.fillStyle = C.goldDark; g.fillRect(9, 40, 2, 2);
-  g.font = '8px "Press Start 2P", monospace';
+  g.beginPath(); g.arc(10, 36, 3, 0, Math.PI * 2); g.fill();
+  g.fillStyle = C.goldDark; g.fillRect(9, 35, 2, 2);
+  g.font = FONT;
   g.fillStyle = C.gold;
   g.textBaseline = 'middle';
-  g.fillText(String(chips), 17, 42);
+  g.fillText(String(chips), 17, 37);
+  g.textBaseline = 'top';
 }
 function drawDialog(g) {
   const bx = 4, by = 168, bw = 232, bh = 68;
-  g.fillStyle = 'rgba(18,13,31,0.94)';
+  g.fillStyle = C.uiBg;
   g.fillRect(bx, by, bw, bh);
   g.strokeStyle = C.rugGold; g.lineWidth = 2;
   g.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
-  g.font = '8px "Press Start 2P", monospace';
+  g.font = FONT;
   g.textBaseline = 'top';
   g.fillStyle = C.gold;
   g.fillText(dlg.name, bx + 8, by + 7);
   const full = dlg.pages[dlg.page];
-  const shown = full.slice(0, Math.floor(dlg.chars / 2));
+  const shown = full.slice(0, Math.floor(dlg.chars));
   const lines = wrapText(shown, bw - 20);
   g.fillStyle = C.white;
   for (let i = 0; i < Math.min(lines.length, 3); i++) {
     g.fillText(lines[i], bx + 8, by + 22 + i * 13);
   }
-  if (dlg.chars / 2 >= full.length && Math.floor(tick / 20) % 2) {
+  if (dlg.chars >= full.length && Math.floor(tick / 20) % 2) {
     g.fillStyle = C.gold;
     g.fillText('▼', bx + bw - 16, by + bh - 13);
   }
@@ -754,30 +1274,29 @@ function drawTitle(g) {
   g.fillStyle = C.gold;
   g.fillText('CLUB', W/2, 88);
   g.fillText('NILE', W/2, 110);
-  g.font = '8px "Press Start 2P", monospace';
+  g.font = FONT;
   g.fillStyle = C.white;
   g.fillText('EST. 1926', W/2, 136);
   g.fillStyle = C.rugGold;
   g.fillText('MEMBERS ONLY', W/2, 150);
   if (Math.floor(tick / 30) % 2) {
     g.fillStyle = C.white;
-    g.fillText('PRESS SELECT', W/2, 190);
+    g.fillText('PRESS A', W/2, 190);
   }
   g.globalAlpha = 1;
   g.textAlign = 'left';
+  g.textBaseline = 'top';
 }
 
-function render() {
+function floorRender() {
   ctx.drawImage(bg, 0, 0);
-  /* wall sconces */
   drawFlame(ctx, 3*TS + 4, 18);
   drawFlame(ctx, 11*TS + 4, 18);
 
-  /* y-sorted world objects + characters */
   const items = [];
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6) });
-  items.push({ y: (CRAPS.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS.c0*TS, CRAPS.r0*TS) });
-  items.push({ y: (BJ.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ.c0*TS, BJ.r0*TS) });
+  items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS) });
+  items.push({ y: (BJ_T.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ_T.c0*TS, BJ_T.r0*TS) });
   PALMS.forEach(([c, r]) => items.push({ y: (r+1)*TS, draw: g => g.drawImage(palmCanvas, c*TS, r*TS - 9) }));
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
@@ -785,7 +1304,6 @@ function render() {
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw(ctx);
 
-  /* confetti above the crowd */
   for (const p of confetti) {
     ctx.fillStyle = p.col;
     ctx.globalAlpha = 0.7;
@@ -793,37 +1311,69 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
-  /* interact prompt */
   if (started && !dlg.open) {
     const t = interactTarget();
     if (t) {
       const bounce = Math.floor(tick / 20) % 2;
-      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.font = FONT;
       ctx.fillStyle = C.gold;
-      ctx.textBaseline = 'top';
       ctx.fillText('!', Math.round(player.x) - 2, Math.round(player.y) - 28 - bounce);
     }
   }
 
-  /* warm vignette */
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
   vg.addColorStop(1, 'rgba(8,5,14,0.42)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
 
-  drawHUD(ctx);
   if (dlg.open) drawDialog(ctx);
   if (titleAlpha > 0) drawTitle(ctx);
 }
 
 /* ============================ main loop ============================ */
+function update() {
+  tick++;
+  readTaps();
+  if (started && titleAlpha > 0) titleAlpha = Math.max(0, titleAlpha - 0.03);
+  if (!started && (input.up || input.down || input.left || input.right || aQueued)) {
+    started = true; aQueued = false;
+  }
+  if (trans.active) {
+    trans.t++;
+    if (trans.t === 15 && trans.mid) { trans.mid(); trans.mid = null; }
+    if (trans.t >= 30) trans.active = false;
+    aQueued = bQueued = false;
+    return;
+  }
+  if (!started) { aQueued = bQueued = false; return; }
+  if (scene === 'floor') floorUpdate();
+  else if (scene === 'blackjack') bjUpdate();
+  else if (scene === 'craps') crUpdate();
+}
+function render() {
+  if (scene === 'floor') floorRender();
+  else if (scene === 'blackjack') bjRender();
+  else if (scene === 'craps') crRender();
+  if (scene !== 'floor') {
+    const vg = ctx.createRadialGradient(W/2, 110, 60, W/2, 110, 200);
+    vg.addColorStop(0, 'rgba(255,190,90,0.04)');
+    vg.addColorStop(1, 'rgba(8,5,14,0.35)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
+  if (started) drawHUD(ctx);
+  if (trans.active) {
+    const a = trans.t < 15 ? trans.t / 15 : (30 - trans.t) / 15;
+    ctx.fillStyle = 'rgba(6,4,10,' + Math.min(1, a) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
 function loop() {
   update();
   render();
   requestAnimationFrame(loop);
 }
-/* wait for the pixel font so canvas text renders crisp from frame one */
 if (document.fonts && document.fonts.load) {
   Promise.all([
     document.fonts.load('8px "Press Start 2P"'),
