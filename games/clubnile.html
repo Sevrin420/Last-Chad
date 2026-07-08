@@ -524,9 +524,17 @@ const social = {
 /* floating popups above heads: emoji / speech bubbles / tip amounts */
 const popups = [];
 function addPopup(target, kind, str, life) {
-  popups.push({ target, kind, str, t: 0, life: life || (kind === 'bubble' ? 240 : 100) });
+  /* the dealer speaks one line at a time */
+  if (target === 'dealer' && kind === 'bubble') {
+    for (let i = popups.length - 1; i >= 0; i--) {
+      if (popups[i].target === 'dealer' && popups[i].kind === 'bubble') popups.splice(i, 1);
+    }
+  }
+  popups.push({ target, kind, str, t: 0, life: life || (kind === 'bubble' ? 360 : 150) });
   if (popups.length > 12) popups.shift();
 }
+function dealerSay(str, life) { addPopup('dealer', 'bubble', str, life || 330); }
+function dealerBusy() { return popups.some(p => p.target === 'dealer' && p.kind === 'bubble'); }
 function pushChat(name, text, sys) {
   social.chatLog.push({ name, text, sys });
   if (social.chatLog.length > 60) social.chatLog.shift();
@@ -1298,6 +1306,93 @@ function paintTableRoom(g) {
   g.fillRect(0, 24, W, 3);
 }
 
+/* ============================ dealer voice ============================ */
+/* Authentic stickman calls, lifted from the big craps table's announcer */
+const CR_CALLS = {
+  '1,1': 'Snake eyes! Double the field!',
+  '1,2': 'Craps three!',
+  '1,3': 'Easy four',
+  '1,4': 'No field five',
+  '1,5': 'Easy six',
+  '2,2': 'Hard four!',
+  '2,3': 'No field five',
+  '2,4': 'Easy six',
+  '2,6': 'Easy eight',
+  '3,3': 'Hard six!',
+  '3,5': 'Easy eight',
+  '3,6': 'Centerfield nine, Nina!',
+  '4,4': 'Hard eight!',
+  '4,5': 'Centerfield nine, Nina!',
+  '4,6': 'Easy ten',
+  '5,5': 'Hard ten!',
+  '5,6': 'Yo! Eleven, yo!',
+  '6,6': 'Boxcars! Double the field!'
+};
+function crCall(d1, d2, prevPoint, newPoint) {
+  const sum = d1 + d2;
+  if (sum === 7) return prevPoint ? 'Seven out! Line away.' : 'Seven! Front line winner!';
+  let call = CR_CALLS[[Math.min(d1, d2), Math.max(d1, d2)].join(',')] || String(sum);
+  if (sum === 2 || sum === 3 || sum === 12) {
+    if (!prevPoint) call += ' Craps!';
+  } else if (!prevPoint && newPoint === sum) {
+    call += ' — mark it!';
+  } else if (prevPoint && sum === prevPoint) {
+    call += ' — pays the line!';
+  }
+  return call;
+}
+/* 1920s table patter, dealt out at random between hands */
+const QUIPS = {
+  bartender: [
+    "Prohibition? Never heard of her.",
+    "This gin's older than the Sphinx. The good stuff.",
+    "Keep your fez on — the night is young.",
+    "A toast! To not gettin' raided.",
+    "Ain't this joint just the cat's pajamas?"
+  ],
+  craps: [
+    "These bones are older than the pyramids, and twice as honest.",
+    "Bet with your head, not over it, pal.",
+    "Lady Luck loves a sharp-dressed Chad.",
+    "I once watched a pharaoh seven-out. True story.",
+    "Keep 'em off the rail, friend.",
+    "The dice got no memory, but I sure do."
+  ],
+  blackjack: [
+    "Twenty-one — the sacred number.",
+    "The house always wins... eventually.",
+    "Ain't that the berries!",
+    "I deal 'em straight as an obelisk.",
+    "Insurance? I wouldn't insure a mummy.",
+    "Now we're cookin' with gas."
+  ],
+  guestF: [
+    "This joint is the bee's knees!",
+    "Twenty-three skidoo!",
+    "The band doesn't stop 'til sunrise, you know.",
+    "Says you!"
+  ],
+  guestM: [
+    "Horsefeathers! I had it on the hard eight.",
+    "Now you're on the trolley!",
+    "Don't take any wooden nickels.",
+    "Some party, huh?"
+  ]
+};
+function randomQuip(id) {
+  const pool = QUIPS[id];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+/* how a 1920s dealer names a card out loud */
+const CARD_CALLED = ['', 'an ace', 'a deuce', 'a trey', 'a four', 'a five', 'a six',
+  'a seven', 'an eight', 'a nine', 'a ten', 'a jack', 'a queen', 'a king'];
+/* occasional idle patter from the dealer at a table */
+function maybeTableQuip(id) {
+  if (tick % 60 !== 0 || Math.random() > 0.055) return;
+  if (dealerBusy()) return;
+  dealerSay(randomQuip(id), 320);
+}
+
 /* ============================ chip tray + action carousel ============================ */
 /* Table controls: tap chips to pick a denomination (and tap the felt to
    bet at craps); the d-pad drives a scrolling action carousel. */
@@ -1522,26 +1617,29 @@ function drawPopups(seatPos) {
       ctx.fillStyle = C.gold;
       ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 28 - rise);
     } else if (p.kind === 'bubble') {
-      drawBubble(pos.x, pos.y - 20, p.str);
+      if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, true);
+      else drawBubble(pos.x, pos.y - 20, p.str, false);
     }
     ctx.globalAlpha = 1;
   }
 }
-function drawBubble(cx, bottomY, text) {
+/* speech bubble; tailUp anchors the box below the speaker (dealers) */
+function drawBubble(cx, anchorY, text, tailUp) {
   ctx.font = FONT;
-  let lines = wrapText(text, 84);
+  let lines = wrapText(text, 100);
   if (lines.length > 2) { lines = lines.slice(0, 2); lines[1] += '…'; }
-  const w = Math.min(92, Math.max(...lines.map(l => ctx.measureText(l).width)) + 8);
+  const w = Math.min(110, Math.max(...lines.map(l => ctx.measureText(l).width)) + 8);
   const h = lines.length * 10 + 5;
   let x = Math.round(cx - w / 2);
   x = Math.max(2, Math.min(W - w - 2, x));
-  const y = bottomY - h - 5;
+  const y = tailUp ? anchorY + 4 : anchorY - h - 5;
   ctx.fillStyle = 'rgba(247,243,232,0.96)';
   ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = C.black; ctx.lineWidth = 1;
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   ctx.fillStyle = 'rgba(247,243,232,0.96)';
-  ctx.fillRect(cx - 2, y + h, 4, 3);
+  if (tailUp) ctx.fillRect(cx - 2, y - 3, 4, 3);
+  else ctx.fillRect(cx - 2, y + h, 4, 3);
   ctx.fillStyle = C.black;
   ctx.textBaseline = 'top';
   for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x + 4, y + 3 + i * 10);
@@ -1569,8 +1667,9 @@ function drawTableSeats(SEATS, hop) {
   ctx.fillStyle = C.gold;
   ctx.fillText('YOU', you.x - 11, you.y + 5);
 }
-function tableSeatPos(SEATS) {
+function tableSeatPos(SEATS, dealerPos) {
   return (target) => {
+    if (target === 'dealer') return dealerPos || null;
     if (target === 'you') return SEATS[social.seat];
     const p = social.roster.find(r => r.id === target);
     return p ? SEATS[p.seat] : null;
@@ -1587,28 +1686,66 @@ const BJ_SEATS = [ {x:52,y:150}, {x:97,y:160}, {x:143,y:160}, {x:188,y:150} ];
 const BETS = TRAY;   // bet denominations come from the chip tray
 const bjRoom = makeCanvas(W, H, g => {
   paintTableRoom(g);
+  /* shadow the table casts on the plank floor */
+  g.fillStyle = C.shadow;
+  g.beginPath(); g.ellipse(120, 146, 100, 7, 0, 0, Math.PI); g.fill();
+  /* mahogany rim */
   g.fillStyle = C.woodDark;
   g.beginPath(); g.ellipse(120, 52, 104, 92, 0, 0, Math.PI); g.fill();
   g.fillRect(16, 44, 208, 10);
-  g.fillStyle = C.feltBlueDark;
+  g.strokeStyle = C.woodHi; g.lineWidth = 1;
+  g.beginPath(); g.ellipse(120, 52, 102, 90, 0, 0.1, Math.PI - 0.1); g.stroke();
+  /* burgundy leather arm pad */
+  g.fillStyle = '#4e1b26';
+  g.beginPath(); g.ellipse(120, 52, 98, 86, 0, 0, Math.PI); g.fill();
+  g.fillRect(22, 45, 196, 9);
+  g.fillStyle = '#6e2734';
   g.beginPath(); g.ellipse(120, 52, 96, 84, 0, 0, Math.PI); g.fill();
   g.fillRect(24, 46, 192, 8);
+  g.strokeStyle = 'rgba(255,150,140,0.25)';
+  g.beginPath(); g.ellipse(120, 52, 94, 82, 0, 0.12, Math.PI - 0.12); g.stroke();
+  /* gold diamond studs along the pad */
+  g.fillStyle = C.rugGold;
+  for (let t = 0.28; t < Math.PI - 0.27; t += 0.31) {
+    const sx = Math.round(120 + 96 * Math.cos(t)), sy = Math.round(52 + 84 * Math.sin(t));
+    g.fillRect(sx, sy - 1, 1, 1); g.fillRect(sx - 1, sy, 3, 1); g.fillRect(sx, sy + 1, 1, 1);
+  }
+  /* lapis felt */
+  g.fillStyle = C.feltBlueDark;
+  g.beginPath(); g.ellipse(120, 52, 91, 79, 0, 0, Math.PI); g.fill();
+  g.fillRect(29, 48, 182, 6);
   g.fillStyle = C.feltBlue;
-  g.beginPath(); g.ellipse(120, 52, 90, 78, 0, 0, Math.PI); g.fill();
-  g.fillRect(30, 48, 180, 6);
+  g.beginPath(); g.ellipse(120, 52, 89, 77, 0, 0, Math.PI); g.fill();
+  g.fillRect(31, 49, 178, 5);
   /* felt sheen: soft light falling on the centre of the table */
   const sheen = g.createRadialGradient(120, 68, 8, 120, 72, 85);
   sheen.addColorStop(0, 'rgba(120,160,230,0.28)');
   sheen.addColorStop(1, 'rgba(120,160,230,0)');
   g.fillStyle = sheen;
-  g.beginPath(); g.ellipse(120, 52, 90, 78, 0, 0, Math.PI); g.fill();
-  /* wooden rail highlight */
-  g.strokeStyle = C.woodHi; g.lineWidth = 1;
-  g.beginPath(); g.ellipse(120, 52, 100, 88, 0, 0.15, Math.PI - 0.15); g.stroke();
+  g.beginPath(); g.ellipse(120, 52, 89, 77, 0, 0, Math.PI); g.fill();
+  /* stitched felt border */
+  g.fillStyle = 'rgba(210,225,250,0.4)';
+  for (let t = 0.1; t < Math.PI - 0.1; t += 0.075) {
+    if (Math.round(t / 0.075) % 2) continue;
+    const sx = Math.round(120 + 86 * Math.cos(t)), sy = Math.round(52 + 74 * Math.sin(t));
+    g.fillRect(sx, sy, 2, 1);
+  }
+  /* payout arcs */
   g.strokeStyle = C.goldHi; g.lineWidth = 1;
   g.beginPath(); g.ellipse(120, 52, 74, 62, 0, 0.25, Math.PI - 0.25); g.stroke();
   g.strokeStyle = 'rgba(34,63,116,0.8)';
   g.beginPath(); g.ellipse(120, 52, 71, 59, 0, 0.28, Math.PI - 0.28); g.stroke();
+  /* felt watermark */
+  g.font = FONT; g.textBaseline = 'top'; g.textAlign = 'center';
+  g.fillStyle = 'rgba(24,42,84,0.9)';
+  g.fillText('CLUB NILE', 120, 90);
+  g.textAlign = 'left';
+  /* corner scarabs on the pad */
+  g.fillStyle = C.rugGold;
+  [[30, 46], [204, 46]].forEach(([sx, sy]) => {
+    g.fillRect(sx + 2, sy, 2, 1); g.fillRect(sx + 1, sy + 1, 4, 2);
+    g.fillRect(sx, sy + 2, 1, 1); g.fillRect(sx + 5, sy + 2, 1, 1);
+  });
   /* dealer chip tray with bevel */
   g.fillStyle = C.woodDark; g.fillRect(94, 48, 52, 9);
   g.fillStyle = C.woodHi; g.fillRect(94, 48, 52, 1);
@@ -1616,18 +1753,20 @@ const bjRoom = makeCanvas(W, H, g => {
   for (let i = 0; i < 6; i++) {
     g.fillStyle = trayCols[i]; g.fillRect(97 + i*8, 50, 6, 5);
     g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(97 + i*8, 50, 6, 1);
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(97 + i*8, 54, 6, 1);
   }
 });
 const bj = {
   state:'bet', betIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
   timer:0, dealQ:[], menuIdx:0, actIdx:0, result:'', flash:0, busted:false,
-  decideUntil:0
+  decideUntil:0, revealed:false
 };
 function enterBlackjack() {
   scene = 'blackjack';
   bj.state = 'bet'; bj.menuIdx = 0; bj.actIdx = 0; bj.result = '';
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
   modal = null;
+  popups.length = 0;
   lastActMs = Date.now();
   tableConnect('blackjack');
 }
@@ -1641,6 +1780,7 @@ function bjStartHand() {
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.result = ''; bj.busted = false;
   bj.dealQ = ['you','dealer','you','dealer'];
   bj.state = 'dealing'; bj.timer = 0;
+  bj.revealed = false;
   bjJournal();                           // journal the live hand (settled, never refunded)
 }
 function bjMenu(list, idxKey) {
@@ -1671,6 +1811,7 @@ function bjUpdate() {
       aQueued = false;
       return;
     }
+    maybeTableQuip('blackjack');
     bjTrayTap();
     if (BETS[bj.betIdx] > chips) bj.betIdx = 0;
     const pick = bjMenu(['DEAL','EMOJI','TIP'], 'actIdx');
@@ -1693,6 +1834,7 @@ function bjUpdate() {
       else bj.hand.push(bj.deck.pop());
       bjJournal();
       if (!bj.dealQ.length) {
+        dealerSay('Dealer shows ' + CARD_CALLED[bj.dealer[1].r], 300);
         if (handValue(bj.hand) === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
         else { bj.state = 'player'; bj.menuIdx = 0; bj.decideUntil = Date.now() + BJ_DECIDE_MS; }
       }
@@ -1732,9 +1874,26 @@ function bjUpdate() {
   }
   else if (bj.state === 'dealerTurn') {
     aQueued = bQueued = false;
-    if (++bj.timer >= 40) {          // dealer takes their time too
+    /* the dealer announces the hole card the moment it flips */
+    if (!bj.revealed) {
+      bj.revealed = true;
+      if (!bj.busted) {
+        dealerSay('Dealer turns ' + CARD_CALLED[bj.dealer[0].r] + " — that's " + handValue(bj.dealer), 320);
+      } else {
+        dealerSay('Too many, friend. House takes it.', 320);
+      }
+    }
+    if (++bj.timer >= 90) {          // slow, announced draws
       bj.timer = 0;
-      if (!bj.busted && handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
+      if (!bj.busted && handValue(bj.dealer) < 17) {
+        const card = bj.deck.pop();
+        bj.dealer.push(card);
+        const dv = handValue(bj.dealer);
+        const called = CARD_CALLED[card.r];
+        dealerSay(dv > 21
+          ? called.charAt(0).toUpperCase() + called.slice(1) + '... ' + dv + '! Dealer busts!'
+          : 'Dealer draws ' + called + ' — ' + dv, 320);
+      }
       else {
         const dv = handValue(bj.dealer), pv = handValue(bj.hand);
         const natural = pv === 21 && bj.hand.length === 2;
@@ -1749,6 +1908,7 @@ function bjUpdate() {
         else { bj.result = 'DEALER WINS  -' + bj.bet; }
         if (payout) setChips(chips + payout);   // payout mint (≙ claimWinnings)
         journal(null);                          // stake settled — clear the journal
+        if (!bj.busted && dv <= 21) dealerSay('Dealer stands on ' + dv + '.', 340);
         bj.flash = payout > bj.bet ? 40 : 0;
         bj.state = 'result'; bj.actIdx = 0;
         lastActMs = Date.now();
@@ -1757,6 +1917,7 @@ function bjUpdate() {
   }
   else if (bj.state === 'result') {
     if (bj.flash > 0) bj.flash--;
+    maybeTableQuip('blackjack');
     bjTrayTap();
     const pick = bjMenu(['AGAIN','EMOJI','TIP'], 'actIdx');
     if (aQueued) {
@@ -1803,7 +1964,7 @@ function bjRender() {
     ctx.fillStyle = bj.busted ? '#e05a70' : C.gold;
     ctx.fillText(String(v), pos.x - 4, pos.y - 56);
   }
-  const seatPos = tableSeatPos(BJ_SEATS);
+  const seatPos = tableSeatPos(BJ_SEATS, { x: 120, y: 40 });
   drawPopups(seatPos);
   if (modal) { modalDraw(seatPos); drawNetDot(); return; }
   uiPanel();
@@ -1988,6 +2149,7 @@ function enterCraps() {
   cr.rollLand = null; cr.postRoll = null;
   crSoloPhase('betting');
   modal = null;
+  popups.length = 0;
   lastActMs = Date.now();
   tableConnect('craps');
 }
@@ -2056,6 +2218,7 @@ function crSpotAt(pt) {
 function crResolve() {
   const [d1, d2] = cr.dice;
   const sum = d1 + d2, hard = d1 === d2;
+  const prevPoint = cr.point;
   const out = [];
   let winTot = 0, seven = false;
   if (cr.point === 0) {
@@ -2105,6 +2268,8 @@ function crResolve() {
       if (!out.length) out.push(sum + ' · NO ACTION');
     }
   }
+  /* the stickman makes the call */
+  dealerSay(crCall(d1, d2, prevPoint, cr.point), 380);
   cr.flash = winTot > 0 ? 40 : 0;
   cr.outcome = out.slice(0, 2);
   crJournal();
@@ -2116,7 +2281,7 @@ function crResolve() {
     cr.postRoll = null;
     cr.mode = 'board';
   } else {
-    cr.outT = seven || winTot > 0 ? 150 : 100;
+    cr.outT = seven || winTot > 0 ? 260 : 200;   // let the call breathe
     cr.mode = 'outcome';
   }
 }
@@ -2157,6 +2322,7 @@ function crUpdate() {
     return;
   }
   if (cr.flash > 0) cr.flash--;
+  if (!cr.outcome.length) maybeTableQuip('craps');
   /* idle kick: frees the seat so the table never waits on a ghost */
   if (aQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
   else if (Date.now() - lastActMs > IDLE_KICK_MS) {
@@ -2282,7 +2448,7 @@ function crRender() {
   /* seats + your win hop */
   const hop = (cr.flash > 0 && Math.floor(tick / 10) % 2) ? -1 : 0;
   drawTableSeats(CR_SEATS, hop);
-  const seatPos = tableSeatPos(CR_SEATS);
+  const seatPos = tableSeatPos(CR_SEATS, { x: 120, y: 40 });
   /* shooter marker: a little die above whoever holds the dice */
   if (cr.net.active && cr.net.shooter) {
     const sp = seatPos(cr.net.shooter === social.youId ? 'you' : cr.net.shooter);
@@ -2313,7 +2479,7 @@ function crRender() {
     if (cr.removeMode) {
       status = 'TAP A BET TO TAKE IT DOWN';
     } else if (cr.net.active && cr.outcome.length) {
-      status = cr.outcome[Math.floor(tick / 60) % cr.outcome.length];
+      status = cr.outcome[Math.floor(tick / 100) % cr.outcome.length];
     } else if (live.phase === 'betting') {
       status = 'BETS OPEN · TAP THE FELT · ' + secs + 'S';
     } else if (live.phase === 'action') {
@@ -2342,6 +2508,7 @@ function startTransition(midFn) {
 }
 function leaveTable(which) {
   tableDisconnect();
+  popups.length = 0;         // stale table bubbles don't follow you out
   scene = 'floor';
   if (which === 'craps') { player.x = 3.5*TS; player.y = 10.8*TS; }
   else { player.x = 11.5*TS; player.y = 10.8*TS; }
@@ -2442,6 +2609,14 @@ function floorUpdate() {
     p.y += p.v; p.sway += 0.02;
     p.x += Math.sin(p.sway) * 0.1;
     if (p.y > 236) { p.y = 34; p.x = 16 + Math.random() * 208; }
+  }
+  /* ambient 1920s patter around the room */
+  if (tick % 60 === 0 && Math.random() < 0.05 && !dlg.open) {
+    const ids = ['bartender', 'craps', 'blackjack', 'guestF', 'guestM'];
+    const id = ids[Math.floor(Math.random() * ids.length)];
+    if (!popups.some(p => p.target === id && p.kind === 'bubble')) {
+      addPopup(id, 'bubble', randomQuip(id), 330);
+    }
   }
 }
 function drawFlame(g, x, y) {
@@ -2587,8 +2762,15 @@ function floorRender() {
       ctx.fillText('!', Math.round(player.x) - 2, Math.round(player.y) - 28 - bounce);
     }
   }
-  /* popups over your head on the floor (chat bubbles, emoji) */
-  drawPopups(target => target === 'you' ? { x: player.x, y: player.y - 6 } : null);
+  /* popups over heads on the floor: you, the staff, and the regulars */
+  drawPopups(target => {
+    if (target === 'you') return { x: player.x, y: player.y - 6 };
+    const npc = npcs.find(n => n.id === target);
+    if (npc) return { x: npc.x, y: npc.y - 4 };
+    const gu = guests.find(g2 => g2.id === target);
+    if (gu) return { x: gu.x, y: gu.y - 4 };
+    return null;
+  });
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
   vg.addColorStop(1, 'rgba(8,5,14,0.42)');
