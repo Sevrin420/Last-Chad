@@ -518,6 +518,8 @@ for (let c = BAR.c0; c <= BAR.c1; c++) solid.add(key(c, BAR.row));
 for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) solid.add(key(c,r));
 for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
+/* sarcophagus + rope (left wall) and pharaoh statue (right wall) */
+[[1,6],[1,7],[1,8],[1,9],[13,6],[13,7],[13,8]].forEach(([c,r]) => solid.add(key(c,r)));
 solid.add(key(7,2));
 solid.add(key(3,7));
 solid.add(key(11,7));
@@ -1298,28 +1300,142 @@ const bjCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.fillStyle = '#2f7f96'; g.fillRect(w-14, 6, 4, 2);
   g.fillStyle = C.white; g.fillRect(w-14, 4, 4, 2);
 });
-const palmCanvas = makeCanvas(TS, TS + 10, g => {
-  g.fillStyle = C.shadow; g.fillRect(2, 22, 12, 3);
-  /* glazed pot with bevel + gold band */
-  g.fillStyle = C.potDark; g.fillRect(3, 17, 10, 8);
-  g.fillStyle = C.pot; g.fillRect(4, 17, 8, 7);
-  g.fillStyle = C.potHi; g.fillRect(4, 17, 3, 5);
-  g.fillStyle = C.goldHi; g.fillRect(3, 18, 10, 1);
-  g.fillStyle = C.goldDark; g.fillRect(3, 19, 10, 1);
-  g.fillStyle = '#6a4a2c'; g.fillRect(7, 12, 2, 5);
-  g.fillStyle = '#8a6236'; g.fillRect(7, 12, 1, 5);
-  /* layered fronds: dark under, mid, lit tips */
+const palmCanvas = makeCanvas(22, 34, g => {
+  g.fillStyle = C.shadow;
+  g.beginPath(); g.ellipse(11, 31.5, 9, 2.5, 0, 0, Math.PI * 2); g.fill();
+  /* glazed urn: belly, lip, gold bands, painted lotus */
+  g.fillStyle = C.potDark; g.fillRect(5, 23, 12, 9);
+  g.fillStyle = C.pot; g.fillRect(6, 23, 10, 8);
+  g.fillStyle = C.potHi; g.fillRect(6.5, 23.5, 3, 6);
+  g.fillStyle = C.potDark; g.fillRect(4.5, 22, 13, 1.5);      // lip
+  g.fillStyle = C.potHi; g.fillRect(4.5, 22, 13, 0.5);
+  g.fillStyle = C.goldHi; g.fillRect(5, 24.5, 12, 0.5);
+  g.fillStyle = C.goldDark; g.fillRect(5, 25, 12, 1);
+  g.fillStyle = '#2f55a0'; g.fillRect(9.5, 27, 3, 2);          // lapis lotus mark
+  g.fillStyle = '#4272c2'; g.fillRect(10.5, 26.5, 1, 1);
+  g.fillStyle = C.potDark; g.fillRect(6, 30.5, 10, 1.5);      // foot shade
+  /* segmented trunk with lean */
+  g.fillStyle = '#6a4a2c';
+  g.fillRect(10, 17, 3, 6); g.fillRect(10.5, 12, 3, 6);
+  g.fillStyle = '#8a6236';
+  g.fillRect(10, 17, 1.5, 6); g.fillRect(10.5, 12, 1.5, 6);
+  g.fillStyle = 'rgba(40,25,12,0.5)';
+  g.fillRect(10, 19, 3, 0.5); g.fillRect(10.5, 15, 3, 0.5); g.fillRect(10, 21.5, 3, 0.5);
+  /* crown: three layers of arcing fronds + hanging tips + dates */
   g.fillStyle = C.leafDark;
-  g.fillRect(2, 6, 5, 2); g.fillRect(9, 6, 5, 2);
-  g.fillRect(1, 8, 4, 2); g.fillRect(11, 8, 4, 2);
-  g.fillRect(6, 7, 4, 6);
+  g.fillRect(1, 8, 8, 2.5); g.fillRect(13, 8, 8, 2.5);
+  g.fillRect(0, 10.5, 5, 2); g.fillRect(17, 10.5, 5, 2);
+  g.fillRect(1, 12.5, 2, 3); g.fillRect(19, 12.5, 2, 3);       // drooping tips
+  g.fillRect(8, 9, 6, 4);
   g.fillStyle = C.leaf;
-  g.fillRect(6, 3, 4, 3); g.fillRect(4, 5, 8, 2);
-  g.fillRect(3, 7, 4, 1); g.fillRect(9, 7, 4, 1);
-  g.fillRect(6, 6, 4, 5);
+  g.fillRect(7, 3.5, 8, 3); g.fillRect(4, 5.5, 14, 2.5);
+  g.fillRect(2, 7.5, 7, 1.5); g.fillRect(13, 7.5, 7, 1.5);
+  g.fillRect(9, 6, 4, 6);
   g.fillStyle = C.leafHi;
-  g.fillRect(7, 3, 2, 1); g.fillRect(5, 5, 3, 1);
-  g.fillRect(3, 7, 2, 1); g.fillRect(11, 7, 2, 1);
+  g.fillRect(9, 2.5, 4, 1.5); g.fillRect(6, 4.5, 4, 1); g.fillRect(12.5, 4.5, 4, 1);
+  g.fillRect(3, 7, 3, 0.5); g.fillRect(16, 7, 3, 0.5);
+  g.fillRect(10, 6, 1.5, 4);
+  /* date cluster */
+  g.fillStyle = '#d98a3a';
+  g.fillRect(8, 11, 2, 2); g.fillRect(9, 12.5, 2, 2);
+  g.fillStyle = '#f0aa55'; g.fillRect(8.5, 11.5, 1, 1);
+});
+/* decorative sarcophagus behind a rope stanchion (left wall) */
+const sarcCanvas = makeCanvas(28, 58, g => {
+  g.fillStyle = C.shadow;
+  g.beginPath(); g.ellipse(14, 54, 12, 3, 0, 0, Math.PI * 2); g.fill();
+  /* stone plinth */
+  g.fillStyle = '#6e5330'; g.fillRect(5, 45, 18, 8);
+  g.fillStyle = '#8f6e3c'; g.fillRect(5, 45, 18, 2);
+  /* gilded case, rounded head */
+  g.fillStyle = '#a8802f';
+  g.beginPath(); g.moveTo(6, 46); g.lineTo(6, 8);
+  g.quadraticCurveTo(6, 1, 14, 1); g.quadraticCurveTo(22, 1, 22, 8);
+  g.lineTo(22, 46); g.closePath(); g.fill();
+  g.fillStyle = '#e0b04c';
+  g.beginPath(); g.moveTo(7, 45); g.lineTo(7, 8);
+  g.quadraticCurveTo(7, 2, 14, 2); g.quadraticCurveTo(21, 2, 21, 8);
+  g.lineTo(21, 45); g.closePath(); g.fill();
+  g.fillStyle = '#f2cf6e'; g.fillRect(7.5, 4, 2, 40);           // left sheen
+  /* lapis nemes hood + gold stripes */
+  g.fillStyle = '#2f55a0'; g.fillRect(7.5, 3.5, 13, 12);
+  g.fillStyle = '#f2cf6e';
+  for (let y = 4.5; y < 15; y += 3) g.fillRect(7.5, y, 13, 1);
+  /* golden face */
+  g.fillStyle = '#e8c06a'; g.fillRect(10.5, 6, 7, 8);
+  g.fillStyle = '#c79a45'; g.fillRect(15.5, 6, 2, 8);
+  g.fillStyle = '#1a1216';
+  g.fillRect(11.5, 8.5, 1.5, 1); g.fillRect(15, 8.5, 1.5, 1);   // kohl eyes
+  g.fillRect(13.5, 14, 1, 2);                                   // false beard
+  /* crossed arms with crook + flail */
+  g.fillStyle = '#8a6529';
+  g.fillRect(9, 18, 10, 2); g.fillRect(9, 21, 10, 2);
+  g.fillStyle = '#2f55a0'; g.fillRect(8.5, 17.5, 2, 6.5); g.fillRect(17.5, 17.5, 2, 6.5);
+  /* body bands: lapis + gold chevrons */
+  for (let y = 27; y < 43; y += 4) {
+    g.fillStyle = '#2f55a0'; g.fillRect(8.5, y, 11, 1.5);
+    g.fillStyle = '#c79a45'; g.fillRect(8.5, y + 1.5, 11, 0.5);
+  }
+  /* rope stanchion in front */
+  const post = (px) => {
+    g.fillStyle = '#3a2a1a'; g.fillRect(px, 52, 4, 2);
+    g.fillStyle = '#6e5330'; g.fillRect(px + 1.5, 42, 1.5, 10);
+    g.fillStyle = C.gold;
+    g.beginPath(); g.arc(px + 2, 41.5, 2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = C.goldHi;
+    g.beginPath(); g.arc(px + 1.4, 40.9, 0.8, 0, Math.PI * 2); g.fill();
+  };
+  post(0); post(24);
+  g.strokeStyle = '#b02642'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(2, 43); g.quadraticCurveTo(14, 50, 26, 43); g.stroke();
+  g.strokeStyle = 'rgba(255,150,140,0.5)'; g.lineWidth = 0.5;
+  g.beginPath(); g.moveTo(2, 42.6); g.quadraticCurveTo(14, 49.5, 26, 42.6); g.stroke();
+});
+/* gold and lapis pharaoh statue (right wall) */
+const pharaohCanvas = makeCanvas(24, 58, g => {
+  g.fillStyle = C.shadow;
+  g.beginPath(); g.ellipse(12, 54, 10, 3, 0, 0, Math.PI * 2); g.fill();
+  /* two-step pedestal with cartouche */
+  g.fillStyle = '#6e5330'; g.fillRect(2, 50, 20, 6);
+  g.fillStyle = '#8f6e3c'; g.fillRect(2, 50, 20, 1.5);
+  g.fillStyle = '#7d5f33'; g.fillRect(4, 45, 16, 5);
+  g.fillStyle = '#9d7c46'; g.fillRect(4, 45, 16, 1);
+  g.fillStyle = C.goldDark; g.fillRect(9, 51.5, 6, 3);
+  g.fillStyle = C.gold; g.fillRect(10, 52, 4, 2);
+  /* legs + kilt with pleats */
+  g.fillStyle = '#c79a45'; g.fillRect(8, 37, 3, 8); g.fillRect(13, 37, 3, 8);
+  g.fillStyle = '#e8c06a'; g.fillRect(8, 37, 1.5, 8); g.fillRect(13, 37, 1.5, 8);
+  g.fillStyle = '#f5ead0'; g.fillRect(7, 30, 10, 8);
+  g.fillStyle = '#d9c9a0';
+  for (let x = 8; x < 17; x += 2) g.fillRect(x, 30, 0.5, 8);
+  g.fillStyle = C.goldDark; g.fillRect(7, 30, 10, 1.5);         // belt
+  /* torso with usekh collar */
+  g.fillStyle = '#e8c06a'; g.fillRect(7, 20, 10, 10);
+  g.fillStyle = '#c79a45'; g.fillRect(14.5, 20, 2.5, 10);
+  g.fillStyle = '#2f55a0'; g.fillRect(7, 20, 10, 3);
+  g.fillStyle = '#4272c2'; g.fillRect(7, 20, 10, 1);
+  g.fillStyle = C.gold; g.fillRect(7, 23, 10, 0.5);
+  /* crossed arms: crook and flail */
+  g.fillStyle = '#e8c06a'; g.fillRect(6.5, 24, 11, 2.5);
+  g.fillStyle = C.goldDark;
+  g.fillRect(8, 18, 1.5, 9);                                    // crook staff
+  g.fillRect(6.5, 17, 3, 1.5);
+  g.fillRect(14.5, 18, 1.5, 6);                                 // flail handle
+  g.fillStyle = '#2f55a0';
+  g.fillRect(13.5, 24, 1, 3); g.fillRect(15, 24, 1, 3); g.fillRect(16.5, 24, 1, 3);
+  /* head: lapis nemes with gold stripes, drapes, uraeus */
+  g.fillStyle = '#2f55a0'; g.fillRect(6, 6, 12, 10);
+  g.fillStyle = '#4272c2'; g.fillRect(6, 6, 12, 1.5);
+  g.fillStyle = C.gold;
+  g.fillRect(6, 8.5, 12, 1); g.fillRect(6, 11, 12, 1); g.fillRect(6, 13.5, 12, 1);
+  g.fillStyle = '#2f55a0'; g.fillRect(5, 12, 2.5, 8); g.fillRect(16.5, 12, 2.5, 8);
+  g.fillStyle = C.gold; g.fillRect(5, 14, 2.5, 1); g.fillRect(16.5, 14, 2.5, 1);
+  g.fillStyle = '#e8c06a'; g.fillRect(9, 9.5, 6, 7);            // face
+  g.fillStyle = '#c79a45'; g.fillRect(13.5, 9.5, 1.5, 7);
+  g.fillStyle = '#1a1216';
+  g.fillRect(10, 12, 1.5, 1); g.fillRect(13, 12, 1.5, 1);
+  g.fillStyle = C.goldHi; g.fillRect(11.5, 5, 1, 2);            // uraeus
+  g.fillStyle = '#1a1216'; g.fillRect(11.5, 16.5, 1, 2.5);      // royal beard
 });
 function spriteFor(ent) {
   const set = SPRITES[ent.sprite || 'player'];
@@ -1357,18 +1473,6 @@ const SUITS = [
   { pix:['.###.','#####','#####','..#..','.###.'], col:'#221c26' }
 ];
 const RANK_STR = ['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-/* classic pip layouts for the number cards */
-const PIPS = {
-  2:[[10,9],[10,19]],
-  3:[[10,7],[10,14],[10,21]],
-  4:[[7,9],[13,9],[7,19],[13,19]],
-  5:[[7,9],[13,9],[10,14],[7,19],[13,19]],
-  6:[[7,8],[13,8],[7,14],[13,14],[7,20],[13,20]],
-  7:[[7,8],[13,8],[10,11],[7,14],[13,14],[7,20],[13,20]],
-  8:[[7,8],[13,8],[10,11],[7,14],[13,14],[10,17],[7,20],[13,20]],
-  9:[[7,7],[13,7],[7,12],[13,12],[7,17],[13,17],[7,22],[13,22],[10,9]],
-  10:[[7,7],[13,7],[7,12],[13,12],[7,17],[13,17],[7,22],[13,22],[10,9],[10,20]]
-};
 function drawSuitPix(g, suit, x, y, s) {
   const m = SUITS[suit];
   g.fillStyle = m.col;
@@ -1389,37 +1493,22 @@ function cardFace(rank, suit) {
   const k = rank + '-' + suit;
   if (cardCache[k]) return cardCache[k];
   const c = makeCanvas(CARD_W, CARD_H, g => {
+    /* clean reading layout: one big rank, suit beneath it — that's all */
     cardBody(g);
     const s = SUITS[suit];
-    g.font = FONT; g.textBaseline = 'top';
+    g.textAlign = 'center'; g.textBaseline = 'top';
     g.fillStyle = s.col;
-    if (rank === 10) { g.fillText('1', 1, 2); g.fillText('0', 8, 2); }
-    else g.fillText(RANK_STR[rank], 2, 2);
-    drawSuitPix(g, suit, 2.5, 11, 0.7);          // small pip under the index
-    if (rank === 1) {
-      drawSuitPix(g, suit, 5.5, 11, 1.8);        // big ace pip
-    } else if (rank <= 10) {
-      for (const [px, py] of PIPS[rank]) drawSuitPix(g, suit, px - 1.5, py - 1.5, 0.6);
+    if (rank === 10) {
+      g.font = FONT;
+      g.fillText('1', 5.5, 6);
+      g.fillText('0', 12.5, 6);
     } else {
-      /* face card: gilt frame, royal letter, tiny regalia */
-      g.strokeStyle = '#c9a13b'; g.lineWidth = 1;
-      g.strokeRect(5.5, 8.5, 10, 15);
-      g.fillStyle = 'rgba(201,161,59,0.18)';
-      g.fillRect(6, 9, 9, 14);
-      g.fillStyle = C.gold;
-      if (rank === 13) {                          // crown
-        g.fillRect(7.5, 10, 1, 2); g.fillRect(10, 9.5, 1, 2.5); g.fillRect(12.5, 10, 1, 2); g.fillRect(7.5, 12, 6, 1);
-      } else if (rank === 12) {                   // tiara
-        g.fillRect(8, 10.5, 1, 1.5); g.fillRect(10, 10, 1, 2); g.fillRect(12, 10.5, 1, 1.5); g.fillRect(8, 12, 5, 1);
-      } else {                                    // jack's plume
-        g.fillRect(9.5, 9.5, 1, 3); g.fillRect(10.5, 10.5, 1.5, 1);
-      }
-      g.textAlign = 'center';
-      g.fillStyle = s.col;
-      g.fillText(RANK_STR[rank], 10.5, 14);
-      g.textAlign = 'left';
-      drawSuitPix(g, suit, 9, 19.5, 0.6);
+      g.font = '16px "Press Start 2P", monospace';
+      g.fillText(RANK_STR[rank], 10, 3);
     }
+    g.font = FONT;
+    g.textAlign = 'left';
+    drawSuitPix(g, suit, 6.5, 20, 1.4);
   });
   cardCache[k] = c;
   return c;
@@ -1946,11 +2035,11 @@ function tableSeatPos(SEATS, dealerPos) {
 function drawNetDot() {
   const on = social.table && social.table.status === 'on';
   ctx.fillStyle = on ? '#4fae64' : '#a34848';
-  ctx.fillRect(68, 34, 4, 4);
+  ctx.fillRect(68, 6, 4, 4);
 }
 /* the table clock lives in its own little box, top-right of the screen */
 function drawTimerBox(label, secs, urgent) {
-  const x = 196, y = 28, w = 40, h = 28;
+  const x = 196, y = 2, w = 40, h = 28;
   const grad = ctx.createLinearGradient(0, y, 0, y + h);
   grad.addColorStop(0, 'rgba(30,22,48,0.9)');
   grad.addColorStop(1, 'rgba(14,10,24,0.9)');
@@ -2230,8 +2319,8 @@ function drawHand(g, hand, x, y, hideFirst) {
   for (let i = 0; i < hand.length; i++) {
     const img = (hideFirst && i === 0) ? cardBack : cardFace(hand[i].r, hand[i].s);
     g.fillStyle = 'rgba(10,10,20,0.25)';
-    g.fillRect(x + i * 8 + 1, y + 2, CARD_W - 1, CARD_H - 1);
-    g.drawImage(img, x + i * 8, y, CARD_W, CARD_H);
+    g.fillRect(x + i * 16 + 1, y + 2, CARD_W - 1, CARD_H - 1);
+    g.drawImage(img, x + i * 16, y, CARD_W, CARD_H);
   }
 }
 function drawMenuRow(items, selIdx, y) {
@@ -2248,7 +2337,7 @@ function bjRender() {
   ctx.drawImage(bjRoom, 0, 0, W, H);
   drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
   drawEntity(ctx, { sprite:'bjDealer', dir:'down', frame:0, x:120, y:42, staticNPC:true }, tick);
-  drawHand(ctx, bj.dealer, 120 - Math.max(1, bj.dealer.length) * 8 / 2 - 6, 58, bj.hole);
+  drawHand(ctx, bj.dealer, 120 - ((Math.max(1, bj.dealer.length) - 1) * 16 + CARD_W) / 2, 58, bj.hole);
   if (!bj.hole && bj.dealer.length) {
     ctx.font = FONT; ctx.fillStyle = C.white; ctx.textBaseline = 'top';
     ctx.fillText(String(handValue(bj.dealer)), 154, 66);
@@ -2257,8 +2346,8 @@ function bjRender() {
   /* your cards in front of your seat */
   if (bj.hand.length) {
     const pos = BJ_SEATS[social.seat];
-    const hx = pos.x - 10 - (bj.hand.length - 1) * 4;
-    drawHand(ctx, bj.hand, Math.max(2, Math.min(W - 32, hx)), pos.y - 52);
+    const hx = pos.x - 10 - (bj.hand.length - 1) * 8;
+    drawHand(ctx, bj.hand, Math.max(2, Math.min(W - 24 - (bj.hand.length - 1) * 16, hx)), pos.y - 52);
     ctx.font = FONT; ctx.textBaseline = 'top';
     const v = handValue(bj.hand);
     ctx.fillStyle = bj.busted ? '#e05a70' : C.gold;
@@ -2948,25 +3037,25 @@ function drawFlame(g, x, y) {
   g.fillRect(x+3, y+4, 1, 1);
 }
 function drawHUD(g) {
-  const grad = g.createLinearGradient(0, 30, 0, 42);
+  const grad = g.createLinearGradient(0, 2, 0, 14);
   grad.addColorStop(0, 'rgba(30,22,48,0.85)');
   grad.addColorStop(1, 'rgba(14,10,24,0.85)');
   g.fillStyle = grad;
-  g.fillRect(3, 30, 62, 12);
+  g.fillRect(3, 2, 62, 12);
   g.strokeStyle = C.goldDark; g.lineWidth = 1;
-  g.strokeRect(3.5, 30.5, 61, 11);
-  g.fillStyle = C.goldHi; g.fillRect(4, 31, 60, 1);
+  g.strokeRect(3.5, 2.5, 61, 11);
+  g.fillStyle = C.goldHi; g.fillRect(4, 3, 60, 1);
   /* chip with rim shading */
   g.fillStyle = C.goldDark;
-  g.beginPath(); g.arc(10, 36, 3.5, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(10, 8, 3.5, 0, Math.PI * 2); g.fill();
   g.fillStyle = C.gold;
-  g.beginPath(); g.arc(10, 36, 3, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(10, 8, 3, 0, Math.PI * 2); g.fill();
   g.fillStyle = C.goldHi;
-  g.beginPath(); g.arc(9, 35, 1.4, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(9, 7, 1.4, 0, Math.PI * 2); g.fill();
   g.font = FONT;
   g.fillStyle = C.gold;
   g.textBaseline = 'middle';
-  g.fillText(String(chips), 17, 37);
+  g.fillText(String(chips), 17, 9);
   g.textBaseline = 'top';
 }
 function drawDialog(g) {
@@ -3049,7 +3138,9 @@ function floorRender() {
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6, barCanvas.lw, barCanvas.lh) });
   items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS, crapsCanvas.lw, crapsCanvas.lh) });
   items.push({ y: (BJ_T.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ_T.c0*TS, BJ_T.r0*TS, bjCanvas.lw, bjCanvas.lh) });
-  PALMS.forEach(([c, r]) => items.push({ y: (r+1)*TS, draw: g => g.drawImage(palmCanvas, c*TS, r*TS - 9, palmCanvas.lw, palmCanvas.lh) }));
+  PALMS.forEach(([c, r]) => items.push({ y: (r+1)*TS, draw: g => g.drawImage(palmCanvas, c*TS - 3, r*TS - 17, palmCanvas.lw, palmCanvas.lh) }));
+  items.push({ y: 152, draw: g => g.drawImage(sarcCanvas, 9, 94, sarcCanvas.lw, sarcCanvas.lh) });
+  items.push({ y: 148, draw: g => g.drawImage(pharaohCanvas, 202, 90, pharaohCanvas.lw, pharaohCanvas.lh) });
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
