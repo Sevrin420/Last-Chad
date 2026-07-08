@@ -519,7 +519,7 @@ for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRA
 for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
 /* sarcophagus + rope (left wall) and pharaoh statue (right wall) */
-[[1,6],[1,7],[1,8],[1,9],[13,6],[13,7],[13,8]].forEach(([c,r]) => solid.add(key(c,r)));
+[[1,6],[1,7],[1,8],[1,9],[13,6],[13,7],[13,8],[13,9]].forEach(([c,r]) => solid.add(key(c,r)));
 solid.add(key(7,2));
 solid.add(key(3,7));
 solid.add(key(11,7));
@@ -2147,7 +2147,7 @@ const bjRoom = makeCanvas(W, H, g => {
   }
 });
 const bj = {
-  state:'bet', betIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
+  state:'bet', betAmt:5, trayIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
   timer:0, dealQ:[], menuIdx:0, actIdx:0, result:'', flash:0, busted:false,
   decideUntil:0, revealed:false
 };
@@ -2164,7 +2164,7 @@ function bjJournal() {
   journal({ g:'bj', bet:bj.bet, deck:bj.deck, hand:bj.hand, dealer:bj.dealer });
 }
 function bjStartHand() {
-  bj.bet = BETS[bj.betIdx];
+  bj.bet = bj.betAmt;
   setChips(chips - bj.bet);              // buy-in (≙ commitWager)
   bj.deck = newDeck();
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.result = ''; bj.busted = false;
@@ -2180,10 +2180,11 @@ function bjMenu(list, idxKey) {
   return list[bj[idxKey]];
 }
 function bjTrayTap() {
-  const hit = trayHit(tapNow, false);
+  const hit = trayHit(tapNow, true);
   if (hit < 0) return;
-  if (TRAY[hit] > chips) flash('NOT ENOUGH CHIPS');
-  else bj.betIdx = hit;
+  if (hit === TRAY.length) { bj.betAmt = 0; return; }          // X takes it down
+  if (bj.betAmt + TRAY[hit] > chips) flash('NOT ENOUGH CHIPS');
+  else { bj.betAmt += TRAY[hit]; bj.trayIdx = hit; }
 }
 function bjUpdate() {
   if (modalUpdate()) { lastActMs = Date.now(); return; }
@@ -2203,12 +2204,13 @@ function bjUpdate() {
     }
     maybeTableQuip('blackjack');
     bjTrayTap();
-    if (BETS[bj.betIdx] > chips) bj.betIdx = 0;
+    if (bj.betAmt > chips) bj.betAmt = chips;
     const pick = bjMenu(['DEAL','EMOJI','TIP'], 'actIdx');
     if (aQueued) {
       aQueued = false;
       if (pick === 'DEAL') {
-        if (BETS[bj.betIdx] > chips) flash('NOT ENOUGH CHIPS');
+        if (bj.betAmt < 1) flash('TAP CHIPS TO BET');
+        else if (bj.betAmt > chips) flash('NOT ENOUGH CHIPS');
         else bjStartHand();
       }
       else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
@@ -2312,7 +2314,10 @@ function bjUpdate() {
     const pick = bjMenu(['AGAIN','EMOJI','TIP'], 'actIdx');
     if (aQueued) {
       aQueued = false;
-      if (pick === 'AGAIN') bj.state = 'bet';
+      if (pick === 'AGAIN') {
+        if (bj.betAmt >= 1 && bj.betAmt <= chips) bjStartHand();
+        else bj.state = 'bet';
+      }
       else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
       else openTipModal();
     }
@@ -2367,9 +2372,9 @@ function bjRender() {
       uiText('OUT OF CHIPS', C.white, STATUS_Y);
       uiText('B: LEAVE TABLE', C.gold, 214);
     } else {
-      uiText('BET ' + BETS[bj.betIdx] + ' · TAP A CHIP', C.white, STATUS_Y);
+      uiText(bj.betAmt > 0 ? 'BET ' + bj.betAmt : 'TAP CHIPS TO BET', C.white, STATUS_Y);
       drawCarousel(['DEAL','EMOJI','TIP'], bj.actIdx, CARO_Y);
-      drawTray(bj.betIdx, false, false);
+      drawTray(bj.trayIdx, true, false);
     }
   } else if (bj.state === 'player') {
     const canDouble = bj.hand.length === 2 && chips >= bj.bet;
@@ -2379,9 +2384,9 @@ function bjRender() {
     drawTimerBox('PLAY', left, left <= 5);
   } else if (bj.state === 'result') {
     const win = bj.flash > 0 && Math.floor(tick / 6) % 2;
-    uiText(bj.result, win ? C.gold : C.white, STATUS_Y);
+    uiText(bj.result + '  ·  NEXT BET ' + bj.betAmt, win ? C.gold : C.white, STATUS_Y);
     drawCarousel(['AGAIN','EMOJI','TIP'], bj.actIdx, CARO_Y);
-    drawTray(bj.betIdx, false, false);
+    drawTray(bj.trayIdx, true, false);
   } else {
     uiText(bj.state === 'dealing' ? 'DEALING...' : 'DEALER PLAYS...', C.dim, 196);
     uiText('BET ' + bj.bet, C.white, 218);
@@ -2401,9 +2406,9 @@ const HARD_PAY = { 4:7, 6:9, 8:9, 10:7 };
 const UNITS = TRAY;
 const placeBox = i => ({ x: 38 + i*28, y: 52, w: 22, h: 20 });
 const hardBox = i => ({ x: 142 + (i % 2) * 30, y: 96 + Math.floor(i / 2) * 22, w: 26, h: 18 });
-const fieldBox = { x: 86, y: 92, w: 48, h: 46 };
+const fieldBox = { x: 56, y: 92, w: 78, h: 46 };
 const passBox = { x: 34, y: 150, w: 172, h: 18 };
-const DICE_POS = [ { x: 38, y: 96 }, { x: 58, y: 112 } ];
+const DICE_POS = [ { x: 36, y: 90 }, { x: 36, y: 110 } ];
 const CR_MENU = ['ROLL','EMOJI','TIP','LEAVE'];
 
 const crRoom = makeCanvas(W, H, g => {
@@ -2515,15 +2520,18 @@ const crRoom = makeCanvas(W, H, g => {
   g.strokeStyle = 'rgba(16,44,30,0.7)';
   g.strokeRect(fieldBox.x + 1.5, fieldBox.y + 1.5, fieldBox.w - 2, fieldBox.h - 2);
   g.textAlign = 'center';
+  const fcx = fieldBox.x + fieldBox.w / 2;
   g.fillStyle = 'rgba(10,26,18,0.8)';
-  g.fillText('FIELD', fieldBox.x + 25, fieldBox.y + 5);
+  g.fillText('FIELD', fcx + 1, fieldBox.y + 5);
   g.fillStyle = '#f4e6c0';
-  g.fillText('FIELD', fieldBox.x + 24, fieldBox.y + 4);
+  g.fillText('FIELD', fcx, fieldBox.y + 4);
+  g.font = '6px "Press Start 2P", monospace';
   g.fillStyle = '#cfe4ff';
-  g.fillText('2 3 4', fieldBox.x + 24, fieldBox.y + 15);
-  g.fillText('9 10 11', fieldBox.x + 24, fieldBox.y + 24);
+  g.fillText('2 3 4', fcx, fieldBox.y + 16);
+  g.fillText('9 10 11', fcx, fieldBox.y + 25);
   g.fillStyle = '#ffb3a3';
-  g.fillText('12', fieldBox.x + 24, fieldBox.y + 33);
+  g.fillText('12', fcx, fieldBox.y + 34);
+  g.font = FONT;
   g.textAlign = 'left';
   /* pass line: red accent stripe + shadowed lettering */
   g.fillStyle = '#a34848';
@@ -2867,7 +2875,7 @@ function crRender() {
   if (cr.bets.field > 0) {
     ctx.textAlign = 'center';
     ctx.fillStyle = C.gold;
-    ctx.fillText(String(cr.bets.field), fieldBox.x + 24, fieldBox.y + fieldBox.h - 4);
+    ctx.fillText(String(cr.bets.field), fieldBox.x + fieldBox.w / 2, fieldBox.y + fieldBox.h - 4);
     ctx.textAlign = 'left';
   }
   if (cr.bets.pass) {
@@ -2903,7 +2911,7 @@ function crRender() {
   if (cr.mode !== 'rolling') {
     ctx.textAlign = 'center';
     ctx.fillStyle = C.white;
-    ctx.fillText(String(cr.dice[0] + cr.dice[1]), 49, 132);
+    ctx.fillText(String(cr.dice[0] + cr.dice[1]), 43, 127);
     ctx.textAlign = 'left';
   }
   /* seats + your win hop */
