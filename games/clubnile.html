@@ -389,17 +389,65 @@ function setChips(v) {
   chips = Math.max(0, v);
   localStorage.setItem('clubnile_chips', String(chips));
 }
-/* stake failsafe: chips at risk are journaled; if the tab dies mid-hand
-   (crash, abrupt quit, phone lock) the stake is refunded on next boot */
-function setPending(v) {
-  if (v > 0) localStorage.setItem('clubnile_pending', String(v));
-  else localStorage.removeItem('clubnile_pending');
+/* ── stake journal (anti-scum failsafe) ──────────────────────────────
+   Every hand in flight is journaled with enough state to SETTLE it, not
+   refund it — quitting, reloading or crashing mid-hand can never dodge
+   a loss:
+   · blackjack: you stand on the cards you had; the dealer plays out
+   · craps: place/hardways come down (as allowed at a real table), but a
+     pass bet with the point ON is a contract bet and rides to resolution */
+function journal(obj) {
+  if (obj) localStorage.setItem('clubnile_pending2', JSON.stringify(obj));
+  else localStorage.removeItem('clubnile_pending2');
 }
-const orphanStake = parseInt(localStorage.getItem('clubnile_pending') || '0', 10);
-if (orphanStake > 0) {
-  setChips(chips + orphanStake);
-  setPending(0);
+function simulatePassBet(point) {
+  for (;;) {
+    const sum = (1 + Math.floor(Math.random() * 6)) + (1 + Math.floor(Math.random() * 6));
+    if (sum === point) return true;
+    if (sum === 7) return false;
+  }
 }
+const bootNotes = [];
+(function settleOrphan() {
+  /* legacy numeric journal (pre-settlement builds): plain refund once */
+  const legacy = parseInt(localStorage.getItem('clubnile_pending') || '0', 10);
+  if (legacy > 0) { setChips(chips + legacy); bootNotes.push('Interrupted game — ' + legacy + ' chips returned'); }
+  localStorage.removeItem('clubnile_pending');
+  let j = null;
+  try { j = JSON.parse(localStorage.getItem('clubnile_pending2') || 'null'); } catch (e) {}
+  localStorage.removeItem('clubnile_pending2');
+  if (!j) return;
+  if (j.g === 'bj') {
+    const bet = Math.max(0, Math.floor(j.bet || 0));
+    if (!bet) return;
+    const deck = (Array.isArray(j.deck) && j.deck.length >= 10) ? j.deck : newDeck();
+    const hand = Array.isArray(j.hand) ? j.hand : [];
+    const dealer = Array.isArray(j.dealer) ? j.dealer : [];
+    while (hand.length < 2) hand.push(deck.pop());
+    while (dealer.length < 2) dealer.push(deck.pop());
+    while (handValue(dealer) < 17) dealer.push(deck.pop());
+    const pv = handValue(hand), dv = handValue(dealer);
+    let payout = 0, msg;
+    if (pv > 21) msg = 'bust, -' + bet;
+    else if (dv > 21 || pv > dv) { payout = bet * 2; msg = 'you won! +' + bet; }
+    else if (pv === dv) { payout = bet; msg = 'push'; }
+    else msg = 'dealer ' + dv + ' beats ' + pv + ', -' + bet;
+    if (payout) setChips(chips + payout);
+    bootNotes.push('Interrupted blackjack hand settled: ' + msg);
+  } else if (j.g === 'cr') {
+    const bets = j.bets || {};
+    const point = Math.floor(j.point || 0);
+    let refund = 0;
+    for (const k in bets) if (k !== 'pass') refund += Math.max(0, Math.floor(bets[k] || 0));
+    const pass = Math.max(0, Math.floor(bets.pass || 0));
+    if (!point) refund += pass;
+    if (refund > 0) { setChips(chips + refund); bootNotes.push('Craps bets taken down: ' + refund + ' chips returned'); }
+    if (point && pass > 0) {
+      if (simulatePassBet(point)) { setChips(chips + pass * 2); bootNotes.push('Your pass bet rode on: point ' + point + ' hit! +' + pass); }
+      else bootNotes.push('Your pass bet rode on: seven out, -' + pass);
+    }
+  }
+})();
 
 /* ============================ identity ============================ */
 function sanitizeName(n) { return String(n || '').replace(/[^\w\-#]/g, '').slice(0, 12); }
@@ -609,9 +657,7 @@ EMOJIS.forEach(e => {
   b.addEventListener('click', () => sendEmoji(e));
   emojiRow.appendChild(b);
 });
-if (orphanStake > 0) {
-  pushChat('', 'Interrupted game — ' + orphanStake + ' chips returned', true);
-}
+bootNotes.forEach(n => pushChat('', n, true));
 
 /* ============================ dialogue data ============================ */
 const NPC_TALK = {
@@ -1254,14 +1300,17 @@ function enterBlackjack() {
   lastActMs = Date.now();
   tableConnect('blackjack');
 }
+function bjJournal() {
+  journal({ g:'bj', bet:bj.bet, deck:bj.deck, hand:bj.hand, dealer:bj.dealer });
+}
 function bjStartHand() {
   bj.bet = BETS[bj.betIdx];
   setChips(chips - bj.bet);              // buy-in (≙ commitWager)
-  setPending(bj.bet);                    // journal the stake (crash refund)
   bj.deck = newDeck();
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.result = ''; bj.busted = false;
   bj.dealQ = ['you','dealer','you','dealer'];
   bj.state = 'dealing'; bj.timer = 0;
+  bjJournal();                           // journal the live hand (settled, never refunded)
 }
 function bjMenu(list, idxKey) {
   if (tapLeft)  bj[idxKey] = (bj[idxKey] + list.length - 1) % list.length;
@@ -1303,6 +1352,7 @@ function bjUpdate() {
       const next = bj.dealQ.shift();
       if (next === 'dealer') bj.dealer.push(bj.deck.pop());
       else bj.hand.push(bj.deck.pop());
+      bjJournal();
       if (!bj.dealQ.length) {
         if (handValue(bj.hand) === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
         else { bj.state = 'player'; bj.menuIdx = 0; bj.decideUntil = Date.now() + BJ_DECIDE_MS; }
@@ -1325,6 +1375,7 @@ function bjUpdate() {
       if (pick === 'HIT') {
         bj.hand.push(bj.deck.pop());
         bj.decideUntil = Date.now() + BJ_DECIDE_MS;
+        bjJournal();
         const v = handValue(bj.hand);
         if (v > 21) { bj.busted = true; bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
         else if (v === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
@@ -1332,8 +1383,8 @@ function bjUpdate() {
         bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
       } else if (pick === 'DOUBLE') {
         setChips(chips - bj.bet); bj.bet *= 2;
-        setPending(bj.bet);
         bj.hand.push(bj.deck.pop());
+        bjJournal();
         if (handValue(bj.hand) > 21) bj.busted = true;
         bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
       }
@@ -1358,7 +1409,7 @@ function bjUpdate() {
         else if (pv === dv) { payout = bj.bet; bj.result = 'PUSH'; }
         else { bj.result = 'DEALER WINS  -' + bj.bet; }
         if (payout) setChips(chips + payout);   // payout mint (≙ claimWinnings)
-        setPending(0);                          // stake settled — clear the journal
+        journal(null);                          // stake settled — clear the journal
         bj.flash = payout > bj.bet ? 40 : 0;
         bj.state = 'result'; bj.actIdx = 0;
         lastActMs = Date.now();
@@ -1514,29 +1565,50 @@ function enterCraps() {
   lastActMs = Date.now();
   tableConnect('craps');
 }
-/* sync to the live table clock (fresh join or reconnect): any local
-   bets are returned so chips can never be stranded across states */
+function crJournal() {
+  journal(crTotalBets() > 0 ? { g:'cr', bets:cr.bets, point:cr.point } : null);
+}
+/* Cash out of the current craps position by the book: place/hardways
+   (and a come-out pass bet) come down freely; a pass bet with the point
+   ON is a contract bet — it rides to resolution, win or lose. Standing
+   up, idling out or getting resynced can never dodge a bad point. */
+function crCashOut(reason) {
+  let refund = 0;
+  for (const k in cr.bets) if (k !== 'pass') refund += cr.bets[k];
+  if (cr.point === 0) refund += cr.bets.pass;
+  const pass = cr.point !== 0 ? cr.bets.pass : 0;
+  const point = cr.point;
+  cr.bets = crBetKeys();
+  if (refund > 0) setChips(chips + refund);
+  if (pass > 0) {
+    if (simulatePassBet(point)) {
+      setChips(chips + pass * 2);
+      pushChat('', reason + ' — pass bet rode on: point ' + point + ' hit! +' + pass, true);
+    } else {
+      pushChat('', reason + ' — pass bet rode on: seven out, -' + pass, true);
+    }
+  }
+  crJournal();
+}
+/* sync to the live table clock (fresh join or reconnect) */
 function crAdoptNet(g) {
-  const refund = crTotalBets();
-  if (refund > 0) {
-    setChips(chips + refund);
-    cr.bets = crBetKeys();
-    setPending(0);
-    flash('TABLE SYNC · BETS RETURNED');
+  if (crTotalBets() > 0) {
+    crCashOut('Table resync');
+    flash('TABLE SYNC · BETS SETTLED');
   }
   cr.point = g.point || 0;
   cr.outcome = [];
   cr.mode = 'board';
   cr.net = { active: g.phase !== 'idle', phase: g.phase, until: Date.now() + (g.ms || 0), shooter: g.shooter };
 }
-/* connection lost mid-game: refund stakes, continue solo — play never stops */
+/* connection lost mid-game: KEEP the point and every bet and continue
+   solo — nothing refunds, so pulling the plug can't dodge a hand */
 function crGoSolo() {
-  const refund = crTotalBets();
-  if (refund > 0) { setChips(chips + refund); cr.bets = crBetKeys(); setPending(0); }
   cr.net = { active:false, phase:'', until:0, shooter:null };
-  cr.point = 0; cr.outcome = []; cr.postRoll = null; cr.rollLand = null;
+  cr.postRoll = null; cr.rollLand = null;
+  cr.outcome = [];
   if (cr.mode !== 'rolling') cr.mode = 'board';
-  flash('CONNECTION LOST · BETS RETURNED');
+  flash('CONNECTION LOST · PLAY ON SOLO');
 }
 function crShooterName() {
   if (cr.net.shooter === social.youId) return 'YOU';
@@ -1610,7 +1682,7 @@ function crResolve() {
   }
   cr.flash = winTot > 0 ? 40 : 0;
   cr.outcome = out.slice(0, 2);
-  setPending(crTotalBets());
+  crJournal();
   if (cr.postRoll) {
     /* shared roll: server state is authoritative; board stays open and
        the outcome text clears when the next betting phase arrives */
@@ -1649,10 +1721,8 @@ function crUpdate() {
   /* idle kick: frees the seat so the table never waits on a ghost */
   if (aQueued || bQueued || tapUp || tapDown || tapLeft || tapRight) lastActMs = Date.now();
   else if (Date.now() - lastActMs > IDLE_KICK_MS) {
-    setChips(chips + crTotalBets());
-    cr.bets = crBetKeys();
-    setPending(0);
-    pushChat('', 'Idle at craps — seat freed, bets returned', true);
+    crCashOut('Idle at craps');
+    pushChat('', 'Idle at craps — seat freed', true);
     startTransition(() => leaveTable('craps'));
     return;
   }
@@ -1672,7 +1742,7 @@ function crUpdate() {
       if (!canBet) flash('DICE ARE OUT · BETS CLOSED');
       else if (spot === 'pass' && cr.point !== 0) flash('PASS BETS: COME OUT ONLY');
       else if (chips < unit) flash('NOT ENOUGH CHIPS');
-      else { cr.bets[spot] += unit; setChips(chips - unit); setPending(crTotalBets()); }
+      else { cr.bets[spot] += unit; setChips(chips - unit); crJournal(); }
     } else {
       const item = CR_MENU[cr.cur.col];
       if (item === 'UNIT') cr.unitIdx = (cr.unitIdx + 1) % UNITS.length;
@@ -1689,9 +1759,7 @@ function crUpdate() {
       else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
       else if (item === 'TIP') openTipModal();
       else if (item === 'LEAVE') {
-        setChips(chips + crTotalBets());   // take everything down
-        cr.bets = crBetKeys();
-        setPending(0);
+        crCashOut('Left the table');       // pass rides if the point is on
         startTransition(() => leaveTable('craps'));
       }
     }
@@ -1705,7 +1773,7 @@ function crUpdate() {
         const take = Math.min(unit, cr.bets[spot]);
         cr.bets[spot] -= take;
         setChips(chips + take);
-        setPending(crTotalBets());
+        crJournal();
       }
     }
   }
@@ -2101,6 +2169,37 @@ if (document.fonts && document.fonts.load) {
 } else {
   requestAnimationFrame(loop);
 }
+
+/* warn before closing with a hand in flight (the journal still settles
+   it fairly if the tab is force-closed anyway) */
+addEventListener('beforeunload', e => {
+  const bjLive = scene === 'blackjack' && ['dealing','player','dealerTurn'].includes(bj.state);
+  const crLive = scene === 'craps' && crTotalBets() > 0;
+  if (bjLive || crLive) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ── Web3 integration map (next phase) ────────────────────────────────
+   Entry:  clublounge.html (wallet flow lives there) links to this page.
+           It can hand a session over via sessionStorage 'clubnile_session'
+           = { wallet, tokenId, name } — picked up below.
+   Gate:   verify MembersOnly.balanceOf(wallet) > 0 before enabling play.
+   Chips:  replace localStorage balance with items.getChips(wallet); every
+           chip movement in this file already flows through setChips().
+   Buy-in: Gamble.commitWager(tokenId, wager) per table session (burns
+           chips on-chain, returns a nonce).
+   Payout: Worker oracle signs (tokenId, wager, payout, gameId, nonce,
+           player) → Gamble.claimWinnings / resolveGame mints the payout.
+   Tips:   items.safeTransferFrom(you, them, 0, amount) — chips are the
+           ERC-1155 token 0 and already wallet-to-wallet transferable.
+   Dice:   already server-authoritative (ClubNileRoom DO).            */
+try {
+  const s = JSON.parse(sessionStorage.getItem('clubnile_session') || 'null');
+  if (s && s.name) {
+    myName = sanitizeName(s.name) || myName;
+    localStorage.setItem('clubnile_name', myName);
+    chatNameEl.value = myName;
+  }
+} catch (e) { /* no session — guest play with local chips */ }
 
 /* test hook (only with ?debug=1 in the URL) */
 if (new URLSearchParams(location.search).has('debug')) {
