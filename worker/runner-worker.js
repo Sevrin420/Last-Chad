@@ -21,6 +21,7 @@
 import { ethers } from 'ethers';
 export { CrapsTable } from './craps-table.js';
 export { HashCashTable } from './hashcash-table.js';
+export { ClubNileRoom } from './clubnile-room.js';
 
 const ALLOWED_ORIGINS = ['https://membersonly.cc', 'https://www.membersonly.cc', 'https://lastchad.xyz', 'https://enterthegrotto.xyz', 'https://api.enterthegrotto.xyz'];
 function getCors(request) {
@@ -141,6 +142,13 @@ export default {
       // ── WebSocket upgrade → Durable Object ──
       if (url.pathname === '/craps/ws') {
         return await handleCrapsWebSocket(request, url, env);
+      }
+
+      // Club Nile social rooms (lobby chat + table presence/emoji/tips)
+      if (url.pathname === '/clubnile/ws') {
+        const room = (url.searchParams.get('room') || 'lobby').slice(0, 24);
+        const id = env.CLUBNILE_ROOM.idFromName(room);
+        return await env.CLUBNILE_ROOM.get(id).fetch(request);
       }
 
       // Table list (queries Durable Objects for player counts)

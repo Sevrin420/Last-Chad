@@ -11,7 +11,8 @@ preview_id = "9b1944233e4d44f7a55389daf3048e67"
 [durable_objects]
 bindings = [
   { name = "CRAPS_TABLE", class_name = "CrapsTable" },
-  { name = "HASHCASH_TABLE", class_name = "HashCashTable" }
+  { name = "HASHCASH_TABLE", class_name = "HashCashTable" },
+  { name = "CLUBNILE_ROOM", class_name = "ClubNileRoom" }
 ]
 
 [[migrations]]
@@ -21,6 +22,10 @@ new_sqlite_classes = ["CrapsTable"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["HashCashTable"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["ClubNileRoom"]
 
 [vars]
 CONTRACT_ADDRESS      = "0x6defA84b02efcEd65930341B1b20aDb6BC881809"

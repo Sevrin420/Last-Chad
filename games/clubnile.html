@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev wss://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Club Nile — Members Only</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,9 +12,9 @@
    CLUB NILE — mobile-first shell.
    The console frame (egypt-console.png, 832x1248) scales to the
    viewport WIDTH first; every overlay (screen window, d-pad,
-   A/B buttons, labels) is positioned in PERCENTAGES of the frame
-   so it adapts to any phone size. The game canvas has a fixed
-   internal retro resolution (240x240) stretched into the window.
+   A/B buttons, labels, CHAT button, chat panel) is positioned in
+   PERCENTAGES of the frame so it adapts to any phone size. The
+   game canvas keeps a fixed retro resolution (240x240), CSS-scaled.
    ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
@@ -34,7 +34,6 @@ body {
   background:
     radial-gradient(ellipse at 50% 0%, #1a1326 0%, #0c0912 70%);
 }
-/* Frame container: full phone width, capped by viewport height */
 #console {
   position: relative;
   width: min(100vw, calc(100dvh * 832 / 1248));
@@ -49,8 +48,7 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* Game canvas sits inside the frame's transparent screen window.
-   Window measured on the 832x1248 art: x 36-795, y 36-793. */
+/* Screen window measured on the 832x1248 art: x 36-795, y 36-793 */
 #screen {
   position: absolute;
   left: 4.33%;
@@ -62,8 +60,7 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
-/* ---- Touch controls: transparent hotspots over the printed
-        d-pad and buttons, all in % of the frame.
+/* ---- Touch controls (all % of the frame).
         RIGHT button = A (select) · LEFT button = B (back) ---- */
 .hot { position: absolute; z-index: 3; touch-action: none; }
 #dpad  { left: 9%;  top: 68.5%; width: 34%; height: 24%; }
@@ -72,7 +69,6 @@ body {
 .hot.pressed {
   background: radial-gradient(circle, rgba(255,235,170,0.28) 0%, rgba(255,235,170,0) 70%);
 }
-/* Small A / B letters under the buttons (sized in % of frame width) */
 .btn-label {
   position: absolute;
   z-index: 3;
@@ -89,7 +85,119 @@ body {
 }
 #label-b { left: 58.5%; top: 93.5%; }
 #label-a { left: 77.5%; top: 86.8%; }
-/* Desktop keyboard hint (hidden on touch devices) */
+/* CHAT button under the A (select) button */
+#btn-chat {
+  position: absolute;
+  z-index: 3;
+  left: 74.5%;
+  top: 90.8%;
+  width: 14%;
+  padding: 1cqw 0;
+  text-align: center;
+  color: #f2d488;
+  font-size: 2.4cqw;
+  letter-spacing: 0.2cqw;
+  background: rgba(24,14,4,0.55);
+  border: 0.25cqw solid #b98d3e;
+  border-radius: 2.4cqw;
+  cursor: pointer;
+}
+#btn-chat.pressed { background: rgba(255,235,170,0.35); }
+/* ---- Casino-wide chat panel (slides over the lower screen) ---- */
+#chat-panel {
+  position: absolute;
+  z-index: 4;
+  left: 4.33%;
+  top: 24%;
+  width: 91.2%;
+  height: 39.5%;
+  display: none;
+  flex-direction: column;
+  background: rgba(16,11,26,0.96);
+  border: 0.4cqw solid #b98d3e;
+  border-radius: 1cqw;
+  color: #f7f3e8;
+  font-size: 2.6cqw;
+}
+#chat-panel.open { display: flex; }
+#chat-head {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  padding: 1.6cqw 2cqw;
+  border-bottom: 0.25cqw solid #7a5c22;
+  color: #f5d76e;
+}
+#chat-head span { flex: 1; }
+#chat-name {
+  width: 30%;
+  background: #241a30;
+  border: 0.25cqw solid #7a5c22;
+  border-radius: 0.8cqw;
+  color: #f7f3e8;
+  font-family: inherit;
+  font-size: 2.4cqw;
+  padding: 0.8cqw;
+  text-transform: uppercase;
+}
+#chat-close {
+  background: none;
+  border: 0.25cqw solid #7a5c22;
+  border-radius: 0.8cqw;
+  color: #f5d76e;
+  font-family: inherit;
+  font-size: 2.6cqw;
+  padding: 0.6cqw 1.4cqw;
+  cursor: pointer;
+}
+#chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.6cqw 2cqw;
+  line-height: 1.7;
+  -webkit-user-select: text;
+  user-select: text;
+}
+#chat-log .nm { color: #f5d76e; }
+#chat-log .sys { color: #8fd694; }
+#chat-emoji-row {
+  display: flex;
+  justify-content: space-around;
+  padding: 1cqw 2cqw;
+  border-top: 0.25cqw solid #7a5c22;
+}
+#chat-emoji-row button {
+  background: none;
+  border: none;
+  font-size: 4.4cqw;
+  cursor: pointer;
+  line-height: 1;
+}
+#chat-form {
+  display: flex;
+  gap: 1.4cqw;
+  padding: 1.4cqw 2cqw 2cqw;
+}
+#chat-input {
+  flex: 1;
+  background: #241a30;
+  border: 0.25cqw solid #7a5c22;
+  border-radius: 0.8cqw;
+  color: #f7f3e8;
+  font-family: inherit;
+  font-size: 2.6cqw;
+  padding: 1.2cqw;
+}
+#chat-form button {
+  background: #b98d3e;
+  border: none;
+  border-radius: 0.8cqw;
+  color: #1c1206;
+  font-family: inherit;
+  font-size: 2.4cqw;
+  padding: 0 2.4cqw;
+  cursor: pointer;
+}
 #kbd-hint {
   position: fixed;
   bottom: 0.5%;
@@ -118,21 +226,36 @@ body {
   <div class="hot" id="btn-a"></div>
   <div class="btn-label" id="label-b">B</div>
   <div class="btn-label" id="label-a">A</div>
+  <div id="btn-chat">CHAT</div>
+  <div id="chat-panel">
+    <div id="chat-head">
+      <span>CASINO CHAT</span>
+      <input id="chat-name" maxlength="12" autocomplete="off" spellcheck="false">
+      <button id="chat-close" type="button">X</button>
+    </div>
+    <div id="chat-log"></div>
+    <div id="chat-emoji-row"></div>
+    <form id="chat-form" autocomplete="off">
+      <input id="chat-input" maxlength="80" placeholder="SAY SOMETHING..." autocomplete="off" spellcheck="false">
+      <button type="submit">SEND</button>
+    </form>
+  </div>
 </div>
-<div id="kbd-hint">ARROWS / WASD MOVE &nbsp;·&nbsp; E / ENTER = A &nbsp;·&nbsp; ESC = B</div>
+<div id="kbd-hint">ARROWS / WASD MOVE · E / ENTER = A · ESC = B · C = CHAT</div>
 
 <script>
 'use strict';
 /* ==========================================================================
    CLUB NILE — a 1920s Egyptian speakeasy casino (top-down, LTTP-style).
-   All art is procedural pixel art drawn at boot; no sprite sheets needed.
-   Internal resolution: 240x240 (15x15 tiles of 16px), scaled by CSS.
+   Scenes: 'floor' · 'blackjack' · 'craps'.
 
-   Scenes: 'floor' (walkable casino) · 'blackjack' · 'craps' (table views).
-   Table scenes use a seat roster (seats[]) so that once wallet sign-in
-   lands, remote players from the Worker/Durable Object can fill seats —
-   mirroring the on-chain flow: Gamble.commitWager() buy-in → play off
-   chain → oracle-signed Gamble.claimWinnings() payout.
+   MULTIPLAYER: real players only at the tables. A lightweight WebSocket
+   layer connects to the Worker's ClubNileRoom Durable Object:
+     'lobby' room     — casino-wide chat (always connected)
+     'craps'/'blackjack' rooms — table presence, emoji reactions, chip tips
+   Game hands/rolls stay client-side for now; when wallet sign-in lands,
+   buy-ins move to Gamble.commitWager and payouts to oracle-signed
+   claimWinnings, and tips become on-chain ERC-1155 chip transfers.
    ========================================================================== */
 
 const TS = 16, COLS = 15, ROWS = 15, W = 240, H = 240;
@@ -151,7 +274,7 @@ const C = {
   feltBlue:'#2b4d8c', feltBlueDark:'#22407a',
   gold:'#f5d76e', goldDark:'#c9a13b',
   white:'#f7f3e8', black:'#17121a',
-  red:'#c0392b',
+  red:'#c0392b', dim:'#8d8398',
   flame1:'#ffb347', flame2:'#ffd97a', flame3:'#ff8c42',
   leaf:'#3f8f4f', leafDark:'#2f6f3c', pot:'#b05c35', potDark:'#8e4628',
   shadow:'rgba(20,10,5,0.25)',
@@ -160,10 +283,6 @@ const C = {
 const FONT = '8px "Press Start 2P", monospace';
 
 /* ============================ sprites ============================ */
-/* 12x16 chibi characters: head (8 rows) + body (5) + legs (3).
-   Chars: H hat, h hat accent, K hair, S skin, E eye,
-          T top, t top accent, B bottom, F shoes, . empty      */
-
 const HEADS = {
   fez: {
     down:['....HHHH....','...HHHHHh...','...SSSSSS...','..SSSSSSSS..','..SESSSSES..','..SSSSSSSS..','...SSSSSS...','.....SS.....'],
@@ -189,7 +308,6 @@ const LEGS = {
   suit: [ ['...BB..BB...','...BB..BB...','...FF..FF...'], ['...BB..BB...','..BB....BB..','..FF....FF..'] ],
   dress:[ ['...SS..SS...','...SS..SS...','...FF..FF...'], ['...SS..SS...','..SS....SS..','..FF....FF..'] ]
 };
-
 function paintRows(g, rows, pal, yOff) {
   for (let y = 0; y < rows.length; y++) {
     const r = rows[y];
@@ -225,17 +343,21 @@ function makeCharacter(headStyle, bodyStyle, pal) {
   out.right = [0,1].map(f => buildFrame(hd.side, bd, lg[f], pal, true));
   return out;
 }
-
 const SPRITES = {
   player:    makeCharacter('fez',   'suit',  {H:'#c0392b',h:C.gold,K:'#2e1f14',S:'#f0c8a0',E:C.black,T:'#f5eedd',t:C.black,B:'#26202e',F:C.black}),
   bartender: makeCharacter('fez',   'suit',  {H:'#c0392b',h:C.gold,K:'#14100d',S:'#e3b184',E:C.black,T:'#fbf7ec',t:'#a32638',B:C.black,F:'#0e0b09'}),
   crapsDealer:makeCharacter('nemes','suit',  {H:'#2f7f96',h:C.gold,S:'#e3b184',E:C.black,T:'#7e2433',t:C.gold,B:C.black,F:'#0e0b09'}),
   bjDealer:  makeCharacter('nemes', 'suit',  {H:'#345b9e',h:C.gold,S:'#caa27a',E:C.black,T:'#1f6b46',t:C.gold,B:C.black,F:'#0e0b09'}),
   guestF:    makeCharacter('bob',   'dress', {K:'#171114',h:'#e05a70',S:'#f0c8a0',E:C.black,T:'#b02a3c',B:'#b02a3c',F:C.gold}),
-  guestM:    makeCharacter('fez',   'suit',  {H:'#171114',h:'#171114',K:'#171114',S:'#e9bd93',E:C.black,T:'#22242b',t:'#fbf7ec',B:'#171114',F:'#0e0b09'})
+  guestM:    makeCharacter('fez',   'suit',  {H:'#171114',h:'#171114',K:'#171114',S:'#e9bd93',E:C.black,T:'#22242b',t:'#fbf7ec',B:'#171114',F:'#0e0b09'}),
+  /* remote player variants (picked by their sprite index 0-2) */
+  remote0:   makeCharacter('fez',   'suit',  {H:'#171114',h:'#171114',K:'#171114',S:'#e9bd93',E:C.black,T:'#22242b',t:'#fbf7ec',B:'#171114',F:'#0e0b09'}),
+  remote1:   makeCharacter('bob',   'dress', {K:'#171114',h:'#e05a70',S:'#f0c8a0',E:C.black,T:'#b02a3c',B:'#b02a3c',F:C.gold}),
+  remote2:   makeCharacter('fez',   'suit',  {H:'#2f7f96',h:C.gold,K:'#14100d',S:'#e3b184',E:C.black,T:'#38626e',t:C.gold,B:'#1c2b30',F:'#0e0b09'})
 };
+const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
-/* ============================ map ============================ */
+/* ============================ map (floor) ============================ */
 const BAR = { c0:4, c1:10, row:3 };
 const CRAPS_T = { c0:2, c1:5, r0:8, r1:9 };
 const BJ_T = { c0:9, c1:12, r0:8, r1:9 };
@@ -251,9 +373,9 @@ for (let c = BAR.c0; c <= BAR.c1; c++) solid.add(key(c, BAR.row));
 for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) solid.add(key(c,r));
 for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
-solid.add(key(7,2));   // bartender
-solid.add(key(3,7));   // craps dealer
-solid.add(key(11,7));  // blackjack dealer
+solid.add(key(7,2));
+solid.add(key(3,7));
+solid.add(key(11,7));
 
 const talkMap = {};
 for (let c = BAR.c0; c <= BAR.c1; c++) talkMap[key(c, BAR.row)] = 'bartender';
@@ -265,15 +387,206 @@ talkMap[key(11,7)] = 'blackjack';
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
 
 /* ============================ chips ============================ */
-/* Local stand-in for on-chain chips (MembersOnlyItems token 0).
-   Table buy-ins/payouts mirror Gamble.commitWager/claimWinnings. */
 let chips = parseInt(localStorage.getItem('clubnile_chips') || '500', 10);
 function setChips(v) {
   chips = Math.max(0, v);
   localStorage.setItem('clubnile_chips', String(chips));
 }
 
-/* ============================ dialogue ============================ */
+/* ============================ identity ============================ */
+function sanitizeName(n) { return String(n || '').replace(/[^\w\-#]/g, '').slice(0, 12); }
+let myName = sanitizeName(localStorage.getItem('clubnile_name')) ||
+             ('CHAD-' + (100 + Math.floor(Math.random() * 900)));
+localStorage.setItem('clubnile_name', myName);
+let mySprite = parseInt(localStorage.getItem('clubnile_sprite') || String(Math.floor(Math.random() * 3)), 10) % 3;
+localStorage.setItem('clubnile_sprite', String(mySprite));
+
+/* ============================ networking ============================ */
+/* ?ws=ws://localhost:PORT override for local testing */
+const WS_BASE = new URLSearchParams(location.search).get('ws') ||
+                'wss://last-chad-runner.severin20.workers.dev';
+
+function makeRoom(room, handlers) {
+  const obj = {
+    status: 'connecting', closed: false, ws: null,
+    send(m) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(m)); },
+    close() { this.closed = true; try { this.ws && this.ws.close(); } catch (e) {} }
+  };
+  let delay = 1000;
+  function connect() {
+    if (obj.closed) return;
+    let ws;
+    try {
+      ws = new WebSocket(WS_BASE + '/clubnile/ws?room=' + encodeURIComponent(room) +
+        '&name=' + encodeURIComponent(myName) + '&sprite=' + mySprite);
+    } catch (e) { obj.status = 'off'; retry(); return; }
+    obj.ws = ws;
+    ws.onopen = () => { obj.status = 'on'; delay = 1000; };
+    ws.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+      const h = handlers[m.t];
+      if (h) h(m);
+    };
+    ws.onclose = () => { obj.status = 'off'; retry(); };
+    ws.onerror = () => {};
+  }
+  function retry() {
+    if (obj.closed) return;
+    setTimeout(connect, delay);
+    delay = Math.min(delay * 2, 15000);
+  }
+  connect();
+  return obj;
+}
+
+const social = {
+  lobby: null, lobbyId: null,
+  chatLog: [],           // {name, text, sys}
+  unread: 0,
+  table: null, tableRoom: '', youId: null,
+  seat: 1,               // your seat at the current table (server-assigned)
+  roster: []             // other REAL players at your table: {id,name,sprite,seat}
+};
+
+/* floating popups above heads: emoji / speech bubbles / tip amounts */
+const popups = [];
+function addPopup(target, kind, str, life) {
+  popups.push({ target, kind, str, t: 0, life: life || (kind === 'bubble' ? 240 : 100) });
+  if (popups.length > 12) popups.shift();
+}
+function pushChat(name, text, sys) {
+  social.chatLog.push({ name, text, sys });
+  if (social.chatLog.length > 60) social.chatLog.shift();
+  renderChatLog();
+  if (!chatOpen()) { social.unread++; updateChatBtn(); }
+}
+function bubbleFor(id, name, text) {
+  /* speech bubble over whoever said it, if they're visible right now */
+  if (id === social.lobbyId) { addPopup('you', 'bubble', text); return; }
+  const p = social.roster.find(r => r.name === name);
+  if (p) addPopup(p.id, 'bubble', text);
+}
+
+const lobbyHandlers = {
+  welcome(m) {
+    social.lobbyId = m.id;
+    if (m.history && m.history.length && social.chatLog.length === 0) {
+      m.history.forEach(h => social.chatLog.push({ name: h.name, text: h.text }));
+      renderChatLog();
+    }
+  },
+  chat(m) { pushChat(m.name, m.text); bubbleFor(m.id, m.name, m.text); }
+};
+const tableHandlers = {
+  welcome(m) {
+    social.youId = m.id;
+    social.seat = m.seat;
+    social.roster = (m.roster || []).filter(p => p.seat >= 0);
+  },
+  join(m) {
+    if (m.player.seat >= 0) social.roster.push(m.player);
+    pushChat('', m.player.name + ' sat down', true);
+  },
+  leave(m) {
+    const p = social.roster.find(r => r.id === m.id);
+    social.roster = social.roster.filter(r => r.id !== m.id);
+    if (p) pushChat('', p.name + ' left the table', true);
+  },
+  emoji(m) { addPopup(m.id, 'emoji', m.e); },
+  tip(m) {
+    if (m.to === social.youId) {
+      setChips(chips + m.amount);
+      addPopup('you', 'tip', '+' + m.amount);
+      pushChat('', m.fromName + ' tipped you ' + m.amount + ' chips!', true);
+    } else {
+      addPopup(m.to, 'tip', '+' + m.amount);
+      pushChat('', m.fromName + ' tipped ' + m.toName + ' ' + m.amount, true);
+    }
+  },
+  full() { social.youId = null; social.roster = []; }
+};
+social.lobby = makeRoom('lobby', lobbyHandlers);
+
+function tableConnect(room) {
+  social.tableRoom = room;
+  social.seat = 1; social.youId = null; social.roster = [];
+  social.table = makeRoom(room, tableHandlers);
+}
+function tableDisconnect() {
+  if (social.table) social.table.close();
+  social.table = null; social.tableRoom = '';
+  social.youId = null; social.roster = []; social.seat = 1;
+}
+function sendEmoji(e) {
+  addPopup('you', 'emoji', e);
+  if (social.table) social.table.send({ t: 'emoji', e });
+}
+
+/* ============================ chat panel (HTML) ============================ */
+const chatPanel = document.getElementById('chat-panel');
+const chatLogEl = document.getElementById('chat-log');
+const chatInput = document.getElementById('chat-input');
+const chatNameEl = document.getElementById('chat-name');
+const chatBtn = document.getElementById('btn-chat');
+const EMOJIS = ['😀','😂','🎉','😡','😭','🍀'];
+
+chatNameEl.value = myName;
+function chatOpen() { return chatPanel.classList.contains('open'); }
+function updateChatBtn() {
+  chatBtn.textContent = social.unread > 0 ? 'CHAT (' + Math.min(social.unread, 9) + ')' : 'CHAT';
+}
+function toggleChat(force) {
+  const open = force !== undefined ? force : !chatOpen();
+  chatPanel.classList.toggle('open', open);
+  if (open) { social.unread = 0; updateChatBtn(); chatLogEl.scrollTop = chatLogEl.scrollHeight; }
+  else chatInput.blur();
+}
+function renderChatLog() {
+  let html = '';
+  for (const m of social.chatLog) {
+    if (m.sys) html += '<div class="sys">★ ' + escapeHtml(m.text) + '</div>';
+    else html += '<div><span class="nm">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
+  }
+  chatLogEl.innerHTML = html;
+  chatLogEl.scrollTop = chatLogEl.scrollHeight;
+}
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+chatBtn.addEventListener('pointerdown', e => { e.preventDefault(); toggleChat(); });
+document.getElementById('chat-close').addEventListener('click', () => toggleChat(false));
+document.getElementById('chat-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const text = chatInput.value.trim().slice(0, 80);
+  if (!text) return;
+  chatInput.value = '';
+  if (social.lobby && social.lobby.status === 'on') {
+    social.lobby.send({ t: 'chat', text });
+  } else {
+    pushChat(myName, text);            // offline: local only
+    addPopup('you', 'bubble', text);
+  }
+});
+chatNameEl.addEventListener('change', () => {
+  const n = sanitizeName(chatNameEl.value);
+  if (!n || n === myName) { chatNameEl.value = myName; return; }
+  myName = n;
+  chatNameEl.value = n;
+  localStorage.setItem('clubnile_name', n);
+  /* reconnect the lobby under the new name */
+  social.lobby.close();
+  social.lobby = makeRoom('lobby', lobbyHandlers);
+});
+const emojiRow = document.getElementById('chat-emoji-row');
+EMOJIS.forEach(e => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = e;
+  b.addEventListener('click', () => sendEmoji(e));
+  emojiRow.appendChild(b);
+});
+
+/* ============================ dialogue data ============================ */
 const NPC_TALK = {
   bartender: {
     name: 'PTAH · BARTENDER',
@@ -340,27 +653,7 @@ const guests = [
 
 /* ============================ input ============================ */
 const input = { up:false, down:false, left:false, right:false };
-let aQueued = false, bQueued = false;      // A = select · B = back
-
-addEventListener('keydown', e => {
-  const k = e.key;
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
-  if (k === 'ArrowUp'    || k === 'w' || k === 'W') { input.up = true;    if (!e.repeat) tapQ.up = true; }
-  if (k === 'ArrowDown'  || k === 's' || k === 'S') { input.down = true;  if (!e.repeat) tapQ.down = true; }
-  if (k === 'ArrowLeft'  || k === 'a' || k === 'A') { input.left = true;  if (!e.repeat) tapQ.left = true; }
-  if (k === 'ArrowRight' || k === 'd' || k === 'D') { input.right = true; if (!e.repeat) tapQ.right = true; }
-  if (!e.repeat && (k === 'Enter' || k === ' ' || k === 'e' || k === 'E' || k === 'z' || k === 'Z')) aQueued = true;
-  if (!e.repeat && (k === 'Escape' || k === 'x' || k === 'X' || k === 'Backspace')) bQueued = true;
-});
-addEventListener('keyup', e => {
-  const k = e.key;
-  if (k === 'ArrowUp'    || k === 'w' || k === 'W') input.up = false;
-  if (k === 'ArrowDown'  || k === 's' || k === 'S') input.down = false;
-  if (k === 'ArrowLeft'  || k === 'a' || k === 'A') input.left = false;
-  if (k === 'ArrowRight' || k === 'd' || k === 'D') input.right = false;
-});
-/* edge-triggered d-pad taps (menus). Taps are ALSO queued straight from
-   keydown so a quick press between frames is never lost. */
+let aQueued = false, bQueued = false;
 let tapUp = false, tapDown = false, tapLeft = false, tapRight = false;
 const tapQ = { up:false, down:false, left:false, right:false };
 let prevIn = { up:false, down:false, left:false, right:false };
@@ -372,7 +665,34 @@ function readTaps() {
   tapQ.up = tapQ.down = tapQ.left = tapQ.right = false;
   prevIn = { ...input };
 }
-
+function typing() {
+  const a = document.activeElement;
+  return a && a.tagName === 'INPUT';
+}
+addEventListener('keydown', e => {
+  if (typing()) {
+    if (e.key === 'Escape') { e.target.blur(); toggleChat(false); }
+    return;
+  }
+  const k = e.key;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
+  if (k === 'ArrowUp'    || k === 'w' || k === 'W') { input.up = true;    if (!e.repeat) tapQ.up = true; }
+  if (k === 'ArrowDown'  || k === 's' || k === 'S') { input.down = true;  if (!e.repeat) tapQ.down = true; }
+  if (k === 'ArrowLeft'  || k === 'a' || k === 'A') { input.left = true;  if (!e.repeat) tapQ.left = true; }
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') { input.right = true; if (!e.repeat) tapQ.right = true; }
+  if (!e.repeat && (k === 'Enter' || k === ' ' || k === 'e' || k === 'E' || k === 'z' || k === 'Z')) aQueued = true;
+  if (!e.repeat && (k === 'Escape' || k === 'x' || k === 'X' || k === 'Backspace')) {
+    if (chatOpen()) toggleChat(false); else bQueued = true;
+  }
+  if (!e.repeat && (k === 'c' || k === 'C')) toggleChat();
+});
+addEventListener('keyup', e => {
+  const k = e.key;
+  if (k === 'ArrowUp'    || k === 'w' || k === 'W') input.up = false;
+  if (k === 'ArrowDown'  || k === 's' || k === 'S') input.down = false;
+  if (k === 'ArrowLeft'  || k === 'a' || k === 'A') input.left = false;
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') input.right = false;
+});
 const dpadEl = document.getElementById('dpad');
 function dpadFrom(e) {
   const r = dpadEl.getBoundingClientRect();
@@ -389,19 +709,17 @@ dpadEl.addEventListener('pointermove', e => { if (dpadEl.classList.contains('pre
   dpadEl.classList.remove('pressed');
   input.up = input.down = input.left = input.right = false;
 }));
-
 function bindButton(id, fn) {
   const el = document.getElementById(id);
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('pressed'); fn(); });
   ['pointerup','pointercancel','pointerleave'].forEach(ev => el.addEventListener(ev, () => el.classList.remove('pressed')));
 }
-bindButton('btn-a', () => { aQueued = true; });   // right button = A = select
-bindButton('btn-b', () => { bQueued = true; });   // left button  = B = back
+bindButton('btn-a', () => { aQueued = true; });
+bindButton('btn-b', () => { bQueued = true; });
 
 /* ============================ dialogue box ============================ */
 const dlg = { open:false, id:null, name:'', pages:[], page:0, chars:0, action:null };
-const DLG_SPEED = 0.5;   // characters revealed per frame (slower = cosier)
-
+const DLG_SPEED = 0.5;
 function wrapText(text, maxW) {
   const words = text.split(' ');
   const lines = [];
@@ -439,7 +757,7 @@ function dialogSelect() {
   if (dlg.action === 'blackjack') startTransition(() => enterBlackjack());
 }
 
-/* ============================ interaction ============================ */
+/* ============================ interaction / movement ============================ */
 function facingTile() {
   const tc = Math.floor(player.x / TS), tr = Math.floor((player.y - 4) / TS);
   let dc = 0, dr = 0;
@@ -461,11 +779,8 @@ function interactTarget() {
   if (g) return { id: g.id, guest: g };
   return null;
 }
-
-/* ============================ movement ============================ */
-const WALK_SPEED = 0.8;      // slower stroll
+const WALK_SPEED = 0.8;
 const GUEST_SPEED = 0.3;
-
 function blocked(px, py) {
   const pts = [[px-4,py-2],[px+3,py-2],[px-4,py+3],[px+3,py+3]];
   for (const [x,y] of pts) {
@@ -625,7 +940,6 @@ const palmCanvas = makeCanvas(TS, TS + 10, g => {
   g.fillRect(3, 7, 4, 1); g.fillRect(9, 7, 4, 1);
   g.fillRect(6, 6, 4, 6);
 });
-
 function spriteFor(ent) {
   const set = SPRITES[ent.sprite || 'player'];
   return set[ent.dir][ent.frame || 0];
@@ -635,7 +949,6 @@ function drawEntity(g, ent, bobT) {
   const bob = ent.staticNPC ? (Math.floor(bobT / 40) % 2) : 0;
   g.drawImage(img, Math.round(ent.x - 6), Math.round(ent.y - 15 + bob));
 }
-/* seated character: back view, top 13 rows, on a stool */
 function drawSeated(g, spriteKey, x, y) {
   g.fillStyle = C.shadow; g.fillRect(x - 5, y + 1, 10, 3);
   g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 2, 8, 4);
@@ -643,14 +956,18 @@ function drawSeated(g, spriteKey, x, y) {
   const img = SPRITES[spriteKey].up[0];
   g.drawImage(img, 0, 0, 12, 13, Math.round(x - 6), Math.round(y - 14), 12, 13);
 }
+function drawEmptyStool(g, x, y) {
+  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 2, 8, 4);
+  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 2, 8, 1);
+}
 
 /* ============================ cards & dice ============================ */
 const CARD_W = 18, CARD_H = 24;
 const SUITS = [
-  { pix:['.#.#.','#####','#####','.###.','..#..'], col:'#c0392b' },  // hearts
-  { pix:['..#..','.###.','#####','.###.','..#..'], col:'#c0392b' },  // diamonds
-  { pix:['..#..','.###.','#####','..#..','.###.'], col:C.black },    // spades
-  { pix:['.###.','#####','#####','..#..','.###.'], col:C.black }     // clubs
+  { pix:['.#.#.','#####','#####','.###.','..#..'], col:'#c0392b' },
+  { pix:['..#..','.###.','#####','.###.','..#..'], col:'#c0392b' },
+  { pix:['..#..','.###.','#####','..#..','.###.'], col:C.black },
+  { pix:['.###.','#####','#####','..#..','.###.'], col:C.black }
 ];
 const RANK_STR = ['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const cardCache = {};
@@ -717,7 +1034,6 @@ function paintTableRoom(g) {
   g.fillStyle = '#241a30'; g.fillRect(0, 0, W, H);
   g.fillStyle = '#2c2138';
   for (let y = 0; y < H; y += 8) for (let x = (y % 16) ? 4 : 0; x < W; x += 8) g.fillRect(x, y, 1, 1);
-  /* wall band */
   g.fillStyle = C.wall; g.fillRect(0, 0, W, 24);
   g.fillStyle = C.wallLine;
   for (let y = 8; y < 24; y += 8) g.fillRect(0, y, W, 1);
@@ -726,13 +1042,163 @@ function paintTableRoom(g) {
   for (let x = 10; x < W - 8; x += 30) { g.fillRect(x+2,4,1,2); g.fillRect(x+1,6,3,1); g.fillRect(x+2,7,1,4); g.fillRect(x,11,5,1); }
 }
 
+/* ============================ shared table modal (emoji / tip) ============================ */
+const TIP_AMTS = [5, 25, 100];
+let modal = null;   // {type:'emoji', idx} | {type:'tip', tIdx, aIdx}
+let flashMsg = '', flashT = 0;
+function flash(msg) { flashMsg = msg; flashT = 90; }
+
+function openTipModal() {
+  if (!social.roster.length) { flash('NO PLAYERS TO TIP'); return; }
+  modal = { type: 'tip', tIdx: 0, aIdx: 0 };
+}
+function modalUpdate() {
+  if (!modal) return false;
+  if (modal.type === 'emoji') {
+    if (tapLeft)  modal.idx = (modal.idx + EMOJIS.length - 1) % EMOJIS.length;
+    if (tapRight) modal.idx = (modal.idx + 1) % EMOJIS.length;
+    if (aQueued) { aQueued = false; sendEmoji(EMOJIS[modal.idx]); modal = null; }
+    if (bQueued) { bQueued = false; modal = null; }
+  } else if (modal.type === 'tip') {
+    if (!social.roster.length) { modal = null; return true; }
+    modal.tIdx = Math.min(modal.tIdx, social.roster.length - 1);
+    if (tapLeft)  modal.tIdx = (modal.tIdx + social.roster.length - 1) % social.roster.length;
+    if (tapRight) modal.tIdx = (modal.tIdx + 1) % social.roster.length;
+    if (tapUp)   modal.aIdx = (modal.aIdx + 1) % TIP_AMTS.length;
+    if (tapDown) modal.aIdx = (modal.aIdx + TIP_AMTS.length - 1) % TIP_AMTS.length;
+    if (aQueued) {
+      aQueued = false;
+      const amt = TIP_AMTS[modal.aIdx];
+      const target = social.roster[modal.tIdx];
+      if (chips < amt) { flash('NOT ENOUGH CHIPS'); return true; }
+      setChips(chips - amt);
+      social.table && social.table.send({ t: 'tip', to: target.id, amount: amt });
+      addPopup(target.id, 'tip', '+' + amt);
+      pushChat('', 'You tipped ' + target.name + ' ' + amt + ' chips', true);
+      modal = null;
+    }
+    if (bQueued) { bQueued = false; modal = null; }
+  }
+  return true;
+}
+function modalDraw(seatPos) {
+  if (!modal) return;
+  uiPanel();
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  if (modal.type === 'emoji') {
+    uiText('SEND AN EMOJI', C.white, 186);
+    ctx.font = '12px sans-serif';
+    for (let i = 0; i < EMOJIS.length; i++) {
+      const x = 32 + i * 32;
+      if (i === modal.idx) {
+        ctx.fillStyle = 'rgba(245,215,110,0.25)';
+        ctx.fillRect(x - 4, 200, 22, 18);
+        ctx.strokeStyle = C.gold; ctx.lineWidth = 1;
+        ctx.strokeRect(x - 3.5, 200.5, 21, 17);
+      }
+      ctx.fillText(EMOJIS[i], x, 202);
+    }
+    ctx.font = FONT;
+    uiText('◄ ► PICK   A: SEND   B: CANCEL', C.gold, 224);
+  } else {
+    const target = social.roster[modal.tIdx];
+    uiText('TIP ' + target.name + '  ·  ' + TIP_AMTS[modal.aIdx] + ' CHIPS', C.white, 186);
+    uiText('◄ ► PLAYER   ▲▼ AMOUNT', C.dim, 204);
+    uiText('A: SEND TIP   B: CANCEL', C.gold, 222);
+    const pos = seatPos(target.id);
+    if (pos && Math.floor(tick / 15) % 2) {
+      ctx.fillStyle = C.gold;
+      ctx.fillText('▼', pos.x - 4, pos.y - 34);
+    }
+  }
+}
+
+/* ============================ popups (bubbles/emoji/tips) ============================ */
+function drawPopups(seatPos) {
+  for (let i = popups.length - 1; i >= 0; i--) {
+    const p = popups[i];
+    p.t++;
+    if (p.t > p.life) { popups.splice(i, 1); continue; }
+    const pos = seatPos(p.target);
+    if (!pos) continue;
+    const fade = p.t > p.life - 20 ? (p.life - p.t) / 20 : 1;
+    ctx.globalAlpha = fade;
+    if (p.kind === 'emoji') {
+      const rise = Math.min(p.t / 3, 8);
+      ctx.font = '12px sans-serif';
+      ctx.fillText(p.str, pos.x - 6, pos.y - 30 - rise);
+      ctx.font = FONT;
+    } else if (p.kind === 'tip') {
+      const rise = Math.min(p.t / 2, 12);
+      ctx.font = FONT; ctx.textBaseline = 'top';
+      ctx.fillStyle = C.gold;
+      ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 28 - rise);
+    } else if (p.kind === 'bubble') {
+      drawBubble(pos.x, pos.y - 20, p.str);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+function drawBubble(cx, bottomY, text) {
+  ctx.font = FONT;
+  let lines = wrapText(text, 84);
+  if (lines.length > 2) { lines = lines.slice(0, 2); lines[1] += '…'; }
+  const w = Math.min(92, Math.max(...lines.map(l => ctx.measureText(l).width)) + 8);
+  const h = lines.length * 10 + 5;
+  let x = Math.round(cx - w / 2);
+  x = Math.max(2, Math.min(W - w - 2, x));
+  const y = bottomY - h - 5;
+  ctx.fillStyle = 'rgba(247,243,232,0.96)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = C.black; ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  ctx.fillStyle = 'rgba(247,243,232,0.96)';
+  ctx.fillRect(cx - 2, y + h, 4, 3);
+  ctx.fillStyle = C.black;
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x + 4, y + 3 + i * 10);
+}
+
+/* ============================ remote players at tables ============================ */
+function spriteForRemote(p) { return REMOTE_SPRITES[(p.sprite || 0) % 3]; }
+function drawTableSeats(SEATS, hop) {
+  const taken = new Set([social.seat, ...social.roster.map(p => p.seat)]);
+  for (let i = 0; i < 4; i++) {
+    if (!taken.has(i)) drawEmptyStool(ctx, SEATS[i].x, SEATS[i].y);
+  }
+  for (const p of social.roster) {
+    const pos = SEATS[p.seat];
+    if (!pos) continue;
+    drawSeated(ctx, spriteForRemote(p), pos.x, pos.y);
+    ctx.font = FONT; ctx.textBaseline = 'top';
+    ctx.fillStyle = C.white;
+    const nm = p.name.slice(0, 6);
+    ctx.fillText(nm, pos.x - nm.length * 4, pos.y + 5);
+  }
+  const you = SEATS[social.seat];
+  drawSeated(ctx, 'player', you.x, you.y + (hop || 0));
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  ctx.fillStyle = C.gold;
+  ctx.fillText('YOU', you.x - 11, you.y + 5);
+}
+function tableSeatPos(SEATS) {
+  return (target) => {
+    if (target === 'you') return SEATS[social.seat];
+    const p = social.roster.find(r => r.id === target);
+    return p ? SEATS[p.seat] : null;
+  };
+}
+function drawNetDot() {
+  const on = social.table && social.table.status === 'on';
+  ctx.fillStyle = on ? '#4fae64' : '#a34848';
+  ctx.fillRect(232, 31, 4, 4);
+}
+
 /* ============================ blackjack scene ============================ */
 const BJ_SEATS = [ {x:52,y:150}, {x:97,y:160}, {x:143,y:160}, {x:188,y:150} ];
 const BETS = [5, 10, 25, 50, 100];
-
 const bjRoom = makeCanvas(W, H, g => {
   paintTableRoom(g);
-  /* lapis half-oval table */
   g.fillStyle = C.woodDark;
   g.beginPath(); g.ellipse(120, 52, 104, 92, 0, 0, Math.PI); g.fill();
   g.fillRect(16, 44, 208, 10);
@@ -744,44 +1210,37 @@ const bjRoom = makeCanvas(W, H, g => {
   g.fillRect(30, 48, 180, 6);
   g.strokeStyle = C.gold; g.lineWidth = 1;
   g.beginPath(); g.ellipse(120, 52, 74, 62, 0, 0.25, Math.PI - 0.25); g.stroke();
-  /* dealer chip tray */
   g.fillStyle = C.woodDark; g.fillRect(94, 48, 52, 9);
   const trayCols = ['#c0392b', C.gold, '#2f7f96', C.white, '#c0392b', C.gold];
   for (let i = 0; i < 6; i++) { g.fillStyle = trayCols[i]; g.fillRect(97 + i*8, 50, 6, 5); }
 });
-
 const bj = {
-  state:'bet', betIdx:1, bet:0, deck:[], dealer:[], hole:true,
-  seats:[], timer:0, dealQ:[], menuIdx:0, result:'', flash:0
+  state:'bet', betIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
+  timer:0, dealQ:[], menuIdx:0, actIdx:0, result:'', flash:0, busted:false
 };
 function enterBlackjack() {
   scene = 'blackjack';
-  bj.state = 'bet'; bj.menuIdx = 0; bj.result = '';
-  bj.dealer = []; bj.hole = true;
-  /* seat roster — index 1 is always you; others may be lounge guests.
-     Future: remote players from the table Durable Object fill these. */
-  bj.seats = [null, null, null, null].map((_, i) => {
-    if (i === 1) return { sprite:'player', you:true, hand:[], done:false, out:false };
-    if (Math.random() < 0.5) return { sprite: (i % 2) ? 'guestM' : 'guestF', you:false, hand:[], done:false, out:false };
-    return null;
-  });
+  bj.state = 'bet'; bj.menuIdx = 0; bj.actIdx = 0; bj.result = '';
+  bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
+  modal = null;
+  tableConnect('blackjack');
 }
-function bjOccupied() { return bj.seats.map((s,i)=>({s,i})).filter(o => o.s); }
 function bjStartHand() {
   bj.bet = BETS[bj.betIdx];
-  setChips(chips - bj.bet);             // buy-in (≙ commitWager)
+  setChips(chips - bj.bet);              // buy-in (≙ commitWager)
   bj.deck = newDeck();
-  bj.dealer = []; bj.hole = true; bj.result = '';
-  for (const o of bjOccupied()) { o.s.hand = []; o.s.done = false; o.s.out = false; }
-  bj.dealQ = [];
-  for (let round = 0; round < 2; round++) {
-    for (const o of bjOccupied()) bj.dealQ.push(o.i);
-    bj.dealQ.push(-1);                  // dealer
-  }
+  bj.hand = []; bj.dealer = []; bj.hole = true; bj.result = ''; bj.busted = false;
+  bj.dealQ = ['you','dealer','you','dealer'];
   bj.state = 'dealing'; bj.timer = 0;
 }
+function bjMenu(list, idxKey) {
+  if (tapLeft)  bj[idxKey] = (bj[idxKey] + list.length - 1) % list.length;
+  if (tapRight) bj[idxKey] = (bj[idxKey] + 1) % list.length;
+  if (bj[idxKey] >= list.length) bj[idxKey] = 0;
+  return list[bj[idxKey]];
+}
 function bjUpdate() {
-  const you = bj.seats[1];
+  if (modalUpdate()) return;
   if (bj.state === 'bet') {
     if (chips < BETS[0]) {
       if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
@@ -791,7 +1250,13 @@ function bjUpdate() {
     if (tapUp)   { do { bj.betIdx = (bj.betIdx + 1) % BETS.length; } while (BETS[bj.betIdx] > chips); }
     if (tapDown) { do { bj.betIdx = (bj.betIdx + BETS.length - 1) % BETS.length; } while (BETS[bj.betIdx] > chips); }
     if (BETS[bj.betIdx] > chips) bj.betIdx = 0;
-    if (aQueued) { aQueued = false; bjStartHand(); }
+    const pick = bjMenu(['DEAL','EMOJI','TIP'], 'actIdx');
+    if (aQueued) {
+      aQueued = false;
+      if (pick === 'DEAL') bjStartHand();
+      else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
+      else openTipModal();
+    }
     if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
   }
   else if (bj.state === 'dealing') {
@@ -799,64 +1264,46 @@ function bjUpdate() {
     if (++bj.timer >= 16) {
       bj.timer = 0;
       const next = bj.dealQ.shift();
-      if (next === -1) bj.dealer.push(bj.deck.pop());
-      else bj.seats[next].hand.push(bj.deck.pop());
+      if (next === 'dealer') bj.dealer.push(bj.deck.pop());
+      else bj.hand.push(bj.deck.pop());
       if (!bj.dealQ.length) {
-        if (handValue(you.hand) === 21) { you.done = true; bj.state = 'others'; bj.timer = 0; }
+        if (handValue(bj.hand) === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
         else { bj.state = 'player'; bj.menuIdx = 0; }
       }
     }
   }
   else if (bj.state === 'player') {
-    const canDouble = you.hand.length === 2 && chips >= bj.bet;
+    const canDouble = bj.hand.length === 2 && chips >= bj.bet;
     const menu = canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'];
-    if (tapLeft)  bj.menuIdx = (bj.menuIdx + menu.length - 1) % menu.length;
-    if (tapRight) bj.menuIdx = (bj.menuIdx + 1) % menu.length;
-    if (bj.menuIdx >= menu.length) bj.menuIdx = 0;
+    const pick = bjMenu(menu, 'menuIdx');
     if (aQueued) {
       aQueued = false;
-      const pick = menu[bj.menuIdx];
       if (pick === 'HIT') {
-        you.hand.push(bj.deck.pop());
-        const v = handValue(you.hand);
-        if (v > 21) { you.out = true; you.done = true; bj.state = 'others'; bj.timer = 0; }
-        else if (v === 21) { you.done = true; bj.state = 'others'; bj.timer = 0; }
+        bj.hand.push(bj.deck.pop());
+        const v = handValue(bj.hand);
+        if (v > 21) { bj.busted = true; bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
+        else if (v === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
       } else if (pick === 'STAND') {
-        you.done = true; bj.state = 'others'; bj.timer = 0;
+        bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
       } else if (pick === 'DOUBLE') {
         setChips(chips - bj.bet); bj.bet *= 2;
-        you.hand.push(bj.deck.pop());
-        if (handValue(you.hand) > 21) you.out = true;
-        you.done = true; bj.state = 'others'; bj.timer = 0;
+        bj.hand.push(bj.deck.pop());
+        if (handValue(bj.hand) > 21) bj.busted = true;
+        bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
       }
     }
     bQueued = false;
-  }
-  else if (bj.state === 'others') {
-    /* seated guests play out their hands, one visible move at a time */
-    aQueued = bQueued = false;
-    if (++bj.timer >= 22) {
-      bj.timer = 0;
-      const g = bjOccupied().find(o => !o.s.you && !o.s.done);
-      if (g) {
-        if (handValue(g.s.hand) < 16) {
-          g.s.hand.push(bj.deck.pop());
-          if (handValue(g.s.hand) > 21) { g.s.out = true; g.s.done = true; }
-        } else g.s.done = true;
-      } else { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
-    }
   }
   else if (bj.state === 'dealerTurn') {
     aQueued = bQueued = false;
     if (++bj.timer >= 26) {
       bj.timer = 0;
-      if (handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
+      if (!bj.busted && handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
       else {
-        /* settle — payout mint (≙ oracle-signed claimWinnings) */
-        const dv = handValue(bj.dealer), pv = handValue(you.hand);
-        const natural = pv === 21 && you.hand.length === 2;
+        const dv = handValue(bj.dealer), pv = handValue(bj.hand);
+        const natural = pv === 21 && bj.hand.length === 2;
         let payout = 0;
-        if (you.out) { bj.result = 'BUST  -' + bj.bet; }
+        if (bj.busted) { bj.result = 'BUST  -' + bj.bet; }
         else if (natural && !(dv === 21 && bj.dealer.length === 2)) {
           payout = bj.bet + Math.floor(bj.bet * 1.5);
           bj.result = 'BLACKJACK!  +' + Math.floor(bj.bet * 1.5);
@@ -864,257 +1311,386 @@ function bjUpdate() {
         else if (dv > 21 || pv > dv) { payout = bj.bet * 2; bj.result = 'YOU WIN  +' + bj.bet; }
         else if (pv === dv) { payout = bj.bet; bj.result = 'PUSH'; }
         else { bj.result = 'DEALER WINS  -' + bj.bet; }
-        if (payout) setChips(chips + payout);
+        if (payout) setChips(chips + payout);   // payout mint (≙ claimWinnings)
         bj.flash = payout > bj.bet ? 40 : 0;
-        bj.state = 'result';
+        bj.state = 'result'; bj.actIdx = 0;
       }
     }
   }
   else if (bj.state === 'result') {
     if (bj.flash > 0) bj.flash--;
-    if (aQueued) { aQueued = false; bj.state = 'bet'; }
+    const pick = bjMenu(['AGAIN','EMOJI','TIP'], 'actIdx');
+    if (aQueued) {
+      aQueued = false;
+      if (pick === 'AGAIN') bj.state = 'bet';
+      else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
+      else openTipModal();
+    }
     if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
   }
 }
 function drawHand(g, hand, x, y, hideFirst) {
   for (let i = 0; i < hand.length; i++) {
     const img = (hideFirst && i === 0) ? cardBack : cardFace(hand[i].r, hand[i].s);
-    g.drawImage(img, x + i * 7, y - ((hideFirst && i === 0) ? 0 : 0));
+    g.drawImage(img, x + i * 7, y);
+  }
+}
+function drawMenuRow(items, selIdx, y) {
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  let x = 16;
+  for (let i = 0; i < items.length; i++) {
+    const sel = i === selIdx;
+    ctx.fillStyle = sel ? C.gold : C.dim;
+    ctx.fillText((sel ? '▶' : ' ') + items[i], x, y);
+    x += 12 + items[i].length * 8 + 12;
   }
 }
 function bjRender() {
   ctx.drawImage(bjRoom, 0, 0);
   drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
   drawEntity(ctx, { sprite:'bjDealer', dir:'down', frame:0, x:120, y:42, staticNPC:true }, tick);
-  /* dealer hand */
   drawHand(ctx, bj.dealer, 120 - Math.max(1, bj.dealer.length) * 7 / 2 - 5, 60, bj.hole);
   if (!bj.hole && bj.dealer.length) {
     ctx.font = FONT; ctx.fillStyle = C.white; ctx.textBaseline = 'top';
     ctx.fillText(String(handValue(bj.dealer)), 154, 66);
   }
-  /* seats, hands, totals */
-  for (let i = 0; i < 4; i++) {
-    const seat = bj.seats[i], pos = BJ_SEATS[i];
-    if (!seat) {
-      ctx.fillStyle = C.woodDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 4);
-      ctx.fillStyle = C.goldDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 1);
-      continue;
-    }
-    drawSeated(ctx, seat.sprite, pos.x, pos.y);
-    if (seat.hand.length) {
-      const hx = pos.x - 9 - (seat.hand.length - 1) * 3;
-      drawHand(ctx, seat.hand, hx, pos.y - 46);
-      ctx.font = FONT; ctx.textBaseline = 'top';
-      const v = handValue(seat.hand);
-      ctx.fillStyle = seat.out ? '#e05a70' : (seat.you ? C.gold : C.white);
-      ctx.fillText(String(v), pos.x - 4, pos.y - 56);
-    }
-    if (seat.you) {
-      ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textBaseline = 'top';
-      ctx.fillText('YOU', pos.x - 11, pos.y + 5);
-    }
+  drawTableSeats(BJ_SEATS, 0);
+  /* your cards in front of your seat */
+  if (bj.hand.length) {
+    const pos = BJ_SEATS[social.seat];
+    const hx = pos.x - 9 - (bj.hand.length - 1) * 3;
+    drawHand(ctx, bj.hand, Math.max(2, Math.min(W - 30, hx)), pos.y - 46);
+    ctx.font = FONT; ctx.textBaseline = 'top';
+    const v = handValue(bj.hand);
+    ctx.fillStyle = bj.busted ? '#e05a70' : C.gold;
+    ctx.fillText(String(v), pos.x - 4, pos.y - 56);
   }
-  /* UI band */
+  const seatPos = tableSeatPos(BJ_SEATS);
+  drawPopups(seatPos);
+  if (modal) { modalDraw(seatPos); drawNetDot(); return; }
   uiPanel();
   ctx.font = FONT; ctx.textBaseline = 'top';
-  if (bj.state === 'bet') {
+  if (flashT > 0) { flashT--; uiText(flashMsg, '#e05a70', 186); }
+  else if (bj.state === 'bet') {
     if (chips < BETS[0]) {
-      uiText('OUT OF CHIPS', C.white, 190);
+      uiText('OUT OF CHIPS', C.white, 186);
       uiText('B: LEAVE TABLE', C.gold, 214);
     } else {
-      uiText('PLACE YOUR BET:  ' + BETS[bj.betIdx], C.white, 190);
-      uiText('UP/DOWN: BET   A: DEAL   B: LEAVE', C.gold, 214);
+      uiText('BET ' + BETS[bj.betIdx] + '   (UP/DOWN TO CHANGE)', C.white, 186);
+      drawMenuRow(['DEAL','EMOJI','TIP'], bj.actIdx, 204);
+      uiText('A: SELECT   B: LEAVE', C.gold, 222);
     }
   } else if (bj.state === 'player') {
-    const canDouble = bj.seats[1].hand.length === 2 && chips >= bj.bet;
-    const menu = canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'];
-    let x = 22;
-    for (let i = 0; i < menu.length; i++) {
-      const sel = i === bj.menuIdx;
-      ctx.fillStyle = sel ? C.gold : '#8d8398';
-      ctx.fillText((sel ? '▶' : ' ') + menu[i], x, 196);
-      x += 12 + menu[i].length * 8 + 14;
-    }
+    const canDouble = bj.hand.length === 2 && chips >= bj.bet;
+    drawMenuRow(canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'], bj.menuIdx, 196);
     uiText('BET ' + bj.bet, C.white, 218);
   } else if (bj.state === 'result') {
     const win = bj.flash > 0 && Math.floor(tick / 6) % 2;
-    uiText(bj.result, win ? C.gold : C.white, 190);
-    uiText('A: NEW HAND   B: LEAVE', C.gold, 214);
+    uiText(bj.result, win ? C.gold : C.white, 186);
+    drawMenuRow(['AGAIN','EMOJI','TIP'], bj.actIdx, 204);
+    uiText('A: SELECT   B: LEAVE', C.gold, 222);
   } else {
-    uiText(bj.state === 'dealing' ? 'DEALING...' : (bj.state === 'others' ? 'TABLE PLAYS...' : 'DEALER PLAYS...'), '#8d8398', 196);
+    uiText(bj.state === 'dealing' ? 'DEALING...' : 'DEALER PLAYS...', C.dim, 196);
     uiText('BET ' + bj.bet, C.white, 218);
   }
+  drawNetDot();
 }
 
 /* ============================ craps scene ============================ */
+/* Bets: PASS LINE (1:1) · PLACE 4/5/6/8/9/10 (9:5, 7:5, 7:6) ·
+   HARDWAYS 4/6/8/10 (7:1 hard 4&10, 9:1 hard 6&8).
+   Place + hardways are OFF during the come-out (as at the big tables). */
 const CR_SEATS = [ {x:52,y:162}, {x:97,y:167}, {x:143,y:167}, {x:188,y:162} ];
-const CR_NUMS = [4, 5, 6, 8, 9, 10];
+const PLACE_NUMS = [4, 5, 6, 8, 9, 10];
+const HARD_NUMS = [4, 6, 8, 10];
+const PLACE_PAY = { 4:[9,5], 5:[7,5], 6:[7,6], 8:[7,6], 9:[7,5], 10:[9,5] };
+const HARD_PAY = { 4:7, 6:9, 8:9, 10:7 };
+const UNITS = [5, 10, 25, 50];
+const placeBox = i => ({ x: 38 + i*28, y: 52, w: 22, h: 20 });
+const hardBox = i => ({ x: 38 + i*40, y: 76, w: 34, h: 20 });
+const passBox = { x: 34, y: 116, w: 172, h: 18 };
+const CR_MENU = ['UNIT','ROLL','EMOJI','TIP','LEAVE'];
 
 const crRoom = makeCanvas(W, H, g => {
   paintTableRoom(g);
-  /* green rail table */
   g.fillStyle = C.shadow; g.fillRect(22, 148, 196, 5);
   g.fillStyle = C.woodDark; g.fillRect(20, 40, 200, 110);
   g.fillStyle = C.wood; g.fillRect(23, 43, 194, 104);
-  g.fillStyle = C.feltGreenDark; g.fillRect(28, 48, 184, 94);
-  g.fillStyle = C.feltGreen; g.fillRect(30, 50, 180, 90);
-  /* number boxes */
+  g.fillStyle = C.feltGreenDark; g.fillRect(28, 46, 184, 98);
+  g.fillStyle = C.feltGreen; g.fillRect(30, 48, 180, 94);
   g.font = FONT; g.textBaseline = 'top';
-  for (let i = 0; i < CR_NUMS.length; i++) {
-    const bx = 38 + i * 28;
+  for (let i = 0; i < PLACE_NUMS.length; i++) {
+    const b = placeBox(i);
     g.strokeStyle = '#d8e8dc'; g.lineWidth = 1;
-    g.strokeRect(bx + 0.5, 58.5, 22, 17);
+    g.strokeRect(b.x + 0.5, b.y + 0.5, b.w, b.h);
     g.fillStyle = '#d8e8dc';
-    const n = CR_NUMS[i];
-    g.fillText(String(n), bx + (n === 10 ? 4 : 8), 63);
+    const n = PLACE_NUMS[i];
+    g.fillText(String(n), b.x + (n === 10 ? 4 : 8), b.y + 3);
   }
-  /* pass line */
+  for (let i = 0; i < HARD_NUMS.length; i++) {
+    const b = hardBox(i);
+    g.strokeStyle = '#d8e8dc';
+    g.strokeRect(b.x + 0.5, b.y + 0.5, b.w, b.h);
+    const n = HARD_NUMS[i];
+    drawDie(g, b.x + 3, b.y + 5, n / 2, 7);
+    drawDie(g, b.x + 11, b.y + 8, n / 2, 7);
+  }
   g.strokeStyle = '#d8e8dc';
-  g.strokeRect(34.5, 120.5, 171, 15);
+  g.strokeRect(passBox.x + 0.5, passBox.y + 0.5, passBox.w, passBox.h);
   g.fillStyle = '#d8e8dc';
-  g.fillText('PASS LINE', 85, 124);
-  g.fillStyle = C.goldDark;
-  g.fillRect(30, 50, 180, 1);
+  g.fillText('PASS LINE', 85, passBox.y + 6);
 });
 const cr = {
-  state:'bet', betIdx:1, bet:0, point:0, dice:[3,4], rolling:0,
-  result:'', seats:[], flash:0, phase:'comeout'
+  mode:'board', point:0, dice:[3,4], rollT:0,
+  bets:{}, unitIdx:0, cur:{ row:3, col:1 },
+  outcome:[], outT:0, flash:0
 };
+function crBetKeys() {
+  const b = { pass: 0 };
+  PLACE_NUMS.forEach(n => b['p' + n] = 0);
+  HARD_NUMS.forEach(n => b['h' + n] = 0);
+  return b;
+}
 function enterCraps() {
   scene = 'craps';
-  cr.state = 'bet'; cr.point = 0; cr.result = ''; cr.rolling = 0;
-  cr.dice = [3, 4];
-  cr.seats = [null, null, null, null].map((_, i) => {
-    if (i === 1) return { sprite:'player', you:true };
-    if (Math.random() < 0.5) return { sprite: (i % 2) ? 'guestM' : 'guestF', you:false };
-    return null;
-  });
+  cr.mode = 'board'; cr.point = 0; cr.dice = [3,4]; cr.rollT = 0;
+  cr.bets = crBetKeys();
+  cr.cur = { row:3, col:1 };
+  cr.outcome = []; cr.outT = 0;
+  modal = null;
+  tableConnect('craps');
 }
-function crRoll() {
-  cr.rolling = 34;
+function crTotalBets() {
+  return Object.values(cr.bets).reduce((a, b) => a + b, 0);
 }
-function crSettle(win, msg) {
-  if (win) { setChips(chips + cr.bet * 2); cr.flash = 40; }   // 1:1 pass line
-  else cr.flash = 0;
-  cr.result = msg;
-  cr.state = 'result';
-  cr.point = 0;
+function crRows() {
+  return [PLACE_NUMS.length, HARD_NUMS.length, 1, CR_MENU.length];
+}
+function crSpotKey() {
+  const { row, col } = cr.cur;
+  if (row === 0) return 'p' + PLACE_NUMS[col];
+  if (row === 1) return 'h' + HARD_NUMS[col];
+  if (row === 2) return 'pass';
+  return null;
+}
+function crResolve() {
+  const [d1, d2] = cr.dice;
+  const sum = d1 + d2, hard = d1 === d2;
+  const out = [];
+  let winTot = 0, seven = false;
+  if (cr.point === 0) {
+    /* come out — place & hardway bets are OFF */
+    if (sum === 7 || sum === 11) {
+      if (cr.bets.pass) { const w = cr.bets.pass; setChips(chips + w * 2); winTot += w; out.push(sum + '! PASS WINS +' + w); cr.bets.pass = 0; }
+      else out.push(sum + ' ON THE COME OUT');
+    } else if (sum === 2 || sum === 3 || sum === 12) {
+      if (cr.bets.pass) { out.push('CRAPS ' + sum + ' · PASS DOWN -' + cr.bets.pass); cr.bets.pass = 0; }
+      else out.push('CRAPS ' + sum);
+    } else {
+      cr.point = sum;
+      out.push('POINT IS ' + sum);
+    }
+  } else {
+    if (sum === 7) {
+      seven = true;
+      let lost = cr.bets.pass;
+      PLACE_NUMS.forEach(n => lost += cr.bets['p' + n]);
+      HARD_NUMS.forEach(n => lost += cr.bets['h' + n]);
+      out.push('SEVEN OUT');
+      if (lost) out.push('-' + lost + ' CHIPS DOWN');
+      cr.bets = crBetKeys();
+      cr.point = 0;
+    } else {
+      if (sum === cr.point) {
+        out.push('POINT ' + sum + ' HIT!');
+        if (cr.bets.pass) { const w = cr.bets.pass; setChips(chips + w * 2); winTot += w; cr.bets.pass = 0; }
+        cr.point = 0;
+      }
+      if (cr.bets['p' + sum]) {
+        const [a, b] = PLACE_PAY[sum];
+        const w = Math.floor(cr.bets['p' + sum] * a / b);
+        setChips(chips + w); winTot += w;
+        out.push('PLACE ' + sum + ' PAYS +' + w);
+      }
+      if (HARD_NUMS.includes(sum) && cr.bets['h' + sum]) {
+        if (hard) {
+          const w = cr.bets['h' + sum] * HARD_PAY[sum];
+          setChips(chips + w); winTot += w;
+          out.push('HARD ' + sum + '! +' + w);
+        } else {
+          out.push('EASY ' + sum + ' · HARD ' + sum + ' DOWN');
+          cr.bets['h' + sum] = 0;
+        }
+      }
+      if (!out.length) out.push(sum + ' · NO ACTION');
+    }
+  }
+  cr.flash = winTot > 0 ? 40 : 0;
+  cr.outcome = out.slice(0, 2);
+  cr.outT = seven || winTot > 0 ? 150 : 100;
+  cr.mode = 'outcome';
 }
 function crUpdate() {
-  if (cr.rolling > 0) {
+  if (modalUpdate()) return;
+  if (cr.mode === 'rolling') {
     aQueued = bQueued = false;
-    if (cr.rolling % 4 === 0) {
+    if (cr.rollT % 4 === 0) {
       cr.dice = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
     }
-    if (--cr.rolling === 0) {
-      const sum = cr.dice[0] + cr.dice[1];
-      if (cr.state === 'comeout') {
-        if (sum === 7 || sum === 11) crSettle(true, sum + '!  WINNER  +' + cr.bet);
-        else if (sum === 2 || sum === 3 || sum === 12) crSettle(false, 'CRAPS ' + sum + '  -' + cr.bet);
-        else { cr.point = sum; cr.state = 'point'; }
-      } else if (cr.state === 'point') {
-        if (sum === cr.point) crSettle(true, 'HIT THE POINT!  +' + cr.bet);
-        else if (sum === 7) crSettle(false, 'SEVEN OUT  -' + cr.bet);
-      }
-    }
+    if (--cr.rollT <= 0) crResolve();
     return;
   }
-  if (cr.state === 'bet') {
-    if (chips < BETS[0]) {
-      if (bQueued) { bQueued = false; startTransition(() => leaveTable('craps')); }
-      aQueued = false;
-      return;
-    }
-    if (tapUp)   { do { cr.betIdx = (cr.betIdx + 1) % BETS.length; } while (BETS[cr.betIdx] > chips); }
-    if (tapDown) { do { cr.betIdx = (cr.betIdx + BETS.length - 1) % BETS.length; } while (BETS[cr.betIdx] > chips); }
-    if (BETS[cr.betIdx] > chips) cr.betIdx = 0;
-    if (aQueued) {
-      aQueued = false;
-      cr.bet = BETS[cr.betIdx];
-      setChips(chips - cr.bet);          // pass-line stake (≙ commitWager)
-      cr.state = 'comeout';
-    }
-    if (bQueued) { bQueued = false; startTransition(() => leaveTable('craps')); }
-  }
-  else if (cr.state === 'comeout' || cr.state === 'point') {
-    if (aQueued) { aQueued = false; crRoll(); }
-    bQueued = false;
-  }
-  else if (cr.state === 'result') {
+  if (cr.mode === 'outcome') {
     if (cr.flash > 0) cr.flash--;
-    if (aQueued) { aQueued = false; cr.state = 'bet'; }
-    if (bQueued) { bQueued = false; startTransition(() => leaveTable('craps')); }
+    if (--cr.outT <= 0 || aQueued) { aQueued = false; cr.mode = 'board'; }
+    bQueued = false;
+    return;
+  }
+  /* board mode: cursor betting */
+  const rows = crRows();
+  if (tapUp)   { cr.cur.row = (cr.cur.row + 3) % 4; cr.cur.col = Math.min(cr.cur.col, rows[cr.cur.row] - 1); }
+  if (tapDown) { cr.cur.row = (cr.cur.row + 1) % 4; cr.cur.col = Math.min(cr.cur.col, rows[cr.cur.row] - 1); }
+  if (tapLeft)  cr.cur.col = (cr.cur.col + rows[cr.cur.row] - 1) % rows[cr.cur.row];
+  if (tapRight) cr.cur.col = (cr.cur.col + 1) % rows[cr.cur.row];
+  const unit = UNITS[cr.unitIdx];
+  const spot = crSpotKey();
+  if (aQueued) {
+    aQueued = false;
+    if (spot) {
+      if (spot === 'pass' && cr.point !== 0) flash('PASS BETS: COME OUT ONLY');
+      else if (chips < unit) flash('NOT ENOUGH CHIPS');
+      else { cr.bets[spot] += unit; setChips(chips - unit); }
+    } else {
+      const item = CR_MENU[cr.cur.col];
+      if (item === 'UNIT') cr.unitIdx = (cr.unitIdx + 1) % UNITS.length;
+      else if (item === 'ROLL') {
+        if (crTotalBets() === 0) flash('PLACE A BET FIRST');
+        else cr.mode = 'rolling', cr.rollT = 34;
+      }
+      else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
+      else if (item === 'TIP') openTipModal();
+      else if (item === 'LEAVE') {
+        setChips(chips + crTotalBets());   // take everything down
+        cr.bets = crBetKeys();
+        startTransition(() => leaveTable('craps'));
+      }
+    }
+  }
+  if (bQueued) {
+    bQueued = false;
+    if (spot && cr.bets[spot] > 0) {
+      if (spot === 'pass' && cr.point !== 0) flash('PASS RIDES UNTIL DECIDED');
+      else {
+        const take = Math.min(unit, cr.bets[spot]);
+        cr.bets[spot] -= take;
+        setChips(chips + take);
+      }
+    }
   }
 }
 function crRender() {
   ctx.drawImage(crRoom, 0, 0);
   drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
   drawEntity(ctx, { sprite:'crapsDealer', dir:'down', frame:0, x:120, y:38, staticNPC:true }, tick);
-  /* puck */
   ctx.font = FONT; ctx.textBaseline = 'top';
+  const comeout = cr.point === 0;
+  /* bet amounts on the felt */
+  for (let i = 0; i < PLACE_NUMS.length; i++) {
+    const n = PLACE_NUMS[i], amt = cr.bets['p' + n];
+    if (!amt) continue;
+    const b = placeBox(i);
+    ctx.fillStyle = comeout ? C.dim : C.gold;
+    ctx.fillText(String(amt), b.x + (amt > 99 ? 0 : amt > 9 ? 3 : 8), b.y + 12);
+  }
+  for (let i = 0; i < HARD_NUMS.length; i++) {
+    const n = HARD_NUMS[i], amt = cr.bets['h' + n];
+    if (!amt) continue;
+    const b = hardBox(i);
+    ctx.fillStyle = comeout ? C.dim : C.gold;
+    ctx.fillText(String(amt), b.x + 20, b.y + 7);
+  }
+  if (cr.bets.pass) {
+    ctx.fillStyle = C.red; ctx.fillRect(42, passBox.y + 10, 6, 3);
+    ctx.fillStyle = C.gold; ctx.fillRect(42, passBox.y + 7, 6, 3);
+    ctx.fillStyle = C.gold; ctx.fillText(String(cr.bets.pass), 52, passBox.y + 6);
+  }
+  if (comeout && (crTotalBets() - cr.bets.pass) > 0) {
+    ctx.fillStyle = C.dim;
+    ctx.fillText('OFF', 186, 42);
+  }
+  /* puck */
   if (cr.point) {
-    const i = CR_NUMS.indexOf(cr.point);
-    const px = 38 + i * 28 + 11;
+    const i = PLACE_NUMS.indexOf(cr.point);
+    const b = placeBox(i);
+    const px = b.x + 11;
     ctx.fillStyle = C.white;
-    ctx.beginPath(); ctx.arc(px, 54, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px, 50, 5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = C.black; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(px, 54, 5, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = C.black; ctx.fillRect(px - 2, 53, 5, 2);
+    ctx.beginPath(); ctx.arc(px, 50, 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = C.black; ctx.fillRect(px - 2, 49, 5, 2);
   } else {
     ctx.fillStyle = C.black;
-    ctx.beginPath(); ctx.arc(41, 54, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(30, 44, 4, 0, Math.PI * 2); ctx.fill();
   }
   /* dice */
-  const shake = cr.rolling > 0 ? (tick % 2 ? 1 : -1) : 0;
-  drawDie(ctx, 100 + shake, 92, cr.dice[0], 14);
-  drawDie(ctx, 124 - shake, 94, cr.dice[1], 14);
-  if (!cr.rolling && (cr.state === 'point' || cr.state === 'result')) {
+  const shake = cr.mode === 'rolling' ? (tick % 2 ? 1 : -1) : 0;
+  drawDie(ctx, 100 + shake, 99, cr.dice[0], 14);
+  drawDie(ctx, 124 - shake, 100, cr.dice[1], 14);
+  if (cr.mode !== 'rolling') {
     ctx.fillStyle = C.white;
-    ctx.fillText(String(cr.dice[0] + cr.dice[1]), 116, 82);
+    ctx.fillText(String(cr.dice[0] + cr.dice[1]), 86, 103);
   }
-  /* your chips on the pass line (left of the PASS LINE lettering) */
-  if (cr.bet && (cr.state === 'comeout' || cr.state === 'point')) {
-    ctx.fillStyle = C.red; ctx.fillRect(42, 128, 6, 3);
-    ctx.fillStyle = C.gold; ctx.fillRect(42, 125, 6, 3);
-    ctx.fillStyle = C.white; ctx.fillText(String(cr.bet), 52, 124);
+  /* cursor on felt spots */
+  if (cr.mode === 'board' && !modal && cr.cur.row < 3) {
+    let b;
+    if (cr.cur.row === 0) b = placeBox(cr.cur.col);
+    else if (cr.cur.row === 1) b = hardBox(cr.cur.col);
+    else b = passBox;
+    ctx.strokeStyle = C.gold; ctx.lineWidth = 1;
+    if (Math.floor(tick / 12) % 2) ctx.strokeRect(b.x - 0.5, b.y - 0.5, b.w + 2, b.h + 2);
   }
-  /* seats around the rail */
-  for (let i = 0; i < 4; i++) {
-    const seat = cr.seats[i], pos = CR_SEATS[i];
-    if (!seat) {
-      ctx.fillStyle = C.woodDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 4);
-      ctx.fillStyle = C.goldDark; ctx.fillRect(pos.x - 4, pos.y - 2, 8, 1);
-      continue;
-    }
-    const hop = (cr.flash > 0 && !((tick + i * 3) % 20 < 10)) ? -1 : 0;
-    drawSeated(ctx, seat.sprite, pos.x, pos.y + hop);
-    if (seat.you) {
-      ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textBaseline = 'top';
-      ctx.fillText('YOU', pos.x - 11, pos.y + 5);
-    }
-  }
+  /* seats + your win hop */
+  const hop = (cr.flash > 0 && Math.floor(tick / 10) % 2) ? -1 : 0;
+  drawTableSeats(CR_SEATS, hop);
+  const seatPos = tableSeatPos(CR_SEATS);
+  drawPopups(seatPos);
+  if (modal) { modalDraw(seatPos); drawNetDot(); return; }
   /* UI band */
   uiPanel();
   ctx.font = FONT; ctx.textBaseline = 'top';
-  if (cr.state === 'bet') {
-    if (chips < BETS[0]) {
-      uiText('OUT OF CHIPS', C.white, 190);
-      uiText('B: LEAVE TABLE', C.gold, 214);
-    } else {
-      uiText('PASS LINE BET:  ' + BETS[cr.betIdx], C.white, 190);
-      uiText('UP/DOWN: BET   A: SET   B: LEAVE', C.gold, 214);
-    }
-  } else if (cr.state === 'comeout') {
-    uiText(cr.rolling ? 'ROLLING...' : 'COME OUT ROLL', C.white, 190);
-    if (!cr.rolling) uiText('A: ROLL THE BONES', C.gold, 214);
-  } else if (cr.state === 'point') {
-    uiText('POINT IS ' + cr.point + '  ·  ROLL IT AGAIN', C.white, 190);
-    if (!cr.rolling) uiText('A: ROLL   (SEVEN LOSES)', C.gold, 214);
-  } else if (cr.state === 'result') {
+  if (flashT > 0) { flashT--; uiText(flashMsg, '#e05a70', 186); drawCrMenuAndHint(); drawNetDot(); return; }
+  if (cr.mode === 'rolling') {
+    uiText('ROLLING...', C.white, 196);
+  } else if (cr.mode === 'outcome') {
     const win = cr.flash > 0 && Math.floor(tick / 6) % 2;
-    uiText(cr.result, win ? C.gold : C.white, 190);
-    uiText('A: NEW BET   B: LEAVE', C.gold, 214);
+    uiText(cr.outcome[0] || '', win ? C.gold : C.white, 190);
+    if (cr.outcome[1]) uiText(cr.outcome[1], C.white, 206);
+    uiText('A: CONTINUE', C.gold, 222);
+  } else {
+    uiText(comeout ? 'COME OUT ROLL · PLACE YOUR BETS' : 'POINT IS ' + cr.point, C.white, 186);
+    drawCrMenuAndHint();
   }
+  drawNetDot();
+}
+function drawCrMenuAndHint() {
+  const unit = UNITS[cr.unitIdx];
+  const items = CR_MENU.map(m => m === 'UNIT' ? 'UNIT ' + unit : m);
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  let x = 8;
+  for (let i = 0; i < items.length; i++) {
+    const sel = cr.cur.row === 3 && cr.cur.col === i;
+    ctx.fillStyle = sel ? C.gold : C.dim;
+    ctx.fillText((sel ? '▶' : '') + items[i], x, 204);
+    x += (sel ? 8 : 0) + items[i].length * 8 + 10;
+  }
+  let hint = '';
+  if (cr.cur.row < 2) hint = 'A: BET +' + unit + '   B: TAKE DOWN';
+  else if (cr.cur.row === 2) hint = cr.point === 0 ? 'A: PASS BET +' + unit + '   B: TAKE DOWN' : 'PASS RIDES UNTIL DECIDED';
+  else {
+    const item = CR_MENU[cr.cur.col];
+    hint = { UNIT:'A: CHANGE BET UNIT', ROLL:'A: ROLL THE BONES', EMOJI:'A: SEND AN EMOJI', TIP:'A: TIP A PLAYER', LEAVE:'A: STAND UP' }[item];
+  }
+  uiText(hint, C.gold, 222);
 }
 
 /* ============================ scene helpers ============================ */
@@ -1124,6 +1700,7 @@ function startTransition(midFn) {
   trans.active = true; trans.t = 0; trans.mid = midFn;
 }
 function leaveTable(which) {
+  tableDisconnect();
   scene = 'floor';
   if (which === 'craps') { player.x = 3.5*TS; player.y = 10.8*TS; }
   else { player.x = 11.5*TS; player.y = 10.8*TS; }
@@ -1137,7 +1714,7 @@ function uiPanel() {
 }
 function uiText(str, col, y) {
   ctx.fillStyle = col;
-  ctx.fillText(str, Math.max(10, Math.round(120 - str.length * 4)), y);
+  ctx.fillText(str, Math.max(8, Math.round(120 - str.length * 4)), y);
 }
 
 /* ============================ particles ============================ */
@@ -1154,7 +1731,7 @@ for (let i = 0; i < 14; i++) {
 /* ============================ title + state ============================ */
 let titleAlpha = 1, started = false, tick = 0;
 
-/* ============================ floor update ============================ */
+/* ============================ floor scene ============================ */
 function floorUpdate() {
   if (dlg.open) {
     dlg.chars += DLG_SPEED;
@@ -1189,7 +1766,6 @@ function floorUpdate() {
   if (bQueued) bQueued = false;
 
   for (const g of guests) {
-    if (dlg.open && dlg.id === g.id) continue;
     g.moveT--;
     if (g.moveT <= 0) {
       g.moveT = 50 + Math.floor(Math.random() * 90);
@@ -1212,15 +1788,12 @@ function floorUpdate() {
     g.x = Math.max(1.5*TS, Math.min(13.5*TS - 1, g.x));
     g.y = Math.max(4.5*TS, Math.min(13.5*TS - 1, g.y));
   }
-
   for (const p of confetti) {
     p.y += p.v; p.sway += 0.02;
     p.x += Math.sin(p.sway) * 0.1;
     if (p.y > 236) { p.y = 34; p.x = 16 + Math.random() * 208; }
   }
 }
-
-/* ============================ shared drawing ============================ */
 function drawFlame(g, x, y) {
   const f = Math.floor(tick / 8) % 2;
   g.fillStyle = C.goldDark; g.fillRect(x+2, y+6, 3, 2);
@@ -1287,12 +1860,10 @@ function drawTitle(g) {
   g.textAlign = 'left';
   g.textBaseline = 'top';
 }
-
 function floorRender() {
   ctx.drawImage(bg, 0, 0);
   drawFlame(ctx, 3*TS + 4, 18);
   drawFlame(ctx, 11*TS + 4, 18);
-
   const items = [];
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6) });
   items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS) });
@@ -1303,14 +1874,12 @@ function floorRender() {
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw(ctx);
-
   for (const p of confetti) {
     ctx.fillStyle = p.col;
     ctx.globalAlpha = 0.7;
     ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 2);
   }
   ctx.globalAlpha = 1;
-
   if (started && !dlg.open) {
     const t = interactTarget();
     if (t) {
@@ -1320,13 +1889,13 @@ function floorRender() {
       ctx.fillText('!', Math.round(player.x) - 2, Math.round(player.y) - 28 - bounce);
     }
   }
-
+  /* popups over your head on the floor (chat bubbles, emoji) */
+  drawPopups(target => target === 'you' ? { x: player.x, y: player.y - 6 } : null);
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
   vg.addColorStop(1, 'rgba(8,5,14,0.42)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
-
   if (dlg.open) drawDialog(ctx);
   if (titleAlpha > 0) drawTitle(ctx);
 }
@@ -1347,6 +1916,7 @@ function update() {
     return;
   }
   if (!started) { aQueued = bQueued = false; return; }
+  if (chatOpen()) { aQueued = bQueued = false; return; }   // chat panel has focus
   if (scene === 'floor') floorUpdate();
   else if (scene === 'blackjack') bjUpdate();
   else if (scene === 'craps') crUpdate();
@@ -1381,6 +1951,15 @@ if (document.fonts && document.fonts.load) {
   ]).catch(() => {}).then(() => requestAnimationFrame(loop));
 } else {
   requestAnimationFrame(loop);
+}
+
+/* test hook (only with ?debug=1 in the URL) */
+if (new URLSearchParams(location.search).has('debug')) {
+  window.CN = {
+    enterCraps, enterBlackjack, leaveTable, player, cr, bj, social, popups,
+    get chips() { return chips; }, setChips,
+    skipTitle() { started = true; titleAlpha = 0; }
+  };
 }
 </script>
 </body>
