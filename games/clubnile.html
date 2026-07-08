@@ -523,17 +523,18 @@ const social = {
 
 /* floating popups above heads: emoji / speech bubbles / tip amounts */
 const popups = [];
-function addPopup(target, kind, str, life) {
+function addPopup(target, kind, str, life, delay) {
   /* the dealer speaks one line at a time */
   if (target === 'dealer' && kind === 'bubble') {
     for (let i = popups.length - 1; i >= 0; i--) {
       if (popups[i].target === 'dealer' && popups[i].kind === 'bubble') popups.splice(i, 1);
     }
   }
-  popups.push({ target, kind, str, t: 0, life: life || (kind === 'bubble' ? 360 : 150) });
+  popups.push({ target, kind, str, t: 0, life: life || (kind === 'bubble' ? 360 : 150), delay: delay || 0 });
   if (popups.length > 12) popups.shift();
 }
-function dealerSay(str, life) { addPopup('dealer', 'bubble', str, life || 330); }
+function dealerSay(str, life, delay) { addPopup('dealer', 'bubble', str, life || 330, delay); }
+const CALL_BEAT = 90;   // ~1.5s pause between a result showing and the call
 function dealerBusy() { return popups.some(p => p.target === 'dealer' && p.kind === 'bubble'); }
 function pushChat(name, text, sys) {
   social.chatLog.push({ name, text, sys });
@@ -816,7 +817,7 @@ cvs.addEventListener('pointerdown', e => {
 
 /* ============================ dialogue box ============================ */
 const dlg = { open:false, id:null, name:'', pages:[], page:0, chars:0, action:null };
-const DLG_SPEED = 0.34;   // slow, cosy typewriter
+const DLG_SPEED = 0.22;   // slow, cosy typewriter
 function wrapText(text, maxW) {
   const words = text.split(' ');
   const lines = [];
@@ -1560,11 +1561,11 @@ function modalDraw(seatPos) {
   ctx.font = FONT; ctx.textBaseline = 'top';
   if (modal.type === 'leave') {
     uiText('LEAVE THE TABLE?', C.white, 186);
-    let note = 'SEE YOU AT THE BAR';
+    let note = '';
     if (scene === 'craps' && cr.point !== 0 && cr.bets.pass > 0) note = 'PASS BET RIDES TO A RESULT';
     else if (scene === 'craps' && crTotalBets() > 0) note = 'YOUR BETS COME DOWN';
     else if (bjHandLive()) note = 'YOUR HAND STANDS AND SETTLES';
-    uiText(note, C.dim, 204);
+    if (note) uiText(note, C.dim, 204);
     uiText('A: LEAVE   B: STAY', C.gold, 222);
     return;
   }
@@ -1600,6 +1601,7 @@ function modalDraw(seatPos) {
 function drawPopups(seatPos) {
   for (let i = popups.length - 1; i >= 0; i--) {
     const p = popups[i];
+    if (p.delay > 0) { p.delay--; continue; }   // a beat before speaking
     p.t++;
     if (p.t > p.life) { popups.splice(i, 1); continue; }
     const pos = seatPos(p.target);
@@ -1623,26 +1625,49 @@ function drawPopups(seatPos) {
     ctx.globalAlpha = 1;
   }
 }
-/* speech bubble; tailUp anchors the box below the speaker (dealers) */
+/* speech bubble with rounded corners; tailUp anchors the box below the
+   speaker (dealers get the big billboard version) */
+function bubblePath(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 function drawBubble(cx, anchorY, text, tailUp) {
+  const big = tailUp;                       // dealer lines get the big bubble
+  const maxW = big ? 168 : 100;
+  const lineH = big ? 12 : 10;
+  const pad = big ? 7 : 4;
   ctx.font = FONT;
-  let lines = wrapText(text, 100);
-  if (lines.length > 2) { lines = lines.slice(0, 2); lines[1] += '…'; }
-  const w = Math.min(110, Math.max(...lines.map(l => ctx.measureText(l).width)) + 8);
-  const h = lines.length * 10 + 5;
+  let lines = wrapText(text, maxW - pad * 2);
+  const maxLines = big ? 3 : 2;
+  if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] += '…'; }
+  const w = Math.min(maxW, Math.max(...lines.map(l => ctx.measureText(l).width)) + pad * 2);
+  const h = lines.length * lineH + pad * 2 - 2;
   let x = Math.round(cx - w / 2);
   x = Math.max(2, Math.min(W - w - 2, x));
-  const y = tailUp ? anchorY + 4 : anchorY - h - 5;
-  ctx.fillStyle = 'rgba(247,243,232,0.96)';
-  ctx.fillRect(x, y, w, h);
+  const y = tailUp ? anchorY + 5 : anchorY - h - 5;
+  ctx.fillStyle = 'rgba(10,6,14,0.35)';     // soft drop shadow
+  bubblePath(x + 1, y + 2, w, h, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(247,243,232,0.97)';
+  bubblePath(x, y, w, h, 5); ctx.fill();
   ctx.strokeStyle = C.black; ctx.lineWidth = 1;
-  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-  ctx.fillStyle = 'rgba(247,243,232,0.96)';
-  if (tailUp) ctx.fillRect(cx - 2, y - 3, 4, 3);
-  else ctx.fillRect(cx - 2, y + h, 4, 3);
+  bubblePath(x + 0.5, y + 0.5, w - 1, h - 1, 5); ctx.stroke();
+  /* tail */
+  ctx.fillStyle = 'rgba(247,243,232,0.97)';
+  ctx.beginPath();
+  if (tailUp) {
+    ctx.moveTo(cx - 4, y + 1); ctx.lineTo(cx, y - 5); ctx.lineTo(cx + 4, y + 1);
+  } else {
+    ctx.moveTo(cx - 4, y + h - 1); ctx.lineTo(cx, y + h + 5); ctx.lineTo(cx + 4, y + h - 1);
+  }
+  ctx.closePath(); ctx.fill();
   ctx.fillStyle = C.black;
   ctx.textBaseline = 'top';
-  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x + 4, y + 3 + i * 10);
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x + pad, y + pad + i * lineH);
 }
 
 /* ============================ remote players at tables ============================ */
@@ -1678,7 +1703,27 @@ function tableSeatPos(SEATS, dealerPos) {
 function drawNetDot() {
   const on = social.table && social.table.status === 'on';
   ctx.fillStyle = on ? '#4fae64' : '#a34848';
-  ctx.fillRect(232, 31, 4, 4);
+  ctx.fillRect(68, 34, 4, 4);
+}
+/* the table clock lives in its own little box, top-right of the screen */
+function drawTimerBox(label, secs, urgent) {
+  const x = 196, y = 28, w = 40, h = 28;
+  const grad = ctx.createLinearGradient(0, y, 0, y + h);
+  grad.addColorStop(0, 'rgba(30,22,48,0.9)');
+  grad.addColorStop(1, 'rgba(14,10,24,0.9)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = C.goldDark; ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  ctx.fillStyle = C.goldHi;
+  ctx.fillRect(x, y, 2, 2); ctx.fillRect(x + w - 2, y, 2, 2);
+  ctx.fillRect(x, y + h - 2, 2, 2); ctx.fillRect(x + w - 2, y + h - 2, 2, 2);
+  ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = C.dim;
+  ctx.fillText(label, x + w / 2, y + 4);
+  ctx.fillStyle = urgent ? '#ff8a78' : C.gold;
+  ctx.fillText(secs + 'S', x + w / 2, y + 15);
+  ctx.textAlign = 'left';
 }
 
 /* ============================ blackjack scene ============================ */
@@ -1834,7 +1879,7 @@ function bjUpdate() {
       else bj.hand.push(bj.deck.pop());
       bjJournal();
       if (!bj.dealQ.length) {
-        dealerSay('Dealer shows ' + CARD_CALLED[bj.dealer[1].r], 300);
+        dealerSay('Dealer shows ' + CARD_CALLED[bj.dealer[1].r], 300, CALL_BEAT);
         if (handValue(bj.hand) === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
         else { bj.state = 'player'; bj.menuIdx = 0; bj.decideUntil = Date.now() + BJ_DECIDE_MS; }
       }
@@ -1878,12 +1923,12 @@ function bjUpdate() {
     if (!bj.revealed) {
       bj.revealed = true;
       if (!bj.busted) {
-        dealerSay('Dealer turns ' + CARD_CALLED[bj.dealer[0].r] + " — that's " + handValue(bj.dealer), 320);
+        dealerSay('Dealer turns ' + CARD_CALLED[bj.dealer[0].r] + " — that's " + handValue(bj.dealer), 320, CALL_BEAT);
       } else {
-        dealerSay('Too many, friend. House takes it.', 320);
+        dealerSay('Too many, friend. House takes it.', 320, CALL_BEAT);
       }
     }
-    if (++bj.timer >= 90) {          // slow, announced draws
+    if (++bj.timer >= 180) {         // slow, announced draws
       bj.timer = 0;
       if (!bj.busted && handValue(bj.dealer) < 17) {
         const card = bj.deck.pop();
@@ -1892,7 +1937,7 @@ function bjUpdate() {
         const called = CARD_CALLED[card.r];
         dealerSay(dv > 21
           ? called.charAt(0).toUpperCase() + called.slice(1) + '... ' + dv + '! Dealer busts!'
-          : 'Dealer draws ' + called + ' — ' + dv, 320);
+          : 'Dealer draws ' + called + ' — ' + dv, 320, CALL_BEAT);
       }
       else {
         const dv = handValue(bj.dealer), pv = handValue(bj.hand);
@@ -1908,7 +1953,7 @@ function bjUpdate() {
         else { bj.result = 'DEALER WINS  -' + bj.bet; }
         if (payout) setChips(chips + payout);   // payout mint (≙ claimWinnings)
         journal(null);                          // stake settled — clear the journal
-        if (!bj.busted && dv <= 21) dealerSay('Dealer stands on ' + dv + '.', 340);
+        if (!bj.busted && dv <= 21) dealerSay('Dealer stands on ' + dv + '.', 340, CALL_BEAT);
         bj.flash = payout > bj.bet ? 40 : 0;
         bj.state = 'result'; bj.actIdx = 0;
         lastActMs = Date.now();
@@ -1982,8 +2027,9 @@ function bjRender() {
   } else if (bj.state === 'player') {
     const canDouble = bj.hand.length === 2 && chips >= bj.bet;
     const left = Math.max(0, Math.ceil((bj.decideUntil - Date.now()) / 1000));
-    uiText('BET ' + bj.bet + '  ·  ' + left + 'S', left <= 5 ? '#e05a70' : C.white, STATUS_Y);
+    uiText('BET ' + bj.bet, C.white, STATUS_Y);
     drawCarousel(canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'], bj.menuIdx, CARO_Y + 8);
+    drawTimerBox('PLAY', left, left <= 5);
   } else if (bj.state === 'result') {
     const win = bj.flash > 0 && Math.floor(tick / 6) % 2;
     uiText(bj.result, win ? C.gold : C.white, STATUS_Y);
@@ -2268,8 +2314,8 @@ function crResolve() {
       if (!out.length) out.push(sum + ' · NO ACTION');
     }
   }
-  /* the stickman makes the call */
-  dealerSay(crCall(d1, d2, prevPoint, cr.point), 380);
+  /* the stickman makes the call — a beat after the dice land */
+  dealerSay(crCall(d1, d2, prevPoint, cr.point), 380, CALL_BEAT);
   cr.flash = winTot > 0 ? 40 : 0;
   cr.outcome = out.slice(0, 2);
   crJournal();
@@ -2418,7 +2464,7 @@ function crRender() {
   }
   if (comeout && (crTotalBets() - cr.bets.pass) > 0) {
     ctx.fillStyle = C.dim;
-    ctx.fillText('OFF', 186, 42);
+    ctx.fillText('OFF', 168, 42);
   }
   /* puck */
   if (cr.point) {
@@ -2481,11 +2527,11 @@ function crRender() {
     } else if (cr.net.active && cr.outcome.length) {
       status = cr.outcome[Math.floor(tick / 100) % cr.outcome.length];
     } else if (live.phase === 'betting') {
-      status = 'BETS OPEN · TAP THE FELT · ' + secs + 'S';
+      status = 'BETS OPEN · TAP THE FELT';
     } else if (live.phase === 'action') {
       status = (!cr.net.active || cr.net.shooter === social.youId)
-        ? 'YOUR ROLL · A ON ROLL · ' + secs + 'S'
-        : 'SHOOTER: ' + crShooterName() + ' · ' + secs + 'S';
+        ? 'YOUR ROLL · A ON ROLL'
+        : 'SHOOTER: ' + crShooterName();
     } else {
       status = comeout ? 'TAP THE FELT TO BET' : 'POINT IS ' + cr.point;
     }
@@ -2494,6 +2540,9 @@ function crRender() {
   }
   drawCarousel(CR_MENU, cr.menuIdx, CARO_Y);
   drawTray(cr.unitIdx, true, cr.removeMode);
+  if (cr.mode === 'board' && (live.phase === 'betting' || live.phase === 'action')) {
+    drawTimerBox(live.phase === 'betting' ? 'BETS' : 'ROLL', secs, secs <= 3);
+  }
   drawNetDot();
 }
 
