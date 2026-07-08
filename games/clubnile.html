@@ -261,23 +261,29 @@ const ctx = cvs.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 /* ---------------------------- palette ---------------------------- */
+/* SNES-grade palette: every material gets a 3-4 tone ramp
+   (highlight / base / shadow) instead of a single flat NES colour */
 const C = {
-  floorA:'#e0c48e', floorB:'#d5b67c', floorDot:'#c8a86e',
-  wall:'#b98f4e', wallDark:'#9a743c', wallLine:'#8a6733', wallGold:'#e7c060',
-  sideWall:'#7d5f33', sideWallDark:'#6a5029',
-  rug:'#8e2433', rugDark:'#7a1e2c', rugGold:'#d9ae5f',
-  wood:'#7a4a2b', woodLight:'#9c6a3c', woodDark:'#5e3820',
-  feltGreen:'#2e7d4f', feltGreenDark:'#256641',
-  feltBlue:'#2b4d8c', feltBlueDark:'#22407a',
-  gold:'#f5d76e', goldDark:'#c9a13b',
+  floorA:'#ecd9a8', floorB:'#e0c98f', floorC:'#d4b97b', floorDot:'#c2a266',
+  wall:'#c89a54', wallLight:'#dcb26b', wallDark:'#a37c40', wallLine:'#8a6733',
+  wallGold:'#f2cf6e', wallGoldDark:'#b98d3e',
+  sideWall:'#8a6a3a', sideWallLight:'#9d7c46', sideWallDark:'#6e5330',
+  rug:'#a3253a', rugDark:'#87182b', rugLight:'#bf3a4c', rugGold:'#e8bc63',
+  wood:'#8a5230', woodLight:'#a8693f', woodDark:'#5e3820', woodHi:'#c07f4e',
+  feltGreen:'#2e7d4f', feltGreenHi:'#3c9a64', feltGreenDark:'#236743',
+  feltBlue:'#2b4d8c', feltBlueHi:'#3a63ad', feltBlueDark:'#223f74',
+  gold:'#f5d76e', goldHi:'#ffeaa0', goldDark:'#c9a13b',
   white:'#f7f3e8', black:'#17121a',
   red:'#c0392b', dim:'#8d8398',
   flame1:'#ffb347', flame2:'#ffd97a', flame3:'#ff8c42',
-  leaf:'#3f8f4f', leafDark:'#2f6f3c', pot:'#b05c35', potDark:'#8e4628',
-  shadow:'rgba(20,10,5,0.25)',
+  leaf:'#43a05a', leafHi:'#5cbd6e', leafDark:'#2f6f3c',
+  pot:'#b05c35', potHi:'#cf7743', potDark:'#8e4628',
+  shadow:'rgba(20,10,5,0.28)',
   uiBg:'rgba(18,13,31,0.94)'
 };
 const FONT = '8px "Press Start 2P", monospace';
+/* deterministic 2D hash for dithering/texture */
+function h2(x, y) { return (((x * 73856093) ^ (y * 19349663)) >>> 0) % 97; }
 
 /* ============================ sprites ============================ */
 const HEADS = {
@@ -316,18 +322,42 @@ function paintRows(g, rows, pal, yOff) {
     }
   }
 }
+/* SNES-ifier: dark selective outline + top-light shading pass, the way
+   LTTP sprites read — light from above, shadow on the underside edges */
+function snesify(c) {
+  const w = c.width, h = c.height;
+  const g = c.getContext('2d');
+  const src = g.getImageData(0, 0, w, h);
+  const out = g.createImageData(w, h);
+  const A = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : src.data[(y * w + x) * 4 + 3];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    if (src.data[i + 3] > 0) {
+      let r = src.data[i], gg = src.data[i + 1], b = src.data[i + 2];
+      if (A(x, y - 1) === 0) { r = Math.min(255, r * 1.22 + 12); gg = Math.min(255, gg * 1.22 + 12); b = Math.min(255, b * 1.18 + 8); }
+      else if (A(x, y + 1) === 0 || A(x + 1, y) === 0) { r *= 0.76; gg *= 0.76; b *= 0.8; }
+      out.data[i] = r; out.data[i + 1] = gg; out.data[i + 2] = b; out.data[i + 3] = 255;
+    } else if (A(x - 1, y) || A(x + 1, y) || A(x, y - 1) || A(x, y + 1)) {
+      out.data[i] = 38; out.data[i + 1] = 22; out.data[i + 2] = 26; out.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(out, 0, 0);
+}
 function buildFrame(head, body, legs, pal, mirror) {
   const c = document.createElement('canvas');
-  c.width = 12; c.height = 16;
+  c.width = 14; c.height = 18;      // 1px margin all round for the outline
   const g = c.getContext('2d');
+  g.translate(1, 1);
   paintRows(g, head, pal, 0);
   paintRows(g, body, pal, 8);
   paintRows(g, legs, pal, 13);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  snesify(c);
   if (!mirror) return c;
   const m = document.createElement('canvas');
-  m.width = 12; m.height = 16;
+  m.width = 14; m.height = 18;
   const mg = m.getContext('2d');
-  mg.translate(12, 0); mg.scale(-1, 1);
+  mg.translate(14, 0); mg.scale(-1, 1);
   mg.drawImage(c, 0, 0);
   return m;
 }
@@ -879,68 +909,154 @@ const bg = document.createElement('canvas');
 bg.width = W; bg.height = H;
 (function paintBackground() {
   const g = bg.getContext('2d');
+  /* ── sandstone floor: 3-tone checker + dithered grain + inlays ── */
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      g.fillStyle = (c + r) % 2 ? C.floorA : C.floorB;
+      const t = (c + r) % 2 ? C.floorA : C.floorB;
+      g.fillStyle = t;
       g.fillRect(c*TS, r*TS, TS, TS);
-      if ((c*7 + r*13) % 5 === 0) { g.fillStyle = C.floorDot; g.fillRect(c*TS+9, r*TS+6, 1, 1); }
-    }
-  }
-  for (let r = RUG.r0; r <= RUG.r1; r++) {
-    for (let c = RUG.c0; c <= RUG.c1; c++) {
-      g.fillStyle = (r % 2) ? C.rug : C.rugDark;
-      g.fillRect(c*TS, r*TS, TS, TS);
-    }
-  }
-  g.strokeStyle = C.rugGold; g.lineWidth = 1;
-  g.strokeRect(RUG.c0*TS + 1.5, RUG.r0*TS + 1.5, (RUG.c1-RUG.c0+1)*TS - 3, (RUG.r1-RUG.r0+1)*TS - 3);
-  g.fillStyle = C.rugGold;
-  for (let r = RUG.r0 + 1; r <= RUG.r1 - 1; r++) {
-    for (let c = RUG.c0 + 1; c <= RUG.c1 - 1; c++) {
-      if ((c + r) % 2 === 0) {
-        const cx = c*TS + 8, cy = r*TS + 8;
-        g.fillRect(cx, cy-2, 1, 1); g.fillRect(cx-1, cy-1, 3, 1);
-        g.fillRect(cx, cy, 1, 1);
+      /* per-tile bevel: light top edge, dark bottom edge */
+      g.fillStyle = 'rgba(255,246,220,0.35)';
+      g.fillRect(c*TS, r*TS, TS, 1);
+      g.fillStyle = 'rgba(140,110,70,0.25)';
+      g.fillRect(c*TS, r*TS + TS - 1, TS, 1);
+      /* grain dither */
+      for (let k = 0; k < 4; k++) {
+        const hx = h2(c * 4 + k, r), px = hx % TS, py = h2(r * 4 + k, c) % TS;
+        g.fillStyle = hx % 2 ? C.floorC : C.floorDot;
+        g.fillRect(c*TS + px, r*TS + py, 1, 1);
+      }
+      /* occasional scarab inlay tile */
+      if (h2(c, r) % 19 === 3 && r > 2 && r < 13) {
+        const ix = c*TS + 5, iy = r*TS + 5;
+        g.fillStyle = C.floorDot;
+        g.fillRect(ix + 2, iy, 2, 1); g.fillRect(ix + 1, iy + 1, 4, 2);
+        g.fillRect(ix, iy + 2, 1, 1); g.fillRect(ix + 5, iy + 2, 1, 1);
+        g.fillRect(ix + 2, iy + 3, 2, 2);
+        g.fillStyle = 'rgba(255,246,220,0.5)';
+        g.fillRect(ix + 2, iy + 1, 1, 1);
       }
     }
   }
-  g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
-  g.fillStyle = C.wallLine;
-  for (let y = 8; y < 32; y += 8) g.fillRect(0, y, W, 1);
-  for (let x = 0; x < W; x += 16) { g.fillRect(x + (Math.floor(x/16)%2 ? 8 : 0), 0, 1, 8); g.fillRect(x + 4, 16, 1, 8); }
-  g.fillStyle = C.wallGold; g.fillRect(0, 29, W, 3);
-  g.fillStyle = C.wallDark; g.fillRect(0, 28, W, 1);
-  g.fillStyle = C.wallGold;
-  const glyph = (x) => {
-    const kind = Math.floor(x / 24) % 3;
-    if (kind === 0) { g.fillRect(x+2,2,1,2); g.fillRect(x+1,3,3,1); g.fillRect(x+2,4,1,3); g.fillRect(x,5,5,1); }
-    else if (kind === 1) { g.fillRect(x,4,5,1); g.fillRect(x+1,3,3,1); g.fillRect(x+2,5,1,1); g.fillRect(x+4,5,1,2); }
-    else { g.fillRect(x+1,3,2,1); g.fillRect(x,4,4,1); g.fillRect(x+2,5,1,2); g.fillRect(x+1,7,3,1); }
-  };
-  for (let x = 6; x < W - 8; x += 24) glyph(x);
-  g.fillStyle = '#3a2718'; g.fillRect(BAR.c0*TS, 10, (BAR.c1-BAR.c0+1)*TS, 18);
-  g.fillStyle = C.woodDark; g.fillRect(BAR.c0*TS, 18, (BAR.c1-BAR.c0+1)*TS, 1);
-  const bottleCols = ['#4f9e64','#c98f3b','#5b7fc4','#a34848','#4f9e64','#c98f3b'];
-  for (let i = 0; i < 12; i++) {
-    const bx = BAR.c0*TS + 5 + i*9;
-    if (bx > BAR.c1*TS + 8) break;
-    g.fillStyle = bottleCols[i % bottleCols.length];
-    g.fillRect(bx, 12, 2, 5); g.fillRect(bx, 11, 1, 1);
-    g.fillStyle = bottleCols[(i+2) % bottleCols.length];
-    g.fillRect(bx+4, 20, 2, 6); g.fillRect(bx+4, 19, 1, 1);
+  /* ── rug: tone-ramped weave, double gold border, fringe, medallion ── */
+  const rx = RUG.c0*TS, ry = RUG.r0*TS, rw = (RUG.c1-RUG.c0+1)*TS, rh = (RUG.r1-RUG.r0+1)*TS;
+  for (let y = 0; y < rh; y++) {
+    const band = y < 3 ? C.rugLight : (y > rh - 4 ? C.rugDark : C.rug);
+    g.fillStyle = band;
+    g.fillRect(rx, ry + y, rw, 1);
   }
-  g.fillStyle = C.sideWall;
-  g.fillRect(0, 2*TS, TS, H - 2*TS); g.fillRect(14*TS, 2*TS, TS, H - 2*TS);
-  g.fillRect(0, 14*TS, W, TS);
-  g.fillStyle = C.sideWallDark;
-  for (let y = 2*TS; y < H; y += 8) { g.fillRect(0, y, TS, 1); g.fillRect(14*TS, y, TS, 1); }
-  for (let x = 0; x < W; x += 8) g.fillRect(x, 14*TS, 1, TS);
-  g.fillStyle = C.wallGold; g.fillRect(0, 14*TS, W, 2);
-  g.fillStyle = '#120c14'; g.fillRect(DOOR.c*TS + 2, 14*TS, TS - 4, TS);
-  g.fillStyle = C.wallGold; g.fillRect(DOOR.c*TS + 1, 14*TS, 1, TS); g.fillRect(DOOR.c*TS + TS - 2, 14*TS, 1, TS);
-  g.fillRect(DOOR.c*TS + 1, 14*TS, TS - 2, 1);
-  g.fillStyle = C.rug; g.fillRect(DOOR.c*TS + 2, 13*TS + 10, TS - 4, 6);
-  g.fillStyle = C.rugGold; g.fillRect(DOOR.c*TS + 2, 13*TS + 10, TS - 4, 1);
+  /* weave dither */
+  for (let y = 2; y < rh - 2; y += 2) for (let x = (y % 4) ? 2 : 4; x < rw - 2; x += 4) {
+    g.fillStyle = (h2(x, y) % 2) ? C.rugDark : C.rugLight;
+    g.fillRect(rx + x, ry + y, 1, 1);
+  }
+  g.strokeStyle = C.rugGold; g.lineWidth = 1;
+  g.strokeRect(rx + 1.5, ry + 1.5, rw - 3, rh - 3);
+  g.strokeStyle = 'rgba(135,24,43,0.9)';
+  g.strokeRect(rx + 3.5, ry + 3.5, rw - 7, rh - 7);
+  /* fringe ticks top & bottom */
+  g.fillStyle = C.rugGold;
+  for (let x = 2; x < rw - 2; x += 4) {
+    g.fillRect(rx + x, ry - 1, 1, 1);
+    g.fillRect(rx + x + 1, ry + rh, 1, 1);
+  }
+  /* corner ankh accents + centre medallion */
+  const med = (cx, cy, big) => {
+    g.fillStyle = C.rugGold;
+    g.fillRect(cx - 1, cy - (big ? 6 : 3), 2, big ? 12 : 6);
+    g.fillRect(cx - (big ? 6 : 3), cy - 1, big ? 12 : 6, 2);
+    g.fillStyle = C.rugLight;
+    g.fillRect(cx - 1, cy - 1, 2, 2);
+    if (big) {
+      g.strokeStyle = C.rugGold;
+      g.beginPath(); g.arc(cx, cy, 9, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(232,188,99,0.45)';
+      g.beginPath(); g.arc(cx, cy, 13, 0, Math.PI * 2); g.stroke();
+    }
+  };
+  med(rx + rw/2, ry + rh/2, true);
+  med(rx + 9, ry + 9, false); med(rx + rw - 9, ry + 9, false);
+  med(rx + 9, ry + rh - 9, false); med(rx + rw - 9, ry + rh - 9, false);
+  /* ── north wall: bevelled sandstone blocks + embossed glyph frieze ── */
+  g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
+  for (let row = 0; row < 4; row++) {
+    const by = row * 8, off = (row % 2) ? 8 : 0;
+    for (let x = -8; x < W; x += 16) {
+      g.fillStyle = C.wallLight;                      // block top highlight
+      g.fillRect(x + off, by, 16, 1);
+      g.fillStyle = C.wallDark;                       // block base shadow
+      g.fillRect(x + off, by + 7, 16, 1);
+      g.fillStyle = C.wallLine;                       // mortar
+      g.fillRect(x + off + 15, by, 1, 8);
+    }
+  }
+  /* embossed glyphs: dark press + gold face */
+  const glyph = (gx, kind, col) => {
+    g.fillStyle = col;
+    if (kind === 0) { g.fillRect(gx+2,2,1,2); g.fillRect(gx+1,3,3,1); g.fillRect(gx+2,4,1,3); g.fillRect(gx,5,5,1); }
+    else if (kind === 1) { g.fillRect(gx,4,5,1); g.fillRect(gx+1,3,3,1); g.fillRect(gx+2,5,1,1); g.fillRect(gx+4,5,1,2); }
+    else { g.fillRect(gx+1,3,2,1); g.fillRect(gx,4,4,1); g.fillRect(gx+2,5,1,2); g.fillRect(gx+1,7,3,1); }
+  };
+  for (let x = 6; x < W - 8; x += 24) {
+    const kind = Math.floor(x / 24) % 3;
+    glyph(x + 1, kind, 'rgba(90,64,30,0.8)');
+    glyph(x, kind, C.wallGold);
+  }
+  /* gilded cornice with bevel */
+  g.fillStyle = C.wallDark;     g.fillRect(0, 27, W, 1);
+  g.fillStyle = C.goldHi;       g.fillRect(0, 28, W, 1);
+  g.fillStyle = C.wallGold;     g.fillRect(0, 29, W, 2);
+  g.fillStyle = C.wallGoldDark; g.fillRect(0, 31, W, 1);
+  /* wall shadow cast onto the floor */
+  g.fillStyle = 'rgba(60,40,20,0.22)';
+  g.fillRect(0, 32, W, 3);
+  /* ── back-bar shelf: mirror glass + lit bottles ── */
+  const shx = BAR.c0*TS, shw = (BAR.c1-BAR.c0+1)*TS;
+  g.fillStyle = '#2c1c10'; g.fillRect(shx, 9, shw, 19);
+  g.fillStyle = '#41307a'; g.fillRect(shx + 1, 10, shw - 2, 8);   // mirror
+  g.fillStyle = 'rgba(180,170,255,0.25)';
+  for (let x = shx + 3; x < shx + shw - 4; x += 7) g.fillRect(x, 10, 2, 8);
+  g.fillStyle = C.woodLight; g.fillRect(shx, 18, shw, 1);
+  g.fillStyle = C.woodDark; g.fillRect(shx, 19, shw, 1);
+  const bottleCols = ['#57b273','#e0a648','#6b8fd4','#c05a5a','#57b273','#e0a648'];
+  for (let i = 0; i < 12; i++) {
+    const bx = shx + 5 + i * 9;
+    if (bx > BAR.c1*TS + 8) break;
+    const col = bottleCols[i % bottleCols.length];
+    g.fillStyle = col; g.fillRect(bx, 12, 2, 5); g.fillRect(bx, 11, 1, 1);
+    g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(bx, 12, 1, 2);   // glass shine
+    g.fillStyle = bottleCols[(i + 2) % bottleCols.length];
+    g.fillRect(bx + 4, 20, 2, 6); g.fillRect(bx + 4, 19, 1, 1);
+    g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(bx + 4, 20, 1, 3);
+  }
+  /* ── side + south walls: bevelled dark stone ── */
+  const sideBlock = (x, y) => {
+    g.fillStyle = C.sideWall; g.fillRect(x, y, TS, 8);
+    g.fillStyle = C.sideWallLight; g.fillRect(x, y, TS, 1);
+    g.fillStyle = C.sideWallDark; g.fillRect(x, y + 7, TS, 1);
+  };
+  for (let y = 2*TS; y < H; y += 8) { sideBlock(0, y); sideBlock(14*TS, y); }
+  for (let x = 0; x < W; x += TS) sideBlock(x, 14*TS), sideBlock(x, 14*TS + 8);
+  g.fillStyle = C.goldHi;       g.fillRect(0, 14*TS, W, 1);
+  g.fillStyle = C.wallGoldDark; g.fillRect(0, 14*TS + 1, W, 1);
+  /* interior shadow from side walls */
+  g.fillStyle = 'rgba(60,40,20,0.15)';
+  g.fillRect(TS, 2*TS, 2, H - 3*TS);
+  g.fillRect(14*TS - 2, 2*TS, 2, H - 3*TS);
+  /* ── door: gold arch + warm glow spilling out ── */
+  const dx = DOOR.c*TS;
+  g.fillStyle = '#120c14'; g.fillRect(dx + 2, 14*TS, TS - 4, TS);
+  const doorGlow = g.createLinearGradient(0, 14*TS, 0, 14*TS + 10);
+  doorGlow.addColorStop(0, 'rgba(255,190,90,0.35)');
+  doorGlow.addColorStop(1, 'rgba(255,190,90,0)');
+  g.fillStyle = doorGlow; g.fillRect(dx + 2, 14*TS, TS - 4, 10);
+  g.fillStyle = C.goldHi; g.fillRect(dx + 1, 14*TS, TS - 2, 1);
+  g.fillStyle = C.wallGold; g.fillRect(dx + 1, 14*TS, 1, TS); g.fillRect(dx + TS - 2, 14*TS, 1, TS);
+  g.fillStyle = C.wallGoldDark; g.fillRect(dx + 2, 14*TS + 1, 1, TS - 1); g.fillRect(dx + TS - 3, 14*TS + 1, 1, TS - 1);
+  /* welcome mat */
+  g.fillStyle = C.rug; g.fillRect(dx + 2, 13*TS + 10, TS - 4, 6);
+  g.fillStyle = C.rugLight; g.fillRect(dx + 2, 13*TS + 10, TS - 4, 1);
+  g.fillStyle = C.rugGold; g.fillRect(dx + 3, 13*TS + 12, TS - 6, 1);
 })();
 
 /* ============================ floor objects ============================ */
@@ -950,16 +1066,35 @@ function makeCanvas(w, h, painter) {
   painter(c.getContext('2d'));
   return c;
 }
-const barCanvas = makeCanvas((BAR.c1-BAR.c0+1)*TS, 22, g => {
+const barCanvas = makeCanvas((BAR.c1-BAR.c0+1)*TS, 24, g => {
   const w = g.canvas.width;
+  /* front: panelled wood with grain */
   g.fillStyle = C.woodDark; g.fillRect(0, 6, w, 16);
-  g.fillStyle = C.wood; g.fillRect(0, 6, w, 12);
-  for (let x = 4; x < w; x += 14) { g.fillStyle = C.woodDark; g.fillRect(x, 9, 10, 7); g.fillStyle = C.wood; g.fillRect(x+1, 10, 8, 5); }
+  g.fillStyle = C.wood; g.fillRect(0, 6, w, 13);
+  for (let y = 8; y < 18; y += 3) {
+    g.fillStyle = 'rgba(60,35,18,0.35)';
+    for (let x = h2(y, 3) % 6; x < w; x += 11) g.fillRect(x, y, 5, 1);
+  }
+  for (let x = 4; x < w - 10; x += 14) {
+    g.fillStyle = C.woodDark; g.fillRect(x, 9, 10, 8);
+    g.fillStyle = C.wood; g.fillRect(x + 1, 10, 8, 6);
+    g.fillStyle = C.woodHi; g.fillRect(x + 1, 10, 8, 1);
+  }
+  /* brass foot rail */
+  g.fillStyle = C.goldDark; g.fillRect(2, 20, w - 4, 2);
+  g.fillStyle = C.goldHi; g.fillRect(2, 20, w - 4, 1);
+  /* counter top: polished with sheen */
   g.fillStyle = C.woodLight; g.fillRect(0, 0, w, 6);
-  g.fillStyle = C.gold; g.fillRect(0, 0, w, 1);
+  g.fillStyle = C.woodHi; g.fillRect(0, 1, w, 1);
+  g.fillStyle = C.goldHi; g.fillRect(0, 0, w, 1);
   g.fillStyle = C.goldDark; g.fillRect(0, 5, w, 1);
-  g.fillStyle = C.white; g.fillRect(18, 1, 2, 3); g.fillRect(w-24, 1, 2, 3);
+  g.fillStyle = 'rgba(255,240,200,0.3)';
+  for (let x = 6; x < w; x += 17) g.fillRect(x, 2, 6, 1);
+  /* glassware */
+  g.fillStyle = C.white; g.fillRect(18, 1, 2, 3); g.fillRect(w - 24, 1, 2, 3);
+  g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(18, 1, 1, 1); g.fillRect(w - 24, 1, 1, 1);
   g.fillStyle = '#e05a70'; g.fillRect(w/2 - 2, 0, 3, 2);
+  g.fillStyle = C.goldHi; g.fillRect(w/2 - 1, 0, 1, 1);
   g.fillStyle = C.white; g.fillRect(w/2 - 1, 2, 1, 3);
 });
 const crapsCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
@@ -967,17 +1102,17 @@ const crapsCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.fillStyle = C.shadow; g.fillRect(2, h, w - 4, 4);
   g.fillStyle = C.woodDark; g.fillRect(0, 0, w, h);
   g.fillStyle = C.wood; g.fillRect(1, 1, w-2, h-2);
+  g.fillStyle = C.woodHi; g.fillRect(1, 1, w-2, 1);
   g.fillStyle = C.feltGreenDark; g.fillRect(4, 4, w-8, h-8);
   g.fillStyle = C.feltGreen; g.fillRect(5, 5, w-10, h-10);
-  g.strokeStyle = '#d8e8dc'; g.lineWidth = 1;
+  g.fillStyle = C.feltGreenHi; g.fillRect(7, 6, w-14, 3);
+  g.strokeStyle = '#e8f2e4'; g.lineWidth = 1;
   g.strokeRect(8.5, 8.5, w-17, h-17);
   g.beginPath(); g.moveTo(w/2 + 0.5, 9); g.lineTo(w/2 + 0.5, h-9); g.stroke();
-  g.fillStyle = '#d8e8dc';
+  g.fillStyle = '#e8f2e4';
   g.fillRect(12, h-12, 8, 2); g.fillRect(w-20, h-12, 8, 2);
-  g.fillStyle = C.white; g.fillRect(w/2 - 8, 12, 5, 5); g.fillRect(w/2 + 3, 14, 5, 5);
-  g.fillStyle = C.black;
-  g.fillRect(w/2 - 6, 14, 1, 1);
-  g.fillRect(w/2 + 4, 15, 1, 1); g.fillRect(w/2 + 6, 17, 1, 1);
+  drawDie(g, w/2 - 8, 12, 3, 5 + 2);
+  drawDie(g, w/2 + 3, 14, 5, 5 + 2);
 });
 const bjCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   const w = 4*TS, h = 2*TS;
@@ -988,30 +1123,43 @@ const bjCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.beginPath(); g.moveTo(2,2); g.lineTo(w-2,2); g.lineTo(w-2,9); g.quadraticCurveTo(w/2, h+9, 2, 9); g.closePath(); g.fill();
   g.fillStyle = C.feltBlue;
   g.beginPath(); g.moveTo(4,3); g.lineTo(w-4,3); g.lineTo(w-4,8); g.quadraticCurveTo(w/2, h+5, 4, 8); g.closePath(); g.fill();
+  g.fillStyle = C.feltBlueHi; g.fillRect(8, 4, w-16, 3);
   g.strokeStyle = C.gold; g.lineWidth = 1;
   g.beginPath(); g.moveTo(8, 9); g.quadraticCurveTo(w/2, h+1, w-8, 9); g.stroke();
   g.fillStyle = C.white;
   g.fillRect(w/2 - 10, 9, 5, 7); g.fillRect(w/2 - 3, 10, 5, 7); g.fillRect(w/2 + 5, 9, 5, 7);
+  g.fillStyle = 'rgba(180,170,150,0.8)';
+  g.fillRect(w/2 - 6, 9, 1, 7); g.fillRect(w/2 + 1, 10, 1, 7); g.fillRect(w/2 + 9, 9, 1, 7);
   g.fillStyle = '#c0392b'; g.fillRect(w/2 - 9, 11, 2, 2); g.fillRect(w/2 + 6, 11, 2, 2);
   g.fillStyle = C.black; g.fillRect(w/2 - 2, 12, 2, 2);
   g.fillStyle = '#c0392b'; g.fillRect(10, 6, 4, 2);
   g.fillStyle = C.gold; g.fillRect(10, 4, 4, 2);
+  g.fillStyle = C.goldHi; g.fillRect(10, 4, 4, 1);
   g.fillStyle = '#2f7f96'; g.fillRect(w-14, 6, 4, 2);
   g.fillStyle = C.white; g.fillRect(w-14, 4, 4, 2);
 });
 const palmCanvas = makeCanvas(TS, TS + 10, g => {
   g.fillStyle = C.shadow; g.fillRect(2, 22, 12, 3);
+  /* glazed pot with bevel + gold band */
   g.fillStyle = C.potDark; g.fillRect(3, 17, 10, 8);
   g.fillStyle = C.pot; g.fillRect(4, 17, 8, 7);
-  g.fillStyle = C.gold; g.fillRect(3, 18, 10, 1);
+  g.fillStyle = C.potHi; g.fillRect(4, 17, 3, 5);
+  g.fillStyle = C.goldHi; g.fillRect(3, 18, 10, 1);
+  g.fillStyle = C.goldDark; g.fillRect(3, 19, 10, 1);
   g.fillStyle = '#6a4a2c'; g.fillRect(7, 12, 2, 5);
+  g.fillStyle = '#8a6236'; g.fillRect(7, 12, 1, 5);
+  /* layered fronds: dark under, mid, lit tips */
   g.fillStyle = C.leafDark;
   g.fillRect(2, 6, 5, 2); g.fillRect(9, 6, 5, 2);
   g.fillRect(1, 8, 4, 2); g.fillRect(11, 8, 4, 2);
+  g.fillRect(6, 7, 4, 6);
   g.fillStyle = C.leaf;
   g.fillRect(6, 3, 4, 3); g.fillRect(4, 5, 8, 2);
   g.fillRect(3, 7, 4, 1); g.fillRect(9, 7, 4, 1);
-  g.fillRect(6, 6, 4, 6);
+  g.fillRect(6, 6, 4, 5);
+  g.fillStyle = C.leafHi;
+  g.fillRect(7, 3, 2, 1); g.fillRect(5, 5, 3, 1);
+  g.fillRect(3, 7, 2, 1); g.fillRect(11, 7, 2, 1);
 });
 function spriteFor(ent) {
   const set = SPRITES[ent.sprite || 'player'];
@@ -1020,18 +1168,24 @@ function spriteFor(ent) {
 function drawEntity(g, ent, bobT) {
   const img = spriteFor(ent);
   const bob = ent.staticNPC ? (Math.floor(bobT / 40) % 2) : 0;
-  g.drawImage(img, Math.round(ent.x - 6), Math.round(ent.y - 15 + bob));
+  g.fillStyle = C.shadow;
+  g.beginPath();
+  g.ellipse(Math.round(ent.x), Math.round(ent.y) + 2, 5, 2, 0, 0, Math.PI * 2);
+  g.fill();
+  g.drawImage(img, Math.round(ent.x - 7), Math.round(ent.y - 16 + bob));
 }
 function drawSeated(g, spriteKey, x, y) {
   g.fillStyle = C.shadow; g.fillRect(x - 5, y + 1, 10, 3);
-  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 2, 8, 4);
-  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 2, 8, 1);
+  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 1, 8, 3);
+  g.fillStyle = C.woodLight; g.fillRect(x - 4, y - 2, 8, 1);
+  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 3, 8, 1);
   const img = SPRITES[spriteKey].up[0];
-  g.drawImage(img, 0, 0, 12, 13, Math.round(x - 6), Math.round(y - 14), 12, 13);
+  g.drawImage(img, 0, 0, 14, 15, Math.round(x - 7), Math.round(y - 16), 14, 15);
 }
 function drawEmptyStool(g, x, y) {
-  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 2, 8, 4);
-  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 2, 8, 1);
+  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 1, 8, 3);
+  g.fillStyle = C.woodLight; g.fillRect(x - 4, y - 2, 8, 1);
+  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 3, 8, 1);
 }
 
 /* ============================ cards & dice ============================ */
@@ -1048,8 +1202,10 @@ function cardFace(rank, suit) {
   const k = rank + '-' + suit;
   if (cardCache[k]) return cardCache[k];
   const c = makeCanvas(CARD_W, CARD_H, g => {
-    g.fillStyle = '#b9b2a4'; g.fillRect(0, 0, CARD_W, CARD_H);
+    g.fillStyle = '#8f8878'; g.fillRect(0, 0, CARD_W, CARD_H);
     g.fillStyle = C.white; g.fillRect(1, 1, CARD_W-2, CARD_H-2);
+    g.fillStyle = '#fffdf4'; g.fillRect(1, 1, CARD_W-2, 1); g.fillRect(1, 1, 1, CARD_H-2);
+    g.fillStyle = '#ddd5c0'; g.fillRect(1, CARD_H-2, CARD_W-2, 1); g.fillRect(CARD_W-2, 1, 1, CARD_H-2);
     const s = SUITS[suit];
     g.font = FONT; g.textBaseline = 'top';
     g.fillStyle = s.col;
@@ -1065,15 +1221,21 @@ function cardFace(rank, suit) {
 const cardBack = makeCanvas(CARD_W, CARD_H, g => {
   g.fillStyle = '#8a6733'; g.fillRect(0, 0, CARD_W, CARD_H);
   g.fillStyle = '#2b4d8c'; g.fillRect(1, 1, CARD_W-2, CARD_H-2);
+  g.fillStyle = '#3a63ad'; g.fillRect(1, 1, CARD_W-2, 1); g.fillRect(1, 1, 1, CARD_H-2);
+  g.fillStyle = '#223f74'; g.fillRect(1, CARD_H-2, CARD_W-2, 1); g.fillRect(CARD_W-2, 1, 1, CARD_H-2);
   g.fillStyle = C.gold;
   for (let y = 3; y < CARD_H - 3; y += 5) for (let x = 3; x < CARD_W - 3; x += 5) {
     g.fillRect(x, y, 1, 1); g.fillRect(x+1, y+1, 1, 1); g.fillRect(x-1, y+1, 1, 1); g.fillRect(x, y+2, 1, 1);
   }
+  g.fillStyle = C.goldHi;
+  g.fillRect(CARD_W/2 - 1, CARD_H/2 - 1, 2, 2);
 });
 function drawDie(g, x, y, val, size) {
   const s = size || 12;
-  g.fillStyle = '#b9b2a4'; g.fillRect(x, y, s, s);
+  g.fillStyle = '#8f8878'; g.fillRect(x, y, s, s);
   g.fillStyle = C.white; g.fillRect(x+1, y+1, s-2, s-2);
+  g.fillStyle = '#fffdf4'; g.fillRect(x+1, y+1, s-2, 1); g.fillRect(x+1, y+1, 1, s-2);
+  g.fillStyle = '#d9d2be'; g.fillRect(x+1, y+s-2, s-2, 1); g.fillRect(x+s-2, y+1, 1, s-2);
   g.fillStyle = C.black;
   const c = x + s/2 - 1, m = y + s/2 - 1, l = x + 2, r = x + s - 4, t = y + 2, b = y + s - 4;
   const pips = {
@@ -1104,15 +1266,50 @@ function handValue(hand) {
 
 /* ============================ table room backdrop ============================ */
 function paintTableRoom(g) {
-  g.fillStyle = '#241a30'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#2c2138';
-  for (let y = 0; y < H; y += 8) for (let x = (y % 16) ? 4 : 0; x < W; x += 8) g.fillRect(x, y, 1, 1);
+  /* long plank floor in low light */
+  for (let y = 0; y < H; y += 8) {
+    const row = y / 8;
+    g.fillStyle = (row % 2) ? '#3a2a20' : '#3e2d22';
+    g.fillRect(0, y, W, 8);
+    g.fillStyle = 'rgba(24,15,10,0.7)';
+    g.fillRect(0, y + 7, W, 1);                       // board seam
+    g.fillStyle = 'rgba(70,45,28,0.9)';
+    for (let x = (row * 53) % 48; x < W; x += 48) g.fillRect(x, y, 1, 7);
+    g.fillStyle = 'rgba(200,150,100,0.06)';
+    g.fillRect(0, y, W, 1);
+    /* sparse grain flecks */
+    g.fillStyle = 'rgba(30,18,12,0.5)';
+    for (let k = 0; k < 5; k++) g.fillRect(h2(row, k * 7) * 2.4 % W, y + 2 + (h2(k, row) % 4), 2, 1);
+  }
+  /* warm light pool under the table */
+  const pool = g.createRadialGradient(120, 105, 20, 120, 105, 130);
+  pool.addColorStop(0, 'rgba(255,190,100,0.14)');
+  pool.addColorStop(1, 'rgba(255,190,100,0)');
+  g.fillStyle = pool;
+  g.fillRect(0, 0, W, H);
+  /* bevelled sandstone wall band */
   g.fillStyle = C.wall; g.fillRect(0, 0, W, 24);
-  g.fillStyle = C.wallLine;
-  for (let y = 8; y < 24; y += 8) g.fillRect(0, y, W, 1);
-  g.fillStyle = C.wallGold; g.fillRect(0, 21, W, 3);
-  g.fillStyle = C.wallGold;
-  for (let x = 10; x < W - 8; x += 30) { g.fillRect(x+2,4,1,2); g.fillRect(x+1,6,3,1); g.fillRect(x+2,7,1,4); g.fillRect(x,11,5,1); }
+  for (let row = 0; row < 3; row++) {
+    const by = row * 8, off = (row % 2) ? 8 : 0;
+    for (let x = -8; x < W; x += 16) {
+      g.fillStyle = C.wallLight; g.fillRect(x + off, by, 16, 1);
+      g.fillStyle = C.wallDark; g.fillRect(x + off, by + 7, 16, 1);
+      g.fillStyle = C.wallLine; g.fillRect(x + off + 15, by, 1, 8);
+    }
+  }
+  /* embossed ankhs */
+  for (let x = 10; x < W - 8; x += 30) {
+    g.fillStyle = 'rgba(90,64,30,0.8)';
+    g.fillRect(x+3,5,1,2); g.fillRect(x+2,7,3,1); g.fillRect(x+3,8,1,4); g.fillRect(x+1,12,5,1);
+    g.fillStyle = C.wallGold;
+    g.fillRect(x+2,4,1,2); g.fillRect(x+1,6,3,1); g.fillRect(x+2,7,1,4); g.fillRect(x,11,5,1);
+  }
+  /* gilded cornice + cast shadow */
+  g.fillStyle = C.goldHi;       g.fillRect(0, 20, W, 1);
+  g.fillStyle = C.wallGold;     g.fillRect(0, 21, W, 2);
+  g.fillStyle = C.wallGoldDark; g.fillRect(0, 23, W, 1);
+  g.fillStyle = 'rgba(0,0,0,0.3)';
+  g.fillRect(0, 24, W, 3);
 }
 
 /* ============================ shared table modal (emoji / tip) ============================ */
@@ -1281,11 +1478,27 @@ const bjRoom = makeCanvas(W, H, g => {
   g.fillStyle = C.feltBlue;
   g.beginPath(); g.ellipse(120, 52, 90, 78, 0, 0, Math.PI); g.fill();
   g.fillRect(30, 48, 180, 6);
-  g.strokeStyle = C.gold; g.lineWidth = 1;
+  /* felt sheen: soft light falling on the centre of the table */
+  const sheen = g.createRadialGradient(120, 68, 8, 120, 72, 85);
+  sheen.addColorStop(0, 'rgba(120,160,230,0.28)');
+  sheen.addColorStop(1, 'rgba(120,160,230,0)');
+  g.fillStyle = sheen;
+  g.beginPath(); g.ellipse(120, 52, 90, 78, 0, 0, Math.PI); g.fill();
+  /* wooden rail highlight */
+  g.strokeStyle = C.woodHi; g.lineWidth = 1;
+  g.beginPath(); g.ellipse(120, 52, 100, 88, 0, 0.15, Math.PI - 0.15); g.stroke();
+  g.strokeStyle = C.goldHi; g.lineWidth = 1;
   g.beginPath(); g.ellipse(120, 52, 74, 62, 0, 0.25, Math.PI - 0.25); g.stroke();
+  g.strokeStyle = 'rgba(34,63,116,0.8)';
+  g.beginPath(); g.ellipse(120, 52, 71, 59, 0, 0.28, Math.PI - 0.28); g.stroke();
+  /* dealer chip tray with bevel */
   g.fillStyle = C.woodDark; g.fillRect(94, 48, 52, 9);
+  g.fillStyle = C.woodHi; g.fillRect(94, 48, 52, 1);
   const trayCols = ['#c0392b', C.gold, '#2f7f96', C.white, '#c0392b', C.gold];
-  for (let i = 0; i < 6; i++) { g.fillStyle = trayCols[i]; g.fillRect(97 + i*8, 50, 6, 5); }
+  for (let i = 0; i < 6; i++) {
+    g.fillStyle = trayCols[i]; g.fillRect(97 + i*8, 50, 6, 5);
+    g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(97 + i*8, 50, 6, 1);
+  }
 });
 const bj = {
   state:'bet', betIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
@@ -1516,8 +1729,18 @@ const crRoom = makeCanvas(W, H, g => {
   g.fillStyle = C.shadow; g.fillRect(22, 148, 196, 5);
   g.fillStyle = C.woodDark; g.fillRect(20, 40, 200, 110);
   g.fillStyle = C.wood; g.fillRect(23, 43, 194, 104);
+  g.fillStyle = C.woodHi; g.fillRect(23, 43, 194, 1);
+  g.fillStyle = 'rgba(60,35,18,0.6)'; g.fillRect(23, 145, 194, 2);
   g.fillStyle = C.feltGreenDark; g.fillRect(28, 46, 184, 98);
   g.fillStyle = C.feltGreen; g.fillRect(30, 48, 180, 94);
+  /* felt sheen + inner rail shadow */
+  const crSheen = g.createRadialGradient(120, 95, 10, 120, 95, 105);
+  crSheen.addColorStop(0, 'rgba(140,220,170,0.22)');
+  crSheen.addColorStop(1, 'rgba(140,220,170,0)');
+  g.fillStyle = crSheen; g.fillRect(30, 48, 180, 94);
+  g.fillStyle = 'rgba(20,50,35,0.5)';
+  g.fillRect(30, 48, 180, 2); g.fillRect(30, 48, 2, 94);
+  g.fillRect(208, 48, 2, 94); g.fillRect(30, 140, 180, 2);
   g.font = FONT; g.textBaseline = 'top';
   for (let i = 0; i < PLACE_NUMS.length; i++) {
     const b = placeBox(i);
@@ -1924,10 +2147,19 @@ function leaveTable(which) {
   player.dir = 'up'; player.frame = 0;
 }
 function uiPanel() {
-  ctx.fillStyle = C.uiBg;
+  const grad = ctx.createLinearGradient(0, 180, 0, 236);
+  grad.addColorStop(0, 'rgba(30,22,48,0.95)');
+  grad.addColorStop(1, 'rgba(14,10,24,0.95)');
+  ctx.fillStyle = grad;
   ctx.fillRect(4, 180, 232, 56);
   ctx.strokeStyle = C.rugGold; ctx.lineWidth = 2;
   ctx.strokeRect(5, 181, 230, 54);
+  ctx.strokeStyle = 'rgba(122,92,34,0.8)'; ctx.lineWidth = 1;
+  ctx.strokeRect(7.5, 183.5, 225, 49);
+  /* art-deco corner studs */
+  ctx.fillStyle = C.goldHi;
+  ctx.fillRect(5, 181, 2, 2); ctx.fillRect(233, 181, 2, 2);
+  ctx.fillRect(5, 233, 2, 2); ctx.fillRect(233, 233, 2, 2);
 }
 function uiText(str, col, y) {
   ctx.fillStyle = col;
@@ -2013,20 +2245,40 @@ function floorUpdate() {
 }
 function drawFlame(g, x, y) {
   const f = Math.floor(tick / 8) % 2;
+  /* breathing warm glow behind the flame */
+  const r = 16 + (Math.floor(tick / 16) % 2) * 2;
+  const glow = g.createRadialGradient(x + 3, y + 4, 1, x + 3, y + 4, r);
+  glow.addColorStop(0, 'rgba(255,190,100,0.30)');
+  glow.addColorStop(1, 'rgba(255,190,100,0)');
+  g.fillStyle = glow;
+  g.fillRect(x + 3 - r, y + 4 - r, r * 2, r * 2);
+  /* gilded sconce cup */
   g.fillStyle = C.goldDark; g.fillRect(x+2, y+6, 3, 2);
+  g.fillStyle = C.goldHi; g.fillRect(x+2, y+6, 3, 1);
+  /* two-tone flame with white-hot core */
   g.fillStyle = f ? C.flame3 : C.flame1;
   g.fillRect(x+2, y+2, 3, 4);
   g.fillStyle = f ? C.flame1 : C.flame2;
   g.fillRect(x+3, y + (f ? 0 : 1), 1, 3);
+  g.fillStyle = '#fff4d0';
+  g.fillRect(x+3, y+4, 1, 1);
 }
 function drawHUD(g) {
-  g.fillStyle = 'rgba(18,13,31,0.75)';
+  const grad = g.createLinearGradient(0, 30, 0, 42);
+  grad.addColorStop(0, 'rgba(30,22,48,0.85)');
+  grad.addColorStop(1, 'rgba(14,10,24,0.85)');
+  g.fillStyle = grad;
   g.fillRect(3, 30, 62, 12);
   g.strokeStyle = C.goldDark; g.lineWidth = 1;
   g.strokeRect(3.5, 30.5, 61, 11);
+  g.fillStyle = C.goldHi; g.fillRect(4, 31, 60, 1);
+  /* chip with rim shading */
+  g.fillStyle = C.goldDark;
+  g.beginPath(); g.arc(10, 36, 3.5, 0, Math.PI * 2); g.fill();
   g.fillStyle = C.gold;
   g.beginPath(); g.arc(10, 36, 3, 0, Math.PI * 2); g.fill();
-  g.fillStyle = C.goldDark; g.fillRect(9, 35, 2, 2);
+  g.fillStyle = C.goldHi;
+  g.beginPath(); g.arc(9, 35, 1.4, 0, Math.PI * 2); g.fill();
   g.font = FONT;
   g.fillStyle = C.gold;
   g.textBaseline = 'middle';
@@ -2035,10 +2287,18 @@ function drawHUD(g) {
 }
 function drawDialog(g) {
   const bx = 4, by = 168, bw = 232, bh = 68;
-  g.fillStyle = C.uiBg;
+  const grad = g.createLinearGradient(0, by, 0, by + bh);
+  grad.addColorStop(0, 'rgba(30,22,48,0.96)');
+  grad.addColorStop(1, 'rgba(14,10,24,0.96)');
+  g.fillStyle = grad;
   g.fillRect(bx, by, bw, bh);
   g.strokeStyle = C.rugGold; g.lineWidth = 2;
   g.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+  g.strokeStyle = 'rgba(122,92,34,0.8)'; g.lineWidth = 1;
+  g.strokeRect(bx + 3.5, by + 3.5, bw - 7, bh - 7);
+  g.fillStyle = C.goldHi;
+  g.fillRect(bx + 1, by + 1, 2, 2); g.fillRect(bx + bw - 3, by + 1, 2, 2);
+  g.fillRect(bx + 1, by + bh - 3, 2, 2); g.fillRect(bx + bw - 3, by + bh - 3, 2, 2);
   g.font = FONT;
   g.textBaseline = 'top';
   g.fillStyle = C.gold;
@@ -2060,10 +2320,30 @@ function drawTitle(g) {
   g.fillRect(0, 0, W, H);
   g.globalAlpha = titleAlpha;
   g.textAlign = 'center'; g.textBaseline = 'middle';
+  /* art-deco sunburst behind the title */
+  g.strokeStyle = 'rgba(217,174,95,0.28)'; g.lineWidth = 1;
+  for (let i = -4; i <= 4; i++) {
+    g.beginPath();
+    g.moveTo(W/2, 100);
+    g.lineTo(W/2 + i * 26, 20);
+    g.stroke();
+  }
   g.font = '16px "Press Start 2P", monospace';
-  g.fillStyle = C.gold;
+  g.fillStyle = '#5e2216';                       // deep drop shadow
+  g.fillText('CLUB', W/2 + 1, 89.5);
+  g.fillText('NILE', W/2 + 1, 111.5);
+  const tGrad = g.createLinearGradient(0, 78, 0, 120);
+  tGrad.addColorStop(0, C.goldHi);
+  tGrad.addColorStop(0.5, C.gold);
+  tGrad.addColorStop(1, C.goldDark);
+  g.fillStyle = tGrad;
   g.fillText('CLUB', W/2, 88);
   g.fillText('NILE', W/2, 110);
+  /* deco divider */
+  g.fillStyle = C.rugGold;
+  g.fillRect(W/2 - 40, 124, 80, 1);
+  g.fillStyle = C.goldHi;
+  g.fillRect(W/2 - 2, 122, 4, 4);
   g.font = FONT;
   g.fillStyle = C.white;
   g.fillText('EST. 1926', W/2, 136);
