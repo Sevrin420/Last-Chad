@@ -204,7 +204,7 @@ body {
 <body>
 
 <div id="console">
-  <canvas id="screen" width="240" height="240"></canvas>
+  <canvas id="screen" width="480" height="480"></canvas>
   <img class="frame" src="../assets/membersonly/egypt-console.png" alt="Club Nile console">
   <div class="hot" id="dpad"></div>
   <div class="hot" id="btn-b"></div>
@@ -245,26 +245,30 @@ body {
 const TS = 16, COLS = 15, ROWS = 15, W = 240, H = 240;
 const cvs = document.getElementById('screen');
 const ctx = cvs.getContext('2d');
+/* 2x supersampled backing store: the game still thinks in 240x240, but
+   every asset can carry half-pixel detail — the jump from NES chunk to
+   SNES polish */
+ctx.setTransform(2, 0, 0, 2, 0, 0);
 ctx.imageSmoothingEnabled = false;
 
 /* ---------------------------- palette ---------------------------- */
 /* SNES-grade palette: every material gets a 3-4 tone ramp
    (highlight / base / shadow) instead of a single flat NES colour */
 const C = {
-  floorA:'#ecd9a8', floorB:'#e0c98f', floorC:'#d4b97b', floorDot:'#c2a266',
-  wall:'#c89a54', wallLight:'#dcb26b', wallDark:'#a37c40', wallLine:'#8a6733',
-  wallGold:'#f2cf6e', wallGoldDark:'#b98d3e',
-  sideWall:'#8a6a3a', sideWallLight:'#9d7c46', sideWallDark:'#6e5330',
-  rug:'#a3253a', rugDark:'#87182b', rugLight:'#bf3a4c', rugGold:'#e8bc63',
-  wood:'#8a5230', woodLight:'#a8693f', woodDark:'#5e3820', woodHi:'#c07f4e',
-  feltGreen:'#2e7d4f', feltGreenHi:'#3c9a64', feltGreenDark:'#236743',
-  feltBlue:'#2b4d8c', feltBlueHi:'#3a63ad', feltBlueDark:'#223f74',
-  gold:'#f5d76e', goldHi:'#ffeaa0', goldDark:'#c9a13b',
-  white:'#f7f3e8', black:'#17121a',
+  floorA:'#f4e2b0', floorB:'#e8d194', floorC:'#d9bd7e', floorDot:'#c4a263',
+  wall:'#d2a259', wallLight:'#eac272', wallDark:'#a87e3f', wallLine:'#8a6733',
+  wallGold:'#f8d572', wallGoldDark:'#bd9040',
+  sideWall:'#8f6e3c', sideWallLight:'#a58248', sideWallDark:'#6e5330',
+  rug:'#b02642', rugDark:'#8c1631', rugLight:'#d24358', rugGold:'#f2c76a',
+  wood:'#8f5531', woodLight:'#ae6d41', woodDark:'#5e3820', woodHi:'#cc8955',
+  feltGreen:'#2f8a56', feltGreenHi:'#45aa6e', feltGreenDark:'#226844',
+  feltBlue:'#2f55a0', feltBlueHi:'#4272c2', feltBlueDark:'#24437e',
+  gold:'#ffdf7a', goldHi:'#fff2b8', goldDark:'#cfa63e',
+  white:'#f9f5ea', black:'#17121a',
   red:'#c0392b', dim:'#8d8398',
   flame1:'#ffb347', flame2:'#ffd97a', flame3:'#ff8c42',
-  leaf:'#43a05a', leafHi:'#5cbd6e', leafDark:'#2f6f3c',
-  pot:'#b05c35', potHi:'#cf7743', potDark:'#8e4628',
+  leaf:'#4bb367', leafHi:'#66cc78', leafDark:'#31804a',
+  pot:'#bb6238', potHi:'#dd8048', potDark:'#8e4628',
   shadow:'rgba(20,10,5,0.28)',
   uiBg:'rgba(18,13,31,0.94)'
 };
@@ -273,35 +277,149 @@ const FONT = '8px "Press Start 2P", monospace';
 function h2(x, y) { return (((x * 73856093) ^ (y * 19349663)) >>> 0) % 97; }
 
 /* ============================ sprites ============================ */
+/* 16x22 characters (head 10 / body 7 / legs 5) with shading channels:
+   H hat  h hat band  G gold accent  K hair  S skin  s skin shade
+   E eye  T top  t top accent  u top shade  B bottom  b bottom shade
+   F shoes  f shoe shade */
 const HEADS = {
   fez: {
-    down:['....HHHH....','...HHHHHh...','...SSSSSS...','..SSSSSSSS..','..SESSSSES..','..SSSSSSSS..','...SSSSSS...','.....SS.....'],
-    up:  ['....HHHH....','...HHHHHH...','...KKKKKK...','..KKKKKKKK..','..KKKKKKKK..','..KKKKKKKK..','...KKKKKK...','.....SS.....'],
-    side:['...HHHH.....','..HHHHHh....','..SSSSSS....','.SSSSSSSS...','.SESSSSSS...','.SSSSSSSS...','..SSSSSS....','.....SS.....']
+    down:[
+      '......HHHH......',
+      '.....HHHHHHG....',
+      '.....hhhhhh.....',
+      '....SSSSSSSS....',
+      '...SSSSSSSSSS...',
+      '...SEESSSSEES...',
+      '...SSSSSSSSSS...',
+      '...sSSSSSSSSs...',
+      '....sSSSSSSs....',
+      '......SSSS......'],
+    up:[
+      '......HHHH......',
+      '.....HHHHHH.....',
+      '.....hhhhhh.....',
+      '....KKKKKKKK....',
+      '...KKKKKKKKKK...',
+      '...KKKKKKKKKK...',
+      '...KKKKKKKKKK...',
+      '...sKKKKKKKKs...',
+      '....sKKKKKKs....',
+      '......SSSS......'],
+    side:[
+      '....HHHH........',
+      '...HHHHHHG......',
+      '...hhhhhh.......',
+      '..SSSSSSSS......',
+      '.SSSSSSSSSS.....',
+      '.SEESSSSSSS.....',
+      '.SSSSSSSSSS.....',
+      '.sSSSSSSSSs.....',
+      '..sSSSSSSs......',
+      '....SSSS........']
   },
   nemes: {
-    down:['...HHHHHH...','..HhHHHHhH..','..HSSSSSSH..','.HHSSSSSSHH.','.HHSESSESHH.','.HHSSSSSSHH.','..HSSSSSSH..','..H..SS..H..'],
-    up:  ['...HHHHHH...','..HhHHHHhH..','..HHHHHHHH..','.HHhHHHHhHH.','.HHHHHHHHHH.','.HHhHHHHhHH.','..HHHHHHHH..','..H..HH..H..'],
-    side:['..HHHHHH....','.HhHHHHH....','.HSSSSSH....','.HSSSSSHH...','.HSESSSHH...','.HSSSSSHH...','.HSSSSSH....','....SS.H....']
+    down:[
+      '.....HHHHHH.....',
+      '....HhHHHHhH....',
+      '...HHhHHHHhHH...',
+      '..HHSSSSSSSSHH..',
+      '..HHSSSSSSSSHH..',
+      '..HHSEESSEESHH..',
+      '..HHSSSSSSSSHH..',
+      '..HHsSSSSSSsHH..',
+      '..HH.sSSSSs.HH..',
+      '..HH..SSSS..HH..'],
+    up:[
+      '.....HHHHHH.....',
+      '....HhHHHHhH....',
+      '...HHhHHHHhHH...',
+      '..HHHhHHHHhHHH..',
+      '..HHHHHHHHHHHH..',
+      '..HHHhHHHHhHHH..',
+      '..HHHHHHHHHHHH..',
+      '..HHhHHHHHHhHH..',
+      '..HH.HHHHHH.HH..',
+      '..HH..HHHH..HH..'],
+    side:[
+      '...HHHHHH.......',
+      '..HhHHHHH.......',
+      '..HHhHHHHH......',
+      '.HHSSSSSSHH.....',
+      '.HHSSSSSSHH.....',
+      '.HHSEESSSHH.....',
+      '.HHSSSSSSHH.....',
+      '.HHsSSSSsHH.....',
+      '..HH.sSs.HH.....',
+      '..HH..SS..HH....']
   },
   bob: {
-    down:['....KKKK....','...KKKKKKh..','..KhhhhhhK..','..KSSSSSSK..','..KSESSESK..','..KSSSSSSK..','...SSSSSS...','.....SS.....'],
-    up:  ['....KKKK....','...KKKKKKh..','..KhhhhhhK..','..KKKKKKKK..','..KKKKKKKK..','..KKKKKKKK..','...KKKKKK...','.....SS.....'],
-    side:['...KKKK.....','..KKKKKh....','.Khhhhhh....','.KSSSSKK....','.KSESSKK....','.KSSSSKK....','..SSSSK.....','.....SS.....']
+    down:[
+      '.....KKKKKK.....',
+      '....KKKKKKKKG...',
+      '...KhhhhhhhhK...',
+      '...KKSSSSSSKK...',
+      '..KKSSSSSSSSKK..',
+      '..KKSEESSEESKK..',
+      '..KKSSSSSSSSKK..',
+      '..KKsSSSSSSsKK..',
+      '...KKsSSSSsKK...',
+      '......SSSS......'],
+    up:[
+      '.....KKKKKK.....',
+      '....KKKKKKKKG...',
+      '...KhhhhhhhhK...',
+      '...KKKKKKKKKK...',
+      '..KKKKKKKKKKKK..',
+      '..KKKKKKKKKKKK..',
+      '..KKKKKKKKKKKK..',
+      '..KKsKKKKKKsKK..',
+      '...KKKKKKKKKK...',
+      '......SSSS......'],
+    side:[
+      '....KKKKKK......',
+      '...KKKKKKKG.....',
+      '..Khhhhhhhh.....',
+      '..KKSSSSSSKK....',
+      '..KKSSSSSSKK....',
+      '..KKSEESSSKK....',
+      '..KKSSSSSSKK....',
+      '..KKsSSSSsKK....',
+      '...KKsSSsKK.....',
+      '......SSSS......']
   }
 };
 const BODIES = {
-  suit: ['...TTttTT...','..TTTttTTT..','.STTTTTTTTS.','..TTTTTTTT..','...BBBBBB...'],
-  dress:['...TTTTTT...','..STTTTTTS..','..STTTTTTS..','..TTTTTTTT..','.TTTTTTTTTT.']
+  suit: [
+    '.....TTTTTT.....',
+    '....TTttttTT....',
+    '...TTTTttTTTT...',
+    '..STTTuTTuTTTS..',
+    '..STTTTTTTTTTS..',
+    '...uTTTTTTTTu...',
+    '....GBBBBBBG....'],
+  dress:[
+    '.....TTTTTT.....',
+    '....TTTTTTTT....',
+    '...STTTTTTTTS...',
+    '...STTtTTtTTS...',
+    '....TTTTTTTT....',
+    '...TTTTTTTTTT...',
+    '..TtTtTtTtTtTT..']
 };
 const LEGS = {
-  suit: [ ['...BB..BB...','...BB..BB...','...FF..FF...'], ['...BB..BB...','..BB....BB..','..FF....FF..'] ],
-  dress:[ ['...SS..SS...','...SS..SS...','...FF..FF...'], ['...SS..SS...','..SS....SS..','..FF....FF..'] ]
+  suit: [
+    ['....BBB..BBB....','....BBB..BBB....','....bbb..bbb....','....FFF..FFF....','....fff..fff....'],
+    ['...BBB....BBB...','...BBB....BBB...','...bbb....bbb...','...FFF....FFF...','..fff......fff..']
+  ],
+  dress:[
+    ['.....SS..SS.....','.....SS..SS.....','.....ss..ss.....','.....FF..FF.....','.....ff..ff.....'],
+    ['....SS....SS....','....SS....SS....','....ss....ss....','....FF....FF....','...ff......ff...']
+  ]
 };
 function paintRows(g, rows, pal, yOff) {
   for (let y = 0; y < rows.length; y++) {
     const r = rows[y];
-    for (let x = 0; x < 12; x++) {
+    for (let x = 0; x < r.length; x++) {
       const ch = r[x];
       if (ch === '.' || !pal[ch]) continue;
       g.fillStyle = pal[ch];
@@ -331,20 +449,26 @@ function snesify(c) {
   g.putImageData(out, 0, 0);
 }
 function buildFrame(head, body, legs, pal, mirror) {
+  /* 18x24 logical frame, 2x backing → snesify runs at half-pixel
+     resolution for fine outlines and smooth top-light modelling */
   const c = document.createElement('canvas');
-  c.width = 14; c.height = 18;      // 1px margin all round for the outline
+  c.width = 36; c.height = 48;
+  c.lw = 18; c.lh = 24;
   const g = c.getContext('2d');
+  g.setTransform(2, 0, 0, 2, 0, 0);
+  g.imageSmoothingEnabled = false;
   g.translate(1, 1);
   paintRows(g, head, pal, 0);
-  paintRows(g, body, pal, 8);
-  paintRows(g, legs, pal, 13);
+  paintRows(g, body, pal, 10);
+  paintRows(g, legs, pal, 17);
   g.setTransform(1, 0, 0, 1, 0, 0);
   snesify(c);
   if (!mirror) return c;
   const m = document.createElement('canvas');
-  m.width = 14; m.height = 18;
+  m.width = 36; m.height = 48;
+  m.lw = 18; m.lh = 24;
   const mg = m.getContext('2d');
-  mg.translate(14, 0); mg.scale(-1, 1);
+  mg.translate(36, 0); mg.scale(-1, 1);
   mg.drawImage(c, 0, 0);
   return m;
 }
@@ -357,17 +481,24 @@ function makeCharacter(headStyle, bodyStyle, pal) {
   out.right = [0,1].map(f => buildFrame(hd.side, bd, lg[f], pal, true));
   return out;
 }
+/* skin/wardrobe ramps: every character carries its own shade channels */
+function charPal(p) {
+  return Object.assign({
+    E: C.black, G: '#ffd766',
+    s: '#d9a678', u: 'rgba(0,0,0,0.22)', b: '#1c1724', f: '#0c0810'
+  }, p);
+}
 const SPRITES = {
-  player:    makeCharacter('fez',   'suit',  {H:'#c0392b',h:C.gold,K:'#2e1f14',S:'#f0c8a0',E:C.black,T:'#f5eedd',t:C.black,B:'#26202e',F:C.black}),
-  bartender: makeCharacter('fez',   'suit',  {H:'#c0392b',h:C.gold,K:'#14100d',S:'#e3b184',E:C.black,T:'#fbf7ec',t:'#a32638',B:C.black,F:'#0e0b09'}),
-  crapsDealer:makeCharacter('nemes','suit',  {H:'#2f7f96',h:C.gold,S:'#e3b184',E:C.black,T:'#7e2433',t:C.gold,B:C.black,F:'#0e0b09'}),
-  bjDealer:  makeCharacter('nemes', 'suit',  {H:'#345b9e',h:C.gold,S:'#caa27a',E:C.black,T:'#1f6b46',t:C.gold,B:C.black,F:'#0e0b09'}),
-  guestF:    makeCharacter('bob',   'dress', {K:'#171114',h:'#e05a70',S:'#f0c8a0',E:C.black,T:'#b02a3c',B:'#b02a3c',F:C.gold}),
-  guestM:    makeCharacter('fez',   'suit',  {H:'#171114',h:'#171114',K:'#171114',S:'#e9bd93',E:C.black,T:'#22242b',t:'#fbf7ec',B:'#171114',F:'#0e0b09'}),
+  player:    makeCharacter('fez',  'suit', charPal({H:'#d84a34',h:'#8e2a20',K:'#3a2718',S:'#f6cfa4',T:'#f8f1e2',t:'#1a1216',u:'#d5c9ae',B:'#2c2536',b:'#1e1926',F:'#241a20'})),
+  bartender: makeCharacter('fez',  'suit', charPal({H:'#d84a34',h:'#8e2a20',K:'#14100d',S:'#e9b98c',s:'#c2925e',T:'#fdfaf1',t:'#b02a3c',u:'#d9d3c2',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
+  crapsDealer:makeCharacter('nemes','suit', charPal({H:'#2f8fa8',h:'#f0c268',S:'#e9b98c',s:'#c2925e',T:'#8c2438',t:'#f0c268',u:'#6e1c2c',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
+  bjDealer:  makeCharacter('nemes','suit', charPal({H:'#3a63b4',h:'#f0c268',S:'#d3a87e',s:'#ab8054',T:'#22784e',t:'#f0c268',u:'#1a5c3c',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
+  guestF:    makeCharacter('bob',  'dress', charPal({K:'#1c1316',h:'#e86a80',S:'#f6cfa4',T:'#c02c42',t:'#e86a80',u:'#992336',F:'#ffd766',f:'#c9a13b'})),
+  guestM:    makeCharacter('fez',  'suit', charPal({H:'#1c1316',h:'#0f0b0d',K:'#1c1316',S:'#efc298',T:'#262a36',t:'#fdfaf1',u:'#1a1d26',B:'#1c1316',b:'#100c0e',F:'#120d10'})),
   /* remote player variants (picked by their sprite index 0-2) */
-  remote0:   makeCharacter('fez',   'suit',  {H:'#171114',h:'#171114',K:'#171114',S:'#e9bd93',E:C.black,T:'#22242b',t:'#fbf7ec',B:'#171114',F:'#0e0b09'}),
-  remote1:   makeCharacter('bob',   'dress', {K:'#171114',h:'#e05a70',S:'#f0c8a0',E:C.black,T:'#b02a3c',B:'#b02a3c',F:C.gold}),
-  remote2:   makeCharacter('fez',   'suit',  {H:'#2f7f96',h:C.gold,K:'#14100d',S:'#e3b184',E:C.black,T:'#38626e',t:C.gold,B:'#1c2b30',F:'#0e0b09'})
+  remote0:   makeCharacter('fez',  'suit', charPal({H:'#1c1316',h:'#0f0b0d',K:'#1c1316',S:'#efc298',T:'#262a36',t:'#fdfaf1',u:'#1a1d26',B:'#1c1316',b:'#100c0e',F:'#120d10'})),
+  remote1:   makeCharacter('bob',  'dress', charPal({K:'#1c1316',h:'#e86a80',S:'#f6cfa4',T:'#c02c42',t:'#e86a80',u:'#992336',F:'#ffd766',f:'#c9a13b'})),
+  remote2:   makeCharacter('fez',  'suit', charPal({H:'#2f8fa8',h:'#20657a',K:'#14100d',S:'#e9b98c',s:'#c2925e',T:'#3d6a78',t:'#f0c268',u:'#2e525e',B:'#20313a',b:'#15222a',F:'#120d10'}))
 };
 const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
@@ -901,9 +1032,12 @@ function moveEntity(ent, dx, dy, speed) {
 
 /* ============================ floor background ============================ */
 const bg = document.createElement('canvas');
-bg.width = W; bg.height = H;
+bg.width = W * 2; bg.height = H * 2;
+bg.lw = W; bg.lh = H;
 (function paintBackground() {
   const g = bg.getContext('2d');
+  g.setTransform(2, 0, 0, 2, 0, 0);
+  g.imageSmoothingEnabled = false;
   /* ── sandstone floor: 3-tone checker + dithered grain + inlays ── */
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -915,11 +1049,11 @@ bg.width = W; bg.height = H;
       g.fillRect(c*TS, r*TS, TS, 1);
       g.fillStyle = 'rgba(140,110,70,0.25)';
       g.fillRect(c*TS, r*TS + TS - 1, TS, 1);
-      /* grain dither */
-      for (let k = 0; k < 4; k++) {
-        const hx = h2(c * 4 + k, r), px = hx % TS, py = h2(r * 4 + k, c) % TS;
-        g.fillStyle = hx % 2 ? C.floorC : C.floorDot;
-        g.fillRect(c*TS + px, r*TS + py, 1, 1);
+      /* fine grain dither (half-pixel flecks) */
+      for (let k = 0; k < 9; k++) {
+        const hx = h2(c * 9 + k, r), px = hx % TS, py = h2(r * 9 + k, c) % TS;
+        g.fillStyle = hx % 3 === 0 ? 'rgba(255,246,214,0.5)' : (hx % 2 ? C.floorC : C.floorDot);
+        g.fillRect(c*TS + px + (hx % 2) * 0.5, r*TS + py, 0.5, 0.5);
       }
       /* occasional scarab inlay tile */
       if (h2(c, r) % 19 === 3 && r > 2 && r < 13) {
@@ -943,7 +1077,9 @@ bg.width = W; bg.height = H;
   /* weave dither */
   for (let y = 2; y < rh - 2; y += 2) for (let x = (y % 4) ? 2 : 4; x < rw - 2; x += 4) {
     g.fillStyle = (h2(x, y) % 2) ? C.rugDark : C.rugLight;
-    g.fillRect(rx + x, ry + y, 1, 1);
+    g.fillRect(rx + x, ry + y, 0.5, 1);
+    g.fillStyle = 'rgba(255,220,180,0.12)';
+    g.fillRect(rx + x + 0.5, ry + y, 0.5, 0.5);
   }
   g.strokeStyle = C.rugGold; g.lineWidth = 1;
   g.strokeRect(rx + 1.5, ry + 1.5, rw - 3, rh - 3);
@@ -1005,6 +1141,23 @@ bg.width = W; bg.height = H;
   /* wall shadow cast onto the floor */
   g.fillStyle = 'rgba(60,40,20,0.22)';
   g.fillRect(0, 32, W, 3);
+  /* hanging pennant banners flanking the room */
+  const banner = (bx) => {
+    g.fillStyle = 'rgba(20,10,5,0.25)'; g.fillRect(bx + 1, 33, 12, 24);
+    g.fillStyle = C.rugDark; g.fillRect(bx, 31, 12, 22);
+    g.fillStyle = C.rug; g.fillRect(bx + 1, 31, 10, 21);
+    g.fillStyle = C.rugLight; g.fillRect(bx + 1, 31, 10, 2);
+    /* pointed tail */
+    g.fillStyle = C.rug;
+    g.beginPath(); g.moveTo(bx, 53); g.lineTo(bx + 6, 60); g.lineTo(bx + 12, 53); g.closePath(); g.fill();
+    g.fillStyle = C.rugGold;
+    g.fillRect(bx, 31, 12, 1); g.fillRect(bx, 51, 12, 0.5);
+    /* gold ankh emblem */
+    g.fillRect(bx + 5.5, 37, 1, 2); g.fillRect(bx + 4.5, 39, 3, 1);
+    g.fillRect(bx + 5.5, 40, 1, 4); g.fillRect(bx + 3.5, 42, 5, 1);
+    g.fillStyle = C.goldHi; g.fillRect(bx + 5.5, 37, 0.5, 1);
+  };
+  banner(38); banner(190);
   /* ── back-bar shelf: mirror glass + lit bottles ── */
   const shx = BAR.c0*TS, shw = (BAR.c1-BAR.c0+1)*TS;
   g.fillStyle = '#2c1c10'; g.fillRect(shx, 9, shw, 19);
@@ -1057,8 +1210,12 @@ bg.width = W; bg.height = H;
 /* ============================ floor objects ============================ */
 function makeCanvas(w, h, painter) {
   const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  painter(c.getContext('2d'));
+  c.width = w * 2; c.height = h * 2;      // 2x backing for fine detail
+  const g = c.getContext('2d');
+  g.setTransform(2, 0, 0, 2, 0, 0);
+  g.imageSmoothingEnabled = false;
+  painter(g);
+  c.lw = w; c.lh = h;                      // logical size for drawImage
   return c;
 }
 const barCanvas = makeCanvas((BAR.c1-BAR.c0+1)*TS, 24, g => {
@@ -1068,7 +1225,7 @@ const barCanvas = makeCanvas((BAR.c1-BAR.c0+1)*TS, 24, g => {
   g.fillStyle = C.wood; g.fillRect(0, 6, w, 13);
   for (let y = 8; y < 18; y += 3) {
     g.fillStyle = 'rgba(60,35,18,0.35)';
-    for (let x = h2(y, 3) % 6; x < w; x += 11) g.fillRect(x, y, 5, 1);
+    for (let x = h2(y, 3) % 6; x < w; x += 11) g.fillRect(x, y, 5, 0.5);
   }
   for (let x = 4; x < w - 10; x += 14) {
     g.fillStyle = C.woodDark; g.fillRect(x, 9, 10, 8);
@@ -1165,80 +1322,137 @@ function drawEntity(g, ent, bobT) {
   const bob = ent.staticNPC ? (Math.floor(bobT / 40) % 2) : 0;
   g.fillStyle = C.shadow;
   g.beginPath();
-  g.ellipse(Math.round(ent.x), Math.round(ent.y) + 2, 5, 2, 0, 0, Math.PI * 2);
+  g.ellipse(Math.round(ent.x), Math.round(ent.y) + 2, 6, 2.5, 0, 0, Math.PI * 2);
   g.fill();
-  g.drawImage(img, Math.round(ent.x - 7), Math.round(ent.y - 16 + bob));
+  g.drawImage(img, Math.round(ent.x - 9), Math.round(ent.y - 22 + bob), 18, 24);
 }
 function drawSeated(g, spriteKey, x, y) {
-  g.fillStyle = C.shadow; g.fillRect(x - 5, y + 1, 10, 3);
-  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 1, 8, 3);
-  g.fillStyle = C.woodLight; g.fillRect(x - 4, y - 2, 8, 1);
-  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 3, 8, 1);
+  g.fillStyle = C.shadow; g.fillRect(x - 6, y + 1, 12, 3);
+  g.fillStyle = C.woodDark; g.fillRect(x - 5, y - 1, 10, 3);
+  g.fillStyle = C.woodLight; g.fillRect(x - 5, y - 2, 10, 1);
+  g.fillStyle = C.goldDark; g.fillRect(x - 5, y - 3, 10, 1);
   const img = SPRITES[spriteKey].up[0];
-  g.drawImage(img, 0, 0, 14, 15, Math.round(x - 7), Math.round(y - 16), 14, 15);
+  g.drawImage(img, 0, 0, 36, 40, Math.round(x - 9), Math.round(y - 21), 18, 20);
 }
 function drawEmptyStool(g, x, y) {
-  g.fillStyle = C.woodDark; g.fillRect(x - 4, y - 1, 8, 3);
-  g.fillStyle = C.woodLight; g.fillRect(x - 4, y - 2, 8, 1);
-  g.fillStyle = C.goldDark; g.fillRect(x - 4, y - 3, 8, 1);
+  g.fillStyle = C.woodDark; g.fillRect(x - 5, y - 1, 10, 3);
+  g.fillStyle = C.woodLight; g.fillRect(x - 5, y - 2, 10, 1);
+  g.fillStyle = C.goldDark; g.fillRect(x - 5, y - 3, 10, 1);
 }
 
 /* ============================ cards & dice ============================ */
-const CARD_W = 18, CARD_H = 24;
+const CARD_W = 20, CARD_H = 28;
 const SUITS = [
-  { pix:['.#.#.','#####','#####','.###.','..#..'], col:'#c0392b' },
-  { pix:['..#..','.###.','#####','.###.','..#..'], col:'#c0392b' },
-  { pix:['..#..','.###.','#####','..#..','.###.'], col:C.black },
-  { pix:['.###.','#####','#####','..#..','.###.'], col:C.black }
+  { pix:['.#.#.','#####','#####','.###.','..#..'], col:'#c22f3e' },
+  { pix:['..#..','.###.','#####','.###.','..#..'], col:'#c22f3e' },
+  { pix:['..#..','.###.','#####','..#..','.###.'], col:'#221c26' },
+  { pix:['.###.','#####','#####','..#..','.###.'], col:'#221c26' }
 ];
 const RANK_STR = ['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+/* classic pip layouts for the number cards */
+const PIPS = {
+  2:[[10,9],[10,19]],
+  3:[[10,7],[10,14],[10,21]],
+  4:[[7,9],[13,9],[7,19],[13,19]],
+  5:[[7,9],[13,9],[10,14],[7,19],[13,19]],
+  6:[[7,8],[13,8],[7,14],[13,14],[7,20],[13,20]],
+  7:[[7,8],[13,8],[10,11],[7,14],[13,14],[7,20],[13,20]],
+  8:[[7,8],[13,8],[10,11],[7,14],[13,14],[10,17],[7,20],[13,20]],
+  9:[[7,7],[13,7],[7,12],[13,12],[7,17],[13,17],[7,22],[13,22],[10,9]],
+  10:[[7,7],[13,7],[7,12],[13,12],[7,17],[13,17],[7,22],[13,22],[10,9],[10,20]]
+};
+function drawSuitPix(g, suit, x, y, s) {
+  const m = SUITS[suit];
+  g.fillStyle = m.col;
+  for (let yy = 0; yy < 5; yy++) for (let xx = 0; xx < 5; xx++) {
+    if (m.pix[yy][xx] === '#') g.fillRect(x + xx * s, y + yy * s, s, s);
+  }
+}
+function cardBody(g) {
+  g.fillStyle = '#867e6e'; g.fillRect(0, 0, CARD_W, CARD_H);
+  g.clearRect(0, 0, 1, 1); g.clearRect(CARD_W - 1, 0, 1, 1);
+  g.clearRect(0, CARD_H - 1, 1, 1); g.clearRect(CARD_W - 1, CARD_H - 1, 1, 1);
+  g.fillStyle = C.white; g.fillRect(1, 1, CARD_W - 2, CARD_H - 2);
+  g.fillStyle = '#fffdf4'; g.fillRect(1, 1, CARD_W - 2, 1); g.fillRect(1, 1, 1, CARD_H - 2);
+  g.fillStyle = '#ddd5c0'; g.fillRect(1, CARD_H - 2, CARD_W - 2, 1); g.fillRect(CARD_W - 2, 1, 1, CARD_H - 2);
+}
 const cardCache = {};
 function cardFace(rank, suit) {
   const k = rank + '-' + suit;
   if (cardCache[k]) return cardCache[k];
   const c = makeCanvas(CARD_W, CARD_H, g => {
-    g.fillStyle = '#8f8878'; g.fillRect(0, 0, CARD_W, CARD_H);
-    g.fillStyle = C.white; g.fillRect(1, 1, CARD_W-2, CARD_H-2);
-    g.fillStyle = '#fffdf4'; g.fillRect(1, 1, CARD_W-2, 1); g.fillRect(1, 1, 1, CARD_H-2);
-    g.fillStyle = '#ddd5c0'; g.fillRect(1, CARD_H-2, CARD_W-2, 1); g.fillRect(CARD_W-2, 1, 1, CARD_H-2);
+    cardBody(g);
     const s = SUITS[suit];
     g.font = FONT; g.textBaseline = 'top';
     g.fillStyle = s.col;
-    if (rank === 10) { g.fillText('1', 1, 3); g.fillText('0', 8, 3); }
-    else g.fillText(RANK_STR[rank], 3, 3);
-    for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
-      if (s.pix[y][x] === '#') g.fillRect(10 + x, 16 + y, 1, 1);
+    if (rank === 10) { g.fillText('1', 1, 2); g.fillText('0', 8, 2); }
+    else g.fillText(RANK_STR[rank], 2, 2);
+    drawSuitPix(g, suit, 2.5, 11, 0.7);          // small pip under the index
+    if (rank === 1) {
+      drawSuitPix(g, suit, 5.5, 11, 1.8);        // big ace pip
+    } else if (rank <= 10) {
+      for (const [px, py] of PIPS[rank]) drawSuitPix(g, suit, px - 1.5, py - 1.5, 0.6);
+    } else {
+      /* face card: gilt frame, royal letter, tiny regalia */
+      g.strokeStyle = '#c9a13b'; g.lineWidth = 1;
+      g.strokeRect(5.5, 8.5, 10, 15);
+      g.fillStyle = 'rgba(201,161,59,0.18)';
+      g.fillRect(6, 9, 9, 14);
+      g.fillStyle = C.gold;
+      if (rank === 13) {                          // crown
+        g.fillRect(7.5, 10, 1, 2); g.fillRect(10, 9.5, 1, 2.5); g.fillRect(12.5, 10, 1, 2); g.fillRect(7.5, 12, 6, 1);
+      } else if (rank === 12) {                   // tiara
+        g.fillRect(8, 10.5, 1, 1.5); g.fillRect(10, 10, 1, 2); g.fillRect(12, 10.5, 1, 1.5); g.fillRect(8, 12, 5, 1);
+      } else {                                    // jack's plume
+        g.fillRect(9.5, 9.5, 1, 3); g.fillRect(10.5, 10.5, 1.5, 1);
+      }
+      g.textAlign = 'center';
+      g.fillStyle = s.col;
+      g.fillText(RANK_STR[rank], 10.5, 14);
+      g.textAlign = 'left';
+      drawSuitPix(g, suit, 9, 19.5, 0.6);
     }
   });
   cardCache[k] = c;
   return c;
 }
 const cardBack = makeCanvas(CARD_W, CARD_H, g => {
-  g.fillStyle = '#8a6733'; g.fillRect(0, 0, CARD_W, CARD_H);
-  g.fillStyle = '#2b4d8c'; g.fillRect(1, 1, CARD_W-2, CARD_H-2);
-  g.fillStyle = '#3a63ad'; g.fillRect(1, 1, CARD_W-2, 1); g.fillRect(1, 1, 1, CARD_H-2);
-  g.fillStyle = '#223f74'; g.fillRect(1, CARD_H-2, CARD_W-2, 1); g.fillRect(CARD_W-2, 1, 1, CARD_H-2);
-  g.fillStyle = C.gold;
-  for (let y = 3; y < CARD_H - 3; y += 5) for (let x = 3; x < CARD_W - 3; x += 5) {
-    g.fillRect(x, y, 1, 1); g.fillRect(x+1, y+1, 1, 1); g.fillRect(x-1, y+1, 1, 1); g.fillRect(x, y+2, 1, 1);
+  cardBody(g);
+  g.fillStyle = '#2f55a0'; g.fillRect(2, 2, CARD_W - 4, CARD_H - 4);
+  g.fillStyle = '#4272c2'; g.fillRect(2, 2, CARD_W - 4, 1); g.fillRect(2, 2, 1, CARD_H - 4);
+  g.fillStyle = '#24437e'; g.fillRect(2, CARD_H - 3, CARD_W - 4, 1); g.fillRect(CARD_W - 3, 2, 1, CARD_H - 4);
+  /* gold lattice */
+  g.fillStyle = 'rgba(240,194,104,0.85)';
+  for (let y = 4; y < CARD_H - 4; y += 4.5) for (let x = 4; x < CARD_W - 4; x += 4.5) {
+    g.fillRect(x, y, 0.5, 0.5); g.fillRect(x + 1, y + 1, 0.5, 0.5);
+    g.fillRect(x - 1, y + 1, 0.5, 0.5); g.fillRect(x, y + 2, 0.5, 0.5);
   }
+  /* centre ankh */
   g.fillStyle = C.goldHi;
-  g.fillRect(CARD_W/2 - 1, CARD_H/2 - 1, 2, 2);
+  g.fillRect(9.5, 10, 1, 2); g.fillRect(8.5, 11.5, 3, 1); g.fillRect(9.5, 12.5, 1, 4);
+  g.fillRect(7.5, 15, 5, 1);
 });
 function drawDie(g, x, y, val, size) {
   const s = size || 12;
-  g.fillStyle = '#8f8878'; g.fillRect(x, y, s, s);
-  g.fillStyle = C.white; g.fillRect(x+1, y+1, s-2, s-2);
-  g.fillStyle = '#fffdf4'; g.fillRect(x+1, y+1, s-2, 1); g.fillRect(x+1, y+1, 1, s-2);
-  g.fillStyle = '#d9d2be'; g.fillRect(x+1, y+s-2, s-2, 1); g.fillRect(x+s-2, y+1, 1, s-2);
-  g.fillStyle = C.black;
-  const c = x + s/2 - 1, m = y + s/2 - 1, l = x + 2, r = x + s - 4, t = y + 2, b = y + s - 4;
+  /* rounded ivory die with bevel */
+  g.fillStyle = '#7d7666';
+  g.fillRect(x + 1, y, s - 2, s); g.fillRect(x, y + 1, s, s - 2);
+  g.fillStyle = C.white;
+  g.fillRect(x + 1.5, y + 1, s - 3, s - 2); g.fillRect(x + 1, y + 1.5, s - 2, s - 3);
+  g.fillStyle = '#fffdf4'; g.fillRect(x + 1.5, y + 1, s - 3, 1); g.fillRect(x + 1, y + 1.5, 1, s - 3);
+  g.fillStyle = '#d9d2be'; g.fillRect(x + 1.5, y + s - 2, s - 3, 1); g.fillRect(x + s - 2, y + 1.5, 1, s - 3);
+  const c = x + s/2 - 1, m = y + s/2 - 1, l = x + 2.5, r = x + s - 4.5, t = y + 2.5, b = y + s - 4.5;
   const pips = {
     1:[[c,m]], 2:[[l,t],[r,b]], 3:[[l,t],[c,m],[r,b]],
     4:[[l,t],[r,t],[l,b],[r,b]], 5:[[l,t],[r,t],[c,m],[l,b],[r,b]],
     6:[[l,t],[r,t],[l,m],[r,m],[l,b],[r,b]]
   };
-  for (const [px,py] of pips[val]) g.fillRect(px, py, 2, 2);
+  for (const [px, py] of pips[val]) {
+    g.fillStyle = '#241e28';
+    g.fillRect(px, py, 2, 2);
+    g.fillStyle = '#5a5462';
+    g.fillRect(px, py, 0.5, 0.5);
+  }
 }
 function newDeck() {
   const d = [];
@@ -1592,7 +1806,7 @@ function modalDraw(seatPos) {
     const pos = seatPos(target.id);
     if (pos && Math.floor(tick / 15) % 2) {
       ctx.fillStyle = C.gold;
-      ctx.fillText('▼', pos.x - 4, pos.y - 34);
+      ctx.fillText('▼', pos.x - 4, pos.y - 38);
     }
   }
 }
@@ -1611,16 +1825,16 @@ function drawPopups(seatPos) {
     if (p.kind === 'emoji') {
       const rise = Math.min(p.t / 3, 8);
       ctx.font = '12px sans-serif';
-      ctx.fillText(p.str, pos.x - 6, pos.y - 30 - rise);
+      ctx.fillText(p.str, pos.x - 6, pos.y - 34 - rise);
       ctx.font = FONT;
     } else if (p.kind === 'tip') {
       const rise = Math.min(p.t / 2, 12);
       ctx.font = FONT; ctx.textBaseline = 'top';
       ctx.fillStyle = C.gold;
-      ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 28 - rise);
+      ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 32 - rise);
     } else if (p.kind === 'bubble') {
       if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, true);
-      else drawBubble(pos.x, pos.y - 20, p.str, false);
+      else drawBubble(pos.x, pos.y - 24, p.str, false);
     }
     ctx.globalAlpha = 1;
   }
@@ -1768,6 +1982,16 @@ const bjRoom = makeCanvas(W, H, g => {
   sheen.addColorStop(1, 'rgba(120,160,230,0)');
   g.fillStyle = sheen;
   g.beginPath(); g.ellipse(120, 52, 89, 77, 0, 0, Math.PI); g.fill();
+  /* felt nap: fine two-tone noise, clipped to the felt */
+  g.save();
+  g.beginPath(); g.ellipse(120, 52, 89, 77, 0, 0, Math.PI); g.closePath(); g.clip();
+  for (let i = 0; i < 1100; i++) {
+    const nx = 31 + (h2(i, 5) * 1.83 + i * 0.163) % 178;
+    const ny = 52 + (h2(5, i) * 1.07 + i * 0.071) % 77;
+    g.fillStyle = (i % 2) ? 'rgba(10,20,50,0.16)' : 'rgba(190,214,255,0.08)';
+    g.fillRect(nx, ny, 0.5, 0.5);
+  }
+  g.restore();
   /* stitched felt border */
   g.fillStyle = 'rgba(210,225,250,0.4)';
   for (let t = 0.1; t < Math.PI - 0.1; t += 0.075) {
@@ -1976,7 +2200,9 @@ function bjUpdate() {
 function drawHand(g, hand, x, y, hideFirst) {
   for (let i = 0; i < hand.length; i++) {
     const img = (hideFirst && i === 0) ? cardBack : cardFace(hand[i].r, hand[i].s);
-    g.drawImage(img, x + i * 7, y);
+    g.fillStyle = 'rgba(10,10,20,0.25)';
+    g.fillRect(x + i * 8 + 1, y + 2, CARD_W - 1, CARD_H - 1);
+    g.drawImage(img, x + i * 8, y, CARD_W, CARD_H);
   }
 }
 function drawMenuRow(items, selIdx, y) {
@@ -1990,10 +2216,10 @@ function drawMenuRow(items, selIdx, y) {
   }
 }
 function bjRender() {
-  ctx.drawImage(bjRoom, 0, 0);
+  ctx.drawImage(bjRoom, 0, 0, W, H);
   drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
   drawEntity(ctx, { sprite:'bjDealer', dir:'down', frame:0, x:120, y:42, staticNPC:true }, tick);
-  drawHand(ctx, bj.dealer, 120 - Math.max(1, bj.dealer.length) * 7 / 2 - 5, 60, bj.hole);
+  drawHand(ctx, bj.dealer, 120 - Math.max(1, bj.dealer.length) * 8 / 2 - 6, 58, bj.hole);
   if (!bj.hole && bj.dealer.length) {
     ctx.font = FONT; ctx.fillStyle = C.white; ctx.textBaseline = 'top';
     ctx.fillText(String(handValue(bj.dealer)), 154, 66);
@@ -2002,12 +2228,12 @@ function bjRender() {
   /* your cards in front of your seat */
   if (bj.hand.length) {
     const pos = BJ_SEATS[social.seat];
-    const hx = pos.x - 9 - (bj.hand.length - 1) * 3;
-    drawHand(ctx, bj.hand, Math.max(2, Math.min(W - 30, hx)), pos.y - 46);
+    const hx = pos.x - 10 - (bj.hand.length - 1) * 4;
+    drawHand(ctx, bj.hand, Math.max(2, Math.min(W - 32, hx)), pos.y - 52);
     ctx.font = FONT; ctx.textBaseline = 'top';
     const v = handValue(bj.hand);
     ctx.fillStyle = bj.busted ? '#e05a70' : C.gold;
-    ctx.fillText(String(v), pos.x - 4, pos.y - 56);
+    ctx.fillText(String(v), pos.x - 4, pos.y - 62);
   }
   const seatPos = tableSeatPos(BJ_SEATS, { x: 120, y: 40 });
   drawPopups(seatPos);
@@ -2091,6 +2317,13 @@ const crRoom = makeCanvas(W, H, g => {
   crSheen.addColorStop(0, 'rgba(140,220,170,0.22)');
   crSheen.addColorStop(1, 'rgba(140,220,170,0)');
   g.fillStyle = crSheen; g.fillRect(31, 49, 178, 92);
+  /* felt nap: fine two-tone noise */
+  for (let i = 0; i < 1100; i++) {
+    const nx = 31 + (h2(i, 7) * 1.83 + i * 0.163) % 178;
+    const ny = 49 + (h2(7, i) * 1.31 + i * 0.087) % 92;
+    g.fillStyle = (i % 2) ? 'rgba(0,34,18,0.14)' : 'rgba(190,255,214,0.08)';
+    g.fillRect(nx, ny, 0.5, 0.5);
+  }
   g.fillStyle = 'rgba(16,44,30,0.55)';
   g.fillRect(31, 49, 178, 2); g.fillRect(31, 49, 2, 92);
   g.fillRect(207, 49, 2, 92); g.fillRect(31, 139, 178, 2);
@@ -2437,7 +2670,7 @@ function crUpdate() {
   }
 }
 function crRender() {
-  ctx.drawImage(crRoom, 0, 0);
+  ctx.drawImage(crRoom, 0, 0, W, H);
   drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
   drawEntity(ctx, { sprite:'crapsDealer', dir:'down', frame:0, x:120, y:38, staticNPC:true }, tick);
   ctx.font = FONT; ctx.textBaseline = 'top';
@@ -2498,7 +2731,7 @@ function crRender() {
   /* shooter marker: a little die above whoever holds the dice */
   if (cr.net.active && cr.net.shooter) {
     const sp = seatPos(cr.net.shooter === social.youId ? 'you' : cr.net.shooter);
-    if (sp) drawDie(ctx, sp.x + 7, sp.y - 24, 5, 8);
+    if (sp) drawDie(ctx, sp.x + 8, sp.y - 27, 5, 8);
   }
   drawPopups(seatPos);
   if (modal) { modalDraw(seatPos); drawNetDot(); return; }
@@ -2783,14 +3016,14 @@ function drawTitle(g) {
   g.textBaseline = 'top';
 }
 function floorRender() {
-  ctx.drawImage(bg, 0, 0);
+  ctx.drawImage(bg, 0, 0, W, H);
   drawFlame(ctx, 3*TS + 4, 18);
   drawFlame(ctx, 11*TS + 4, 18);
   const items = [];
-  items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6) });
-  items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS) });
-  items.push({ y: (BJ_T.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ_T.c0*TS, BJ_T.r0*TS) });
-  PALMS.forEach(([c, r]) => items.push({ y: (r+1)*TS, draw: g => g.drawImage(palmCanvas, c*TS, r*TS - 9) }));
+  items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6, barCanvas.lw, barCanvas.lh) });
+  items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS, crapsCanvas.lw, crapsCanvas.lh) });
+  items.push({ y: (BJ_T.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ_T.c0*TS, BJ_T.r0*TS, bjCanvas.lw, bjCanvas.lh) });
+  PALMS.forEach(([c, r]) => items.push({ y: (r+1)*TS, draw: g => g.drawImage(palmCanvas, c*TS, r*TS - 9, palmCanvas.lw, palmCanvas.lh) }));
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
@@ -2808,7 +3041,7 @@ function floorRender() {
       const bounce = Math.floor(tick / 20) % 2;
       ctx.font = FONT;
       ctx.fillStyle = C.gold;
-      ctx.fillText('!', Math.round(player.x) - 2, Math.round(player.y) - 28 - bounce);
+      ctx.fillText('!', Math.round(player.x) - 2, Math.round(player.y) - 34 - bounce);
     }
   }
   /* popups over heads on the floor: you, the staff, and the regulars */
