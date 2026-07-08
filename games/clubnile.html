@@ -1392,8 +1392,46 @@ function openTipModal() {
   if (!social.roster.length) { flash('NO PLAYERS TO TIP'); return; }
   modal = { type: 'tip', tIdx: 0, aIdx: 0 };
 }
+/* B at any table → confirm before standing up */
+function openLeaveModal() { modal = { type: 'leave' }; }
+function bjHandLive() {
+  return scene === 'blackjack' && ['dealing','player','dealerTurn'].includes(bj.state);
+}
+function confirmLeaveCurrent() {
+  if (scene === 'craps') {
+    crCashOut('Left the table');            // pass rides if the point is on
+    startTransition(() => leaveTable('craps'));
+  } else if (scene === 'blackjack') {
+    if (bjHandLive()) {
+      /* the hand stands where it is and settles — leaving can't dodge it */
+      while (bj.dealQ && bj.dealQ.length) {
+        const n = bj.dealQ.shift();
+        (n === 'dealer' ? bj.dealer : bj.hand).push(bj.deck.pop());
+      }
+      while (bj.hand.length < 2) bj.hand.push(bj.deck.pop());
+      while (bj.dealer.length < 2) bj.dealer.push(bj.deck.pop());
+      while (handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
+      const dv = handValue(bj.dealer), pv = handValue(bj.hand);
+      let payout = 0, msg;
+      if (pv > 21) msg = 'bust, -' + bj.bet;
+      else if (dv > 21 || pv > dv) { payout = bj.bet * 2; msg = 'you won! +' + bj.bet; }
+      else if (pv === dv) { payout = bj.bet; msg = 'push'; }
+      else msg = 'dealer ' + dv + ' beats ' + pv + ', -' + bj.bet;
+      if (payout) setChips(chips + payout);
+      journal(null);
+      pushChat('', 'Hand settled on the way out: ' + msg, true);
+      bj.state = 'bet';
+    }
+    startTransition(() => leaveTable('blackjack'));
+  }
+}
 function modalUpdate() {
   if (!modal) return false;
+  if (modal.type === 'leave') {
+    if (aQueued) { aQueued = false; modal = null; confirmLeaveCurrent(); }
+    if (bQueued) { bQueued = false; modal = null; }
+    return true;
+  }
   if (modal.type === 'emoji') {
     if (tapLeft)  modal.idx = (modal.idx + EMOJIS.length - 1) % EMOJIS.length;
     if (tapRight) modal.idx = (modal.idx + 1) % EMOJIS.length;
@@ -1425,6 +1463,16 @@ function modalDraw(seatPos) {
   if (!modal) return;
   uiPanel();
   ctx.font = FONT; ctx.textBaseline = 'top';
+  if (modal.type === 'leave') {
+    uiText('LEAVE THE TABLE?', C.white, 186);
+    let note = 'SEE YOU AT THE BAR';
+    if (scene === 'craps' && cr.point !== 0 && cr.bets.pass > 0) note = 'PASS BET RIDES TO A RESULT';
+    else if (scene === 'craps' && crTotalBets() > 0) note = 'YOUR BETS COME DOWN';
+    else if (bjHandLive()) note = 'YOUR HAND STANDS AND SETTLES';
+    uiText(note, C.dim, 204);
+    uiText('A: LEAVE   B: STAY', C.gold, 222);
+    return;
+  }
   if (modal.type === 'emoji') {
     uiText('SEND AN EMOJI', C.white, 186);
     ctx.font = '12px sans-serif';
@@ -1609,8 +1657,10 @@ function bjTrayTap() {
 }
 function bjUpdate() {
   if (modalUpdate()) { lastActMs = Date.now(); return; }
+  /* B anywhere at the table → leave confirmation */
+  if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
   /* idle kick (only between hands — live hands run on the decision clock) */
-  if (aQueued || bQueued || tapUp || tapDown || tapLeft || tapRight) lastActMs = Date.now();
+  if (aQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
   else if ((bj.state === 'bet' || bj.state === 'result') && Date.now() - lastActMs > IDLE_KICK_MS) {
     pushChat('', 'Idle at blackjack — seat freed', true);
     startTransition(() => leaveTable('blackjack'));
@@ -1618,7 +1668,6 @@ function bjUpdate() {
   }
   if (bj.state === 'bet') {
     if (chips < BETS[0]) {
-      if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
       aQueued = false;
       return;
     }
@@ -1634,11 +1683,10 @@ function bjUpdate() {
       else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
       else openTipModal();
     }
-    if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
   }
   else if (bj.state === 'dealing') {
     aQueued = bQueued = false;
-    if (++bj.timer >= 16) {
+    if (++bj.timer >= 48) {          // slow, deliberate deal
       bj.timer = 0;
       const next = bj.dealQ.shift();
       if (next === 'dealer') bj.dealer.push(bj.deck.pop());
@@ -1684,7 +1732,7 @@ function bjUpdate() {
   }
   else if (bj.state === 'dealerTurn') {
     aQueued = bQueued = false;
-    if (++bj.timer >= 26) {
+    if (++bj.timer >= 40) {          // dealer takes their time too
       bj.timer = 0;
       if (!bj.busted && handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
       else {
@@ -1717,7 +1765,6 @@ function bjUpdate() {
       else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
       else openTipModal();
     }
-    if (bQueued) { bQueued = false; startTransition(() => leaveTable('blackjack')); }
   }
 }
 function drawHand(g, hand, x, y, hideFirst) {
@@ -1908,9 +1955,23 @@ const cr = {
   bets:{}, unitIdx:0, menuIdx:0, removeMode:false,
   outcome:[], outT:0, flash:0,
   net:{ active:false, phase:'', until:0, shooter:null },
+  solo:{ phase:'betting', until:0 },
   rollLand:null, postRoll:null
 };
-const CR_ROLL_TICKS = 96, CR_LOCK1 = 42;   // slow roll: die 1 lands first
+/* long theatrical roll (~4.8s): die 1 lands, die 2 spins on */
+const CR_ROLL_TICKS = 288, CR_LOCK1 = 126;
+/* solo table clock mirrors the multiplayer one so the countdowns are
+   always visible: betting window → roll window → next round */
+const SOLO_BET_MS = 15000, SOLO_ACTION_MS = 10000;
+function crSoloPhase(p) {
+  cr.solo.phase = p;
+  cr.solo.until = Date.now() + (p === 'betting' ? SOLO_BET_MS : SOLO_ACTION_MS);
+}
+function crStartRoll() {
+  cr.rollLand = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+  cr.mode = 'rolling';
+  cr.rollT = CR_ROLL_TICKS;
+}
 function crBetKeys() {
   const b = { pass: 0 };
   PLACE_NUMS.forEach(n => b['p' + n] = 0);
@@ -1925,6 +1986,7 @@ function enterCraps() {
   cr.outcome = []; cr.outT = 0;
   cr.net = { active:false, phase:'', until:0, shooter:null };
   cr.rollLand = null; cr.postRoll = null;
+  crSoloPhase('betting');
   modal = null;
   lastActMs = Date.now();
   tableConnect('craps');
@@ -1969,9 +2031,10 @@ function crAdoptNet(g) {
    solo — nothing refunds, so pulling the plug can't dodge a hand */
 function crGoSolo() {
   cr.net = { active:false, phase:'', until:0, shooter:null };
-  cr.postRoll = null; cr.rollLand = null;
+  cr.postRoll = null;
   cr.outcome = [];
-  if (cr.mode !== 'rolling') cr.mode = 'board';
+  if (cr.mode !== 'rolling') { cr.rollLand = null; cr.mode = 'board'; }
+  crSoloPhase('betting');
   flash('CONNECTION LOST · PLAY ON SOLO');
 }
 function crShooterName() {
@@ -2061,18 +2124,18 @@ function crUpdate() {
   /* failsafe: dropped connection mid-game → refund and continue solo */
   if (cr.net.active && !(social.table && social.table.status === 'on')) crGoSolo();
   /* dice animation always progresses (server rolls arrive any time).
-     Slow theatrical roll: both bones tumble, the first settles early,
-     the second keeps spinning before it lands. */
+     Long lazy tumble: faces flip slowly, the first bone settles early,
+     the second keeps spinning before it drops. */
   if (cr.mode === 'rolling') {
     aQueued = bQueued = false;
     const land = cr.rollLand || cr.dice;
     if (cr.rollT > CR_LOCK1) {
-      if (cr.rollT % 4 === 0) {
+      if (cr.rollT % 10 === 0) {
         cr.dice = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
       }
     } else {
       cr.dice[0] = land[0];
-      if (cr.rollT % 3 === 0) cr.dice[1] = 1 + Math.floor(Math.random() * 6);
+      if (cr.rollT % 8 === 0) cr.dice[1] = 1 + Math.floor(Math.random() * 6);
     }
     if (--cr.rollT <= 0) {
       cr.dice = [land[0], land[1]];
@@ -2082,24 +2145,37 @@ function crUpdate() {
     return;
   }
   if (modalUpdate()) { lastActMs = Date.now(); return; }
+  /* B anywhere at the table → leave confirmation */
+  if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
   if (cr.mode === 'outcome') {          /* solo pause between rolls */
     if (cr.flash > 0) cr.flash--;
-    if (--cr.outT <= 0 || aQueued) { aQueued = false; lastActMs = Date.now(); cr.mode = 'board'; }
-    bQueued = false;
+    if (--cr.outT <= 0 || aQueued) {
+      aQueued = false; lastActMs = Date.now();
+      cr.mode = 'board';
+      if (!cr.net.active) crSoloPhase('betting');
+    }
     return;
   }
   if (cr.flash > 0) cr.flash--;
   /* idle kick: frees the seat so the table never waits on a ghost */
-  if (aQueued || bQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
+  if (aQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
   else if (Date.now() - lastActMs > IDLE_KICK_MS) {
     crCashOut('Idle at craps');
     pushChat('', 'Idle at craps — seat freed', true);
     startTransition(() => leaveTable('craps'));
     return;
   }
+  /* solo table clock: betting window → roll window → (auto) roll */
+  if (!cr.net.active && Date.now() > cr.solo.until) {
+    if (cr.solo.phase === 'betting') crSoloPhase('action');
+    else if (crTotalBets() > 0) { crStartRoll(); return; }
+    else crSoloPhase('betting');
+  }
   const unit = UNITS[cr.unitIdx];
   const netOn = cr.net.active;
-  const canBet = !netOn || cr.net.phase === 'betting' || cr.net.phase === 'outcome';
+  const canBet = netOn
+    ? (cr.net.phase === 'betting' || cr.net.phase === 'outcome')
+    : cr.solo.phase === 'betting';
   /* taps: chip tray selects a denomination (X = take-down mode),
      tapping a felt spot lays or lifts chips */
   if (tapNow) {
@@ -2109,7 +2185,7 @@ function crUpdate() {
     else {
       const spot = crSpotAt(tapNow);
       if (spot) {
-        if (!canBet) flash('DICE ARE OUT · BETS CLOSED');
+        if (!canBet) flash(netOn ? 'DICE ARE OUT · BETS CLOSED' : 'ROLL WINDOW · BETS CLOSED');
         else if (cr.removeMode) {
           if (cr.bets[spot] <= 0) flash('NOTHING ON THAT SPOT');
           else if (spot === 'pass' && cr.point !== 0) flash('PASS RIDES UNTIL DECIDED');
@@ -2138,22 +2214,15 @@ function crUpdate() {
         else if (cr.net.phase === 'action') flash('WAITING ON THE SHOOTER');
         else flash('DICE ROLL ON THE TABLE CLOCK');
       } else {
-        if (crTotalBets() === 0) flash('PLACE A BET FIRST');
-        else {
-          cr.rollLand = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
-          cr.mode = 'rolling';
-          cr.rollT = CR_ROLL_TICKS;
-        }
+        if (cr.solo.phase !== 'action') flash('BETS OPEN · ROLL WINDOW NEXT');
+        else if (crTotalBets() === 0) flash('PLACE A BET FIRST');
+        else crStartRoll();
       }
     }
     else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
     else if (item === 'TIP') openTipModal();
-    else if (item === 'LEAVE') {
-      crCashOut('Left the table');       // pass rides if the point is on
-      startTransition(() => leaveTable('craps'));
-    }
+    else if (item === 'LEAVE') openLeaveModal();
   }
-  if (bQueued) { bQueued = false; cr.removeMode = !cr.removeMode; }
 }
 function crRender() {
   ctx.drawImage(crRoom, 0, 0);
@@ -2224,7 +2293,8 @@ function crRender() {
   /* UI band */
   uiPanel();
   ctx.font = FONT; ctx.textBaseline = 'top';
-  const secs = Math.max(0, Math.ceil((cr.net.until - Date.now()) / 1000));
+  const live = cr.net.active ? cr.net : cr.solo;
+  const secs = Math.max(0, Math.ceil((live.until - Date.now()) / 1000));
   if (flashT > 0) { flashT--; uiText(flashMsg, '#e05a70', STATUS_Y); }
   else if (cr.mode === 'rolling') {
     uiText(cr.rollT > CR_LOCK1 ? 'ROLLING...' : 'ONE MORE BONE...', C.white, 196);
@@ -2244,11 +2314,11 @@ function crRender() {
       status = 'TAP A BET TO TAKE IT DOWN';
     } else if (cr.net.active && cr.outcome.length) {
       status = cr.outcome[Math.floor(tick / 60) % cr.outcome.length];
-    } else if (cr.net.active && cr.net.phase === 'betting') {
+    } else if (live.phase === 'betting') {
       status = 'BETS OPEN · TAP THE FELT · ' + secs + 'S';
-    } else if (cr.net.active && cr.net.phase === 'action') {
-      status = (cr.net.shooter === social.youId)
-        ? 'YOUR ROLL · ' + secs + 'S'
+    } else if (live.phase === 'action') {
+      status = (!cr.net.active || cr.net.shooter === social.youId)
+        ? 'YOUR ROLL · A ON ROLL · ' + secs + 'S'
         : 'SHOOTER: ' + crShooterName() + ' · ' + secs + 'S';
     } else {
       status = comeout ? 'TAP THE FELT TO BET' : 'POINT IS ' + cr.point;

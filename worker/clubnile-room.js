@@ -36,7 +36,7 @@ const EMOJI_COOLDOWN_MS = 400;
 
 const BETTING_MS = 15000;
 const ACTION_MS = 10000;
-const OUTCOME_MS = 5000;
+const OUTCOME_MS = 9000;   // covers the long client-side dice reveal (~4.8s) + reading time
 
 export class ClubNileRoom {
   constructor(state, env) {
