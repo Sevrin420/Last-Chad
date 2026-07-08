@@ -661,7 +661,13 @@ function addPopup(target, kind, str, life, delay) {
       if (popups[i].target === 'dealer' && popups[i].kind === 'bubble') popups.splice(i, 1);
     }
   }
-  popups.push({ target, kind, str, t: 0, life: life || (kind === 'bubble' ? 360 : 150), delay: delay || 0 });
+  let ttl = life || (kind === 'bubble' ? 360 : 150);
+  if (kind === 'bubble') {
+    /* bubbles type out at ~0.5 chars/tick — guarantee the whole line
+       scrolls in and still hangs around long enough to read */
+    ttl = Math.max(ttl, Math.ceil(str.length / 0.5) + 170);
+  }
+  popups.push({ target, kind, str, t: 0, life: ttl, delay: delay || 0 });
   if (popups.length > 12) popups.shift();
 }
 function dealerSay(str, life, delay) { addPopup('dealer', 'bubble', str, life || 330, delay); }
@@ -704,6 +710,7 @@ const tableHandlers = {
     cr.net.until = Date.now() + (m.ms || 0);
     cr.net.shooter = m.shooter;
     if (m.phase === 'betting') { cr.outcome = []; cr.point = m.point; }
+    crPhaseCall(m.phase);
   },
   dice(m) {
     if (scene !== 'craps') return;
@@ -1141,21 +1148,22 @@ bg.lw = W; bg.lh = H;
   /* wall shadow cast onto the floor */
   g.fillStyle = 'rgba(60,40,20,0.22)';
   g.fillRect(0, 32, W, 3);
-  /* hanging pennant banners flanking the room */
+  /* pennant banners hung high on the back wall */
   const banner = (bx) => {
-    g.fillStyle = 'rgba(20,10,5,0.25)'; g.fillRect(bx + 1, 33, 12, 24);
-    g.fillStyle = C.rugDark; g.fillRect(bx, 31, 12, 22);
-    g.fillStyle = C.rug; g.fillRect(bx + 1, 31, 10, 21);
-    g.fillStyle = C.rugLight; g.fillRect(bx + 1, 31, 10, 2);
+    g.fillStyle = 'rgba(60,40,20,0.35)'; g.fillRect(bx + 1, 4, 12, 20);
+    g.fillStyle = '#6a4a2c'; g.fillRect(bx - 1, 2, 14, 1);       // hanging rod
+    g.fillStyle = C.rugDark; g.fillRect(bx, 3, 12, 17);
+    g.fillStyle = C.rug; g.fillRect(bx + 1, 3, 10, 16);
+    g.fillStyle = C.rugLight; g.fillRect(bx + 1, 3, 10, 2);
     /* pointed tail */
     g.fillStyle = C.rug;
-    g.beginPath(); g.moveTo(bx, 53); g.lineTo(bx + 6, 60); g.lineTo(bx + 12, 53); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(bx, 19); g.lineTo(bx + 6, 26); g.lineTo(bx + 12, 19); g.closePath(); g.fill();
     g.fillStyle = C.rugGold;
-    g.fillRect(bx, 31, 12, 1); g.fillRect(bx, 51, 12, 0.5);
+    g.fillRect(bx, 3, 12, 1); g.fillRect(bx, 18, 12, 0.5);
     /* gold ankh emblem */
-    g.fillRect(bx + 5.5, 37, 1, 2); g.fillRect(bx + 4.5, 39, 3, 1);
-    g.fillRect(bx + 5.5, 40, 1, 4); g.fillRect(bx + 3.5, 42, 5, 1);
-    g.fillStyle = C.goldHi; g.fillRect(bx + 5.5, 37, 0.5, 1);
+    g.fillRect(bx + 5.5, 7, 1, 2); g.fillRect(bx + 4.5, 9, 3, 1);
+    g.fillRect(bx + 5.5, 10, 1, 4); g.fillRect(bx + 3.5, 12, 5, 1);
+    g.fillStyle = C.goldHi; g.fillRect(bx + 5.5, 7, 0.5, 1);
   };
   banner(38); banner(190);
   /* ── back-bar shelf: mirror glass + lit bottles ── */
@@ -1601,6 +1609,21 @@ function randomQuip(id) {
 /* how a 1920s dealer names a card out loud */
 const CARD_CALLED = ['', 'an ace', 'a deuce', 'a trey', 'a four', 'a five', 'a six',
   'a seven', 'an eight', 'a nine', 'a ten', 'a jack', 'a queen', 'a king'];
+/* the stickman runs the table out loud — phase prompts come from him,
+   not from UI text */
+const BET_CALLS = ['Bets open! Tap the felt.', 'Place your bets, folks!', 'Chips down, everyone!'];
+const ROLL_CALLS_YOU = ['Shooter has the dice — hit ROLL!', 'Roll when ready, shooter!'];
+const ROLL_CALLS_OTHER = ['Hands high! Dice are out.', 'Dice are out — no more bets!'];
+function crPhaseCall(phase) {
+  if (scene !== 'craps') return;
+  if (phase === 'betting') {
+    dealerSay(BET_CALLS[Math.floor(Math.random() * BET_CALLS.length)], 300);
+  } else if (phase === 'action') {
+    const you = !cr.net.active || cr.net.shooter === social.youId;
+    const pool = you ? ROLL_CALLS_YOU : ROLL_CALLS_OTHER;
+    dealerSay(pool[Math.floor(Math.random() * pool.length)], 300);
+  }
+}
 /* occasional idle patter from the dealer at a table */
 function maybeTableQuip(id) {
   if (tick % 60 !== 0 || Math.random() > 0.055) return;
@@ -1833,8 +1856,8 @@ function drawPopups(seatPos) {
       ctx.fillStyle = C.gold;
       ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 32 - rise);
     } else if (p.kind === 'bubble') {
-      if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, true);
-      else drawBubble(pos.x, pos.y - 24, p.str, false);
+      if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, true, p.t);
+      else drawBubble(pos.x, pos.y - 24, p.str, false, p.t);
     }
     ctx.globalAlpha = 1;
   }
@@ -1850,7 +1873,7 @@ function bubblePath(x, y, w, h, r) {
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
 }
-function drawBubble(cx, anchorY, text, tailUp) {
+function drawBubble(cx, anchorY, text, tailUp, age) {
   const big = tailUp;                       // dealer lines get the big bubble
   const maxW = big ? 168 : 100;
   const lineH = big ? 12 : 10;
@@ -1879,9 +1902,15 @@ function drawBubble(cx, anchorY, text, tailUp) {
     ctx.moveTo(cx - 4, y + h - 1); ctx.lineTo(cx, y + h + 5); ctx.lineTo(cx + 4, y + h - 1);
   }
   ctx.closePath(); ctx.fill();
+  /* the words type themselves out */
+  let reveal = age === undefined ? Infinity : Math.floor(age * 0.5);
   ctx.fillStyle = C.black;
   ctx.textBaseline = 'top';
-  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x + pad, y + pad + i * lineH);
+  for (let i = 0; i < lines.length; i++) {
+    if (reveal <= 0) break;
+    ctx.fillText(lines[i].slice(0, reveal), x + pad, y + pad + i * lineH);
+    reveal -= lines[i].length + 1;
+  }
 }
 
 /* ============================ remote players at tables ============================ */
@@ -2406,6 +2435,7 @@ const SOLO_BET_MS = 15000, SOLO_ACTION_MS = 10000;
 function crSoloPhase(p) {
   cr.solo.phase = p;
   cr.solo.until = Date.now() + (p === 'betting' ? SOLO_BET_MS : SOLO_ACTION_MS);
+  crPhaseCall(p);
 }
 function crStartRoll() {
   cr.rollLand = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
@@ -2426,9 +2456,9 @@ function enterCraps() {
   cr.outcome = []; cr.outT = 0;
   cr.net = { active:false, phase:'', until:0, shooter:null };
   cr.rollLand = null; cr.postRoll = null;
-  crSoloPhase('betting');
   modal = null;
   popups.length = 0;
+  crSoloPhase('betting');
   lastActMs = Date.now();
   tableConnect('craps');
 }
@@ -2560,7 +2590,7 @@ function crResolve() {
     cr.postRoll = null;
     cr.mode = 'board';
   } else {
-    cr.outT = seven || winTot > 0 ? 260 : 200;   // let the call breathe
+    cr.outT = seven || winTot > 0 ? 330 : 270;   // let the call breathe
     cr.mode = 'outcome';
   }
 }
@@ -2759,14 +2789,10 @@ function crRender() {
       status = 'TAP A BET TO TAKE IT DOWN';
     } else if (cr.net.active && cr.outcome.length) {
       status = cr.outcome[Math.floor(tick / 100) % cr.outcome.length];
-    } else if (live.phase === 'betting') {
-      status = 'BETS OPEN · TAP THE FELT';
-    } else if (live.phase === 'action') {
-      status = (!cr.net.active || cr.net.shooter === social.youId)
-        ? 'YOUR ROLL · A ON ROLL'
-        : 'SHOOTER: ' + crShooterName();
+    } else if (live.phase === 'action' && cr.net.active && cr.net.shooter !== social.youId) {
+      status = 'SHOOTER: ' + crShooterName();
     } else {
-      status = comeout ? 'TAP THE FELT TO BET' : 'POINT IS ' + cr.point;
+      status = comeout ? 'COME OUT' : 'POINT IS ' + cr.point;
     }
     const win = cr.flash > 0 && Math.floor(tick / 6) % 2;
     uiText(status, win ? C.gold : (cr.removeMode ? '#ff9c8a' : C.white), STATUS_Y);
