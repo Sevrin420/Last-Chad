@@ -49,9 +49,10 @@ body {
   pointer-events: none;
 }
 /* Screen window measured on the 832x1248 art: x 36-795, y 36-793.
-   The frame's transparent cutout is a touch bigger (x 31-801, y 35-800),
-   so the canvas wears a stepped bezel — charcoal ring innermost,
-   deepening to near-black — that fills the cutout out to the gold. */
+   The frame's transparent cutout is a touch bigger (x 31-801, y 35-800)
+   and its edge is feathered, so the canvas wears a THICK stepped bezel
+   — charcoal ring innermost, deepening to near-black — that runs well
+   underneath the gold so no background ever ghosts through the edge. */
 #screen {
   position: absolute;
   left: 4.33%;
@@ -59,9 +60,9 @@ body {
   width: 91.2%;
   height: 60.65%;
   box-shadow:
-    0 0 0 0.3cqw #34303c,
-    0 0 0 0.6cqw #1e1b26,
-    0 0 0 1cqw   #0a0810;
+    0 0 0 0.45cqw #34303c,
+    0 0 0 0.95cqw #1e1b26,
+    0 0 0 2.2cqw  #0a0810;
   z-index: 1;
   background: #0a0710;
   image-rendering: pixelated;
