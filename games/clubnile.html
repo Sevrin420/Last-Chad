@@ -2069,7 +2069,8 @@ const SUITS = [
   { pix:['..#..','.###.','#####','..#..','.###.'], col:'#221c26' },
   { pix:['.###.','#####','#####','..#..','.###.'], col:'#221c26' }
 ];
-const RANK_STR = ['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+/* the ten prints as X so every rank gets the same big numeral */
+const RANK_STR = ['','A','2','3','4','5','6','7','8','9','X','J','Q','K'];
 function drawSuitPix(g, suit, x, y, s) {
   const m = SUITS[suit];
   g.fillStyle = m.col;
@@ -2095,14 +2096,8 @@ function cardFace(rank, suit) {
     const s = SUITS[suit];
     g.textAlign = 'center'; g.textBaseline = 'top';
     g.fillStyle = s.col;
-    if (rank === 10) {
-      g.font = FONT;
-      g.fillText('1', 5.5, 6);
-      g.fillText('0', 12.5, 6);
-    } else {
-      g.font = '16px "Press Start 2P", monospace';
-      g.fillText(RANK_STR[rank], 10, 3);
-    }
+    g.font = '16px "Press Start 2P", monospace';
+    g.fillText(RANK_STR[rank], 10, 3);
     g.font = FONT;
     g.textAlign = 'left';
     drawSuitPix(g, suit, 6.5, 20, 1.4);
