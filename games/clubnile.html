@@ -532,21 +532,23 @@ const symRows = rs => rs.map(sym);
    B/b trousers · F/f shoes */
 const HD_HEADS = {
   fez: {
+    /* high 3/4 camera: the fez TOP DISC is visible (knot sitting on it),
+       eyes ride low on the face, chin is short — the LTTP tilt */
     down: symRows([
-      '...............G',
+      '..........222222',
       '........22222222',
-      '.......2HHHHHHHH',
-      '......2HHHHHHHHH',
-      '......HHHHHHHHHH',
+      '.......2222222GG',
+      '.......2222222GG',
+      '......2222222222',
       '......HHHHHHHHHH',
       '......HHHHHHHHHH',
       '......hHHHHHHHHH',
       '......hhhhhhhhhh',
       '.....1SSSSSSSSSS',
+      '.....SSSSSSSSSSS',
       '.....SSSEWSSSSSS',
       '.....SSSEESSSSSS',
-      '.....SSSEESSSSSS',
-      '.....sSSSSSSSSSS',
+      '.....sSSEESSSSSS',
       '......sSSSSSSSSs',
       '......sSSSSSSSSS',
       '.......sSSSSSSSM',
@@ -555,11 +557,11 @@ const HD_HEADS = {
       '.............SSS'
     ]),
     up: symRows([
-      '...............G',
+      '..........222222',
       '........22222222',
-      '.......2HHHHHHHH',
-      '......2HHHHHHHHH',
-      '......HHHHHHHHHH',
+      '.......2222222GG',
+      '.......2222222GG',
+      '......2222222222',
       '......HHHHHHHHHH',
       '......HHHHHHHHHH',
       '......hHHHHHHHHH',
@@ -577,17 +579,17 @@ const HD_HEADS = {
       '.............SSS'
     ]),
     side: [
-      '.............G..................',
       '.........222222.................',
-      '........2HHHHHHH................',
-      '.......2HHHHHHHH................',
+      '........22222222G...............',
+      '.......2222222222...............',
+      '.......HHHHHHHHH................',
       '.......HHHHHHHHH................',
       '.......HHHHHHHHHH...............',
-      '.......HHHHHHHHHH...............',
       '.......hHHHHHHHHH...............',
-      '......hhhhhhhhhhhh..............',
+      '......hhhhhhhhhhh...............',
       '.....1SSSSSSSSSSSK..............',
-      '....1SEWSSSSSSSSKK..............',
+      '....1SSSSSSSSSSSKK..............',
+      '....SSEWSSSSSSSSKK..............',
       '....SSEESSSssSSSKK..............',
       '....SSEESSSssSSSKK..............',
       '...sSSSSSSSSSSSSKk..............',
@@ -602,7 +604,7 @@ const HD_HEADS = {
 };
 const HD_BODIES = {
   suit: symRows([
-    '..........33JJJJ',
+    '..........333333',
     '........33JJJJJJ',
     '.......3JJJJJLCC',
     '......3JJJJJJLCR',
