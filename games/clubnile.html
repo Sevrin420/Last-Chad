@@ -107,34 +107,36 @@ body {
   cursor: pointer;
 }
 #btn-chat.pressed { background: rgba(255,235,170,0.35); }
-/* music toggle: a small circle riding the top-right of the game screen */
+/* music toggle: a small circle riding the top-right of the game screen.
+   Muted = the whole ring turns red with a line through it, no-sign style */
 #btn-mute {
   position: absolute;
   z-index: 3;
   left: 85%;
   top: 4%;
-  width: 8.5%;
-  aspect-ratio: 1;
+  width: 8.5cqw;
+  height: 8.5cqw;
   display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
   color: #f2d488;
   font-size: 6.6cqw;
   background: rgba(24,14,4,0.72);
   border: 0.55cqw solid #8a6015;
   border-radius: 50%;
+  overflow: hidden;
   cursor: pointer;
 }
-#btn-mute.muted { color: #7d6b45; }
+#btn-mute.muted { color: #7d6b45; border-color: #c0392b; }
 #btn-mute.muted::after {
   content: '';
   position: absolute;
-  left: 10%;
-  right: 10%;
-  top: 46%;
+  left: -8%;
+  right: -8%;
+  top: calc(50% - 0.28cqw);
   height: 0.56cqw;
   background: #c0392b;
-  border-radius: 0.28cqw;
   transform: rotate(-45deg);
 }
 #btn-mute.pressed { background: rgba(255,235,170,0.35); }
