@@ -2162,7 +2162,7 @@ function drawPopups(seatPos) {
       ctx.fillStyle = C.gold;
       ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 32 - rise);
     } else if (p.kind === 'bubble') {
-      if (p.t % 6 === 0 && p.t * 0.5 <= p.str.length) sound.blip(p.target === 'dealer');
+      /* bubbles type silently — only the A-button dialogue box blips */
       if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, pos.mode || 'below', p.t);
       else drawBubble(pos.x, pos.y - 24, p.str, 'above', p.t);
     }
