@@ -303,211 +303,6 @@ const FONT = '8px "Press Start 2P", monospace';
 function h2(x, y) { return (((x * 73856093) ^ (y * 19349663)) >>> 0) % 97; }
 
 /* ============================ sprites ============================ */
-/* 16x22 characters (head 10 / body 7 / legs 5) with shading channels:
-   H hat  h hat band  G gold accent  K hair  S skin  s skin shade
-   E eye  T top  t top accent  u top shade  B bottom  b bottom shade
-   F shoes  f shoe shade */
-const HEADS = {
-  fez: {
-    down:[
-      '......HHHH......',
-      '.....HHHHHHG....',
-      '.....hhhhhh.....',
-      '....SSSSSSSS....',
-      '...SSSSSSSSSS...',
-      '...SEESSSSEES...',
-      '...SSSSSSSSSS...',
-      '...sSSSSSSSSs...',
-      '....sSSSSSSs....',
-      '......SSSS......'],
-    up:[
-      '......HHHH......',
-      '.....HHHHHH.....',
-      '.....hhhhhh.....',
-      '....KKKKKKKK....',
-      '...KKKKKKKKKK...',
-      '...KKKKKKKKKK...',
-      '...KKKKKKKKKK...',
-      '...sKKKKKKKKs...',
-      '....sKKKKKKs....',
-      '......SSSS......'],
-    side:[
-      '....HHHH........',
-      '...HHHHHHG......',
-      '...hhhhhh.......',
-      '..SSSSSSSS......',
-      '.SSSSSSSSSS.....',
-      '.SEESSSSSSS.....',
-      '.SSSSSSSSSS.....',
-      '.sSSSSSSSSs.....',
-      '..sSSSSSSs......',
-      '....SSSS........']
-  },
-  nemes: {
-    down:[
-      '.....HHHHHH.....',
-      '....HhHHHHhH....',
-      '...HHhHHHHhHH...',
-      '..HHSSSSSSSSHH..',
-      '..HHSSSSSSSSHH..',
-      '..HHSEESSEESHH..',
-      '..HHSSSSSSSSHH..',
-      '..HHsSSSSSSsHH..',
-      '..HH.sSSSSs.HH..',
-      '..HH..SSSS..HH..'],
-    up:[
-      '.....HHHHHH.....',
-      '....HhHHHHhH....',
-      '...HHhHHHHhHH...',
-      '..HHHhHHHHhHHH..',
-      '..HHHHHHHHHHHH..',
-      '..HHHhHHHHhHHH..',
-      '..HHHHHHHHHHHH..',
-      '..HHhHHHHHHhHH..',
-      '..HH.HHHHHH.HH..',
-      '..HH..HHHH..HH..'],
-    side:[
-      '...HHHHHH.......',
-      '..HhHHHHH.......',
-      '..HHhHHHHH......',
-      '.HHSSSSSSHH.....',
-      '.HHSSSSSSHH.....',
-      '.HHSEESSSHH.....',
-      '.HHSSSSSSHH.....',
-      '.HHsSSSSsHH.....',
-      '..HH.sSs.HH.....',
-      '..HH..SS..HH....']
-  },
-  bob: {
-    down:[
-      '.....KKKKKK.....',
-      '....KKKKKKKKG...',
-      '...KhhhhhhhhK...',
-      '...KKSSSSSSKK...',
-      '..KKSSSSSSSSKK..',
-      '..KKSEESSEESKK..',
-      '..KKSSSSSSSSKK..',
-      '..KKsSSSSSSsKK..',
-      '...KKsSSSSsKK...',
-      '......SSSS......'],
-    up:[
-      '.....KKKKKK.....',
-      '....KKKKKKKKG...',
-      '...KhhhhhhhhK...',
-      '...KKKKKKKKKK...',
-      '..KKKKKKKKKKKK..',
-      '..KKKKKKKKKKKK..',
-      '..KKKKKKKKKKKK..',
-      '..KKsKKKKKKsKK..',
-      '...KKKKKKKKKK...',
-      '......SSSS......'],
-    side:[
-      '....KKKKKK......',
-      '...KKKKKKKG.....',
-      '..Khhhhhhhh.....',
-      '..KKSSSSSSKK....',
-      '..KKSSSSSSKK....',
-      '..KKSEESSSKK....',
-      '..KKSSSSSSKK....',
-      '..KKsSSSSsKK....',
-      '...KKsSSsKK.....',
-      '......SSSS......']
-  }
-};
-const BODIES = {
-  suit: [
-    '.....TTTTTT.....',
-    '....TTttttTT....',
-    '...TTTTttTTTT...',
-    '..STTTuTTuTTTS..',
-    '..STTTTTTTTTTS..',
-    '...uTTTTTTTTu...',
-    '....GBBBBBBG....'],
-  dress:[
-    '.....TTTTTT.....',
-    '....TTTTTTTT....',
-    '...STTTTTTTTS...',
-    '...STTtTTtTTS...',
-    '....TTTTTTTT....',
-    '...TTTTTTTTTT...',
-    '..TtTtTtTtTtTT..']
-};
-const LEGS = {
-  suit: [
-    ['....BBB..BBB....','....BBB..BBB....','....bbb..bbb....','....FFF..FFF....','....fff..fff....'],
-    ['...BBB....BBB...','...BBB....BBB...','...bbb....bbb...','...FFF....FFF...','..fff......fff..']
-  ],
-  dress:[
-    ['.....SS..SS.....','.....SS..SS.....','.....ss..ss.....','.....FF..FF.....','.....ff..ff.....'],
-    ['....SS....SS....','....SS....SS....','....ss....ss....','....FF....FF....','...ff......ff...']
-  ]
-};
-function paintRows(g, rows, pal, yOff) {
-  for (let y = 0; y < rows.length; y++) {
-    const r = rows[y];
-    for (let x = 0; x < r.length; x++) {
-      const ch = r[x];
-      if (ch === '.' || !pal[ch]) continue;
-      g.fillStyle = pal[ch];
-      g.fillRect(x, y + yOff, 1, 1);
-    }
-  }
-}
-/* SNES-ifier: dark selective outline + top-light shading pass, the way
-   LTTP sprites read — light from above, shadow on the underside edges */
-function snesify(c) {
-  const w = c.width, h = c.height;
-  const g = c.getContext('2d');
-  const src = g.getImageData(0, 0, w, h);
-  const out = g.createImageData(w, h);
-  const A = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : src.data[(y * w + x) * 4 + 3];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const i = (y * w + x) * 4;
-    if (src.data[i + 3] > 0) {
-      let r = src.data[i], gg = src.data[i + 1], b = src.data[i + 2];
-      if (A(x, y - 1) === 0) { r = Math.min(255, r * 1.22 + 12); gg = Math.min(255, gg * 1.22 + 12); b = Math.min(255, b * 1.18 + 8); }
-      else if (A(x, y + 1) === 0 || A(x + 1, y) === 0) { r *= 0.76; gg *= 0.76; b *= 0.8; }
-      out.data[i] = r; out.data[i + 1] = gg; out.data[i + 2] = b; out.data[i + 3] = 255;
-    } else if (A(x - 1, y) || A(x + 1, y) || A(x, y - 1) || A(x, y + 1)) {
-      out.data[i] = 38; out.data[i + 1] = 22; out.data[i + 2] = 26; out.data[i + 3] = 255;
-    }
-  }
-  g.putImageData(out, 0, 0);
-}
-function buildFrame(head, body, legs, pal, mirror) {
-  /* 18x24 logical frame, 2x backing → snesify runs at half-pixel
-     resolution for fine outlines and smooth top-light modelling */
-  const c = document.createElement('canvas');
-  c.width = 36; c.height = 48;
-  c.lw = 18; c.lh = 24;
-  const g = c.getContext('2d');
-  g.setTransform(2, 0, 0, 2, 0, 0);
-  g.imageSmoothingEnabled = false;
-  g.translate(1, 1);
-  paintRows(g, head, pal, 0);
-  paintRows(g, body, pal, 10);
-  paintRows(g, legs, pal, 17);
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  snesify(c);
-  if (!mirror) return c;
-  const m = document.createElement('canvas');
-  m.width = 36; m.height = 48;
-  m.lw = 18; m.lh = 24;
-  const mg = m.getContext('2d');
-  mg.translate(36, 0); mg.scale(-1, 1);
-  mg.drawImage(c, 0, 0);
-  return m;
-}
-function makeCharacter(headStyle, bodyStyle, pal) {
-  const hd = HEADS[headStyle], bd = BODIES[bodyStyle], lg = LEGS[bodyStyle];
-  const out = {};
-  out.down  = [0,1].map(f => buildFrame(hd.down, bd, lg[f], pal, false));
-  out.up    = [0,1].map(f => buildFrame(hd.up,   bd, lg[f], pal, false));
-  out.left  = [0,1].map(f => buildFrame(hd.side, bd, lg[f], pal, false));
-  out.right = [0,1].map(f => buildFrame(hd.side, bd, lg[f], pal, true));
-  return out;
-}
-
 /* ==================== HD character pipeline (LTTP-grade) ====================
    Grids are authored at HALF-PIXEL cells (32x44 per frame vs the old 16x22),
    which is where SNES-style faces, lapels and hands come from. Colours are
@@ -650,6 +445,217 @@ const HD_HEADS = {
       '............SSSS....................',
       '............ssss....................'
     ]
+  },
+  /* striped pharaoh headdress for the two dealers: gold browband,
+     lappets framing the face down to the shoulders */
+  nemes: {
+    down: symRows([
+      '..........22222222',
+      '........2222222222',
+      '.......2HHHHHHHHHH',
+      '......2HHHHHHHHHHH',
+      '......HHHHHHHHHHHH',
+      '.....HHHHHHHHHHHHH',
+      '.....GGGGGGGGGGGGG',
+      '....GGGGGGGGGGGGGG',
+      '....HHhSSSSSSSSSSS',
+      '...HHhSSSSSSSSSSSS',
+      '..HHhSSSSSSSSSSSSS',
+      '..HHhSSSSSSSSSSSSS',
+      '.HHhSSSSEEEEEESSSS',
+      '.HHhSSSEWWWWWWESSS',
+      '.HHhSSEWWWWWWWWESS',
+      '.HHhSSEWWEEEEWWESS',
+      '.HHhSSEWWEEEEWWESS',
+      '.HHhSSEWWEEEEWWESS',
+      '.HHhSSEWWEEEEWWESS',
+      '.HHhSSSEWWWWWWESSS',
+      '.HHhSSSSEEEEEESSSS',
+      '.HHhSSSSSSSSSSSSSS',
+      '.HHhSSSSSSSSSSSSSS',
+      '.HHhsSSSSSSSSSSSSS',
+      '.HHhsSSSSSSSSSSSSM',
+      '.HHhssSSSSSSSSSSSS',
+      '.HHhhssSSSSSSSSSSS',
+      '..HHhhssSSSSSSSSSS',
+      '...HHhhsssssssssss',
+      '.............sssss',
+      '...............SSS',
+      '...............sss'
+    ]),
+    up: symRows([
+      '..........22222222',
+      '........2222222222',
+      '.......2HHHHHHHHHH',
+      '......2HHHHHHHHHHH',
+      '......HHHHHHHHHHHH',
+      '.....HHHHHHHHHHHHH',
+      '.....GGGGGGGGGGGGG',
+      '....GGGGGGGGGGGGGG',
+      '...HHHHHHHHHHHHHHH',
+      '..HHHHHHHHHHHHHHHH',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '.HHHHHHHHHHHHHHHhh',
+      '..HHHHHHHHHHHHHHhh',
+      '...HHHHHHHHHHHHHhh',
+      '....hhhhhhhhhhhhhh',
+      '......hhhhhhhhhhhh',
+      '...............SSS',
+      '...............sss'
+    ]),
+    side: [
+      '...........2222222222...............',
+      '.........22222222222222.............',
+      '........2HHHHHHHHHHHHHHH............',
+      '.......2HHHHHHHHHHHHHHHHH...........',
+      '.......HHHHHHHHHHHHHHHHHH...........',
+      '......HHHHHHHHHHHHHHHHHHHH..........',
+      '......GGGGGGGGGGGGGGGGGGGG..........',
+      '.....GGGGGGGGGGGGGGGGGGGGGG.........',
+      '....1SSSSSSSSSSHHHHHHHHHHHH.........',
+      '...11SSSSSSSSSSHHHHHHHHHHHHH........',
+      '..11SSSSSSSSSSSHHHHHHHHHHHHH........',
+      '..1SSSSSSSSSSSSSHHHHHHHHHHHH........',
+      '..11SSSEEEEEESSSHHHHHHHHHHHHHHHH....',
+      '..SSSSEWWWWWWESSHHHHHHHHHHHHHHHH....',
+      '..SSEWWWWWWWWESSHHHHHHHHHHHHHHHH....',
+      '..SSEWWEEEEWWESSHHHHHHHHHHHHHHhh....',
+      '..SSEWWEEEEWWESSHHHHHHHHHHHHHHhh....',
+      '..SSEWWEEEEWWESSHHHHHHHHHHHHHhh.....',
+      '..SSEWWEEEEWWESSSHHHHHHHHHHHHhh.....',
+      '..SSSSEWWWWWWESSSSHHHHHHHHHHHhh.....',
+      '..SSSSSSEEEEEESSSSSSHHHHHHHHHhh.....',
+      '.sSSSSSSSSSSSSSSSSSHHHHHHHhh........',
+      '..MSSSSSSSSSSSSSSSSSShhhhh..........',
+      '..sSSSSSSSSSSSSSSSSSSss.............',
+      '...ssSSSSSSSSSSSSSSss...............',
+      '.....ssSSSSSSSSSSSss................',
+      '.......ssSSSSSSSSss.................',
+      '.........ssSSSSss...................',
+      '...........ssssss...................',
+      '............SSSS....................',
+      '............SSSS....................',
+      '............ssss....................'
+    ]
+  },
+  /* flapper bob with a headband for the lady guests */
+  bob: {
+    down: symRows([
+      '.........KKKKKKKKK',
+      '.......KKKKKKKKKKK',
+      '......KKKKKKKKKKKK',
+      '.....KKKKKKKKKKKKK',
+      '.....KKKKKKKKKKKKK',
+      '....KKHHHHHHHHHHHH',
+      '....KKSSSSSSSSSSSS',
+      '...KKkSSSSSSSSSSSS',
+      '...KKkSSSSSSSSSSSS',
+      '..KKkSSSSSSSSSSSSS',
+      '..KKkSSSSSSSSSSSSS',
+      '..KKkSSSSSSSSSSSSS',
+      '.KKkSSSSEEEEEESSSS',
+      '.KKkSSSEWWWWWWESSS',
+      '.KKkSSEWWWWWWWWESS',
+      '.KKkSSEWWEEEEWWESS',
+      '.KKkSSEWWEEEEWWESS',
+      '.KKkSSEWWEEEEWWESS',
+      '.KKkSSEWWEEEEWWESS',
+      '.KKkSSSEWWWWWWESSS',
+      '.KKkSSSSEEEEEESSSS',
+      '.KKkSSSSSSSSSSSSSS',
+      '.KKkkSSSSSSSSSSSSS',
+      '.KKkksSSSSSSSSSSSS',
+      '..KKksSSSSSSSSSSSM',
+      '..KKkksSSSSSSSSSSS',
+      '...KKkkssSSSSSSSSS',
+      '....kkkssSSSSSSSSS',
+      '..........ssssssss',
+      '.............sssss',
+      '...............SSS',
+      '...............sss'
+    ]),
+    up: symRows([
+      '.........KKKKKKKKK',
+      '.......KKKKKKKKKKK',
+      '......KKKKKKKKKKKK',
+      '.....KKKKKKKKKKKKK',
+      '.....KKKKKKKKKKKKK',
+      '....KKHHHHHHHHHHHH',
+      '....KKKKKKKKKKKKKK',
+      '...KKKKKKKKKKKKKKK',
+      '...KKKKKKKKKKKKKKK',
+      '..KKKKKKKKKKKKKKKK',
+      '..KKKKKKKKKKKKKKKK',
+      '..KKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kkKKKKKKKKKKKKKK',
+      '..kkKKKKKKKKKKKKKK',
+      '...kkKKKKKKKKKKKKK',
+      '...kkkKKKKKKKKKKKK',
+      '....kkkKKKKKKKKKKK',
+      '.....kkkkkkkkkkkkk',
+      '.......kkkkkkkkkkk',
+      '..........ssssssss',
+      '.............sssss',
+      '...............SSS',
+      '...............sss'
+    ]),
+    side: [
+      '..........KKKKKKKKKKKK..............',
+      '........KKKKKKKKKKKKKKKK............',
+      '.......KKKKKKKKKKKKKKKKKK...........',
+      '......KKKKKKKKKKKKKKKKKKKK..........',
+      '......KKKKKKKKKKKKKKKKKKKK..........',
+      '.....KKHHHHHHHHHHHHHHHHKKK..........',
+      '.....KKSSSSSSSSKKKKKKKKKKKK.........',
+      '....KSSSSSSSSSSSKKKKKKKKKKKK........',
+      '...1SSSSSSSSSSSSKKKKKKKKKKKK........',
+      '...1SSSSSSSSSSSSKKKKKKKKKKKK........',
+      '..1SSSSSSSSSSSSSKKKKKKKKKKKK........',
+      '..SSSSSSSSSSSSSSKKKKKKKKKKKK........',
+      '..11SSSEEEEEESSSKKKKKKKKKKKKKKKK....',
+      '..SSSSEWWWWWWESSKKKKKKKKKKKKKKKK....',
+      '..SSEWWWWWWWWESSKKKKKKKKKKKKKKKK....',
+      '..SSEWWEEEEWWESSKKKKKKKKKKKKKKkk....',
+      '..SSEWWEEEEWWESSKKKKKKKKKKKKKKkk....',
+      '..SSEWWEEEEWWESSKKKKKKKKKKKKKkk.....',
+      '..SSEWWEEEEWWESSSKKKKKKKKKKKKkk.....',
+      '..SSSSEWWWWWWESSSSKKKKKKKKKKKkk.....',
+      '..SSSSSSEEEEEESSSSSSKKKKKKKKKkk.....',
+      '.sSSSSSSSSSSSSSSSSSKKKKKKKkk........',
+      '..MSSSSSSSSSSSSSSSSSSkkkkk..........',
+      '..sSSSSSSSSSSSSSSSSSSkk.............',
+      '...ssSSSSSSSSSSSSSSss...............',
+      '.....ssSSSSSSSSSSSss................',
+      '.......ssSSSSSSSSss.................',
+      '.........ssSSSSss...................',
+      '...........ssssss...................',
+      '............SSSS....................',
+      '............SSSS....................',
+      '............ssss....................'
+    ]
   }
 };
 /* bodies and legs carry front and side variants — the profile is
@@ -682,6 +688,37 @@ const HD_BODIES = {
       '........JJJ1SJJJJJJj............',
       '........jjj1Sjjjjjjj............',
       '.........jjjjjjjjjj.............',
+      '..........jjjjjjjj..............'
+    ]
+  },
+  /* sleeveless flapper dress: bare arms, gold necklace, fringe hem */
+  dress: {
+    front: symRows([
+      '..........333333',
+      '.......1SJJJJJJJ',
+      '.......1SJJJJJJG',
+      '.......1SJJJJJJJ',
+      '........sJJJJJJJ',
+      '........JJJJJJJJ',
+      '........JJJJJJJJ',
+      '.......JJJJJJJJJ',
+      '.......JJJJJJJJJ',
+      '......JJjJjJjJjJ',
+      '......jJjJjJjJjJ',
+      '......jjjjjjjjjj'
+    ]),
+    side: [
+      '.........3333333333.............',
+      '........3JJJJJJJJJJj............',
+      '........3JJJJJJJJJJj............',
+      '........3JJJJJJJJJJj............',
+      '........3JJJJJJJJJJj............',
+      '........JJJJJJJJJJJj............',
+      '........JJJJJJJJJJJj............',
+      '........JJJJJJJJJJJj............',
+      '........JJ1SJJJJJJJj............',
+      '........JjJjJjJjJjJj............',
+      '.........jJjJjJjJjj.............',
       '..........jjjjjjjj..............'
     ]
   }
@@ -726,6 +763,53 @@ const HD_LEGS = {
         '..........BBBB..BBBB............',
         '.........bBBB....BBBb...........',
         '........bBBb......bBBb..........',
+        '.......FFFF........FFFF.........',
+        '......FFFFF........FFFFF........',
+        '......fffff........fffff........',
+        '................................'
+      ]
+    ]
+  },
+  /* bare legs under the dress, shoes only */
+  dress: {
+    front: [
+      symRows([
+        '.........SSSS...',
+        '.........SSSS...',
+        '.........sSSs...',
+        '.........sSSs...',
+        '.........FFFF...',
+        '........FFFFF...',
+        '........fffff...',
+        '................'
+      ]),
+      [
+        '........SSSS........SSSS........',
+        '........SSSS........SSSS........',
+        '.......sSSs..........sSSs.......',
+        '.......sSSs..........sSSs.......',
+        '......FFFF............FFFF......',
+        '.....FFFFF............FFFFF.....',
+        '.....fffff............fffff.....',
+        '................................'
+      ]
+    ],
+    side: [
+      [
+        '...........SSSSSS...............',
+        '...........SSSSSS...............',
+        '...........sSSSSs...............',
+        '...........sSSSSs...............',
+        '..........FFFFFF................',
+        '.........FFFFFFF................',
+        '.........fffffff................',
+        '................................'
+      ],
+      [
+        '...........SSSSSS...............',
+        '..........SSSS..SSSS............',
+        '.........sSSS....SSSs...........',
+        '........sSSs......sSSs..........',
         '.......FFFF........FFFF.........',
         '......FFFFF........FFFFF........',
         '......fffff........fffff........',
@@ -808,27 +892,35 @@ function makeCharacterHD(t) {
   out.right = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, true));
   return out;
 }
-/* skin/wardrobe ramps: every character carries its own shade channels */
-function charPal(p) {
-  return Object.assign({
-    E: C.black, G: '#ffd766',
-    s: '#d9a678', u: 'rgba(0,0,0,0.22)', b: '#1c1724', f: '#0c0810'
-  }, p);
-}
 const SPRITES = {
-  /* the player runs on the HD trait pipeline (phase 1 pilot) */
-  player:    makeCharacterHD({ head:'fez', body:'suit', skin:'#f6cfa4', hat:'#d84a34',
-                               hair:'#3a2718', coat:'#f8f1e2', pants:'#2c2536',
-                               shoes:'#241a20', tie:'#1a1216' }),
-  bartender: makeCharacter('fez',  'suit', charPal({H:'#d84a34',h:'#8e2a20',K:'#14100d',S:'#e9b98c',s:'#c2925e',T:'#fdfaf1',t:'#b02a3c',u:'#d9d3c2',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
-  crapsDealer:makeCharacter('nemes','suit', charPal({H:'#2f8fa8',h:'#f0c268',S:'#e9b98c',s:'#c2925e',T:'#8c2438',t:'#f0c268',u:'#6e1c2c',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
-  bjDealer:  makeCharacter('nemes','suit', charPal({H:'#3a63b4',h:'#f0c268',S:'#d3a87e',s:'#ab8054',T:'#22784e',t:'#f0c268',u:'#1a5c3c',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
-  guestF:    makeCharacter('bob',  'dress', charPal({K:'#1c1316',h:'#e86a80',S:'#f6cfa4',T:'#c02c42',t:'#e86a80',u:'#992336',F:'#ffd766',f:'#c9a13b'})),
-  guestM:    makeCharacter('fez',  'suit', charPal({H:'#1c1316',h:'#0f0b0d',K:'#1c1316',S:'#efc298',T:'#262a36',t:'#fdfaf1',u:'#1a1d26',B:'#1c1316',b:'#100c0e',F:'#120d10'})),
+  player:      makeCharacterHD({ head:'fez',   body:'suit',  skin:'#f6cfa4', hat:'#d84a34',
+                                 hair:'#3a2718', coat:'#f8f1e2', pants:'#2c2536',
+                                 shoes:'#241a20', tie:'#1a1216' }),
+  bartender:   makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#d84a34',
+                                 hair:'#14100d', coat:'#fdfaf1', pants:'#1a1216',
+                                 shoes:'#120d10', tie:'#b02a3c' }),
+  crapsDealer: makeCharacterHD({ head:'nemes', body:'suit',  skin:'#e9b98c', hat:'#2f8fa8',
+                                 hair:'#14100d', coat:'#8c2438', pants:'#1a1216',
+                                 shoes:'#120d10', tie:'#f0c268' }),
+  bjDealer:    makeCharacterHD({ head:'nemes', body:'suit',  skin:'#d3a87e', hat:'#3a63b4',
+                                 hair:'#14100d', coat:'#22784e', pants:'#1a1216',
+                                 shoes:'#120d10', tie:'#f0c268' }),
+  guestF:      makeCharacterHD({ head:'bob',   body:'dress', skin:'#f6cfa4', hat:'#e86a80',
+                                 hair:'#1c1316', coat:'#c02c42', pants:'#c02c42',
+                                 shoes:'#ffd766' }),
+  guestM:      makeCharacterHD({ head:'fez',   body:'suit',  skin:'#efc298', hat:'#1c1316',
+                                 hair:'#100c0e', coat:'#262a36', pants:'#1c1316',
+                                 shoes:'#120d10', tie:'#8c2438' }),
   /* remote player variants (picked by their sprite index 0-2) */
-  remote0:   makeCharacter('fez',  'suit', charPal({H:'#1c1316',h:'#0f0b0d',K:'#1c1316',S:'#efc298',T:'#262a36',t:'#fdfaf1',u:'#1a1d26',B:'#1c1316',b:'#100c0e',F:'#120d10'})),
-  remote1:   makeCharacter('bob',  'dress', charPal({K:'#1c1316',h:'#e86a80',S:'#f6cfa4',T:'#c02c42',t:'#e86a80',u:'#992336',F:'#ffd766',f:'#c9a13b'})),
-  remote2:   makeCharacter('fez',  'suit', charPal({H:'#2f8fa8',h:'#20657a',K:'#14100d',S:'#e9b98c',s:'#c2925e',T:'#3d6a78',t:'#f0c268',u:'#2e525e',B:'#20313a',b:'#15222a',F:'#120d10'}))
+  remote0:     makeCharacterHD({ head:'fez',   body:'suit',  skin:'#efc298', hat:'#1c1316',
+                                 hair:'#100c0e', coat:'#262a36', pants:'#1c1316',
+                                 shoes:'#120d10', tie:'#8c2438' }),
+  remote1:     makeCharacterHD({ head:'bob',   body:'dress', skin:'#f6cfa4', hat:'#e86a80',
+                                 hair:'#1c1316', coat:'#c02c42', pants:'#c02c42',
+                                 shoes:'#ffd766' }),
+  remote2:     makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#2f8fa8',
+                                 hair:'#20657a', coat:'#3d6a78', pants:'#20313a',
+                                 shoes:'#120d10', tie:'#f0c268' })
 };
 const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
