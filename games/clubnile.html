@@ -1265,19 +1265,19 @@ const NPC_TALK = {
   },
   craps: {
     name: 'NEFERU · CRAPS',
-    lines: [["Feeling lucky? The bones are warm tonight.", "Take a seat at the craps table?  A: SIT · B: LATER"]],
+    lines: [["Feeling lucky? The bones are warm tonight."]],
     action: 'craps',
     broke: ["No chips, no dice, friend.", "Ptah pours courage at the bar. Come back with a stack."]
   },
   blackjack: {
     name: 'AMEN-RA · BLACKJACK',
-    lines: [["Twenty-one is a sacred number, you know.", "Take a seat at the blackjack table?  A: SIT · B: LATER"]],
+    lines: [["Twenty-one is a sacred number, you know."]],
     action: 'blackjack',
     broke: ["The felt is for players holding chips.", "Come back when your pockets jingle."]
   },
   door: {
     name: 'CLUB NILE',
-    lines: [["Leave the party?", "A to head out. B to stay."]],
+    lines: [["Leave the party?"]],
     action: 'exit'
   },
   guestF: {
@@ -2525,7 +2525,6 @@ function modalDraw(seatPos) {
     else if (scene === 'craps' && crTotalBets() > 0) note = 'YOUR BETS COME DOWN';
     else if (bjHandLive()) note = 'YOUR HAND STANDS AND SETTLES';
     if (note) uiText(note, C.dim, 204);
-    uiText('A: LEAVE   B: STAY', C.gold, 222);
     return;
   }
   if (modal.type === 'emoji') {
@@ -2542,12 +2541,10 @@ function modalDraw(seatPos) {
       ctx.fillText(EMOJIS[i], x, 202);
     }
     ctx.font = FONT;
-    uiText('◄ ► PICK   A: SEND   B: CANCEL', C.gold, 224);
   } else {
     const target = social.roster[modal.tIdx];
     uiText('TIP ' + target.name + '  ·  ' + TIP_AMTS[modal.aIdx] + ' CHIPS', C.white, 186);
     uiText('◄ ► PLAYER   ▲▼ AMOUNT', C.dim, 204);
-    uiText('A: SEND TIP   B: CANCEL', C.gold, 222);
     const pos = seatPos(target.id);
     if (pos && Math.floor(tick / 15) % 2) {
       ctx.fillStyle = C.gold;
@@ -3037,7 +3034,6 @@ function bjRender() {
   else if (bj.state === 'bet') {
     if (chips < BETS[0]) {
       uiText('OUT OF CHIPS', C.white, STATUS_Y);
-      uiText('B: LEAVE TABLE', C.gold, 214);
     } else {
       uiText(bj.betAmt > 0 ? 'BET ' + bj.betAmt : 'TAP CHIPS TO BET', C.white, STATUS_Y);
       drawCarousel(['DEAL','EMOJI','TIP'], bj.actIdx, CARO_Y);
