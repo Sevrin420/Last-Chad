@@ -2034,6 +2034,20 @@ const pharaohCanvas = makeCanvas(24, 58, g => {
   g.fillRect(10, 12, 1.5, 1); g.fillRect(13, 12, 1.5, 1);
   g.fillStyle = C.goldHi; g.fillRect(11.5, 5, 1, 2);            // uraeus
   g.fillStyle = '#1a1216'; g.fillRect(11.5, 16.5, 1, 2.5);      // royal beard
+  /* rope stanchion in front, matching the sarcophagus */
+  const post = (px) => {
+    g.fillStyle = '#3a2a1a'; g.fillRect(px, 52, 4, 2);
+    g.fillStyle = '#6e5330'; g.fillRect(px + 1.5, 42, 1.5, 10);
+    g.fillStyle = C.gold;
+    g.beginPath(); g.arc(px + 2, 41.5, 2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = C.goldHi;
+    g.beginPath(); g.arc(px + 1.4, 40.9, 0.8, 0, Math.PI * 2); g.fill();
+  };
+  post(0); post(20);
+  g.strokeStyle = '#b02642'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(2, 43); g.quadraticCurveTo(12, 50, 22, 43); g.stroke();
+  g.strokeStyle = 'rgba(255,150,140,0.5)'; g.lineWidth = 0.5;
+  g.beginPath(); g.moveTo(2, 42.6); g.quadraticCurveTo(12, 49.5, 22, 42.6); g.stroke();
 });
 function spriteFor(ent) {
   const set = SPRITES[ent.sprite || 'player'];
