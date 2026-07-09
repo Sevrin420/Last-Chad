@@ -2450,7 +2450,7 @@ function openTipModal() {
 /* B at any table → confirm before standing up */
 function openLeaveModal() { modal = { type: 'leave' }; }
 function bjHandLive() {
-  return scene === 'blackjack' && ['dealing','player','dealerTurn'].includes(bj.state);
+  return scene === 'blackjack' && ['dealing','player','dealerTurn','anim'].includes(bj.state);
 }
 function confirmLeaveCurrent() {
   if (scene === 'craps') {
@@ -2797,12 +2797,13 @@ const bjRoom = makeCanvas(W, H, g => {
 const bj = {
   state:'bet', betAmt:5, trayIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
   timer:0, dealQ:[], menuIdx:0, actIdx:0, result:'', flash:0, busted:false,
-  decideUntil:0, revealed:false
+  decideUntil:0, revealed:false, pendFlip:null, afterFlip:null
 };
 function enterBlackjack() {
   scene = 'blackjack';
   bj.state = 'bet'; bj.menuIdx = 0; bj.actIdx = 0; bj.result = '';
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
+  bj.pendFlip = null; bj.afterFlip = null;
   modal = null;
   popups.length = 0;
   lastActMs = Date.now();
@@ -2810,6 +2811,27 @@ function enterBlackjack() {
 }
 function bjJournal() {
   journal({ g:'bj', bet:bj.bet, deck:bj.deck, hand:bj.hand, dealer:bj.dealer });
+}
+/* deal one card face down and flip it after a beat; `after` runs on flip */
+function bjDealTo(who, after) {
+  const card = bj.deck.pop();
+  card.up = false;
+  (who === 'you' ? bj.hand : bj.dealer).push(card);
+  sound.card();
+  bjJournal();
+  bj.pendFlip = card;
+  bj.afterFlip = after;
+  bj.state = 'anim'; bj.timer = 0;
+}
+function bjToDealer() {
+  bj.hole = false;
+  if (bj.dealer[0]) bj.dealer[0].up = true;   // the hole card turns over
+  bj.state = 'dealerTurn'; bj.timer = 0;
+}
+function bjDealDone() {
+  dealerSay('Dealer shows ' + CARD_CALLED[bj.dealer[1].r], 300, CALL_BEAT);
+  if (handValue(bj.hand) === 21) bjToDealer();
+  else { bj.state = 'player'; bj.menuIdx = 0; bj.decideUntil = Date.now() + BJ_DECIDE_MS; }
 }
 function bjStartHand() {
   bj.bet = bj.betAmt;
@@ -2820,6 +2842,7 @@ function bjStartHand() {
   bj.dealQ = ['you','dealer','you','dealer'];
   bj.state = 'dealing'; bj.timer = 0;
   bj.revealed = false;
+  bj.pendFlip = null; bj.afterFlip = null;
   bjJournal();                           // journal the live hand (settled, never refunded)
 }
 function bjMenu(list, idxKey) {
@@ -2867,26 +2890,50 @@ function bjUpdate() {
     }
   }
   else if (bj.state === 'dealing') {
+    /* every card lands face down, then flips face up, one beat at a
+       time — the hole card is the one that never flips */
     aQueued = bQueued = false;
-    if (++bj.timer >= 48) {          // slow, deliberate deal
+    if (++bj.timer >= 30) {
       bj.timer = 0;
-      const next = bj.dealQ.shift();
-      if (next === 'dealer') bj.dealer.push(bj.deck.pop());
-      else bj.hand.push(bj.deck.pop());
-      sound.card();
-      bjJournal();
-      if (!bj.dealQ.length) {
-        dealerSay('Dealer shows ' + CARD_CALLED[bj.dealer[1].r], 300, CALL_BEAT);
-        if (handValue(bj.hand) === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
-        else { bj.state = 'player'; bj.menuIdx = 0; bj.decideUntil = Date.now() + BJ_DECIDE_MS; }
+      if (bj.pendFlip) {
+        bj.pendFlip.up = true;
+        bj.pendFlip = null;
+        sound.card();
+        if (!bj.dealQ.length) bjDealDone();
+      } else {
+        const next = bj.dealQ.shift();
+        const card = bj.deck.pop();
+        card.up = false;
+        if (next === 'dealer') {
+          bj.dealer.push(card);
+          if (bj.dealer.length > 1) bj.pendFlip = card;   // hole stays down
+        } else {
+          bj.hand.push(card);
+          bj.pendFlip = card;
+        }
+        sound.card();
+        bjJournal();
       }
+    }
+  }
+  else if (bj.state === 'anim') {
+    /* a hit/double/draw card flipping face up */
+    aQueued = bQueued = false;
+    if (++bj.timer >= 30) {
+      bj.timer = 0;
+      bj.pendFlip.up = true;
+      bj.pendFlip = null;
+      sound.card();
+      const f = bj.afterFlip;
+      bj.afterFlip = null;
+      f();
     }
   }
   else if (bj.state === 'player') {
     /* action clock: decide in time or the house stands you */
     if (Date.now() > bj.decideUntil) {
       flash('TIME · AUTO STAND');
-      bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
+      bjToDealer();
       aQueued = bQueued = false;
       return;
     }
@@ -2896,23 +2943,22 @@ function bjUpdate() {
     if (aQueued) {
       aQueued = false;
       if (pick === 'HIT') {
-        bj.hand.push(bj.deck.pop());
-        sound.card();
-        bj.decideUntil = Date.now() + BJ_DECIDE_MS;
-        bjJournal();
-        const v = handValue(bj.hand);
-        if (v > 21) { bj.busted = true; bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
-        else if (v === 21) { bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0; }
+        bjDealTo('you', () => {
+          bj.decideUntil = Date.now() + BJ_DECIDE_MS;
+          const v = handValue(bj.hand);
+          if (v > 21) { bj.busted = true; bjToDealer(); }
+          else if (v === 21) bjToDealer();
+          else bj.state = 'player';
+        });
       } else if (pick === 'STAND') {
-        bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
+        bjToDealer();
       } else if (pick === 'DOUBLE') {
         setChips(chips - bj.bet); bj.bet *= 2;
         sound.chip();
-        bj.hand.push(bj.deck.pop());
-        sound.card();
-        bjJournal();
-        if (handValue(bj.hand) > 21) bj.busted = true;
-        bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
+        bjDealTo('you', () => {
+          if (handValue(bj.hand) > 21) bj.busted = true;
+          bjToDealer();
+        });
       }
     }
     bQueued = false;
@@ -2931,14 +2977,15 @@ function bjUpdate() {
     if (++bj.timer >= 180) {         // slow, announced draws
       bj.timer = 0;
       if (!bj.busted && handValue(bj.dealer) < 17) {
-        const card = bj.deck.pop();
-        bj.dealer.push(card);
-        sound.card();
-        const dv = handValue(bj.dealer);
-        const called = CARD_CALLED[card.r];
-        dealerSay(dv > 21
-          ? called.charAt(0).toUpperCase() + called.slice(1) + '... ' + dv + '! Dealer busts!'
-          : 'Dealer draws ' + called + ' — ' + dv, 320, CALL_BEAT);
+        bjDealTo('dealer', () => {
+          const card = bj.dealer[bj.dealer.length - 1];
+          const dv = handValue(bj.dealer);
+          const called = CARD_CALLED[card.r];
+          dealerSay(dv > 21
+            ? called.charAt(0).toUpperCase() + called.slice(1) + '... ' + dv + '! Dealer busts!'
+            : 'Dealer draws ' + called + ' — ' + dv, 320, CALL_BEAT);
+          bj.state = 'dealerTurn';
+        });
       }
       else {
         const dv = handValue(bj.dealer), pv = handValue(bj.hand);
@@ -2981,7 +3028,8 @@ function bjUpdate() {
 }
 function drawHand(g, hand, x, y, hideFirst) {
   for (let i = 0; i < hand.length; i++) {
-    const img = (hideFirst && i === 0) ? cardBack : cardFace(hand[i].r, hand[i].s);
+    const img = ((hideFirst && i === 0) || hand[i].up === false)
+      ? cardBack : cardFace(hand[i].r, hand[i].s);
     g.fillStyle = 'rgba(10,10,20,0.25)';
     g.fillRect(x + i * 16 + 1, y + 2, CARD_W - 1, CARD_H - 1);
     g.drawImage(img, x + i * 16, y, CARD_W, CARD_H);
@@ -3004,7 +3052,8 @@ function bjRender() {
   drawHand(ctx, bj.dealer, 120 - ((Math.max(1, bj.dealer.length) - 1) * 16 + CARD_W) / 2, 58, bj.hole);
   if (!bj.hole && bj.dealer.length) {
     ctx.font = FONT; ctx.fillStyle = C.white; ctx.textBaseline = 'top';
-    ctx.fillText(String(handValue(bj.dealer)), 154, 66);
+    /* count only the cards showing — face-down draws don't spoil */
+    ctx.fillText(String(handValue(bj.dealer.filter(c => c.up !== false))), 154, 66);
   }
   drawTableSeats(BJ_SEATS, 0);
   /* your cards in front of your seat */
@@ -3013,9 +3062,12 @@ function bjRender() {
     const hx = pos.x - 10 - (bj.hand.length - 1) * 8;
     drawHand(ctx, bj.hand, Math.max(2, Math.min(W - 24 - (bj.hand.length - 1) * 16, hx)), pos.y - 52);
     ctx.font = FONT; ctx.textBaseline = 'top';
-    const v = handValue(bj.hand);
-    ctx.fillStyle = bj.busted ? '#e05a70' : C.gold;
-    ctx.fillText(String(v), pos.x - 4, pos.y - 62);
+    const seen = bj.hand.filter(c => c.up !== false);
+    if (seen.length) {
+      const v = handValue(seen);
+      ctx.fillStyle = bj.busted ? '#e05a70' : C.gold;
+      ctx.fillText(String(v), pos.x - 4, pos.y - 62);
+    }
   }
   /* your bet lives on the felt as real chips (ghosted while you're
      still stacking it, solid once the hand is live) */
@@ -3051,7 +3103,7 @@ function bjRender() {
     drawCarousel(['AGAIN','EMOJI','TIP'], bj.actIdx, CARO_Y);
     drawTray(bj.trayIdx, true, false);
   } else {
-    uiText(bj.state === 'dealing' ? 'DEALING...' : 'DEALER PLAYS...', C.dim, 196);
+    uiText(bj.state === 'dealerTurn' ? 'DEALER PLAYS...' : 'DEALING...', C.dim, 196);
     uiText('BET ' + bj.bet, C.white, 218);
   }
   drawNetDot();
@@ -4006,7 +4058,7 @@ if (document.fonts && document.fonts.load) {
 /* warn before closing with a hand in flight (the journal still settles
    it fairly if the tab is force-closed anyway) */
 addEventListener('beforeunload', e => {
-  const bjLive = scene === 'blackjack' && ['dealing','player','dealerTurn'].includes(bj.state);
+  const bjLive = scene === 'blackjack' && ['dealing','player','dealerTurn','anim'].includes(bj.state);
   const crLive = scene === 'craps' && crTotalBets() > 0;
   if (bjLive || crLive) { e.preventDefault(); e.returnValue = ''; }
 });
