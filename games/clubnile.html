@@ -107,23 +107,36 @@ body {
   cursor: pointer;
 }
 #btn-chat.pressed { background: rgba(255,235,170,0.35); }
+/* music toggle: a small circle riding the top-right of the game screen */
 #btn-mute {
   position: absolute;
   z-index: 3;
-  left: 9%;
-  top: 90.2%;
-  width: 14%;
-  padding: 1.5cqw 0;
-  text-align: center;
+  left: 85%;
+  top: 4%;
+  width: 8.5%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #f2d488;
-  font-size: 3cqw;
-  letter-spacing: 0.3cqw;
-  background: rgba(24,14,4,0.6);
+  font-size: 4.4cqw;
+  background: rgba(24,14,4,0.72);
   border: 0.55cqw solid #8a6015;
-  border-radius: 3cqw;
+  border-radius: 50%;
   cursor: pointer;
 }
 #btn-mute.muted { color: #7d6b45; }
+#btn-mute.muted::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 46%;
+  height: 0.8cqw;
+  background: #c0392b;
+  border-radius: 0.4cqw;
+  transform: rotate(-45deg);
+}
 #btn-mute.pressed { background: rgba(255,235,170,0.35); }
 /* ---- Casino-wide chat panel: covers the CONTROL area (d-pad and
         buttons), never the game screen above ---- */
@@ -237,7 +250,7 @@ body {
   <div class="btn-label" id="label-b">B</div>
   <div class="btn-label" id="label-a">A</div>
   <div id="btn-chat">CHAT</div>
-  <div id="btn-mute">♪ ON</div>
+  <div id="btn-mute">♪</div>
   <div id="chat-panel">
     <div id="chat-head">
       <span>CASINO CHAT</span>
@@ -355,12 +368,12 @@ const HD_HEADS = {
       '....11SSSSSSSSSSSS',
       '...11SSSSSSSSSSSSS',
       '..11SSSSEEEEEESSSS',
-      '..SSSSSEWWWWWWESSS',
+      '..SSSSEWEEEEEEWESS',
+      '..SSSSEWEEEEEEWESS',
+      '..SSSSEWEEEEEEWESS',
+      '..SSSSEWEEEEEEWESS',
+      '..SSSSEWEEEEEEWESS',
       '..SSSSEWWWWWWWWESS',
-      '..SSSSEWWEEEEWWESS',
-      '..SSSSEWWEEEEWWESS',
-      '..SSSSEWWEEEEWWESS',
-      '..SSSSEWWEEEEWWESS',
       '..SSSSSEWWWWWWESSS',
       '..SSSSSSEEEEEESSSS',
       '..sSSSSSSSSSSSSSSS',
@@ -425,12 +438,12 @@ const HD_HEADS = {
       '....11SSSSSSSSSSKKKKKKKKKKKKKK......',
       '...11SSSSSSSSSSSKKKKKKKKKKKKKKK.....',
       '..11SSSEEEEEESSSKKKKKKKKKKKKKKKK....',
-      '..SSSSEWWWWWWESSKKKKKKKKKKKKKKKK....',
-      '..SSSEWWWWWWWWESKKKKKKKKKKKKKKKK....',
-      '..SSSEWWEEEEWWESKKKKKKKKKKKKKKkk....',
-      '..SSSEWWEEEEWWESKKKKKKKKKKKKKKkk....',
-      '..SSSEWWEEEEWWESKKKKKKKKKKKKKkk.....',
-      '..SSSEWWEEEEWWESSKKKKKKKKKKKKkk.....',
+      '..SSSEWEEEEEEWESKKKKKKKKKKKKKKKK....',
+      '..SSSEWEEEEEEWESKKKKKKKKKKKKKKKK....',
+      '..SSSEWEEEEEEWESKKKKKKKKKKKKKKkk....',
+      '..SSSEWEEEEEEWESKKKKKKKKKKKKKKkk....',
+      '..SSSEWEEEEEEWESKKKKKKKKKKKKKkk.....',
+      '..SSSEWWWWWWWWESSKKKKKKKKKKKKkk.....',
       '..SSSSEWWWWWWESSSKKKKKKKKKKKkk......',
       '..SSSSSEEEEEESSSSSKKKKKKKKKkk.......',
       '.sSSSSSSSSSSSSSSSSSKKKKKKkk.........',
@@ -463,12 +476,12 @@ const HD_HEADS = {
       '..HHhSSSSSSSSSSSSS',
       '..HHhSSSSSSSSSSSSS',
       '.HHhSSSSEEEEEESSSS',
-      '.HHhSSSEWWWWWWESSS',
+      '.HHhSSEWEEEEEEWESS',
+      '.HHhSSEWEEEEEEWESS',
+      '.HHhSSEWEEEEEEWESS',
+      '.HHhSSEWEEEEEEWESS',
+      '.HHhSSEWEEEEEEWESS',
       '.HHhSSEWWWWWWWWESS',
-      '.HHhSSEWWEEEEWWESS',
-      '.HHhSSEWWEEEEWWESS',
-      '.HHhSSEWWEEEEWWESS',
-      '.HHhSSEWWEEEEWWESS',
       '.HHhSSSEWWWWWWESSS',
       '.HHhSSSSEEEEEESSSS',
       '.HHhSSSSSSSSSSSSSS',
@@ -531,12 +544,12 @@ const HD_HEADS = {
       '..11SSSSSSSSSSSHHHHHHHHHHHHH........',
       '..1SSSSSSSSSSSSSHHHHHHHHHHHH........',
       '..11SSSEEEEEESSSHHHHHHHHHHHHHHHH....',
-      '..SSSSEWWWWWWESSHHHHHHHHHHHHHHHH....',
-      '..SSEWWWWWWWWESSHHHHHHHHHHHHHHHH....',
-      '..SSEWWEEEEWWESSHHHHHHHHHHHHHHhh....',
-      '..SSEWWEEEEWWESSHHHHHHHHHHHHHHhh....',
-      '..SSEWWEEEEWWESSHHHHHHHHHHHHHhh.....',
-      '..SSEWWEEEEWWESSSHHHHHHHHHHHHhh.....',
+      '..SSSEWEEEEEEWESHHHHHHHHHHHHHHHH....',
+      '..SSEWEEEEEEWESSHHHHHHHHHHHHHHHH....',
+      '..SSEWEEEEEEWESSHHHHHHHHHHHHHHhh....',
+      '..SSEWEEEEEEWESSHHHHHHHHHHHHHHhh....',
+      '..SSEWEEEEEEWESSHHHHHHHHHHHHHhh.....',
+      '..SSEWWWWWWWWESSSHHHHHHHHHHHHhh.....',
       '..SSSSEWWWWWWESSSSHHHHHHHHHHHhh.....',
       '..SSSSSSEEEEEESSSSSSHHHHHHHHHhh.....',
       '.sSSSSSSSSSSSSSSSSSHHHHHHHhh........',
@@ -568,12 +581,12 @@ const HD_HEADS = {
       '..KKkSSSSSSSSSSSSS',
       '..KKkSSSSSSSSSSSSS',
       '.KKkSSSSEEEEEESSSS',
-      '.KKkSSSEWWWWWWESSS',
+      '.KKkSSEWEEEEEEWESS',
+      '.KKkSSEWEEEEEEWESS',
+      '.KKkSSEWEEEEEEWESS',
+      '.KKkSSEWEEEEEEWESS',
+      '.KKkSSEWEEEEEEWESS',
       '.KKkSSEWWWWWWWWESS',
-      '.KKkSSEWWEEEEWWESS',
-      '.KKkSSEWWEEEEWWESS',
-      '.KKkSSEWWEEEEWWESS',
-      '.KKkSSEWWEEEEWWESS',
       '.KKkSSSEWWWWWWESSS',
       '.KKkSSSSEEEEEESSSS',
       '.KKkSSSSSSSSSSSSSS',
@@ -636,12 +649,12 @@ const HD_HEADS = {
       '..1SSSSSSSSSSSSSKKKKKKKKKKKK........',
       '..SSSSSSSSSSSSSSKKKKKKKKKKKK........',
       '..11SSSEEEEEESSSKKKKKKKKKKKKKKKK....',
-      '..SSSSEWWWWWWESSKKKKKKKKKKKKKKKK....',
-      '..SSEWWWWWWWWESSKKKKKKKKKKKKKKKK....',
-      '..SSEWWEEEEWWESSKKKKKKKKKKKKKKkk....',
-      '..SSEWWEEEEWWESSKKKKKKKKKKKKKKkk....',
-      '..SSEWWEEEEWWESSKKKKKKKKKKKKKkk.....',
-      '..SSEWWEEEEWWESSSKKKKKKKKKKKKkk.....',
+      '..SSSEWEEEEEEWESKKKKKKKKKKKKKKKK....',
+      '..SSEWEEEEEEWESSKKKKKKKKKKKKKKKK....',
+      '..SSEWEEEEEEWESSKKKKKKKKKKKKKKkk....',
+      '..SSEWEEEEEEWESSKKKKKKKKKKKKKKkk....',
+      '..SSEWEEEEEEWESSKKKKKKKKKKKKKkk.....',
+      '..SSEWWWWWWWWESSSKKKKKKKKKKKKkk.....',
       '..SSSSEWWWWWWESSSSKKKKKKKKKKKkk.....',
       '..SSSSSSEEEEEESSSSSSKKKKKKKKKkk.....',
       '.sSSSSSSSSSSSSSSSSSKKKKKKKkk........',
@@ -1528,7 +1541,6 @@ const sound = (() => {
 addEventListener('pointerdown', () => sound.unlock(), { capture: true });
 const muteBtn = document.getElementById('btn-mute');
 function updateMuteBtn() {
-  muteBtn.textContent = sound.muted ? '♪ OFF' : '♪ ON';
   muteBtn.classList.toggle('muted', sound.muted);
 }
 muteBtn.addEventListener('pointerdown', e => {
