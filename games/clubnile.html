@@ -652,45 +652,87 @@ const HD_HEADS = {
     ]
   }
 };
+/* bodies and legs carry front and side variants — the profile is
+   roughly half the front width, like a real LTTP walk sprite */
 const HD_BODIES = {
-  suit: symRows([
-    '........33333333',
-    '......33JJJJJLCC',
-    '......JJJJJJJLCR',
-    '.....JJJJJJJJJLC',
-    '.....JjJJJJJJJJG',
-    '.....JjJJJJJJJJJ',
-    '.....JjJJJJJJJJG',
-    '.....JjjJJJJJJJJ',
-    '.....1SjjJJJJJJJ',
-    '......sjjjJJJJJJ',
-    '......jjjjjjjjjj',
-    '.......jjjjjjjjj'
-  ])
+  suit: {
+    front: symRows([
+      '........33333333',
+      '......33JJJJJLCC',
+      '......JJJJJJJLCR',
+      '.....JJJJJJJJJLC',
+      '.....JjJJJJJJJJG',
+      '.....JjJJJJJJJJJ',
+      '.....JjJJJJJJJJG',
+      '.....JjjJJJJJJJJ',
+      '.....1SjjJJJJJJJ',
+      '......sjjjJJJJJJ',
+      '......jjjjjjjjjj',
+      '.......jjjjjjjjj'
+    ]),
+    side: [
+      '.........3333333333.............',
+      '........3JJJJJJJJJJj............',
+      '........3JJJJJJJJJJj............',
+      '........3JJJJJJJJJJj............',
+      '........3JJJjJJJJJJj............',
+      '........3JJJjJJJJJJj............',
+      '........JJJJjJJJJJJj............',
+      '........JJJJjJJJJJJj............',
+      '........JJJ1SJJJJJJj............',
+      '........jjj1Sjjjjjjj............',
+      '.........jjjjjjjjjj.............',
+      '..........jjjjjjjj..............'
+    ]
+  }
 };
 const HD_LEGS = {
-  suit: [
-    symRows([
-      '.........BBBB...',
-      '.........BBBB...',
-      '.........bBBb...',
-      '.........bBBb...',
-      '.........FFFF...',
-      '........FFFFF...',
-      '........fffff...',
-      '................'
-    ]),
-    [
-      '........BBBB........BBBB........',
-      '........BBBB........BBBB........',
-      '.......bBBb..........bBBb.......',
-      '.......bBBb..........bBBb.......',
-      '......FFFF............FFFF......',
-      '.....FFFFF............FFFFF.....',
-      '.....fffff............fffff.....',
-      '................................'
+  suit: {
+    front: [
+      symRows([
+        '.........BBBB...',
+        '.........BBBB...',
+        '.........bBBb...',
+        '.........bBBb...',
+        '.........FFFF...',
+        '........FFFFF...',
+        '........fffff...',
+        '................'
+      ]),
+      [
+        '........BBBB........BBBB........',
+        '........BBBB........BBBB........',
+        '.......bBBb..........bBBb.......',
+        '.......bBBb..........bBBb.......',
+        '......FFFF............FFFF......',
+        '.....FFFFF............FFFFF.....',
+        '.....fffff............fffff.....',
+        '................................'
+      ]
+    ],
+    side: [
+      [
+        '...........BBBBBB...............',
+        '...........BBBBBB...............',
+        '...........bBBBBb...............',
+        '...........bBBBBb...............',
+        '..........FFFFFF................',
+        '.........FFFFFFF................',
+        '.........fffffff................',
+        '................................'
+      ],
+      [
+        '...........BBBBBB...............',
+        '..........BBBB..BBBB............',
+        '.........bBBB....BBBb...........',
+        '........bBBb......bBBb..........',
+        '.......FFFF........FFFF.........',
+        '......FFFFF........FFFFF........',
+        '......fffff........fffff........',
+        '................................'
+      ]
     ]
-  ]
+  }
 };
 function paintRowsHD(g, rows, pal, yOff, xOff) {
   for (let y = 0; y < rows.length; y++) {
@@ -760,10 +802,10 @@ function makeCharacterHD(t) {
   };
   const hd = HD_HEADS[t.head || 'fez'], bd = HD_BODIES[t.body || 'suit'], lg = HD_LEGS[t.body || 'suit'];
   const out = {};
-  out.down  = [0,1].map(f => buildFrameHD(hd.down, bd, lg[f], pal, false));
-  out.up    = [0,1].map(f => buildFrameHD(hd.up,   bd, lg[f], pal, false));
-  out.left  = [0,1].map(f => buildFrameHD(hd.side, bd, lg[f], pal, false));
-  out.right = [0,1].map(f => buildFrameHD(hd.side, bd, lg[f], pal, true));
+  out.down  = [0,1].map(f => buildFrameHD(hd.down, bd.front, lg.front[f], pal, false));
+  out.up    = [0,1].map(f => buildFrameHD(hd.up,   bd.front, lg.front[f], pal, false));
+  out.left  = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, false));
+  out.right = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, true));
   return out;
 }
 /* skin/wardrobe ramps: every character carries its own shade channels */
