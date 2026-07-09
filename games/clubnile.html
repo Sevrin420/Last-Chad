@@ -48,11 +48,14 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* Screen window measured on the 832x1248 art: x 36-795, y 36-793. */
+/* Screen window: the frame cutout is x 31-801, y 35-800 on the 832x1248
+   art. The canvas is centred in it (nudged 3px down vs the old measure)
+   and the bezel is a per-side-fitted frame overlay: each border exactly
+   wide enough to bury the cutout's feathered edge, and no wider. */
 #screen {
   position: absolute;
   left: 4.33%;
-  top: 2.88%;
+  top: 3.12%;
   width: 91.2%;
   height: 60.65%;
   z-index: 1;
@@ -60,21 +63,29 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
-/* The bezel sits ON TOP of the frame art: crisp stepped rings that
-   start at the screen edge and end in a sharp line over the gold,
-   burying the cutout's feathered edge completely. */
+/* near-black outer band, sharp over the gold (per-side widths) */
 #bezel {
   position: absolute;
-  left: 4.33%;
-  top: 2.88%;
-  width: 91.2%;
-  height: 60.65%;
+  left: 3.37%;
+  top: 2.56%;
+  width: 93.24%;
+  height: 61.77%;
   z-index: 3;
   pointer-events: none;
-  box-shadow:
-    0 0 0 0.32cqw #34303c,
-    0 0 0 0.67cqw #1e1b26,
-    0 0 0 1.12cqw #0a0810;
+  border-style: solid;
+  border-color: #0a0810;
+  border-width: 0.84cqw 1.08cqw 0.84cqw 0.96cqw;
+}
+/* thin charcoal accent ring right against the game edge */
+#bezel-in {
+  position: absolute;
+  left: 4.03%;
+  top: 2.92%;
+  width: 91.8%;
+  height: 61.05%;
+  z-index: 3;
+  pointer-events: none;
+  border: 0.3cqw solid #34303c;
 }
 /* ---- Touch controls (all % of the frame).
         RIGHT button = A (select) · LEFT button = B (back) ---- */
@@ -256,6 +267,7 @@ body {
   <canvas id="screen" width="480" height="480"></canvas>
   <img class="frame" src="../assets/membersonly/egypt-console.png" alt="Club Nile console">
   <div id="bezel"></div>
+  <div id="bezel-in"></div>
   <div class="hot" id="dpad"></div>
   <div class="hot" id="btn-b"></div>
   <div class="hot" id="btn-a"></div>
