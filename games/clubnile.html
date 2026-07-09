@@ -530,7 +530,7 @@ function mixc(a, b, t) {
 function ramp(base) {
   return { hi: mixc(base, '#fff3cf', 0.4), base, sh: mixc(base, '#2c1e3e', 0.48) };
 }
-/* symmetric halves: author 16 cells, mirror to 32 */
+/* symmetric halves: author 16 or 18 cells, mirror to 32 / 36 */
 const sym = r => r + [...r].reverse().join('');
 const symRows = rs => rs.map(sym);
 
@@ -540,87 +540,113 @@ const symRows = rs => rs.map(sym);
    B/b trousers · F/f shoes */
 const HD_HEADS = {
   fez: {
-    /* LTTP cartoon proportions: the head is over half the sprite (24 of
-       44 rows, 26 cells wide), with big white-and-pupil eyes under the
-       fez brim; body and legs are compact stubs. High 3/4 camera: the
-       fez top disc is visible with the gold knot sitting on it. */
+    /* Chibi-anime proportions: the head is 16 of 28 logical px and 36
+       cells wide — 30% up from the last pass — over the SAME body and
+       legs. Big glossy anime eyes: tall dark pupils with a 2x2 white
+       catchlight, rounded corners. High 3/4 camera: fez top disc with
+       the gold knot visible. Heads author at 18-cell halves (36 wide);
+       bodies/legs stay 16-cell halves (32 wide), centred at paint. */
     down: symRows([
-      '..........222222',
-      '........22222222',
-      '.......2222222GG',
-      '.......2222222GG',
-      '......2222222222',
-      '......HHHHHHHHHH',
-      '......HHHHHHHHHH',
-      '.....hHHHHHHHHHH',
-      '.....hhhhhhhhhhh',
-      '....1SSSSSSSSSSS',
-      '...11SSSSSSSSSSS',
-      '...1SSSSSSSSSSSS',
-      '...SSSWWEEWWSSSS',
-      '...SSSWWEEWWSSSS',
-      '...SSSWWEEWWSSSS',
-      '...SSSSSSSSSSSSS',
-      '...sSSSSSSSSSSSS',
-      '....sSSSSSSSSSSM',
-      '....ssSSSSSSSSSS',
-      '......ssSSSSSSSS',
-      '........ssssssss',
-      '..........ssssss',
-      '.............SSS',
-      '.............sss'
+      '............222222',
+      '..........22222222',
+      '.........2222222GG',
+      '.........2222222GG',
+      '........2222222222',
+      '........2222222222',
+      '.......HHHHHHHHHHH',
+      '.......HHHHHHHHHHH',
+      '......hHHHHHHHHHHH',
+      '......hhhhhhhhhhhh',
+      '....11SSSSSSSSSSSS',
+      '...11SSSSSSSSSSSSS',
+      '..11SSSSSSSSSSSSSS',
+      '..SSSSSEEEEEESSSSS',
+      '..SSSSEEEEEWWESSSS',
+      '..SSSSEEEEEWWESSSS',
+      '..SSSSEEEEEEEESSSS',
+      '..SSSSEEEEEEEESSSS',
+      '..SSSSEEEEEEEESSSS',
+      '..SSSSSEEEEEESSSSS',
+      '..sSSSSSSSSSSSSSSS',
+      '..sSSSSSSSSSSSSSSS',
+      '...sSSSSSSSSSSSSSS',
+      '...sSSSSSSSSSSSSSS',
+      '....sSSSSSSSSSSSSM',
+      '.....sSSSSSSSSSSSS',
+      '......ssSSSSSSSSSS',
+      '........ssSSSSSSSS',
+      '..........ssssssss',
+      '.............sssss',
+      '...............SSS',
+      '...............sss'
     ]),
     up: symRows([
-      '..........222222',
-      '........22222222',
-      '.......2222222GG',
-      '.......2222222GG',
-      '......2222222222',
-      '......HHHHHHHHHH',
-      '......HHHHHHHHHH',
-      '.....hHHHHHHHHHH',
-      '.....hhhhhhhhhhh',
-      '....KKKKKKKKKKKK',
-      '...KKKKKKKKKKKKK',
-      '...KKKKKKKKKKKKK',
-      '...kKKKKKKKKKKKK',
-      '...kKKKKKKKKKKKK',
-      '...kKKKKKKKKKKKK',
-      '....kKKKKKKKKKKK',
-      '....kkKKKKKKKKKK',
-      '.....kkKKKKKKKKK',
-      '......kkkKKKKKKK',
-      '........kkkkkkkk',
-      '..........kkkkkk',
-      '.............kkk',
-      '.............SSS',
-      '.............sss'
+      '............222222',
+      '..........22222222',
+      '.........2222222GG',
+      '.........2222222GG',
+      '........2222222222',
+      '........2222222222',
+      '.......HHHHHHHHHHH',
+      '.......HHHHHHHHHHH',
+      '......hHHHHHHHHHHH',
+      '......hhhhhhhhhhhh',
+      '....KKKKKKKKKKKKKK',
+      '...KKKKKKKKKKKKKKK',
+      '..KKKKKKKKKKKKKKKK',
+      '..KKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kKKKKKKKKKKKKKKK',
+      '..kkKKKKKKKKKKKKKK',
+      '..kkKKKKKKKKKKKKKK',
+      '...kkKKKKKKKKKKKKK',
+      '...kkKKKKKKKKKKKKK',
+      '....kkKKKKKKKKKKKK',
+      '.....kkKKKKKKKKKKK',
+      '......kkKKKKKKKKKK',
+      '.......kkkKKKKKKKK',
+      '.........kkkKKKKKK',
+      '...........kkkkkkk',
+      '.............kkkkk',
+      '...............kkk',
+      '...............SSS',
+      '...............sss'
     ]),
     side: [
-      '.........22222222...............',
-      '.......222222222222G............',
-      '......22222222222222............',
-      '.....2222222222222222...........',
-      '.....HHHHHHHHHHHHHHHH...........',
-      '.....HHHHHHHHHHHHHHHHH..........',
-      '....hHHHHHHHHHHHHHHHHH..........',
-      '....hhhhhhhhhhhhhhhhhhh.........',
-      '...1SSSSSSSSSSSSSSSSSSK.........',
-      '..11SSSSSSSSSSSSSSSSSSK.........',
-      '..1SSSSSSSSSSSSSSSSSSKK.........',
-      '..SSWWEEWWSSSSSSSSSSSKK.........',
-      '..SSWWEEWWSSSSssSSSSSKK.........',
-      '..SSWWEEWWSSSSssSSSSSKK.........',
-      '.sSSSSSSSSSSSSSSSSSSSKk.........',
-      '.sSSSSSSSSSSSSSSSSSSKk..........',
-      '..MSSSSSSSSSSSSSSSSSk...........',
-      '..ssSSSSSSSSSSSSSSss............',
-      '....ssSSSSSSSSSSss..............',
-      '......ssssssssss................',
-      '.........SSSS...................',
-      '.........ssss...................',
-      '................................',
-      '................................'
+      '...........2222222222...............',
+      '.........22222222222222G............',
+      '........2222222222222222............',
+      '.......222222222222222222...........',
+      '.......222222222222222222...........',
+      '......HHHHHHHHHHHHHHHHHHHH..........',
+      '......HHHHHHHHHHHHHHHHHHHH..........',
+      '.....hHHHHHHHHHHHHHHHHHHHHH.........',
+      '.....hhhhhhhhhhhhhhhhhhhhhhh........',
+      '.....hhhhhhhhhhhhhhhhhhhhhhh........',
+      '....11SSSSSSSSSSSSSSSSSSSSKK........',
+      '...11SSSSSSSSSSSSSSSSSSSSSKK........',
+      '..11SSSSSSSSSSSSSSSSSSSSSSKK........',
+      '..SSSSEEEEEESSSSSSSSSSSSSSKKK.......',
+      '..SSSEEEEEWWESSSSSSSSSSSSSKKK.......',
+      '..SSSEEEEEWWESSSSSSSSSSSSSKKK.......',
+      '..SSSEEEEEEEESSSSSSSSSSSSSKKk.......',
+      '..SSSEEEEEEEESSSSSSssSSSSSKKk.......',
+      '..SSSEEEEEEEESSSSSSssSSSSSKKk.......',
+      '..SSSSEEEEEESSSSSSSSSSSSSSKkk.......',
+      '.sSSSSSSSSSSSSSSSSSSSSSSSSKk........',
+      '.sSSSSSSSSSSSSSSSSSSSSSSSKk.........',
+      '..MSSSSSSSSSSSSSSSSSSSSSSk..........',
+      '..sSSSSSSSSSSSSSSSSSSSSSk...........',
+      '...ssSSSSSSSSSSSSSSSSSss............',
+      '.....ssSSSSSSSSSSSSSSss.............',
+      '.......ssSSSSSSSSSSSss..............',
+      '.........sssSSSSSsss................',
+      '............sssssss.................',
+      '....................................',
+      '............SSSS....................',
+      '............ssss....................'
     ]
   }
 };
@@ -664,14 +690,14 @@ const HD_LEGS = {
     ]
   ]
 };
-function paintRowsHD(g, rows, pal, yOff) {
+function paintRowsHD(g, rows, pal, yOff, xOff) {
   for (let y = 0; y < rows.length; y++) {
     const r = rows[y];
     for (let x = 0; x < r.length; x++) {
       const ch = r[x];
       if (ch === '.' || !pal[ch]) continue;
       g.fillStyle = pal[ch];
-      g.fillRect(x * 0.5, y * 0.5 + yOff, 0.5, 0.5);
+      g.fillRect((x + (xOff || 0)) * 0.5, y * 0.5 + yOff, 0.5, 0.5);
     }
   }
 }
@@ -695,23 +721,23 @@ function outlineHD(c) {
 }
 function buildFrameHD(head, body, legs, pal, mirror) {
   const c = document.createElement('canvas');
-  c.width = 36; c.height = 48;
-  c.lw = 18; c.lh = 24;
+  c.width = 40; c.height = 56;
+  c.lw = 20; c.lh = 28;
   const g = c.getContext('2d');
   g.setTransform(2, 0, 0, 2, 0, 0);
   g.imageSmoothingEnabled = false;
   g.translate(1, 1);
-  paintRowsHD(g, head, pal, 0);     // 24 rows → 12lp of head
-  paintRowsHD(g, body, pal, 12);    // 12 rows → 6lp of body
-  paintRowsHD(g, legs, pal, 18);    // 8 rows → 4lp of legs
+  paintRowsHD(g, head, pal, 0, 0);      // 32 rows x 36 cells → 16lp of head
+  paintRowsHD(g, body, pal, 16, 2);     // 12 rows x 32 cells → 6lp of body
+  paintRowsHD(g, legs, pal, 22, 2);     // 8 rows x 32 cells → 4lp of legs
   g.setTransform(1, 0, 0, 1, 0, 0);
   outlineHD(c);
   if (!mirror) return c;
   const m = document.createElement('canvas');
-  m.width = 36; m.height = 48;
-  m.lw = 18; m.lh = 24;
+  m.width = 40; m.height = 56;
+  m.lw = 20; m.lh = 28;
   const mg = m.getContext('2d');
-  mg.translate(36, 0); mg.scale(-1, 1);
+  mg.translate(40, 0); mg.scale(-1, 1);
   mg.drawImage(c, 0, 0);
   return m;
 }
@@ -1870,7 +1896,7 @@ function drawEntity(g, ent, bobT) {
   g.beginPath();
   g.ellipse(Math.round(ent.x), Math.round(ent.y) + 2, 6, 2.5, 0, 0, Math.PI * 2);
   g.fill();
-  g.drawImage(img, Math.round(ent.x - 9), Math.round(ent.y - 22 + bob), 18, 24);
+  g.drawImage(img, Math.round(ent.x - img.lw / 2), Math.round(ent.y - img.lh + 2 + bob), img.lw, img.lh);
 }
 function drawSeated(g, spriteKey, x, y) {
   g.fillStyle = C.shadow; g.fillRect(x - 6, y + 1, 12, 3);
@@ -1878,7 +1904,8 @@ function drawSeated(g, spriteKey, x, y) {
   g.fillStyle = C.woodLight; g.fillRect(x - 5, y - 2, 10, 1);
   g.fillStyle = C.goldDark; g.fillRect(x - 5, y - 3, 10, 1);
   const img = SPRITES[spriteKey].up[0];
-  g.drawImage(img, 0, 0, 36, 40, Math.round(x - 9), Math.round(y - 21), 18, 20);
+  const sh = img.height - 8;              // trim the legs behind the stool
+  g.drawImage(img, 0, 0, img.width, sh, Math.round(x - img.lw / 2), Math.round(y - 1 - sh / 2), img.lw, sh / 2);
 }
 function drawEmptyStool(g, x, y) {
   g.fillStyle = C.woodDark; g.fillRect(x - 5, y - 1, 10, 3);
