@@ -3,77 +3,165 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://api.avax-test.network https://api.avax.network https://rpc.ankr.com https://last-chad-runner.severin20.workers.dev https://cloud.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.reown.com; frame-src https://verify.walletconnect.com;">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Members Only</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press Start 2P',monospace;color:#ffe96a}
-
-/* ── Door image ── */
-.door{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-.door img{width:100%;height:100%;object-fit:contain;object-position:center;background:#000}
-
-/* ── Rain overlay ── */
-.rain-overlay{
-  position:fixed;inset:0;z-index:5;
-  pointer-events:none;
-  mix-blend-mode:screen;
+/* ============================================================
+   The whole site lives inside the gold console. The homepage's
+   rainy door renders inside the screen window; knocking (or the
+   A button) steps into Club Nile.
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  height: 100%;
+  background: #0c0912;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: 'Press Start 2P', monospace;
 }
-.rain-overlay img{
-  width:100%;height:100%;object-fit:cover;display:block;
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(ellipse at 50% 0%, #1a1326 0%, #0c0912 70%);
 }
-
-/* ── Knocker hotspot ── */
-.knocker{
-  position:absolute;width:9%;aspect-ratio:1;height:auto;
-  top:61.5%;left:70%;transform:translate(-50%,-50%);
-  cursor:pointer;border-radius:50%;z-index:10;
-  box-shadow:0 0 30px rgba(201,168,76,0.3),0 0 60px rgba(201,168,76,0.15);
-  animation:knockGlow 2.5s ease-in-out infinite;
-  border:none;
-  background:transparent;
+#console {
+  position: relative;
+  width: min(100vw, calc(100dvh * 832 / 1248));
+  aspect-ratio: 832 / 1248;
+  container-type: inline-size;
 }
-@keyframes knockGlow{
-  0%,100%{box-shadow:0 0 30px rgba(201,168,76,0.3),0 0 60px rgba(201,168,76,0.15),0 0 100px rgba(201,168,76,0.08)}
-  50%{box-shadow:0 0 45px rgba(255,233,106,0.7),0 0 90px rgba(201,168,76,0.4),0 0 140px rgba(201,168,76,0.2)}
+#console img.frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
 }
-.knocker:hover{box-shadow:0 0 35px rgba(255,233,106,0.8),0 0 70px rgba(201,168,76,0.4)}
-
-/* ── Welcome overlay ── */
-.overlay{
-  position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.82);
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  padding:20px;gap:20px;
+/* screen window (same geometry as the game) */
+#screen {
+  position: absolute;
+  left: 4.33%;
+  top: 3.12%;
+  width: 91.2%;
+  height: 60.65%;
+  z-index: 1;
+  overflow: hidden;
+  background: #0a0710;
 }
-.overlay.active{display:flex}
-.ov-text{font-size:clamp(0.55rem,2vw,0.75rem);color:#c9a84c;text-align:center;line-height:2.2;min-height:1.5em}
+#screen .door-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+.rain-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.rain-overlay img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* bezel over the gold, same as the game */
+#bezel {
+  position: absolute;
+  left: 3.37%;
+  top: 2.56%;
+  width: 93.24%;
+  height: 61.77%;
+  z-index: 3;
+  pointer-events: none;
+  border-style: solid;
+  border-color: #0a0810;
+  border-width: 0.84cqw 1.08cqw 0.84cqw 0.96cqw;
+}
+#bezel-in {
+  position: absolute;
+  left: 4.03%;
+  top: 2.92%;
+  width: 91.8%;
+  height: 61.05%;
+  z-index: 3;
+  pointer-events: none;
+  border: 0.3cqw solid #34303c;
+}
+/* knocker hotspot on the door */
+.knocker {
+  position: absolute;
+  width: 12%;
+  aspect-ratio: 1;
+  top: 67%;
+  left: 70%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  box-shadow: 0 0 30px rgba(201,168,76,0.3), 0 0 60px rgba(201,168,76,0.15);
+  animation: knockGlow 2.5s ease-in-out infinite;
+}
+@keyframes knockGlow {
+  0%,100% { box-shadow: 0 0 30px rgba(201,168,76,0.3), 0 0 60px rgba(201,168,76,0.15), 0 0 100px rgba(201,168,76,0.08); }
+  50%     { box-shadow: 0 0 45px rgba(255,233,106,0.7), 0 0 90px rgba(201,168,76,0.4), 0 0 140px rgba(201,168,76,0.2); }
+}
+/* A button on the console also knocks */
+.hot {
+  position: absolute;
+  z-index: 3;
+  touch-action: none;
+  cursor: pointer;
+}
+#btn-a { left: 70%; top: 71%; width: 23%; height: 15.5%; border-radius: 50%; }
+.hot.pressed {
+  background: radial-gradient(circle, rgba(255,235,170,0.28) 0%, rgba(255,235,170,0) 70%);
+}
+/* welcome beat */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 6%;
+}
+.overlay.active { display: flex; }
+.ov-text {
+  font-size: 3.4cqw;
+  color: #c9a84c;
+  text-align: center;
+  line-height: 2.2;
+}
 </style>
 </head>
 <body>
 
-<!-- Door -->
-<div class="door">
-  <img src="assets/membersonly/door.jpg" alt="Members Only">
-  <div class="knocker" id="knocker"></div>
-</div>
-
-<!-- Rain overlay (mix-blend-mode:screen makes black transparent, white rain visible) -->
-<div class="rain-overlay">
-  <img src="assets/membersonly/rain.gif" alt="">
-</div>
-
-<!-- Black overlay: a short welcome beat, then into the casino -->
-<div class="overlay" id="overlay">
-  <div class="ov-text" id="ovText"></div>
+<div id="console">
+  <div id="screen">
+    <img class="door-img" src="assets/membersonly/door.jpg" alt="Members Only">
+    <div class="rain-overlay"><img src="assets/membersonly/rain.gif" alt=""></div>
+    <button class="knocker" id="knocker" aria-label="Knock"></button>
+    <div class="overlay" id="overlay"><div class="ov-text" id="ovText"></div></div>
+  </div>
+  <img class="frame" src="assets/membersonly/egypt-console.png" alt="Members Only console">
+  <div id="bezel"></div>
+  <div id="bezel-in"></div>
+  <div class="hot" id="btn-a" aria-label="A"></div>
 </div>
 
 <script>
-/* Knock the door and step inside. The NFT gate returns here later —
-   membership will be checked before the door opens. */
+/* Knock the door (or press A) and step inside. The NFT gate returns
+   here later — membership will be checked before the door opens. */
 const knocker = document.getElementById('knocker');
 const overlay = document.getElementById('overlay');
 const ovText  = document.getElementById('ovText');
+const btnA    = document.getElementById('btn-a');
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -86,13 +174,24 @@ async function typewrite(el, text, speed) {
 }
 
 let entering = false;
-knocker.addEventListener('click', async () => {
+async function enter() {
   if (entering) return;
   entering = true;
   overlay.classList.add('active');
   await typewrite(ovText, 'Welcome to Club Nile');
   await delay(900);
   window.location.href = 'games/clubnile.html';
+}
+knocker.addEventListener('click', enter);
+btnA.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  btnA.classList.add('pressed');
+  enter();
+});
+['pointerup','pointercancel','pointerleave'].forEach(ev =>
+  btnA.addEventListener(ev, () => btnA.classList.remove('pressed')));
+addEventListener('keydown', e => {
+  if (['Enter', ' ', 'e', 'E', 'z', 'Z'].includes(e.key)) enter();
 });
 </script>
 </body>

@@ -8,12 +8,65 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="nav.css">
   <style>
-    .bg {
-      background-image: url('assets/membersonly/membersbg.jpg');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
+    /* ── the docs live inside the gold console screen ── */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 0%, #1a1326 0%, #0c0912 70%) #0c0912;
     }
+    body { display: flex; justify-content: center; align-items: center; }
+    #console {
+      position: relative;
+      width: min(100vw, calc(100dvh * 832 / 1248));
+      aspect-ratio: 832 / 1248;
+      container-type: inline-size;
+    }
+    #console img.frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+    }
+    #screen {
+      position: absolute;
+      left: 4.33%;
+      top: 3.12%;
+      width: 91.2%;
+      height: 60.65%;
+      z-index: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      background:
+        url('assets/membersonly/membersbg.jpg') center / cover no-repeat #0a0a0f;
+    }
+    #bezel {
+      position: absolute;
+      left: 3.37%;
+      top: 2.56%;
+      width: 93.24%;
+      height: 61.77%;
+      z-index: 3;
+      pointer-events: none;
+      border-style: solid;
+      border-color: #0a0810;
+      border-width: 0.84cqw 1.08cqw 0.84cqw 0.96cqw;
+    }
+    #bezel-in {
+      position: absolute;
+      left: 4.03%;
+      top: 2.92%;
+      width: 91.8%;
+      height: 61.05%;
+      z-index: 3;
+      pointer-events: none;
+      border: 0.3cqw solid #34303c;
+    }
+    .bg { display: none; }
+    .header { position: sticky; top: 0; }
+    .main { padding: 24px 16px 48px; }
     .lobby-btn {
       display: block;
       margin: 24px auto 8px;
@@ -457,7 +510,8 @@
 </head>
 <body>
 
-  <div class="bg"></div>
+<div id="console">
+  <div id="screen">
 
   <header class="header">
     <div id="nav-placeholder"></div>
@@ -514,6 +568,12 @@
 
   <!-- Wallet Modal -->
   <div id="wallet-modal-placeholder"></div>
+
+  </div><!-- /#screen -->
+  <img class="frame" src="assets/membersonly/egypt-console.png" alt="Members Only console">
+  <div id="bezel"></div>
+  <div id="bezel-in"></div>
+</div><!-- /#console -->
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script src="nav.js"></script>
