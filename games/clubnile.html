@@ -2609,7 +2609,8 @@ function drawPopups(seatPos) {
       ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 32 - rise);
     } else if (p.kind === 'bubble') {
       /* bubbles type silently — only the A-button dialogue box blips */
-      if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, pos.mode || 'below', p.t);
+      if (pos.mode) drawBubble(pos.x, pos.y, p.str, pos.mode, p.t);
+      else if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, 'below', p.t);
       else drawBubble(pos.x, pos.y - 24, p.str, 'above', p.t);
     }
     ctx.globalAlpha = 1;
@@ -2642,8 +2643,9 @@ function drawBubble(cx, anchorY, text, mode, age) {
   const h = shown * lineH + pad * 2 - 2;
   let x, y;
   if (mode === 'ne') {                      // above and right of the head
-    x = Math.max(2, Math.min(W - w - 2, cx + 4));
-    y = Math.max(2, anchorY - h - 6);       // never runs off the top
+    /* stays on screen and clear of the mute circle in the top-right */
+    x = Math.max(2, Math.min(W - w - 24, cx + 4));
+    y = Math.max(2, anchorY - h - 6);
   } else {
     x = Math.max(2, Math.min(W - w - 2, Math.round(cx - w / 2)));
     y = mode === 'below' ? anchorY + 5 : anchorY - h - 5;
@@ -4018,6 +4020,11 @@ function floorRender() {
   /* popups over heads on the floor: you, the staff, and the regulars */
   drawPopups(target => {
     if (target === 'you') return { x: player.x, y: player.y - 6 };
+    /* the bartender is too close to the top — his bubble goes right */
+    if (target === 'bartender') {
+      const b = npcs[0];
+      return { x: b.x + 8, y: b.y - 22, mode: 'ne' };
+    }
     const npc = npcs.find(n => n.id === target);
     if (npc) return { x: npc.x, y: npc.y - 4 };
     const gu = guests.find(g2 => g2.id === target);
