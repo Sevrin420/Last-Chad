@@ -525,9 +525,10 @@ function mixc(a, b, t) {
   const c = A.map((v, i) => Math.round(v + (B[i] - v) * t));
   return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
 }
-/* LTTP shading: highlights lean warm cream, shadows lean cool plum */
+/* LTTP shading: highlights lean warm cream, shadows lean cool plum —
+   pushed hard for the bold cartoon read */
 function ramp(base) {
-  return { hi: mixc(base, '#fff3cf', 0.34), base, sh: mixc(base, '#2c1e3e', 0.4) };
+  return { hi: mixc(base, '#fff3cf', 0.4), base, sh: mixc(base, '#2c1e3e', 0.48) };
 }
 /* symmetric halves: author 16 cells, mirror to 32 */
 const sym = r => r + [...r].reverse().join('');
@@ -539,8 +540,10 @@ const symRows = rs => rs.map(sym);
    B/b trousers · F/f shoes */
 const HD_HEADS = {
   fez: {
-    /* high 3/4 camera: the fez TOP DISC is visible (knot sitting on it),
-       eyes ride low on the face, chin is short — the LTTP tilt */
+    /* LTTP cartoon proportions: the head is over half the sprite (24 of
+       44 rows, 26 cells wide), with big white-and-pupil eyes under the
+       fez brim; body and legs are compact stubs. High 3/4 camera: the
+       fez top disc is visible with the gold knot sitting on it. */
     down: symRows([
       '..........222222',
       '........22222222',
@@ -549,19 +552,23 @@ const HD_HEADS = {
       '......2222222222',
       '......HHHHHHHHHH',
       '......HHHHHHHHHH',
-      '......hHHHHHHHHH',
-      '......hhhhhhhhhh',
-      '.....1SSSSSSSSSS',
-      '.....SSSSSSSSSSS',
-      '.....SSSEWSSSSSS',
-      '.....SSSEESSSSSS',
-      '.....sSSEESSSSSS',
-      '......sSSSSSSSSs',
-      '......sSSSSSSSSS',
-      '.......sSSSSSSSM',
-      '........ssSSSSSS',
+      '.....hHHHHHHHHHH',
+      '.....hhhhhhhhhhh',
+      '....1SSSSSSSSSSS',
+      '...11SSSSSSSSSSS',
+      '...1SSSSSSSSSSSS',
+      '...SSSWWEEWWSSSS',
+      '...SSSWWEEWWSSSS',
+      '...SSSWWEEWWSSSS',
+      '...SSSSSSSSSSSSS',
+      '...sSSSSSSSSSSSS',
+      '....sSSSSSSSSSSM',
+      '....ssSSSSSSSSSS',
+      '......ssSSSSSSSS',
+      '........ssssssss',
       '..........ssssss',
-      '.............SSS'
+      '.............SSS',
+      '.............sss'
     ]),
     up: symRows([
       '..........222222',
@@ -571,58 +578,64 @@ const HD_HEADS = {
       '......2222222222',
       '......HHHHHHHHHH',
       '......HHHHHHHHHH',
-      '......hHHHHHHHHH',
-      '......hhhhhhhhhh',
-      '.....KKKKKKKKKKK',
+      '.....hHHHHHHHHHH',
+      '.....hhhhhhhhhhh',
       '....KKKKKKKKKKKK',
-      '....KKKKKKKKKKKK',
+      '...KKKKKKKKKKKKK',
+      '...KKKKKKKKKKKKK',
+      '...kKKKKKKKKKKKK',
+      '...kKKKKKKKKKKKK',
+      '...kKKKKKKKKKKKK',
       '....kKKKKKKKKKKK',
-      '....kKKKKKKKKKKK',
-      '.....kKKKKKKKKKK',
+      '....kkKKKKKKKKKK',
       '.....kkKKKKKKKKK',
       '......kkkKKKKKKK',
       '........kkkkkkkk',
-      '...........kkkkk',
-      '.............SSS'
+      '..........kkkkkk',
+      '.............kkk',
+      '.............SSS',
+      '.............sss'
     ]),
     side: [
       '.........222222.................',
       '........22222222G...............',
       '.......2222222222...............',
-      '.......HHHHHHHHH................',
-      '.......HHHHHHHHH................',
-      '.......HHHHHHHHHH...............',
-      '.......hHHHHHHHHH...............',
-      '......hhhhhhhhhhh...............',
-      '.....1SSSSSSSSSSSK..............',
-      '....1SSSSSSSSSSSKK..............',
-      '....SSEWSSSSSSSSKK..............',
-      '....SSEESSSssSSSKK..............',
-      '....SSEESSSssSSSKK..............',
-      '...sSSSSSSSSSSSSKk..............',
-      '....sSSSSSSSSSSSk...............',
-      '....MSSSSSSSSSSk................',
-      '.....ssSSSSSSss.................',
+      '......22222222222...............',
+      '......HHHHHHHHHH................',
+      '......HHHHHHHHHH................',
+      '.....hHHHHHHHHHH................',
+      '.....hhhhhhhhhhhh...............',
+      '....1SSSSSSSSSSSSK..............',
+      '...11SSSSSSSSSSSSK..............',
+      '...1SSSSSSSSSSSSSKK.............',
+      '...SWWEEWWSSSSSSSKK.............',
+      '...SWWEEWWSSSssSSKK.............',
+      '...SWWEEWWSSSssSSKK.............',
+      '..sSSSSSSSSSSSSSSKk.............',
+      '..sSSSSSSSSSSSSSk...............',
+      '...MSSSSSSSSSSSs................',
+      '...ssSSSSSSSSss.................',
+      '.....ssSSSSSs...................',
       '.......ssssss...................',
-      '..........SSS...................',
-      '..........sss...................'
+      '.........SSS....................',
+      '.........sss....................',
+      '................................',
+      '................................'
     ]
   }
 };
 const HD_BODIES = {
   suit: symRows([
-    '..........333333',
-    '........33JJJJJJ',
-    '.......3JJJJJLCC',
-    '......3JJJJJJLCR',
-    '......JJJJJJJJLC',
-    '.....JJJJJJJJJJG',
-    '.....JjJJJJJJJJJ',
+    '........33333333',
+    '......33JJJJJLCC',
+    '......JJJJJJJLCR',
+    '.....JJJJJJJJJLC',
     '.....JjJJJJJJJJG',
     '.....JjJJJJJJJJJ',
+    '.....JjJJJJJJJJG',
     '.....JjjJJJJJJJJ',
     '.....1SjjJJJJJJJ',
-    '......ssjjjJJJJJ',
+    '......sjjjJJJJJJ',
     '......jjjjjjjjjj',
     '.......jjjjjjjjj'
   ])
@@ -630,11 +643,9 @@ const HD_BODIES = {
 const HD_LEGS = {
   suit: [
     symRows([
-      '.........BBBBB..',
-      '.........BBBBB..',
-      '.........BBBBB..',
-      '.........bBBBb..',
-      '.........bBBBb..',
+      '.........BBBB...',
+      '.........BBBB...',
+      '.........bBBb...',
       '.........bBBb...',
       '.........FFFF...',
       '........FFFFF...',
@@ -642,12 +653,10 @@ const HD_LEGS = {
       '................'
     ]),
     [
-      '........BBBBB......BBBBB........',
-      '........BBBBB......BBBBB........',
-      '.......BBBBB........BBBBB.......',
-      '.......bBBBb........bBBBb.......',
-      '.......bBBBb........bBBBb.......',
-      '......bbbb............bbbb......',
+      '........BBBB........BBBB........',
+      '........BBBB........BBBB........',
+      '.......bBBb..........bBBb.......',
+      '.......bBBb..........bBBb.......',
       '......FFFF............FFFF......',
       '.....FFFFF............FFFFF.....',
       '.....fffff............fffff.....',
@@ -692,9 +701,9 @@ function buildFrameHD(head, body, legs, pal, mirror) {
   g.setTransform(2, 0, 0, 2, 0, 0);
   g.imageSmoothingEnabled = false;
   g.translate(1, 1);
-  paintRowsHD(g, head, pal, 0);
-  paintRowsHD(g, body, pal, 10);
-  paintRowsHD(g, legs, pal, 17);
+  paintRowsHD(g, head, pal, 0);     // 24 rows → 12lp of head
+  paintRowsHD(g, body, pal, 12);    // 12 rows → 6lp of body
+  paintRowsHD(g, legs, pal, 18);    // 8 rows → 4lp of legs
   g.setTransform(1, 0, 0, 1, 0, 0);
   outlineHD(c);
   if (!mirror) return c;
