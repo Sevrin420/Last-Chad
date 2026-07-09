@@ -2164,6 +2164,9 @@ function drawPopups(seatPos) {
     } else if (p.kind === 'bubble') {
       /* bubbles type silently — only the A-button dialogue box blips */
       if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, pos.mode || 'below', p.t);
+      /* Ptah stands right at the top of the floor scene — a bubble above
+         his head runs off-screen, so his line drops below him instead */
+      else if (p.target === 'bartender') drawBubble(pos.x, pos.y + 20, p.str, 'below', p.t);
       else drawBubble(pos.x, pos.y - 24, p.str, 'above', p.t);
     }
     ctx.globalAlpha = 1;
