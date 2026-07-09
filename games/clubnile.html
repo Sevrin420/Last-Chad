@@ -100,6 +100,24 @@ body {
   cursor: pointer;
 }
 #btn-chat.pressed { background: rgba(255,235,170,0.35); }
+#btn-mute {
+  position: absolute;
+  z-index: 3;
+  left: 9%;
+  top: 90.2%;
+  width: 14%;
+  padding: 1.5cqw 0;
+  text-align: center;
+  color: #f2d488;
+  font-size: 3cqw;
+  letter-spacing: 0.3cqw;
+  background: rgba(24,14,4,0.6);
+  border: 0.55cqw solid #8a6015;
+  border-radius: 3cqw;
+  cursor: pointer;
+}
+#btn-mute.muted { color: #7d6b45; }
+#btn-mute.pressed { background: rgba(255,235,170,0.35); }
 /* ---- Casino-wide chat panel: covers the CONTROL area (d-pad and
         buttons), never the game screen above ---- */
 #chat-panel {
@@ -212,6 +230,7 @@ body {
   <div class="btn-label" id="label-b">B</div>
   <div class="btn-label" id="label-a">A</div>
   <div id="btn-chat">CHAT</div>
+  <div id="btn-mute">♪ ON</div>
   <div id="chat-panel">
     <div id="chat-head">
       <span>CASINO CHAT</span>
@@ -225,7 +244,7 @@ body {
     </form>
   </div>
 </div>
-<div id="kbd-hint">ARROWS / WASD MOVE · E / ENTER = A · ESC = B · C = CHAT</div>
+<div id="kbd-hint">ARROWS / WASD MOVE · E / ENTER = A · ESC = B · C = CHAT · M = MUTE</div>
 
 <script>
 'use strict';
@@ -906,6 +925,8 @@ addEventListener('keydown', e => {
     return;
   }
   const k = e.key;
+  sound.unlock();
+  if (!e.repeat && (k === 'm' || k === 'M')) { sound.toggleMute(); updateMuteBtn(); }
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
   if (k === 'ArrowUp'    || k === 'w' || k === 'W') { input.up = true;    if (!e.repeat) tapQ.up = true; }
   if (k === 'ArrowDown'  || k === 's' || k === 'S') { input.down = true;  if (!e.repeat) tapQ.down = true; }
@@ -954,6 +975,166 @@ cvs.addEventListener('pointerdown', e => {
   const r = cvs.getBoundingClientRect();
   tapPt = { x: (e.clientX - r.left) * (W / r.width), y: (e.clientY - r.top) * (H / r.height) };
 });
+
+/* ============================ sound ============================ */
+/* All audio is synthesised live with the Web Audio API — no files, so it
+   loads instantly and passes the CSP untouched. Two looping mood tunes
+   (title mystique / speakeasy swing) run on a lookahead scheduler, and
+   small one-shot voices cover chips, dice, cards, footsteps and text. */
+const sound = (() => {
+  let ac = null, master, musicBus, sfxBus, noiseBuf;
+  let muted = localStorage.getItem('clubnile_mute') === '1';
+  let tune = null, stepAt = 0, stepN = 0, lastBlip = 0, stepFoot = 0;
+  const F = n => 440 * Math.pow(2, (n - 69) / 12);      // midi note → Hz
+
+  /* — the two mood tunes, written on the double harmonic (“Nile”) scale —
+     D  Eb  F#  G  A  Bb  C#  ·  32 eighth-note steps per loop           */
+  const _ = 0;
+  const TUNES = {
+    title: {   /* slow torchlit mystery for the card */
+      stepDur: 0.36, swing: 0,
+      mel:  [74,_,_,_, 73,_,74,_, 70,_,_,_, 69,_,_,_,  67,_,69,_, 70,_,69,_, 66,_,_,_, _,_,_,_],
+      bass: [38,_,_,_, _,_,_,_, 45,_,_,_, _,_,_,_,  38,_,_,_, _,_,_,_, 46,_,_,_, 45,_,_,_],
+      hat: null, snare: null, melGain: 0.13, bassGain: 0.42
+    },
+    casino: {  /* jaunty 1920s swing for the floor and the tables */
+      stepDur: 0.27, swing: 0.085,
+      mel:  [62,_,66,_, 67,_,69,_, 70,69,_,67, 69,_,_,_,  62,_,66,_, 67,_,69,_, 74,_,73,70, 69,_,_,_],
+      bass: [38,_,41,_, 45,_,47,_, 48,_,47,_, 45,_,41,_,  38,_,41,_, 45,_,47,_, 50,_,49,_, 45,_,45,_],
+      hat:  [1,_,1,_, 1,_,1,_, 1,_,1,_, 1,_,1,_,  1,_,1,_, 1,_,1,_, 1,_,1,_, 1,_,1,_],
+      snare:[_,_,_,_, _,_,_,_, 1,_,_,_, _,_,_,_,  _,_,_,_, _,_,_,_, 1,_,_,_, _,_,_,_],
+      melGain: 0.11, bassGain: 0.4
+    }
+  };
+
+  function ensure() {
+    if (ac) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    ac = new AC();
+    master = ac.createGain(); master.gain.value = muted ? 0 : 1;
+    master.connect(ac.destination);
+    musicBus = ac.createGain(); musicBus.gain.value = 0.16; musicBus.connect(master);
+    sfxBus = ac.createGain(); sfxBus.gain.value = 0.5; sfxBus.connect(master);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate / 2, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    setInterval(schedule, 90);
+    return true;
+  }
+  function unlock() {                    // must run inside a user gesture
+    if (!ensure()) return;
+    if (ac.state === 'suspended') ac.resume();
+  }
+  function tone(t, freq, dur, type, gain, bus, slide) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(bus);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function hiss(t, dur, gain, freq, q, bus) {
+    const s = ac.createBufferSource(); s.buffer = noiseBuf;
+    const f = ac.createBiquadFilter(); f.type = 'bandpass';
+    f.frequency.value = freq; f.Q.value = q;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(bus || sfxBus);
+    s.start(t); s.stop(t + dur + 0.05);
+  }
+  function schedule() {
+    if (!tune || ac.state !== 'running') return;
+    if (stepAt < ac.currentTime) stepAt = ac.currentTime + 0.05;
+    const T = TUNES[tune];
+    while (stepAt < ac.currentTime + 0.28) {
+      const i = stepN % 32;
+      if (!muted) {
+        const when = stepAt + (T.swing && (i % 2) ? T.swing : 0);
+        if (T.mel[i]) tone(when, F(T.mel[i]), T.stepDur * 1.9, 'square', T.melGain, musicBus);
+        if (T.bass[i]) tone(when, F(T.bass[i]), T.stepDur * (T.swing ? 1.7 : 3.6), 'triangle', T.bassGain, musicBus);
+        if (T.hat && T.hat[i]) hiss(when, 0.03, 0.07, 6200, 2, musicBus);
+        if (T.snare && T.snare[i]) hiss(when, 0.09, 0.11, 1700, 0.8, musicBus);
+      }
+      stepAt += T.stepDur; stepN++;
+    }
+  }
+  function ready() { return ac && ac.state === 'running' && !muted; }
+  const t0 = () => ac.currentTime;
+
+  return {
+    unlock,
+    get muted() { return muted; },
+    toggleMute() {
+      muted = !muted;
+      localStorage.setItem('clubnile_mute', muted ? '1' : '0');
+      if (ac) master.gain.value = muted ? 0 : 1;
+      return muted;
+    },
+    setTune(name) {
+      if (name === tune) return;
+      tune = name; stepN = 0; stepAt = 0;
+    },
+    blip(hi) {                          // typewriter text tick
+      if (!ready()) return;
+      if (t0() - lastBlip < 0.05) return;
+      lastBlip = t0();
+      tone(t0(), hi ? 1240 : 1020, 0.045, 'square', 0.05, sfxBus);
+    },
+    step() {                            // soft sandstone footstep
+      if (!ready()) return;
+      stepFoot = 1 - stepFoot;
+      hiss(t0(), 0.05, 0.09, stepFoot ? 750 : 620, 1.4);
+    },
+    chip() {                            // ceramic chips clicking down
+      if (!ready()) return;
+      tone(t0(), 1900, 0.03, 'square', 0.11, sfxBus);
+      tone(t0() + 0.045, 1450, 0.035, 'square', 0.09, sfxBus);
+    },
+    tick() {                            // carousel / menu move
+      if (!ready()) return;
+      tone(t0(), 820, 0.04, 'square', 0.07, sfxBus);
+    },
+    click() {                           // dice rattling in the tumble
+      if (!ready()) return;
+      hiss(t0(), 0.025, 0.12, 3100, 2);
+    },
+    thud() {                            // dice landing on the felt
+      if (!ready()) return;
+      tone(t0(), 170, 0.1, 'triangle', 0.28, sfxBus, 85);
+    },
+    card() {                            // a card swished across the felt
+      if (!ready()) return;
+      hiss(t0(), 0.07, 0.11, 2400, 0.7);
+    },
+    win() {                             // little payout fanfare
+      if (!ready()) return;
+      [62, 66, 69, 74].forEach((n, i) => tone(t0() + i * 0.07, F(n), 0.12, 'square', 0.09, sfxBus));
+    },
+    lose() {                            // two-note slump
+      if (!ready()) return;
+      tone(t0(), F(50), 0.16, 'triangle', 0.2, sfxBus);
+      tone(t0() + 0.15, F(44), 0.24, 'triangle', 0.2, sfxBus);
+    }
+  };
+})();
+/* the browser only opens the audio gate inside a real user gesture */
+addEventListener('pointerdown', () => sound.unlock(), { capture: true });
+const muteBtn = document.getElementById('btn-mute');
+function updateMuteBtn() {
+  muteBtn.textContent = sound.muted ? '♪ OFF' : '♪ ON';
+  muteBtn.classList.toggle('muted', sound.muted);
+}
+muteBtn.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  sound.unlock();
+  sound.toggleMute();
+  updateMuteBtn();
+});
+updateMuteBtn();
 
 /* ============================ dialogue box ============================ */
 const dlg = { open:false, id:null, name:'', pages:[], page:0, chars:0, action:null };
@@ -1774,9 +1955,42 @@ function trayHit(pt, withRemove) {
   }
   return -1;
 }
+/* a real chip stack sitting on the felt: colour keyed to the amount,
+   the amount printed on the top chip — no bare numbers on the baize */
+function drawBetChip(g, x, y, amt, dim) {
+  const col = amt >= 50 ? CHIP_COL[50] : amt >= 10 ? CHIP_COL[10] : amt >= 5 ? CHIP_COL[5] : CHIP_COL[1];
+  const under = amt >= 40 ? 2 : amt >= 10 ? 1 : 0;   // extra chips peeking out
+  if (dim) g.globalAlpha = 0.55;
+  g.fillStyle = 'rgba(10,5,2,0.4)';
+  g.beginPath(); g.ellipse(x + 1 + under, y + 5 + under, 7.5, 3, 0, 0, Math.PI * 2); g.fill();
+  for (let i = under; i >= 1; i--) {
+    g.fillStyle = 'rgba(0,0,0,0.5)';
+    g.beginPath(); g.arc(x + i * 2, y + i * 2 + 1, 6.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = col;
+    g.beginPath(); g.arc(x + i * 2, y + i * 2, 6.5, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = 'rgba(0,0,0,0.5)';
+  g.beginPath(); g.arc(x, y + 1, 7, 0, Math.PI * 2); g.fill();
+  g.fillStyle = col;
+  g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.85)';
+  g.fillRect(x - 1, y - 7, 2, 2.5); g.fillRect(x - 1, y + 4.5, 2, 2.5);
+  g.fillRect(x - 7, y - 1, 2.5, 2); g.fillRect(x + 4.5, y - 1, 2.5, 2);
+  g.fillStyle = 'rgba(255,255,255,0.18)';
+  g.beginPath(); g.arc(x, y, 4.5, 0, Math.PI * 2); g.fill();
+  const s = String(amt);
+  g.font = '6px "Press Start 2P", monospace';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(0,0,0,0.7)';
+  g.fillText(s, x + 0.5, y + 1);
+  g.fillStyle = amt >= 5 ? '#fff6e0' : '#3a332c';
+  g.fillText(s, x, y + 0.5);
+  g.font = FONT; g.textAlign = 'left'; g.textBaseline = 'top';
+  g.globalAlpha = 1;
+}
 /* scrolling action carousel: gold-framed centre item, neighbours peek */
 const caro = { off: 0 };
-function caroNudge(dir) { caro.off = dir * 44; }
+function caroNudge(dir) { caro.off = dir * 44; sound.tick(); }
 function drawCarousel(items, idx, y) {
   caro.off *= 0.7;
   if (Math.abs(caro.off) < 0.5) caro.off = 0;
@@ -1948,6 +2162,7 @@ function drawPopups(seatPos) {
       ctx.fillStyle = C.gold;
       ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 32 - rise);
     } else if (p.kind === 'bubble') {
+      if (p.t % 6 === 0 && p.t * 0.5 <= p.str.length) sound.blip(p.target === 'dealer');
       if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, true, p.t);
       else drawBubble(pos.x, pos.y - 24, p.str, false, p.t);
     }
@@ -2166,6 +2381,7 @@ function bjJournal() {
 function bjStartHand() {
   bj.bet = bj.betAmt;
   setChips(chips - bj.bet);              // buy-in (≙ commitWager)
+  sound.chip();
   bj.deck = newDeck();
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.result = ''; bj.busted = false;
   bj.dealQ = ['you','dealer','you','dealer'];
@@ -2182,9 +2398,9 @@ function bjMenu(list, idxKey) {
 function bjTrayTap() {
   const hit = trayHit(tapNow, true);
   if (hit < 0) return;
-  if (hit === TRAY.length) { bj.betAmt = 0; return; }          // X takes it down
+  if (hit === TRAY.length) { bj.betAmt = 0; sound.chip(); return; }   // X takes it down
   if (bj.betAmt + TRAY[hit] > chips) flash('NOT ENOUGH CHIPS');
-  else { bj.betAmt += TRAY[hit]; bj.trayIdx = hit; }
+  else { bj.betAmt += TRAY[hit]; bj.trayIdx = hit; sound.chip(); }
 }
 function bjUpdate() {
   if (modalUpdate()) { lastActMs = Date.now(); return; }
@@ -2224,6 +2440,7 @@ function bjUpdate() {
       const next = bj.dealQ.shift();
       if (next === 'dealer') bj.dealer.push(bj.deck.pop());
       else bj.hand.push(bj.deck.pop());
+      sound.card();
       bjJournal();
       if (!bj.dealQ.length) {
         dealerSay('Dealer shows ' + CARD_CALLED[bj.dealer[1].r], 300, CALL_BEAT);
@@ -2247,6 +2464,7 @@ function bjUpdate() {
       aQueued = false;
       if (pick === 'HIT') {
         bj.hand.push(bj.deck.pop());
+        sound.card();
         bj.decideUntil = Date.now() + BJ_DECIDE_MS;
         bjJournal();
         const v = handValue(bj.hand);
@@ -2256,7 +2474,9 @@ function bjUpdate() {
         bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
       } else if (pick === 'DOUBLE') {
         setChips(chips - bj.bet); bj.bet *= 2;
+        sound.chip();
         bj.hand.push(bj.deck.pop());
+        sound.card();
         bjJournal();
         if (handValue(bj.hand) > 21) bj.busted = true;
         bj.state = 'dealerTurn'; bj.hole = false; bj.timer = 0;
@@ -2280,6 +2500,7 @@ function bjUpdate() {
       if (!bj.busted && handValue(bj.dealer) < 17) {
         const card = bj.deck.pop();
         bj.dealer.push(card);
+        sound.card();
         const dv = handValue(bj.dealer);
         const called = CARD_CALLED[card.r];
         dealerSay(dv > 21
@@ -2299,6 +2520,8 @@ function bjUpdate() {
         else if (pv === dv) { payout = bj.bet; bj.result = 'PUSH'; }
         else { bj.result = 'DEALER WINS  -' + bj.bet; }
         if (payout) setChips(chips + payout);   // payout mint (≙ claimWinnings)
+        if (payout > bj.bet) sound.win();
+        else if (payout === 0) sound.lose();
         journal(null);                          // stake settled — clear the journal
         if (!bj.busted && dv <= 21) dealerSay('Dealer stands on ' + dv + '.', 340, CALL_BEAT);
         bj.flash = payout > bj.bet ? 40 : 0;
@@ -2360,6 +2583,14 @@ function bjRender() {
     const v = handValue(bj.hand);
     ctx.fillStyle = bj.busted ? '#e05a70' : C.gold;
     ctx.fillText(String(v), pos.x - 4, pos.y - 62);
+  }
+  /* your bet lives on the felt as real chips (ghosted while you're
+     still stacking it, solid once the hand is live) */
+  const feltBet = (bj.state === 'bet' || bj.state === 'result') ? bj.betAmt : bj.bet;
+  if (feltBet > 0) {
+    const you = BJ_SEATS[social.seat];
+    drawBetChip(ctx, you.x + (social.seat >= 2 ? -28 : 28), you.y - 34,
+      feltBet, bj.state === 'bet' || bj.state === 'result');
   }
   const seatPos = tableSeatPos(BJ_SEATS, { x: 120, y: 40 });
   drawPopups(seatPos);
@@ -2730,6 +2961,8 @@ function crResolve() {
   /* the stickman makes the call — a beat after the dice land */
   dealerSay(crCall(d1, d2, prevPoint, cr.point), 380, CALL_BEAT);
   cr.flash = winTot > 0 ? 40 : 0;
+  if (winTot > 0) sound.win();
+  else if (seven) sound.lose();
   cr.outcome = out.slice(0, 2);
   crJournal();
   if (cr.postRoll) {
@@ -2756,14 +2989,16 @@ function crUpdate() {
     if (cr.rollT > CR_LOCK1) {
       if (cr.rollT % 10 === 0) {
         cr.dice = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+        sound.click();
       }
     } else {
       cr.dice[0] = land[0];
-      if (cr.rollT % 8 === 0) cr.dice[1] = 1 + Math.floor(Math.random() * 6);
+      if (cr.rollT % 8 === 0) { cr.dice[1] = 1 + Math.floor(Math.random() * 6); sound.click(); }
     }
     if (--cr.rollT <= 0) {
       cr.dice = [land[0], land[1]];
       cr.rollLand = null;
+      sound.thud();
       crResolve();
     }
     return;
@@ -2805,8 +3040,8 @@ function crUpdate() {
      tapping a felt spot lays or lifts chips */
   if (tapNow) {
     const hit = trayHit(tapNow, true);
-    if (hit === TRAY.length) cr.removeMode = !cr.removeMode;
-    else if (hit >= 0) { cr.unitIdx = hit; cr.removeMode = false; }
+    if (hit === TRAY.length) { cr.removeMode = !cr.removeMode; sound.tick(); }
+    else if (hit >= 0) { cr.unitIdx = hit; cr.removeMode = false; sound.tick(); }
     else {
       const spot = crSpotAt(tapNow);
       if (spot) {
@@ -2818,12 +3053,13 @@ function crUpdate() {
             const take = Math.min(unit, cr.bets[spot]);
             cr.bets[spot] -= take;
             setChips(chips + take);
+            sound.chip();
             crJournal();
           }
         }
         else if (spot === 'pass' && cr.point !== 0) flash('PASS BETS: COME OUT ONLY');
         else if (chips < unit) flash('NOT ENOUGH CHIPS');
-        else { cr.bets[spot] += unit; setChips(chips - unit); crJournal(); }
+        else { cr.bets[spot] += unit; setChips(chips - unit); sound.chip(); crJournal(); }
       }
     }
   }
@@ -2855,33 +3091,24 @@ function crRender() {
   drawEntity(ctx, { sprite:'crapsDealer', dir:'down', frame:0, x:120, y:38, staticNPC:true }, tick);
   ctx.font = FONT; ctx.textBaseline = 'top';
   const comeout = cr.point === 0;
-  /* bet amounts on the felt */
+  /* your chips sitting on the felt (dimmed = bet is OFF on the come out) */
   for (let i = 0; i < PLACE_NUMS.length; i++) {
     const n = PLACE_NUMS[i], amt = cr.bets['p' + n];
     if (!amt) continue;
     const b = placeBox(i);
-    ctx.fillStyle = comeout ? C.dim : C.gold;
-    ctx.fillText(String(amt), b.x + (amt > 99 ? 0 : amt > 9 ? 3 : 8), b.y + 12);
+    drawBetChip(ctx, b.x + b.w / 2, b.y + b.h / 2 + 2, amt, comeout);
   }
   for (let i = 0; i < HARD_NUMS.length; i++) {
     const n = HARD_NUMS[i], amt = cr.bets['h' + n];
     if (!amt) continue;
     const b = hardBox(i);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = comeout ? C.dim : C.gold;
-    ctx.fillText(String(amt), b.x + b.w / 2, b.y + 10);
-    ctx.textAlign = 'left';
+    drawBetChip(ctx, b.x + b.w / 2, b.y + b.h / 2 + 1, amt, comeout);
   }
   if (cr.bets.field > 0) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = C.gold;
-    ctx.fillText(String(cr.bets.field), fieldBox.x + fieldBox.w / 2, fieldBox.y + fieldBox.h - 4);
-    ctx.textAlign = 'left';
+    drawBetChip(ctx, fieldBox.x + fieldBox.w / 2 + 20, fieldBox.y + fieldBox.h - 11, cr.bets.field, false);
   }
   if (cr.bets.pass) {
-    ctx.fillStyle = C.red; ctx.fillRect(42, passBox.y + 10, 6, 3);
-    ctx.fillStyle = C.gold; ctx.fillRect(42, passBox.y + 7, 6, 3);
-    ctx.fillStyle = C.gold; ctx.fillText(String(cr.bets.pass), 52, passBox.y + 6);
+    drawBetChip(ctx, 48, passBox.y + 9, cr.bets.pass, false);
   }
   if (comeout && (crTotalBets() - cr.bets.pass - cr.bets.field) > 0) {
     ctx.fillStyle = C.dim;
@@ -3050,7 +3277,10 @@ let titleAlpha = 1, started = false, tick = 0;
 /* ============================ floor scene ============================ */
 function floorUpdate() {
   if (dlg.open) {
+    const prevCh = Math.floor(dlg.chars);
     dlg.chars += DLG_SPEED;
+    const nowCh = Math.floor(dlg.chars);
+    if (nowCh > prevCh && nowCh % 2 === 0 && nowCh <= dlg.pages[dlg.page].length) sound.blip();
     if (aQueued) { aQueued = false; dialogSelect(); }
     if (bQueued) { bQueued = false; dlg.open = false; }
     return;
@@ -3064,7 +3294,7 @@ function floorUpdate() {
   if (player.moving) {
     moveEntity(player, dx, dy, WALK_SPEED);
     player.animT++;
-    if (player.animT % 13 === 0) player.frame = 1 - player.frame;
+    if (player.animT % 13 === 0) { player.frame = 1 - player.frame; sound.step(); }
   } else { player.frame = 0; }
 
   if (aQueued) {
@@ -3284,6 +3514,7 @@ function floorRender() {
 /* ============================ main loop ============================ */
 function update() {
   tick++;
+  sound.setTune(!started || titleAlpha > 0.5 ? 'title' : 'casino');
   readTaps();
   tapNow = tapPt; tapPt = null;
   if (started && titleAlpha > 0) titleAlpha = Math.max(0, titleAlpha - 0.03);
@@ -3369,7 +3600,7 @@ try {
 /* test hook (only with ?debug=1 in the URL) */
 if (new URLSearchParams(location.search).has('debug')) {
   window.CN = {
-    enterCraps, enterBlackjack, leaveTable, player, cr, bj, social, popups,
+    enterCraps, enterBlackjack, leaveTable, player, cr, bj, social, popups, sound,
     get chips() { return chips; }, setChips,
     skipTitle() { started = true; titleAlpha = 0; }
   };
