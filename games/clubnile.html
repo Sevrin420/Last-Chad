@@ -48,15 +48,20 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* Screen window: the frame art's transparent cutout is x 31-801,
-   y 35-800 (of 832x1248) — the canvas overlaps it by a pixel or two
-   on every side so no background peeks through inside the gold */
+/* Screen window measured on the 832x1248 art: x 36-795, y 36-793.
+   The frame's transparent cutout is a touch bigger (x 31-801, y 35-800),
+   so the canvas wears a stepped bezel — charcoal ring innermost,
+   deepening to near-black — that fills the cutout out to the gold. */
 #screen {
   position: absolute;
-  left: 3.61%;
-  top: 2.72%;
-  width: 92.9%;
-  height: 61.55%;
+  left: 4.33%;
+  top: 2.88%;
+  width: 91.2%;
+  height: 60.65%;
+  box-shadow:
+    0 0 0 0.3cqw #34303c,
+    0 0 0 0.6cqw #1e1b26,
+    0 0 0 1cqw   #0a0810;
   z-index: 1;
   background: #0a0710;
   image-rendering: pixelated;
