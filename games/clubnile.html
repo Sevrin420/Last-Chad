@@ -48,13 +48,15 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* Screen window measured on the 832x1248 art: x 36-795, y 36-793 */
+/* Screen window: the frame art's transparent cutout is x 31-801,
+   y 35-800 (of 832x1248) — the canvas overlaps it by a pixel or two
+   on every side so no background peeks through inside the gold */
 #screen {
   position: absolute;
-  left: 4.33%;
-  top: 2.88%;
-  width: 91.2%;
-  height: 60.65%;
+  left: 3.61%;
+  top: 2.72%;
+  width: 92.9%;
+  height: 61.55%;
   z-index: 1;
   background: #0a0710;
   image-rendering: pixelated;
