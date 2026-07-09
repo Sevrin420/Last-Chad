@@ -500,6 +500,226 @@ function makeCharacter(headStyle, bodyStyle, pal) {
   out.right = [0,1].map(f => buildFrame(hd.side, bd, lg[f], pal, true));
   return out;
 }
+
+/* ==================== HD character pipeline (LTTP-grade) ====================
+   Grids are authored at HALF-PIXEL cells (32x44 per frame vs the old 16x22),
+   which is where SNES-style faces, lapels and hands come from. Colours are
+   TRAIT-DRIVEN: a character is just { skin, hat, hair, coat, pants, ... }
+   base colours, and ramp() derives the warm-highlight / cool-shadow 3-tone
+   ramp for each material the way LTTP palettes do. This is the foundation
+   for the 333 NFT characters: each NFT's metadata traits (head style, outfit,
+   colour set) map straight onto makeCharacterHD() — unique characters come
+   from data, not hand-drawn sprites. */
+function hex2rgb(h) {
+  return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+}
+function mixc(a, b, t) {
+  const A = hex2rgb(a), B = hex2rgb(b);
+  const c = A.map((v, i) => Math.round(v + (B[i] - v) * t));
+  return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+/* LTTP shading: highlights lean warm cream, shadows lean cool plum */
+function ramp(base) {
+  return { hi: mixc(base, '#fff3cf', 0.34), base, sh: mixc(base, '#2c1e3e', 0.4) };
+}
+/* symmetric halves: author 16 cells, mirror to 32 */
+const sym = r => r + [...r].reverse().join('');
+const symRows = rs => rs.map(sym);
+
+/* ── HD part library (v1: the fez-and-suit look) ──
+   channels: 2/H/h fez · 1/S/s skin · K/k hair · 3/J/j coat · L lapel
+   C shirt · R tie · G/g gold · E eye · W eye light · M mouth
+   B/b trousers · F/f shoes */
+const HD_HEADS = {
+  fez: {
+    down: symRows([
+      '...............G',
+      '........22222222',
+      '.......2HHHHHHHH',
+      '......2HHHHHHHHH',
+      '......HHHHHHHHHH',
+      '......HHHHHHHHHH',
+      '......HHHHHHHHHH',
+      '......hHHHHHHHHH',
+      '......hhhhhhhhhh',
+      '.....1SSSSSSSSSS',
+      '.....SSSEWSSSSSS',
+      '.....SSSEESSSSSS',
+      '.....SSSEESSSSSS',
+      '.....sSSSSSSSSSS',
+      '......sSSSSSSSSs',
+      '......sSSSSSSSSS',
+      '.......sSSSSSSSM',
+      '........ssSSSSSS',
+      '..........ssssss',
+      '.............SSS'
+    ]),
+    up: symRows([
+      '...............G',
+      '........22222222',
+      '.......2HHHHHHHH',
+      '......2HHHHHHHHH',
+      '......HHHHHHHHHH',
+      '......HHHHHHHHHH',
+      '......HHHHHHHHHH',
+      '......hHHHHHHHHH',
+      '......hhhhhhhhhh',
+      '.....KKKKKKKKKKK',
+      '....KKKKKKKKKKKK',
+      '....KKKKKKKKKKKK',
+      '....kKKKKKKKKKKK',
+      '....kKKKKKKKKKKK',
+      '.....kKKKKKKKKKK',
+      '.....kkKKKKKKKKK',
+      '......kkkKKKKKKK',
+      '........kkkkkkkk',
+      '...........kkkkk',
+      '.............SSS'
+    ]),
+    side: [
+      '.............G..................',
+      '.........222222.................',
+      '........2HHHHHHH................',
+      '.......2HHHHHHHH................',
+      '.......HHHHHHHHH................',
+      '.......HHHHHHHHHH...............',
+      '.......HHHHHHHHHH...............',
+      '.......hHHHHHHHHH...............',
+      '......hhhhhhhhhhhh..............',
+      '.....1SSSSSSSSSSSK..............',
+      '....1SEWSSSSSSSSKK..............',
+      '....SSEESSSssSSSKK..............',
+      '....SSEESSSssSSSKK..............',
+      '...sSSSSSSSSSSSSKk..............',
+      '....sSSSSSSSSSSSk...............',
+      '....MSSSSSSSSSSk................',
+      '.....ssSSSSSSss.................',
+      '.......ssssss...................',
+      '..........SSS...................',
+      '..........sss...................'
+    ]
+  }
+};
+const HD_BODIES = {
+  suit: symRows([
+    '..........33JJJJ',
+    '........33JJJJJJ',
+    '.......3JJJJJLCC',
+    '......3JJJJJJLCR',
+    '......JJJJJJJJLC',
+    '.....JJJJJJJJJJG',
+    '.....JjJJJJJJJJJ',
+    '.....JjJJJJJJJJG',
+    '.....JjJJJJJJJJJ',
+    '.....JjjJJJJJJJJ',
+    '.....1SjjJJJJJJJ',
+    '......ssjjjJJJJJ',
+    '......jjjjjjjjjj',
+    '.......jjjjjjjjj'
+  ])
+};
+const HD_LEGS = {
+  suit: [
+    symRows([
+      '.........BBBBB..',
+      '.........BBBBB..',
+      '.........BBBBB..',
+      '.........bBBBb..',
+      '.........bBBBb..',
+      '.........bBBb...',
+      '.........FFFF...',
+      '........FFFFF...',
+      '........fffff...',
+      '................'
+    ]),
+    [
+      '........BBBBB......BBBBB........',
+      '........BBBBB......BBBBB........',
+      '.......BBBBB........BBBBB.......',
+      '.......bBBBb........bBBBb.......',
+      '.......bBBBb........bBBBb.......',
+      '......bbbb............bbbb......',
+      '......FFFF............FFFF......',
+      '.....FFFFF............FFFFF.....',
+      '.....fffff............fffff.....',
+      '................................'
+    ]
+  ]
+};
+function paintRowsHD(g, rows, pal, yOff) {
+  for (let y = 0; y < rows.length; y++) {
+    const r = rows[y];
+    for (let x = 0; x < r.length; x++) {
+      const ch = r[x];
+      if (ch === '.' || !pal[ch]) continue;
+      g.fillStyle = pal[ch];
+      g.fillRect(x * 0.5, y * 0.5 + yOff, 0.5, 0.5);
+    }
+  }
+}
+/* selective outline only — the material ramps carry the shading now */
+function outlineHD(c) {
+  const w = c.width, h = c.height;
+  const g = c.getContext('2d');
+  const src = g.getImageData(0, 0, w, h);
+  const out = g.createImageData(w, h);
+  const A = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : src.data[(y * w + x) * 4 + 3];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    if (src.data[i + 3] > 0) {
+      out.data[i] = src.data[i]; out.data[i + 1] = src.data[i + 1];
+      out.data[i + 2] = src.data[i + 2]; out.data[i + 3] = 255;
+    } else if (A(x - 1, y) || A(x + 1, y) || A(x, y - 1) || A(x, y + 1)) {
+      out.data[i] = 38; out.data[i + 1] = 22; out.data[i + 2] = 26; out.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(out, 0, 0);
+}
+function buildFrameHD(head, body, legs, pal, mirror) {
+  const c = document.createElement('canvas');
+  c.width = 36; c.height = 48;
+  c.lw = 18; c.lh = 24;
+  const g = c.getContext('2d');
+  g.setTransform(2, 0, 0, 2, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.translate(1, 1);
+  paintRowsHD(g, head, pal, 0);
+  paintRowsHD(g, body, pal, 10);
+  paintRowsHD(g, legs, pal, 17);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  outlineHD(c);
+  if (!mirror) return c;
+  const m = document.createElement('canvas');
+  m.width = 36; m.height = 48;
+  m.lw = 18; m.lh = 24;
+  const mg = m.getContext('2d');
+  mg.translate(36, 0); mg.scale(-1, 1);
+  mg.drawImage(c, 0, 0);
+  return m;
+}
+/* traits in, character out — the future NFT metadata surface */
+function makeCharacterHD(t) {
+  const skin = ramp(t.skin), hat = ramp(t.hat), coat = ramp(t.coat);
+  const pants = ramp(t.pants), hair = ramp(t.hair), shoes = ramp(t.shoes);
+  const shirt = ramp(t.shirt || '#f4ead2');
+  const pal = {
+    '2': hat.hi, H: hat.base, h: hat.sh,
+    '1': skin.hi, S: skin.base, s: skin.sh,
+    K: hair.base, k: hair.sh,
+    '3': coat.hi, J: coat.base, j: coat.sh, L: mixc(coat.sh, '#1a1220', 0.4),
+    C: shirt.base, R: t.tie || '#b02a3c',
+    G: '#ffd766', g: '#c9a13b',
+    E: '#1a1216', W: '#fff6e6', M: '#8e4a42',
+    B: pants.base, b: pants.sh, F: shoes.base, f: shoes.sh
+  };
+  const hd = HD_HEADS[t.head || 'fez'], bd = HD_BODIES[t.body || 'suit'], lg = HD_LEGS[t.body || 'suit'];
+  const out = {};
+  out.down  = [0,1].map(f => buildFrameHD(hd.down, bd, lg[f], pal, false));
+  out.up    = [0,1].map(f => buildFrameHD(hd.up,   bd, lg[f], pal, false));
+  out.left  = [0,1].map(f => buildFrameHD(hd.side, bd, lg[f], pal, false));
+  out.right = [0,1].map(f => buildFrameHD(hd.side, bd, lg[f], pal, true));
+  return out;
+}
 /* skin/wardrobe ramps: every character carries its own shade channels */
 function charPal(p) {
   return Object.assign({
@@ -508,7 +728,10 @@ function charPal(p) {
   }, p);
 }
 const SPRITES = {
-  player:    makeCharacter('fez',  'suit', charPal({H:'#d84a34',h:'#8e2a20',K:'#3a2718',S:'#f6cfa4',T:'#f8f1e2',t:'#1a1216',u:'#d5c9ae',B:'#2c2536',b:'#1e1926',F:'#241a20'})),
+  /* the player runs on the HD trait pipeline (phase 1 pilot) */
+  player:    makeCharacterHD({ head:'fez', body:'suit', skin:'#f6cfa4', hat:'#d84a34',
+                               hair:'#3a2718', coat:'#f8f1e2', pants:'#2c2536',
+                               shoes:'#241a20', tie:'#1a1216' }),
   bartender: makeCharacter('fez',  'suit', charPal({H:'#d84a34',h:'#8e2a20',K:'#14100d',S:'#e9b98c',s:'#c2925e',T:'#fdfaf1',t:'#b02a3c',u:'#d9d3c2',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
   crapsDealer:makeCharacter('nemes','suit', charPal({H:'#2f8fa8',h:'#f0c268',S:'#e9b98c',s:'#c2925e',T:'#8c2438',t:'#f0c268',u:'#6e1c2c',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
   bjDealer:  makeCharacter('nemes','suit', charPal({H:'#3a63b4',h:'#f0c268',S:'#d3a87e',s:'#ab8054',T:'#22784e',t:'#f0c268',u:'#1a5c3c',B:'#1a1216',b:'#0f0c12',F:'#120d10'})),
@@ -3621,7 +3844,7 @@ try {
 /* test hook (only with ?debug=1 in the URL) */
 if (new URLSearchParams(location.search).has('debug')) {
   window.CN = {
-    enterCraps, enterBlackjack, leaveTable, player, cr, bj, social, popups, sound,
+    enterCraps, enterBlackjack, leaveTable, player, cr, bj, social, popups, sound, SPRITES,
     get chips() { return chips; }, setChips,
     skipTitle() { started = true; titleAlpha = 0; }
   };
