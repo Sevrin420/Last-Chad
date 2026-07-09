@@ -40,19 +40,7 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 }
 .knocker:hover{box-shadow:0 0 35px rgba(255,233,106,0.8),0 0 70px rgba(201,168,76,0.4)}
 
-/* ── Wallet button ── */
-.wallet-btn{
-  position:fixed;top:14px;right:14px;z-index:50;
-  font-family:'Press Start 2P',monospace;font-size:0.45rem;
-  padding:10px 16px;cursor:pointer;
-  background:linear-gradient(180deg,#c9a84c,#8b6914);
-  border:2px solid #d4a017;border-radius:4px;color:#1a1005;
-  box-shadow:inset 0 1px 0 rgba(255,220,120,0.4),0 2px 6px rgba(0,0,0,0.5);
-}
-.wallet-btn:hover{background:linear-gradient(180deg,#dabb5e,#a07d1e)}
-.wallet-btn.connected{font-size:0.4rem}
-
-/* ── Verification overlay ── */
+/* ── Welcome overlay ── */
 .overlay{
   position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.82);
   display:none;flex-direction:column;align-items:center;justify-content:center;
@@ -60,22 +48,6 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
 }
 .overlay.active{display:flex}
 .ov-text{font-size:clamp(0.55rem,2vw,0.75rem);color:#c9a84c;text-align:center;line-height:2.2;min-height:1.5em}
-.status{font-size:clamp(0.55rem,2vw,0.75rem);color:#ffe96a;text-align:center;min-height:1em;letter-spacing:2px;transition:opacity 0.6s ease}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
-.status.loading{animation:blink 0.9s ease-in-out infinite}
-
-/* ── Invitation card ── */
-.inv-card{
-  width:140px;height:185px;border:2px solid #ffe96a;border-radius:8px;cursor:pointer;
-  overflow:hidden;background:transparent;
-  animation:invGlow 1.5s ease-in-out infinite;
-}
-.inv-card img{width:100%;height:82%;object-fit:cover}
-.inv-card .inv-label{font-size:0.35rem;text-align:center;padding:4px;color:#ffe96a}
-@keyframes invGlow{
-  0%,100%{box-shadow:0 0 20px rgba(255,233,106,0.6),0 0 40px rgba(201,168,76,0.3)}
-  50%{box-shadow:0 0 36px rgba(255,233,106,1),0 0 70px rgba(201,168,76,0.6)}
-}
 </style>
 </head>
 <body>
@@ -91,143 +63,36 @@ body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:'Press
   <img src="assets/membersonly/rain.gif" alt="">
 </div>
 
-<button class="wallet-btn" id="walletBtn">CONNECT WALLET</button>
-
-<!-- Black overlay -->
+<!-- Black overlay: a short welcome beat, then into the casino -->
 <div class="overlay" id="overlay">
   <div class="ov-text" id="ovText"></div>
-  <div class="status" id="ovStatus"></div>
-  <div class="inv-card" id="invCard" style="display:none">
-    <img src="assets/membersonly/invitation.jpg" alt="Invitation">
-    <div class="inv-label">INVITATION</div>
-  </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-<script type="module">
-import { connectWallet, autoReconnect, truncateAddress } from './js/wallet.js';
-import { CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, READ_RPC, READ_RPC_FALLBACK } from './js/config.js';
-
-let readProv = new ethers.providers.JsonRpcProvider(READ_RPC);
-
-let addr = null;
-const walletBtn = document.getElementById('walletBtn');
-const knocker   = document.getElementById('knocker');
-const overlay   = document.getElementById('overlay');
-const ovText    = document.getElementById('ovText');
-const ovStatus  = document.getElementById('ovStatus');
-const invCard   = document.getElementById('invCard');
-
-function onConnected(a) {
-  addr = a;
-  walletBtn.textContent = truncateAddress(a);
-  walletBtn.classList.add('connected');
-}
-
-walletBtn.addEventListener('click', () => connectWallet(null, { onConnected }));
-autoReconnect({ onConnected });
+<script>
+/* Knock the door and step inside. The NFT gate returns here later —
+   membership will be checked before the door opens. */
+const knocker = document.getElementById('knocker');
+const overlay = document.getElementById('overlay');
+const ovText  = document.getElementById('ovText');
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-async function fadeOutStatus() {
-  ovStatus.classList.remove('loading');
-  ovStatus.style.opacity = '0';
-  await delay(650);
-  ovStatus.textContent = '';
-  ovStatus.style.opacity = '1';
-}
 
 async function typewrite(el, text, speed) {
   el.textContent = '';
   for (let i = 0; i < text.length; i++) {
     el.textContent += text[i];
-    await delay(speed || 150);
+    await delay(speed || 130);
   }
 }
 
-async function startVerification() {
+let entering = false;
+knocker.addEventListener('click', async () => {
+  if (entering) return;
+  entering = true;
   overlay.classList.add('active');
-  invCard.style.display = 'none';
-  ovText.textContent = '';
-  ovStatus.textContent = 'Verifying';
-  ovStatus.classList.add('loading');
-
-  let contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
-  let memberBal = 0;
-  let rpcFailed = false;
-  try {
-    memberBal = (await contract.balanceOf(addr)).toNumber();
-  } catch (e) {
-    console.error('NFT balanceOf failed (primary RPC):', e.message || e);
-    rpcFailed = true;
-  }
-
-  if (rpcFailed) {
-    try {
-      readProv = new ethers.providers.JsonRpcProvider(READ_RPC_FALLBACK);
-      contract = new ethers.Contract(CONTRACT_ADDRESS, MEMBERS_ONLY_ABI, readProv);
-      memberBal = (await contract.balanceOf(addr)).toNumber();
-      rpcFailed = false;
-    } catch (e2) {
-      console.error('NFT balanceOf failed (fallback RPC):', e2.message || e2);
-      await fadeOutStatus();
-      ovStatus.textContent = 'Cannot reach network — try again';
-      return;
-    }
-  }
-
-  if (memberBal > 0) {
-    await fadeOutStatus();
-    await typewrite(ovText, 'Welcome Member');
-    await delay(2000);
-    window.location.href = 'clublounge.html';
-    return;
-  }
-
-  let hasInvitation = false;
-  try {
-    let invItemId = 0;
-    try {
-      invItemId = (await contract.invitationItemId()).toNumber();
-    } catch (_) {
-      invItemId = 1;
-    }
-    if (invItemId > 0) {
-      const items = new ethers.Contract(ITEMS_CONTRACT_ADDRESS, ITEMS_ABI, readProv);
-      const invBal = (await items.balanceOf(addr, invItemId)).toNumber();
-      hasInvitation = invBal > 0;
-    }
-  } catch (e) {
-    console.error('Invitation check failed:', e.message || e);
-  }
-
-  await fadeOutStatus();
-
-  if (hasInvitation) {
-    await typewrite(ovText, 'Invitation detected. Welcome.');
-    invCard.style.display = 'block';
-  } else {
-    await typewrite(ovText, 'No invitation detected.');
-  }
-}
-
-knocker.addEventListener('click', () => {
-  if (!addr) {
-    connectWallet(null, { onConnected });
-  } else {
-    startVerification();
-  }
-});
-
-invCard.addEventListener('click', () => {
-  window.location.href = 'clublounge.html';   // mint page retired
-});
-
-overlay.addEventListener('click', (e) => {
-  if (e.target === overlay) {
-    overlay.classList.remove('active');
-    invCard.style.display = 'none';
-  }
+  await typewrite(ovText, 'Welcome to Club Nile');
+  await delay(900);
+  window.location.href = 'games/clubnile.html';
 });
 </script>
 </body>

@@ -1,9 +1,9 @@
 (function () {
   var page = window.location.pathname.split('/').pop() || 'index.html';
   var active = {
-    'clublounge.html': 'lobby',
-    'index.html':      'lobby',
-    'docs.html':       'docs'
+    'index.html':    'lobby',
+    'clubnile.html': 'lobby',
+    'docs.html':     'docs'
   }[page] || '';
 
   function link(href, label, key) {
@@ -17,7 +17,7 @@
     '<div class="nav-wrapper">' +
       '<button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>' +
       '<div class="nav-dropdown" id="navDropdown">' +
-        link('/clublounge.html', 'LOBBY', 'lobby') +
+        link('/games/clubnile.html', 'CLUB NILE', 'lobby') +
         link('/docs.html',     'DOCS', 'docs') +
       '</div>' +
     '</div>';

@@ -1610,7 +1610,7 @@ function dialogSelect() {
   if (dlg.chars < full) { dlg.chars = full; return; }
   if (dlg.page < dlg.pages.length - 1) { dlg.page++; dlg.chars = 0; return; }
   dlg.open = false;
-  if (dlg.action === 'exit') { window.location.href = '../clublounge.html'; return; }
+  if (dlg.action === 'exit') { window.location.href = '../index.html'; return; }
   if (dlg.action === 'craps') startTransition(() => enterCraps());
   if (dlg.action === 'blackjack') startTransition(() => enterBlackjack());
 }
@@ -4104,8 +4104,8 @@ addEventListener('beforeunload', e => {
 });
 
 /* ── Web3 integration map (next phase) ────────────────────────────────
-   Entry:  clublounge.html (wallet flow lives there) links to this page.
-           It can hand a session over via sessionStorage 'clubnile_session'
+   Entry:  index.html links straight here; the future NFT gate will hand
+           a session over via sessionStorage 'clubnile_session'
            = { wallet, tokenId, name } — picked up below.
    Gate:   verify MembersOnly.balanceOf(wallet) > 0 before enabling play.
    Chips:  replace localStorage balance with items.getChips(wallet); every
