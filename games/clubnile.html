@@ -3072,7 +3072,7 @@ const hardBox = i => ({ x: 142 + (i % 2) * 30, y: 96 + Math.floor(i / 2) * 22, w
 const fieldBox = { x: 56, y: 92, w: 78, h: 46 };
 const passBox = { x: 34, y: 150, w: 172, h: 18 };
 const DICE_POS = [ { x: 36, y: 90 }, { x: 36, y: 110 } ];
-const CR_MENU = ['ROLL','EMOJI','TIP','LEAVE'];
+const CR_MENU = ['ROLL','EMOJI','TIP'];   // B leaves the table
 
 const crRoom = makeCanvas(W, H, g => {
   paintTableRoom(g);
@@ -3515,7 +3515,6 @@ function crUpdate() {
     }
     else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
     else if (item === 'TIP') openTipModal();
-    else if (item === 'LEAVE') openLeaveModal();
   }
 }
 function crRender() {
