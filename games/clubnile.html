@@ -48,25 +48,33 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* Screen window measured on the 832x1248 art: x 36-795, y 36-793.
-   The frame's transparent cutout is a touch bigger (x 31-801, y 35-800)
-   and its edge is feathered, so the canvas wears a THICK stepped bezel
-   — charcoal ring innermost, deepening to near-black — that runs well
-   underneath the gold so no background ever ghosts through the edge. */
+/* Screen window measured on the 832x1248 art: x 36-795, y 36-793. */
 #screen {
   position: absolute;
   left: 4.33%;
   top: 2.88%;
   width: 91.2%;
   height: 60.65%;
-  box-shadow:
-    0 0 0 0.45cqw #34303c,
-    0 0 0 0.95cqw #1e1b26,
-    0 0 0 2.2cqw  #0a0810;
   z-index: 1;
   background: #0a0710;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+/* The bezel sits ON TOP of the frame art: crisp stepped rings that
+   start at the screen edge and end in a sharp line over the gold,
+   burying the cutout's feathered edge completely. */
+#bezel {
+  position: absolute;
+  left: 4.33%;
+  top: 2.88%;
+  width: 91.2%;
+  height: 60.65%;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 0.45cqw #34303c,
+    0 0 0 0.95cqw #1e1b26,
+    0 0 0 1.6cqw  #0a0810;
 }
 /* ---- Touch controls (all % of the frame).
         RIGHT button = A (select) · LEFT button = B (back) ---- */
@@ -247,6 +255,7 @@ body {
 <div id="console">
   <canvas id="screen" width="480" height="480"></canvas>
   <img class="frame" src="../assets/membersonly/egypt-console.png" alt="Club Nile console">
+  <div id="bezel"></div>
   <div class="hot" id="dpad"></div>
   <div class="hot" id="btn-b"></div>
   <div class="hot" id="btn-a"></div>
