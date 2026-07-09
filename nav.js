@@ -1,16 +1,9 @@
 (function () {
   var page = window.location.pathname.split('/').pop() || 'index.html';
   var active = {
-    'mint.html':        'mint',
-    'game.html':        'lobby',
-    'poker.html':       'lobby',
-    'craps.html':       'lobby',
-    'blackjack.html':   'lobby',
-    'docs.html':        'docs',
-    'market.html':      'lobby',
-    'index.html':    'lobby',
-    'tournament.html':  'lobby',
-    'leaderboard.html': 'leaderboard'
+    'clublounge.html': 'lobby',
+    'index.html':      'lobby',
+    'docs.html':       'docs'
   }[page] || '';
 
   function link(href, label, key) {
@@ -25,8 +18,6 @@
       '<button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>' +
       '<div class="nav-dropdown" id="navDropdown">' +
         link('/clublounge.html', 'LOBBY', 'lobby') +
-        link('/mint.html',     'MINT', 'mint') +
-        link('/leaderboard.html', 'LEADERBOARD', 'leaderboard') +
         link('/docs.html',     'DOCS', 'docs') +
       '</div>' +
     '</div>';
