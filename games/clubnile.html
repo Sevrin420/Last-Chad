@@ -119,7 +119,7 @@ body {
   align-items: center;
   justify-content: center;
   color: #f2d488;
-  font-size: 4.4cqw;
+  font-size: 6.6cqw;
   background: rgba(24,14,4,0.72);
   border: 0.55cqw solid #8a6015;
   border-radius: 50%;
@@ -132,9 +132,9 @@ body {
   left: 10%;
   right: 10%;
   top: 46%;
-  height: 0.8cqw;
+  height: 0.56cqw;
   background: #c0392b;
-  border-radius: 0.4cqw;
+  border-radius: 0.28cqw;
   transform: rotate(-45deg);
 }
 #btn-mute.pressed { background: rgba(255,235,170,0.35); }
@@ -2610,7 +2610,7 @@ function drawBubble(cx, anchorY, text, mode, age) {
   let x, y;
   if (mode === 'ne') {                      // above and right of the head
     x = Math.max(2, Math.min(W - w - 2, cx + 4));
-    y = anchorY - h - 6;
+    y = Math.max(2, anchorY - h - 6);       // never runs off the top
   } else {
     x = Math.max(2, Math.min(W - w - 2, Math.round(cx - w / 2)));
     y = mode === 'below' ? anchorY + 5 : anchorY - h - 5;
@@ -2705,7 +2705,7 @@ function drawTimerBox(label, secs, urgent) {
   ctx.fillStyle = C.dim;
   ctx.fillText(label, x + w / 2, y + 4);
   ctx.fillStyle = urgent ? '#ff8a78' : C.gold;
-  ctx.fillText(secs + 'S', x + w / 2, y + 15);
+  ctx.fillText(String(secs), x + w / 2, y + 15);
   ctx.textAlign = 'left';
 }
 
@@ -3220,7 +3220,7 @@ const cr = {
   outcome:[], outT:0, flash:0,
   net:{ active:false, phase:'', until:0, shooter:null },
   solo:{ phase:'betting', until:0 },
-  rollLand:null, postRoll:null
+  rollLand:null, postRoll:null, popupT:0
 };
 /* long theatrical roll (~4.8s): die 1 lands, die 2 spins on */
 const CR_ROLL_TICKS = 288, CR_LOCK1 = 126;
@@ -3250,7 +3250,7 @@ function enterCraps() {
   cr.menuIdx = 0; cr.removeMode = false;
   cr.outcome = []; cr.outT = 0;
   cr.net = { active:false, phase:'', until:0, shooter:null };
-  cr.rollLand = null; cr.postRoll = null;
+  cr.rollLand = null; cr.postRoll = null; cr.popupT = 0;
   modal = null;
   popups.length = 0;
   crSoloPhase('betting');
@@ -3431,6 +3431,7 @@ function crUpdate() {
       cr.dice = [land[0], land[1]];
       cr.rollLand = null;
       sound.thud();
+      cr.popupT = 60;          // hold the big-dice window a beat on the result
       crResolve();
     }
     return;
@@ -3520,8 +3521,8 @@ function crUpdate() {
 function crRender() {
   ctx.drawImage(crRoom, 0, 0, W, H);
   drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
-  /* the stickman works the left side of the table, by the dice */
-  drawEntity(ctx, { sprite:'crapsDealer', dir:'right', frame:0, x:9, y:118, staticNPC:true }, tick);
+  /* the stickman works the top of the table, beside the clock */
+  drawEntity(ctx, { sprite:'crapsDealer', dir:'down', frame:0, x:58, y:36, staticNPC:true }, tick);
   ctx.font = FONT; ctx.textBaseline = 'top';
   const comeout = cr.point === 0;
   /* your chips sitting on the felt (dimmed = bet is OFF on the come out) */
@@ -3577,7 +3578,7 @@ function crRender() {
   /* seats + your win hop */
   const hop = (cr.flash > 0 && Math.floor(tick / 10) % 2) ? -1 : 0;
   drawTableSeats(CR_SEATS, hop);
-  const seatPos = tableSeatPos(CR_SEATS, { x: 16, y: 94, mode: 'ne' });
+  const seatPos = tableSeatPos(CR_SEATS, { x: 64, y: 30, mode: 'ne' });
   /* shooter marker: a little die above whoever holds the dice */
   if (cr.net.active && cr.net.shooter) {
     const sp = seatPos(cr.net.shooter === social.youId ? 'you' : cr.net.shooter);
@@ -3591,7 +3592,8 @@ function crRender() {
   ctx.font = FONT; ctx.textBaseline = 'top';
   const live = cr.net.active ? cr.net : cr.solo;
   const secs = Math.max(0, Math.ceil((live.until - Date.now()) / 1000));
-  if (cr.mode === 'rolling') {
+  if (cr.mode === 'rolling' || cr.popupT > 0) {
+    if (cr.mode !== 'rolling') cr.popupT--;
     drawTray(cr.unitIdx, true, cr.removeMode);
     drawRollPopup();
     drawNetDot();
@@ -3646,14 +3648,17 @@ function drawRollPopup() {
   ctx.fillRect(x + 1, y + h - 3, 2, 2); ctx.fillRect(x + w - 3, y + h - 3, 2, 2);
   ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.fillStyle = C.gold;
-  ctx.fillText(cr.rollT > CR_LOCK1 ? 'ROLLING...' : 'ONE MORE BONE...', x + w / 2, y + 8);
+  const rolling = cr.mode === 'rolling';
+  ctx.fillText(rolling
+    ? (cr.rollT > CR_LOCK1 ? 'ROLLING...' : 'ONE MORE BONE...')
+    : (cr.dice[0] + cr.dice[1]) + '!', x + w / 2, y + 8);
   ctx.textAlign = 'left';
-  /* big mirrored dice */
-  const t1 = cr.rollT > CR_LOCK1;
+  /* big mirrored dice — both sit still once the roll is decided */
+  const t1 = rolling && cr.rollT > CR_LOCK1;
   const b1 = t1 ? (tick % 2 ? 1.5 : -1.5) : 0;
-  const b2 = tick % 2 ? -1.5 : 1.5;
+  const b2 = rolling ? (tick % 2 ? -1.5 : 1.5) : 0;
   drawDie(ctx, x + 34 + b1, y + 26 + (t1 ? (tick % 3) - 1 : 0), cr.dice[0], 42);
-  drawDie(ctx, x + 88 + b2, y + 28 + ((tick + 1) % 3) - 1, cr.dice[1], 42);
+  drawDie(ctx, x + 88 + b2, y + 28 + (rolling ? ((tick + 1) % 3) - 1 : 0), cr.dice[1], 42);
 }
 
 /* ============================ scene helpers ============================ */
