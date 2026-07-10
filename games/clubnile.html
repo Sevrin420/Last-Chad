@@ -1189,10 +1189,13 @@ const SPRITES = {
 const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
 /* ============================ map (floor) ============================ */
-const BAR = { c0:4, c1:10, row:3 };
+const BAR = { c0:10, c1:13, row:2 };          // short bar, top-right corner
 const CRAPS_T = { c0:2, c1:5, r0:8, r1:9 };
 const BJ_T = { c0:9, c1:12, r0:8, r1:9 };
-const PALMS = [[1,4],[13,4],[1,12],[13,12]];
+const PALMS = [];                             // only one big palm now (bottom-right)
+const BIGPALM = { c:13, r:12 };
+const STAGE = { c:1, r:2 };                   // band stage, back-left corner
+const SARC = { c:1, r:12 };                   // sarcophagus, bottom-left
 const DOOR = { c:7, r:14 };
 const RUG = { c0:5, c1:9, r0:5, r1:12 };
 
@@ -1204,19 +1207,23 @@ for (let c = BAR.c0; c <= BAR.c1; c++) solid.add(key(c, BAR.row));
 for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) solid.add(key(c,r));
 for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
-/* sarcophagus + rope (left wall) and pharaoh statue (right wall) */
-[[1,6],[1,7],[1,8],[1,9],[13,6],[13,7],[13,8],[13,9]].forEach(([c,r]) => solid.add(key(c,r)));
+/* big palm (bottom-right), sarcophagus + rope (bottom-left), pharaoh
+   statue (right wall), and the band stage (back-left corner) */
+[[13,11],[13,12],[1,11],[1,12],[13,6],[13,7],[13,8],[13,9]].forEach(([c,r]) => solid.add(key(c,r)));
+[[1,2],[2,2],[1,3],[2,3]].forEach(([c,r]) => solid.add(key(c,r)));   // stage
 solid.add(key(7,2));
 solid.add(key(3,7));
 solid.add(key(11,7));
 
 const talkMap = {};
 for (let c = BAR.c0; c <= BAR.c1; c++) talkMap[key(c, BAR.row)] = 'bartender';
-talkMap[key(7,2)] = 'bartender';
+talkMap[key(12,3)] = 'bartender';             // step up to the bar
 for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) talkMap[key(c,r)] = 'craps';
 talkMap[key(3,7)] = 'craps';
 for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) talkMap[key(c,r)] = 'blackjack';
 talkMap[key(11,7)] = 'blackjack';
+/* walk up to the band to request a song */
+[[1,2],[2,2],[1,3],[2,3],[3,2],[2,4],[3,3]].forEach(([c,r]) => talkMap[key(c,r)] = 'band');
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
 
 /* ============================ chips ============================ */
@@ -1526,6 +1533,11 @@ const NPC_TALK = {
     action: 'blackjack',
     broke: ["The felt is for players holding chips.", "Come back when your pockets jingle."]
   },
+  band: {
+    name: 'THE NILE THREE',
+    lines: [["We take requests, cat! 10 chips a number — what'll it be?"]],
+    action: 'songs'
+  },
   door: {
     name: 'CLUB NILE',
     lines: [["Leave the party?"]],
@@ -1559,7 +1571,7 @@ function nextLine(id) {
 /* ============================ entities ============================ */
 const player = { x: 7.5*TS, y: 13*TS - 2, dir: 'up', frame: 0, animT: 0, moving: false };
 const npcs = [
-  { id:'bartender',  sprite:'bartender',  x: 7.5*TS, y: 3*TS - 3,  dir:'down' },
+  { id:'bartender',  sprite:'bartender',  x: 12*TS,  y: 2*TS + 1,  dir:'down' },
   { id:'craps',      sprite:'crapsDealer',x: 3.5*TS, y: 8*TS - 3,  dir:'down' },
   { id:'blackjack',  sprite:'bjDealer',   x: 11.5*TS,y: 8*TS - 3,  dir:'down' }
 ];
@@ -1712,6 +1724,14 @@ const sound = (() => {
       return muted;
     },
     setTune() { /* single looping track now — kept for callers */ },
+    playSong(file) {                    // band request: (re)start a track
+      if (!ensure()) return;
+      if (ac.state === 'suspended') ac.resume();
+      if (!music) return;
+      if (file && !music.src.endsWith(file.split('/').pop())) music.src = file;
+      music.currentTime = 0;
+      if (!muted) music.play().catch(() => {});
+    },
     blip(hi) {                          // typewriter text tick (quiet)
       if (!ready()) return;
       if (t0() - lastBlip < 0.05) return;
@@ -1808,11 +1828,11 @@ function powerOff() {
 /* ============================ dialogue box ============================ */
 const dlg = { open:false, id:null, name:'', pages:[], page:0, chars:0, action:null };
 const DLG_SPEED = 0.22;   // slow, cosy typewriter
-function wrapText(text, maxW) {
+function wrapText(text, maxW, font) {
   const words = text.split(' ');
   const lines = [];
   let cur = '';
-  ctx.font = FONT;
+  ctx.font = font || FONT;
   for (const w of words) {
     const test = cur ? cur + ' ' + w : w;
     if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
@@ -1843,6 +1863,43 @@ function dialogSelect() {
   if (dlg.action === 'exit') { window.location.href = '../index.html'; return; }
   if (dlg.action === 'craps') startTransition(() => enterCraps());
   if (dlg.action === 'blackjack') startTransition(() => enterBlackjack());
+  if (dlg.action === 'songs') { songMenu.open = true; songMenu.idx = 0; }
+}
+
+/* ============================ jukebox (band requests) ============================ */
+const SONGS = [
+  { title:'IN DA CLUB', by:'8-bit tribute', file:'../assets/membersonly/indaclub.mp3' }
+];
+const SONG_COST = 10;
+const songMenu = { open:false, idx:0 };
+function songMenuUpdate() {
+  if (tapLeft)  songMenu.idx = (songMenu.idx + SONGS.length - 1) % SONGS.length;
+  if (tapRight) songMenu.idx = (songMenu.idx + 1) % SONGS.length;
+  if (bQueued) { bQueued = false; songMenu.open = false; return; }
+  if (aQueued) {
+    aQueued = false;
+    if (chips < SONG_COST) { flash('NEED ' + SONG_COST + ' CHIPS'); return; }
+    setChips(chips - SONG_COST);
+    sound.playSong(SONGS[songMenu.idx].file);
+    pushChat('', 'You put ' + SONG_COST + ' chips in for “' + SONGS[songMenu.idx].title + '”', true);
+    addPopup('band', 'bubble', '“' + SONGS[songMenu.idx].title + '” — you got it!', 240);
+    songMenu.open = false;
+  }
+}
+function drawSongMenu() {
+  const x = 40, y = 150, w = 160, h = 60;
+  ctx.fillStyle = 'rgba(18,13,31,0.95)'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = C.rugGold; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  ctx.fillStyle = C.goldHi; ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('REQUEST A SONG', x + w / 2, y + 6);
+  const s = SONGS[songMenu.idx];
+  ctx.fillStyle = C.white; ctx.font = '10px "Press Start 2P", monospace';
+  ctx.fillText(s.title, x + w / 2, y + 22);
+  ctx.font = FONT; ctx.fillStyle = C.dim;
+  ctx.fillText(s.by + '  ·  ' + SONG_COST + ' CHIPS', x + w / 2, y + 36);
+  if (SONGS.length > 1) { ctx.fillStyle = C.gold; ctx.fillText('◄            ►', x + w / 2, y + 22); }
+  ctx.fillStyle = C.rugGold; ctx.fillText('A: PLAY   B: BACK', x + w / 2, y + 48);
+  ctx.textAlign = 'left';
 }
 
 /* ============================ interaction / movement ============================ */
@@ -2189,7 +2246,60 @@ const palmCanvas = makeCanvas(22, 34, g => {
   g.fillStyle = '#d98a3a';
   g.fillRect(8, 11, 2, 2); g.fillRect(9, 12.5, 2, 2);
   g.fillStyle = '#f0aa55'; g.fillRect(8.5, 11.5, 1, 1);
+  /* extra fronds + coconuts for the big statement palm */
+  g.fillStyle = C.leafHi;
+  g.fillRect(0, 6, 4, 1); g.fillRect(18, 6, 4, 1);
+  g.fillRect(5, 2, 3, 1); g.fillRect(14, 2, 3, 1);
+  g.fillStyle = C.leaf;
+  g.fillRect(1, 9, 3, 1); g.fillRect(18, 9, 3, 1);
+  g.fillStyle = '#7a4a24';
+  g.fillRect(7, 10, 1.5, 1.5); g.fillRect(13.5, 10, 1.5, 1.5);
+  g.fillStyle = '#a06a34'; g.fillRect(7, 10, 0.6, 0.6); g.fillRect(13.5, 10, 0.6, 0.6);
 });
+/* diagonal cabaret stage across the back-left corner with a jamming
+   three-piece band: cellist, drummer, and a singer at the mic */
+const stageCanvas = makeCanvas(78, 60, g => {
+  /* raised parquet platform, cut on the diagonal */
+  g.fillStyle = C.shadow; g.beginPath();
+  g.moveTo(2, 54); g.lineTo(74, 30); g.lineTo(74, 40); g.lineTo(2, 60); g.closePath(); g.fill();
+  g.fillStyle = C.woodDark; g.beginPath();
+  g.moveTo(0, 50); g.lineTo(72, 24); g.lineTo(72, 34); g.lineTo(0, 58); g.closePath(); g.fill();
+  g.fillStyle = C.wood; g.beginPath();
+  g.moveTo(0, 48); g.lineTo(72, 22); g.lineTo(72, 26); g.lineTo(0, 52); g.closePath(); g.fill();
+  g.strokeStyle = C.goldDark; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, 48); g.lineTo(72, 22); g.stroke();
+  g.fillStyle = C.goldHi; g.beginPath(); g.moveTo(0, 47.5); g.lineTo(72, 21.5); g.lineTo(72, 22); g.lineTo(0, 48); g.closePath(); g.fill();
+  /* deco backdrop fan behind the band */
+  g.strokeStyle = 'rgba(217,174,95,0.5)'; g.lineWidth = 1;
+  for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(30, 20); g.lineTo(30 + i * 8, 2); g.stroke(); }
+});
+function drawMusician(g, kind, x, y, seed) {
+  const t = tick + seed * 17;
+  const bob = Math.floor(t / 10) % 2;                 // heads nod to the beat
+  const sway = (Math.floor(t / 14) % 3) - 1;
+  if (kind === 'cello') {
+    g.fillStyle = '#5e3820'; g.fillRect(x + 3, y - 6, 5, 12);        // body
+    g.fillStyle = '#8f5531'; g.fillRect(x + 4, y - 5, 3, 10);
+    g.fillStyle = '#2a1c12'; g.fillRect(x + 5, y - 12, 1, 7);        // neck
+    g.strokeStyle = '#e8dcc0'; g.lineWidth = 0.4; g.beginPath(); g.moveTo(x + 7, y - 12); g.lineTo(x + 9 + sway, y - 4); g.stroke();
+  } else if (kind === 'drum') {
+    g.fillStyle = C.goldDark; g.fillRect(x + 1, y - 2, 10, 7);       // bass drum
+    g.fillStyle = '#c0392b'; g.fillRect(x + 2, y - 1, 8, 5);
+    g.fillStyle = C.goldHi; g.fillRect(x + 5, y, 2, 2);
+    g.fillStyle = '#2a1c12'; g.fillRect(x - 1 + sway, y - 8, 1, 6);  // stick
+    g.fillRect(x + 11 - sway, y - 8, 1, 6);
+  } else if (kind === 'mic') {
+    g.fillStyle = '#2a1c12'; g.fillRect(x + 4, y - 10, 1, 12);       // mic stand
+    g.fillStyle = C.gold; g.fillRect(x + 3.5, y - 12, 2, 2.5);       // mic head
+    g.fillStyle = C.goldHi; g.fillRect(x + 3.5, y - 12, 2, 0.8);
+  }
+  /* the musician — a little tux figure, head nodding */
+  g.fillStyle = '#efc298'; g.fillRect(x - 1, y - 12 - bob, 5, 4);    // head
+  g.fillStyle = '#1a1216'; g.fillRect(x - 1, y - 13 - bob, 5, 1.5);  // hair
+  g.fillStyle = kind === 'mic' ? '#7a1a26' : '#2a2536';              // torso
+  g.fillRect(x - 2, y - 8, 7, 8);
+  g.fillStyle = '#f4ead2'; g.fillRect(x + 1, y - 8, 1, 6);           // shirt front
+}
 /* decorative sarcophagus behind a rope stanchion (left wall) */
 const sarcCanvas = makeCanvas(28, 58, g => {
   g.fillStyle = C.shadow;
@@ -2824,7 +2934,8 @@ function modalDraw(seatPos) {
 }
 
 /* ============================ popups (bubbles/emoji/tips) ============================ */
-function drawPopups(seatPos, filter) {
+function drawPopups(seatPos, filter, scale) {
+  const S = scale || 1;
   for (let i = popups.length - 1; i >= 0; i--) {
     const p = popups[i];
     if (filter && !filter(p)) continue;
@@ -2847,9 +2958,9 @@ function drawPopups(seatPos, filter) {
       ctx.fillText(p.str, pos.x - p.str.length * 4, pos.y - 32 - rise);
     } else if (p.kind === 'bubble') {
       /* bubbles type silently — only the A-button dialogue box blips */
-      if (pos.mode) drawBubble(pos.x, pos.y, p.str, pos.mode, p.t);
-      else if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, 'below', p.t);
-      else drawBubble(pos.x, pos.y - 24, p.str, 'above', p.t);
+      if (pos.mode) drawBubble(pos.x, pos.y, p.str, pos.mode, p.t, S);
+      else if (p.target === 'dealer') drawBubble(pos.x, pos.y, p.str, 'below', p.t, S);
+      else drawBubble(pos.x, pos.y - 24 * S, p.str, 'above', p.t, S);
     }
     ctx.globalAlpha = 1;
   }
@@ -2866,15 +2977,18 @@ function bubblePath(x, y, w, h, r) {
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
 }
-function drawBubble(cx, anchorY, text, mode, age) {
+function drawBubble(cx, anchorY, text, mode, age, scale) {
+  const S = scale || 1;                      // floor bubbles come in at 0.65
   const big = mode !== 'above';             // dealer lines get the big bubble
-  const maxW = big ? 168 : (text.length > 24 ? 132 : 100);
-  const lineH = big ? 12 : 10;
-  const pad = big ? 7 : 4;
-  ctx.font = FONT;
+  const fontPx = Math.max(5, Math.round(8 * S));
+  const bfont = fontPx + 'px "Press Start 2P", monospace';
+  const maxW = (big ? 168 : (text.length > 24 ? 132 : 100)) * S;
+  const lineH = (big ? 12 : 10) * S;
+  const pad = (big ? 7 : 4) * S;
+  ctx.font = bfont;
   /* never truncate: the box grows with the text (up to a cap), and past
      the cap the typewriter scrolls line by line through the whole thing */
-  const lines = wrapText(text, maxW - pad * 2);
+  const lines = wrapText(text, maxW - pad * 2, bfont);
   const maxLines = big ? 4 : 3;
   const shown = Math.min(lines.length, maxLines);
   const w = Math.min(maxW, Math.max(...lines.map(l => ctx.measureText(l).width)) + pad * 2);
@@ -2888,23 +3002,25 @@ function drawBubble(cx, anchorY, text, mode, age) {
     x = Math.max(2, Math.min(W - w - 2, Math.round(cx - w / 2)));
     y = mode === 'below' ? anchorY + 5 : anchorY - h - 5;
   }
+  const rr = 5 * S, tw = 4 * S, th = 5 * S;
   ctx.fillStyle = 'rgba(10,6,14,0.35)';     // soft drop shadow
-  bubblePath(x + 1, y + 2, w, h, 5); ctx.fill();
+  bubblePath(x + 1, y + 2, w, h, rr); ctx.fill();
   ctx.fillStyle = 'rgba(247,243,232,0.97)';
-  bubblePath(x, y, w, h, 5); ctx.fill();
+  bubblePath(x, y, w, h, rr); ctx.fill();
   ctx.strokeStyle = C.black; ctx.lineWidth = 1;
-  bubblePath(x + 0.5, y + 0.5, w - 1, h - 1, 5); ctx.stroke();
+  bubblePath(x + 0.5, y + 0.5, w - 1, h - 1, rr); ctx.stroke();
   /* tail */
   ctx.fillStyle = 'rgba(247,243,232,0.97)';
   ctx.beginPath();
   if (mode === 'below') {
-    ctx.moveTo(cx - 4, y + 1); ctx.lineTo(cx, y - 5); ctx.lineTo(cx + 4, y + 1);
+    ctx.moveTo(cx - tw, y + 1); ctx.lineTo(cx, y - th); ctx.lineTo(cx + tw, y + 1);
   } else if (mode === 'ne') {
     ctx.moveTo(x + 5, y + h - 1); ctx.lineTo(cx, anchorY + 3); ctx.lineTo(x + 13, y + h - 1);
   } else {
-    ctx.moveTo(cx - 4, y + h - 1); ctx.lineTo(cx, y + h + 5); ctx.lineTo(cx + 4, y + h - 1);
+    ctx.moveTo(cx - tw, y + h - 1); ctx.lineTo(cx, y + h + th); ctx.lineTo(cx + tw, y + h - 1);
   }
   ctx.closePath(); ctx.fill();
+  ctx.font = bfont;
   /* typewriter with a scrolling window: find the line being typed and
      keep it in view, sliding earlier lines up and out */
   const r = age === undefined ? text.length + 99 : Math.floor(age * 0.5);
@@ -4045,6 +4161,7 @@ let titleAlpha = 0, started = true, tick = 0;
 
 /* ============================ floor scene ============================ */
 function floorUpdate() {
+  if (songMenu.open) { songMenuUpdate(); return; }
   if (dlg.open) {
     const prevCh = Math.floor(dlg.chars);
     dlg.chars += DLG_SPEED;
@@ -4268,12 +4385,11 @@ function drawTitle(g) {
   g.textAlign = 'left';
   g.textBaseline = 'top';
 }
-/* torch sconces bolted to the walls: two on the back wall flanking the
-   bar, three down each side wall */
+/* torch sconces: framing the stage and the bar on the back wall, plus
+   one low on each side wall */
 const SCONCES = [
-  { x: 3*TS + 6, y: 20 }, { x: 11*TS + 6, y: 20 },
-  { x: 6, y: 74 }, { x: 6, y: 128 }, { x: 6, y: 182 },
-  { x: W - 6, y: 74 }, { x: W - 6, y: 128 }, { x: W - 6, y: 182 }
+  { x: 66, y: 18 }, { x: W - 66, y: 18 },
+  { x: 6, y: 182 }, { x: W - 6, y: 182 }
 ];
 function floorRender() {
   ctx.drawImage(bg, 0, 0, W, H);
@@ -4288,8 +4404,17 @@ function floorRender() {
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6, barCanvas.lw, barCanvas.lh) });
   items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS, crapsCanvas.lw, crapsCanvas.lh) });
   items.push({ y: (BJ_T.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ_T.c0*TS, BJ_T.r0*TS, bjCanvas.lw, bjCanvas.lh) });
-  PALMS.forEach(([c, r]) => items.push({ y: (r+1)*TS, draw: g => g.drawImage(palmCanvas, c*TS - 3, r*TS - 17, palmCanvas.lw, palmCanvas.lh) }));
-  items.push({ y: 152, draw: g => g.drawImage(sarcCanvas, 9, 94, sarcCanvas.lw, sarcCanvas.lh) });
+  /* diagonal stage + jamming three-piece band, back-left corner */
+  items.push({ y: 30, draw: g => {
+    g.drawImage(stageCanvas, 0, 6, stageCanvas.lw, stageCanvas.lh);
+    drawMusician(g, 'cello', 12, 30, 0);
+    drawMusician(g, 'drum', 30, 32, 1);
+    drawMusician(g, 'mic', 50, 28, 2);
+  } });
+  /* big statement palm, bottom-right (2x, extra detail) */
+  items.push({ y: BIGPALM.r*TS + 14, draw: g => g.drawImage(palmCanvas, BIGPALM.c*TS - 20, BIGPALM.r*TS - 40, palmCanvas.lw*2, palmCanvas.lh*2) });
+  /* sarcophagus + stanchion moved to the bottom-left */
+  items.push({ y: SARC.r*TS + 12, draw: g => g.drawImage(sarcCanvas, 4, SARC.r*TS - 40, sarcCanvas.lw, sarcCanvas.lh) });
   items.push({ y: 148, draw: g => g.drawImage(pharaohCanvas, 202, 90, pharaohCanvas.lw, pharaohCanvas.lh) });
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
@@ -4319,13 +4444,14 @@ function floorRender() {
   }
   /* popups over heads on the floor: you, the staff, and the regulars —
      the bartender's bubble is deferred so it rides over the HUD */
-  drawPopups(floorSeatPos, p => p.target !== 'bartender');
+  drawPopups(floorSeatPos, p => p.target !== 'bartender', 0.65);
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
   vg.addColorStop(1, 'rgba(8,5,14,0.5)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
   if (dlg.open) drawDialog(ctx);
+  if (songMenu.open) drawSongMenu();
   if (titleAlpha > 0) drawTitle(ctx);
 }
 
@@ -4336,6 +4462,7 @@ function floorSeatPos(target) {
     const b = npcs[0];
     return { x: b.x + 8, y: b.y - 22, mode: 'ne' };
   }
+  if (target === 'band') return { x: 34, y: 20, mode: 'ne' };
   const npc = npcs.find(n => n.id === target);
   if (npc) return { x: npc.x, y: npc.y - 4 };
   const gu = guests.find(g2 => g2.id === target);
@@ -4378,7 +4505,7 @@ function render() {
   }
   if (started) drawHUD(ctx);
   /* the bartender's bubble rides over the chip counter and everything */
-  if (scene === 'floor' && started) drawPopups(floorSeatPos, p => p.target === 'bartender');
+  if (scene === 'floor' && started) drawPopups(floorSeatPos, p => p.target === 'bartender', 0.65);
   if (trans.active) {
     const a = trans.t < 15 ? trans.t / 15 : (30 - trans.t) / 15;
     ctx.fillStyle = 'rgba(6,4,10,' + Math.min(1, a) + ')';
