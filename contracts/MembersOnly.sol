@@ -47,7 +47,9 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // day/time (e.g. Monday 00:00 UTC) so every weekly drop lands on that schedule.
     uint256 public weekLength = 7 days;
     uint256 public weekAnchor;
-    mapping(uint256 => mapping(uint256 => bool)) public weekClaimed; // tokenId => week => claimed
+    // unclaimed weeks STACK: track the last week folded into a claim; a claim mints
+    // reward * (currentWeek - lastClaimWeek). Set at mint so it can't backfill pre-mint weeks.
+    mapping(uint256 => uint256) public lastClaimWeek; // tokenId => last week counted
 
     function currentWeek() public view returns (uint256) {
         return (block.timestamp - weekAnchor) / weekLength;
@@ -209,6 +211,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         for (uint256 i = 0; i < quantity; i++) {
             totalMinted++;
             _safeMint(msg.sender, totalMinted);
+            lastClaimWeek[totalMinted] = currentWeek();   // weekly drop starts accruing from next week
         }
         items.mintChips(msg.sender, chipsPerMint * quantity);
     }
@@ -300,19 +303,30 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function claimWeeklyChips(uint256 tokenId) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!weekClaimed[tokenId][currentWeek()], "Already claimed this week");
+        uint256 weeksOwed = claimableWeeks(tokenId);
+        require(weeksOwed > 0, "Nothing to claim yet");
 
-        uint8 tier = tokenTier[tokenId];
-        uint256 reward = tierChipReward[tier];
-        uint8 level = getLevel(tokenId);
-        reward += levelBonusChips[level];
+        uint256 reward = tierChipReward[tokenTier[tokenId]] + levelBonusChips[getLevel(tokenId)];
+        require(reward > 0, "No reward set");
 
-        require(reward > 0, "No chips to claim");
+        lastClaimWeek[tokenId] = currentWeek();          // resync (also safe if schedule moved)
+        uint256 total = reward * weeksOwed;
+        items.mintChips(msg.sender, total);              // one signed tx mints all stacked weeks
 
-        weekClaimed[tokenId][currentWeek()] = true;
-        items.mintChips(msg.sender, reward);
+        emit WeeklyChipsClaimed(tokenId, currentWeek(), total);
+    }
 
-        emit WeeklyChipsClaimed(tokenId, currentWeek(), reward);
+    // whole unclaimed weeks waiting for this token (safe against a moved schedule)
+    function claimableWeeks(uint256 tokenId) public view returns (uint256) {
+        uint256 cw = currentWeek();
+        uint256 last = lastClaimWeek[tokenId];
+        return cw > last ? cw - last : 0;
+    }
+
+    // total chips this token can claim right now (all stacked weeks)
+    function claimableChips(uint256 tokenId) external view returns (uint256) {
+        uint256 reward = tierChipReward[tokenTier[tokenId]] + levelBonusChips[getLevel(tokenId)];
+        return reward * claimableWeeks(tokenId);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -348,8 +362,9 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         return reward;
     }
 
+    // kept for the UI: a token has "claimed" a given week if it's already folded in
     function hasClaimed(uint256 tokenId, uint256 week) external view returns (bool) {
-        return weekClaimed[tokenId][week];
+        return week < lastClaimWeek[tokenId];
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {

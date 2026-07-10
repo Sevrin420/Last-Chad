@@ -180,25 +180,42 @@ describe("MembersOnly", function () {
       await membersOnly.setLevelBonus(1, 5);
     });
 
-    it("should claim weekly chips as ERC-1155 tokens", async function () {
+    const WEEK = 7 * 24 * 60 * 60;
+    async function passWeeks(n) {
+      await ethers.provider.send("evm_increaseTime", [WEEK * n]);
+      await ethers.provider.send("evm_mine", []);
+    }
+
+    it("has nothing to claim in the mint week", async function () {
+      expect(await membersOnly.claimableWeeks(1)).to.equal(0);
+      await expect(
+        membersOnly.connect(user1).claimWeeklyChips(1)
+      ).to.be.revertedWith("Nothing to claim yet");
+    });
+
+    it("should claim one week of chips after a week passes", async function () {
+      await passWeeks(1);
       const before = await items.balanceOf(user1.address, CHIPS_ID);
       await membersOnly.connect(user1).claimWeeklyChips(1);
       const after = await items.balanceOf(user1.address, CHIPS_ID);
       expect(after - before).to.equal(25n); // 20 tier + 5 level
     });
 
-    it("should prevent double claiming same week", async function () {
+    it("stacks unclaimed weeks into a single claim", async function () {
+      await passWeeks(3);
+      expect(await membersOnly.claimableWeeks(1)).to.equal(3);
+      expect(await membersOnly.claimableChips(1)).to.equal(75n); // 25 * 3
+      const before = await items.balanceOf(user1.address, CHIPS_ID);
+      await membersOnly.connect(user1).claimWeeklyChips(1);
+      expect((await items.balanceOf(user1.address, CHIPS_ID)) - before).to.equal(75n);
+    });
+
+    it("cannot double-claim within the same week", async function () {
+      await passWeeks(1);
       await membersOnly.connect(user1).claimWeeklyChips(1);
       await expect(
         membersOnly.connect(user1).claimWeeklyChips(1)
-      ).to.be.revertedWith("Already claimed this week");
-    });
-
-    it("should allow claiming after a week passes (time-based)", async function () {
-      await membersOnly.connect(user1).claimWeeklyChips(1);
-      await ethers.provider.send("evm_increaseTime", [7 * 24 * 60 * 60]);
-      await ethers.provider.send("evm_mine", []);
-      await membersOnly.connect(user1).claimWeeklyChips(1);
+      ).to.be.revertedWith("Nothing to claim yet");
     });
 
     it("should report weekly reward correctly", async function () {

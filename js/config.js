@@ -74,12 +74,9 @@ export const MEMBERS_ONLY_ABI = [
   'function tokenName(uint256 tokenId) view returns (string)',
   'function isNameTaken(string name) view returns (bool)',
   'function isNameAssigned(uint256 tokenId) view returns (bool)',
-  // Chips
-  'function getChips(uint256 tokenId) view returns (uint256)',
-  'function getChipsBatch(uint256[] tokenIds) view returns (uint256[])',
-  'function awardChips(uint256 tokenId, uint256 amount)',
-  'function batchAwardChips(uint256[] tokenIds, uint256[] amounts)',
-  'function spendChips(uint256 tokenId, uint256 amount)',
+  // Chips are an on-chain ERC-1155 token (id 0) held per-wallet in MembersOnlyItems.
+  // Read a wallet's balance with ITEMS_ABI: balanceOf(wallet, 0). MembersOnly only
+  // *grants* chips (mint bonus + weekly claim) via items.mintChips.
   // Tier system
   'function tokenTier(uint256 tokenId) view returns (uint8)',
   'function tierChipReward(uint8 tier) view returns (uint256)',
@@ -98,6 +95,9 @@ export const MEMBERS_ONLY_ABI = [
   'function setWeekSchedule(uint256 anchor, uint256 length)',
   'function claimWeeklyChips(uint256 tokenId)',
   'function getWeeklyReward(uint256 tokenId) view returns (uint256)',
+  'function claimableWeeks(uint256 tokenId) view returns (uint256)',
+  'function claimableChips(uint256 tokenId) view returns (uint256)',
+  'function lastClaimWeek(uint256 tokenId) view returns (uint256)',
   'function hasClaimed(uint256 tokenId, uint256 week) view returns (bool)',
   // Active lock
   'function isActive(uint256 tokenId) view returns (bool)',
@@ -127,8 +127,6 @@ export const MEMBERS_ONLY_ABI = [
   'function mintedPerWallet(address wallet) view returns (uint256)',
   // Events
   'event NameSet(uint256 indexed tokenId, string name)',
-  'event ChipsAwarded(uint256 indexed tokenId, uint256 amount, uint256 totalChips)',
-  'event ChipsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingChips)',
   'event TierSet(uint256 indexed tokenId, uint8 tier)',
   'event WeeklyChipsClaimed(uint256 indexed tokenId, uint256 week, uint256 amount)',
   'event WeekScheduleSet(uint256 anchor, uint256 length)',
