@@ -7,6 +7,7 @@
 <title>Club Nile — Members Only</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 <style>
 /* ============================================================
    CLUB NILE — mobile-first shell.
@@ -206,6 +207,54 @@ body {
   font-size: 2.8cqw;
 }
 #chat-panel.open { display: flex; }
+/* mint / docs popups — styled like the chat panel but taller & centered */
+.popup-panel {
+  position: absolute;
+  z-index: 6;
+  left: 4%;
+  top: 12%;
+  width: 92%;
+  height: 74%;
+  display: none;
+  flex-direction: column;
+  background: rgba(16,11,26,0.98);
+  border: 0.6cqw solid #b98d3e;
+  border-radius: 1.8cqw;
+  color: #f7f3e8;
+  font-size: 2.9cqw;
+  box-shadow: 0 0 6cqw rgba(0,0,0,0.6);
+}
+.popup-panel.open { display: flex; }
+.popup-head {
+  display: flex; align-items: center;
+  padding: 1.8cqw 2.4cqw;
+  border-bottom: 0.25cqw solid #7a5c22;
+  color: #f5d76e; letter-spacing: 0.3cqw;
+}
+.popup-head span { flex: 1; }
+.popup-close, .popup-body button {
+  font-family: inherit; cursor: pointer;
+  background: #3a2b12; color: #f5d76e;
+  border: 0.25cqw solid #b98d3e; border-radius: 0.8cqw;
+  padding: 1cqw 2cqw; font-size: 2.9cqw;
+}
+.popup-body {
+  flex: 1; overflow-y: auto;
+  padding: 2.4cqw; line-height: 1.7;
+  display: flex; flex-direction: column; gap: 2cqw;
+}
+.popup-lead { color: #d8cbb0; }
+.popup-body label { display: flex; flex-direction: column; gap: 1cqw; color: #f5d76e; }
+.popup-body input {
+  font-family: inherit; font-size: 2.9cqw;
+  background: #241a30; color: #f7f3e8;
+  border: 0.25cqw solid #7a5c22; border-radius: 0.8cqw;
+  padding: 1.4cqw;
+}
+#mint-go, #mint-connect { align-self: flex-start; background: #7a1a26; color: #ffe9a8; }
+#mint-status { color: #9fd8b0; min-height: 3cqw; }
+#docs-body h4 { color: #f5d76e; margin-top: 1.5cqw; }
+#docs-body p { color: #ddd3bd; }
 #chat-head {
   display: flex;
   align-items: center;
@@ -322,6 +371,24 @@ body {
       <input id="chat-input" maxlength="80" placeholder="SAY SOMETHING..." autocomplete="off" spellcheck="false">
       <button type="submit">SEND</button>
     </form>
+  </div>
+  <div id="mint-panel" class="popup-panel">
+    <div class="popup-head"><span>MINT YOUR PASS</span><button class="popup-close" data-close="mint-panel" type="button">X</button></div>
+    <div class="popup-body">
+      <p class="popup-lead">333 Club Nile members. 0.01 AVAX each · max 5 per wallet. Minting grants chips and a seat at the tables.</p>
+      <button id="mint-connect" type="button">CONNECT WALLET</button>
+      <div id="mint-form" style="display:none">
+        <label>NAME YOUR CHAD (12 max)<input id="mint-name" maxlength="12" autocomplete="off" spellcheck="false" placeholder="e.g. NEFERU"></label>
+        <label>QUANTITY<input id="mint-qty" type="number" min="1" max="5" value="1"></label>
+        <div id="mint-cost">Total: 0.01 AVAX</div>
+        <button id="mint-go" type="button">MINT</button>
+      </div>
+      <div id="mint-status"></div>
+    </div>
+  </div>
+  <div id="docs-panel" class="popup-panel">
+    <div class="popup-head"><span>HOUSE RULES</span><button class="popup-close" data-close="docs-panel" type="button">X</button></div>
+    <div class="popup-body" id="docs-body"></div>
   </div>
 </div>
 <div id="kbd-hint">ARROWS / WASD MOVE · E / ENTER = A · ESC = B · C = CHAT · M = MUTE</div>
@@ -944,7 +1011,12 @@ const SPRITES = {
   bandCello:   makeCharacterHD({ head:'fez', body:'suit', skin:'#c68a5e', hair:'#14100d',
                                  hat:'#0f0c14', coat:'#123c6e', pants:'#0d0a12', shoes:'#120d10', tie:'#d9c07a' }),
   bandDrum:    makeCharacterHD({ head:'fez', body:'suit', skin:'#e9b98c', hair:'#14100d',
-                                 hat:'#1f5f4a', coat:'#1f5f4a', pants:'#0d0a12', shoes:'#120d10', tie:'#c9a13b' })
+                                 hat:'#1f5f4a', coat:'#1f5f4a', pants:'#0d0a12', shoes:'#120d10', tie:'#c9a13b' }),
+  /* antechamber staff */
+  mintClerk:   makeCharacterHD({ head:'fez',   body:'vest', skin:'#e0a878', hat:'#c9a13b',
+                                 hair:'#2a1c12', coat:'#1f5f4a', pants:'#1a1216', shoes:'#120d10', tie:'#c9a13b', shirt:'#f4ead2' }),
+  docsHost:    makeCharacterHD({ head:'nemes', body:'suit', skin:'#d3a87e', hat:'#3a63b4',
+                                 hair:'#14100d', coat:'#324a6e', pants:'#1a1216', shoes:'#120d10', tie:'#d4d4dc', shirt:'#f4ead2' })
 };
 const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
@@ -1327,7 +1399,7 @@ function nextLine(id) {
 }
 
 /* ============================ entities ============================ */
-const player = { x: 7.5*TS, y: (ROWS-2.5)*TS, dir: 'up', frame: 0, animT: 0, moving: false };
+const player = { x: 7.5*TS, y: 12*TS, dir: 'up', frame: 0, animT: 0, moving: false };  // starts in the antechamber
 let camY = 0;   // vertical camera offset into the taller world (set each floor frame)
 const npcs = [
   { id:'bartender',  sprite:'bartender',  x: 8*TS,   y: 2*TS + 1,  dir:'down' }
@@ -1677,19 +1749,23 @@ function nearGuest() {
   }
   return null;
 }
+/* collision + talk maps swap per scene (the antechamber has its own) */
+function activeSolid() { return scene === 'entry' ? entrySolid : solid; }
+function activeTalk()  { return scene === 'entry' ? entryTalk  : talkMap; }
 function interactTarget() {
-  const t = talkMap[facingTile()];
+  const t = activeTalk()[facingTile()];
   if (t) return { id: t, guest: null };
-  const g = nearGuest();
+  const g = scene === 'floor' ? nearGuest() : null;
   if (g) return { id: g.id, guest: g };
   return null;
 }
 const WALK_SPEED = 0.8;
 const GUEST_SPEED = 0.3;
 function blocked(px, py) {
+  const S = activeSolid();
   const pts = [[px-4,py-2],[px+3,py-2],[px-4,py+3],[px+3,py+3]];
   for (const [x,y] of pts) {
-    if (solid.has(key(Math.floor(x/TS), Math.floor(y/TS)))) return true;
+    if (S.has(key(Math.floor(x/TS), Math.floor(y/TS)))) return true;
   }
   return false;
 }
@@ -3863,7 +3939,7 @@ function drawRollPopup() {
 }
 
 /* ============================ scene helpers ============================ */
-let scene = 'floor';
+let scene = 'entry';
 let floorReturn = null;        // where to drop the player back after they leave a table
 const IDLE_KICK_MS = 180000;   // 3 min without input at a table → seat freed
 const BJ_DECIDE_MS = 15000;    // blackjack action clock → auto-stand
@@ -4254,6 +4330,217 @@ function floorSeatPos(target) {
 }
 
 /* ============================ main loop ============================ */
+/* ============================ antechamber (entry room) ============================
+   A small single-screen lobby before the casino. Two staff to talk to — a mint
+   clerk (opens the mint popup) and a docs host (opens the house rules) — and a
+   grand arch to the north that leads onto the casino floor. The arch will be
+   NFT-gated eventually via canEnterCasino(). */
+const ENTRY_DESK    = { c0:2, c1:4,  r:5 };     // mint clerk's counter (left)
+const ENTRY_LECTERN = { c0:10, c1:12, r:5 };    // docs host's lectern (right)
+const ENTRY_DOOR    = { c0:6, c1:8 };           // north arch to the casino
+const entrySolid = new Set();
+for (let c = 0; c < COLS; c++) { entrySolid.add(key(c,0)); if (c < ENTRY_DOOR.c0 || c > ENTRY_DOOR.c1) entrySolid.add(key(c,1)); entrySolid.add(key(c,14)); }
+for (let r = 0; r < 15; r++) { entrySolid.add(key(0,r)); entrySolid.add(key(COLS-1,r)); }
+for (let c = ENTRY_DESK.c0;    c <= ENTRY_DESK.c1;    c++) entrySolid.add(key(c, ENTRY_DESK.r));
+for (let c = ENTRY_LECTERN.c0; c <= ENTRY_LECTERN.c1; c++) entrySolid.add(key(c, ENTRY_LECTERN.r));
+const entryTalk = {};
+for (let c = ENTRY_DESK.c0;    c <= ENTRY_DESK.c1;    c++) { entryTalk[key(c, ENTRY_DESK.r)] = 'minter'; entryTalk[key(c, ENTRY_DESK.r+1)] = 'minter'; }
+for (let c = ENTRY_LECTERN.c0; c <= ENTRY_LECTERN.c1; c++) { entryTalk[key(c, ENTRY_LECTERN.r)] = 'docs'; entryTalk[key(c, ENTRY_LECTERN.r+1)] = 'docs'; }
+const entryNpcs = [
+  { id:'minter', sprite:'mintClerk', x: 3*TS,  y: ENTRY_DESK.r*TS - 3,    dir:'down' },
+  { id:'docs',   sprite:'docsHost',  x: 11*TS, y: ENTRY_LECTERN.r*TS - 3, dir:'down' }
+];
+const entryBg = makeCanvas(W, H, g => {
+  /* sandstone floor */
+  for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
+    g.fillStyle = (c + r) % 2 ? C.floorA : C.floorB;
+    g.fillRect(c*TS, r*TS, TS, TS);
+    g.fillStyle = 'rgba(255,246,220,0.30)'; g.fillRect(c*TS, r*TS, TS, 1);
+    g.fillStyle = 'rgba(140,110,70,0.22)'; g.fillRect(c*TS, r*TS + TS - 1, TS, 1);
+  }
+  /* welcome runner up the middle to the arch */
+  const rx = 6*TS, rw = 3*TS;
+  for (let y = 2*TS; y < 14*TS; y++) { g.fillStyle = (y % 6 < 3) ? C.rug : C.rugDark; g.fillRect(rx, y, rw, 1); }
+  g.strokeStyle = C.rugGold; g.lineWidth = 1; g.strokeRect(rx + 1.5, 2*TS + 1.5, rw - 3, 12*TS - 3);
+  /* north wall */
+  g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
+  for (let x = -8; x < W; x += 16) { g.fillStyle = C.wallLight; g.fillRect(x, 0, 16, 1); g.fillStyle = C.wallDark; g.fillRect(x, 15, 16, 1); }
+  g.fillStyle = C.wallGold; g.fillRect(0, 29, W, 2);
+  /* grand arch doorway to the casino */
+  const ax = ENTRY_DOOR.c0*TS, aw = (ENTRY_DOOR.c1 - ENTRY_DOOR.c0 + 1)*TS;
+  g.fillStyle = '#0d0912'; g.fillRect(ax, 0, aw, 2*TS);
+  const glow = g.createLinearGradient(0, 0, 0, 2*TS); glow.addColorStop(0,'rgba(255,190,90,0.5)'); glow.addColorStop(1,'rgba(255,190,90,0)');
+  g.fillStyle = glow; g.fillRect(ax, 0, aw, 2*TS);
+  g.fillStyle = C.wallGold; g.fillRect(ax-2, 0, 2, 2*TS); g.fillRect(ax+aw, 0, 2, 2*TS);
+  g.fillStyle = C.goldHi;   g.fillRect(ax-2, 0, aw+4, 2);
+  /* side + south walls */
+  const sideBlk = (x,y) => { g.fillStyle = C.sideWall; g.fillRect(x,y,TS,8); g.fillStyle = C.sideWallLight; g.fillRect(x,y,TS,1); g.fillStyle = C.sideWallDark; g.fillRect(x,y+7,TS,1); };
+  for (let y = 2*TS; y < 15*TS; y += 8) { sideBlk(0,y); sideBlk((COLS-1)*TS,y); }
+  for (let x = 0; x < W; x += TS) { sideBlk(x, 14*TS); sideBlk(x, 14*TS+8); }
+  /* mint clerk's counter (left) */
+  const dsk = (bx, bw, label, col) => {
+    const by = 5*TS;
+    g.fillStyle = C.shadow; g.fillRect(bx+2, by+TS-2, bw-4, 4);
+    g.fillStyle = C.woodDark; g.fillRect(bx, by, bw, TS);
+    g.fillStyle = C.wood;     g.fillRect(bx+1, by+1, bw-2, TS-3);
+    g.fillStyle = C.woodLight;g.fillRect(bx+1, by+1, bw-2, 1);
+    /* placard on the wall above */
+    g.fillStyle = col; g.fillRect(bx+2, by-14, bw-4, 9);
+    g.fillStyle = '#0d0912'; g.fillRect(bx+3, by-13, bw-6, 7);
+    g.fillStyle = C.goldHi; g.font = '6px "Press Start 2P"'; g.textAlign = 'center';
+    g.fillText(label, bx + bw/2, by-11);
+    g.textAlign = 'left';
+  };
+  dsk(ENTRY_DESK.c0*TS, (ENTRY_DESK.c1-ENTRY_DESK.c0+1)*TS, 'MINT', '#7a1a26');
+  dsk(ENTRY_LECTERN.c0*TS, (ENTRY_LECTERN.c1-ENTRY_LECTERN.c0+1)*TS, 'RULES', '#1f5f4a');
+});
+let casinoEntered = false;
+function canEnterCasino() { return true; }   // TODO: gate on MembersOnly.balanceOf(wallet) > 0
+function enterCasino() {
+  if (casinoEntered) return;
+  casinoEntered = true;
+  startTransition(() => {
+    scene = 'floor';
+    player.x = 7.5*TS; player.y = (ROWS-2.5)*TS; player.dir = 'up'; player.frame = 0;
+    camY = WORLD_H - H;
+    casinoEntered = false;
+  });
+}
+function entryUpdate() {
+  if (popupOpen()) { aQueued = bQueued = false; return; }
+  let dx = 0, dy = 0;
+  if (input.left) { dx = -1; player.dir = 'left'; }
+  else if (input.right) { dx = 1; player.dir = 'right'; }
+  if (input.up) { dy = -1; if (!dx) player.dir = 'up'; }
+  else if (input.down) { dy = 1; if (!dx) player.dir = 'down'; }
+  player.moving = !!(dx || dy);
+  if (player.moving) {
+    moveEntity(player, dx, dy, WALK_SPEED);
+    player.animT++;
+    if (player.animT % 13 === 0) { player.frame = 1 - player.frame; sound.step(); }
+  } else player.frame = 0;
+  /* walk north through the arch → onto the casino floor */
+  if (player.y < 2.4*TS && player.x > (ENTRY_DOOR.c0-0.5)*TS && player.x < (ENTRY_DOOR.c1+1.5)*TS) {
+    if (canEnterCasino()) enterCasino();
+    else flash('MEMBERS ONLY · MINT A PASS');
+  }
+  if (aQueued) {
+    aQueued = false;
+    const t = interactTarget();
+    if (t) {
+      if (t.id === 'minter') openMintPanel();
+      else if (t.id === 'docs') openDocsPanel();
+    }
+  }
+  if (bQueued) bQueued = false;
+}
+function entryRender() {
+  ctx.drawImage(entryBg, 0, 0, W, H);
+  const dusk = ctx.createLinearGradient(0, 0, 0, H);
+  dusk.addColorStop(0, 'rgba(26,20,54,0.30)'); dusk.addColorStop(1, 'rgba(12,9,26,0.38)');
+  ctx.fillStyle = dusk; ctx.fillRect(0, 0, W, H);
+  const items = [];
+  entryNpcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
+  items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
+  items.sort((a,b) => a.y - b.y);
+  for (const it of items) it.draw(ctx);
+  /* arch hint */
+  ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textAlign = 'center';
+  const bob = Math.floor(tick / 24) % 2;
+  ctx.fillText('▲', W/2, 2*TS + 6 + bob);
+  ctx.textAlign = 'left';
+  if (!dlg.open) {
+    const t = interactTarget();
+    if (t) { const b = Math.floor(tick/20)%2; ctx.fillStyle = C.gold; ctx.font = FONT; ctx.fillText('!', Math.round(player.x)-2, Math.round(player.y)-34-b); }
+  }
+  const vg = ctx.createRadialGradient(W/2, H/2-10, 60, W/2, H/2, 190);
+  vg.addColorStop(0,'rgba(255,190,90,0.05)'); vg.addColorStop(1,'rgba(8,5,14,0.5)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
+  if (titleAlpha > 0) drawTitle(ctx);
+}
+
+/* ── popups: mint + house rules (DOM overlays) ── */
+const mintPanel = document.getElementById('mint-panel');
+const docsPanel = document.getElementById('docs-panel');
+function popupOpen() { return mintPanel.classList.contains('open') || docsPanel.classList.contains('open'); }
+function closePopup(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.popup-close').forEach(b => b.addEventListener('click', () => closePopup(b.dataset.close)));
+function openDocsPanel() {
+  const el = document.getElementById('docs-body');
+  if (!el.dataset.filled) {
+    el.innerHTML = `
+      <h4>THE PASS</h4><p>Your Club Nile NFT is your membership. Hold one and the north arch opens onto the floor.</p>
+      <h4>CHIPS</h4><p>Chips are the house currency (an ERC-1155 token in your wallet, shared across every NFT you hold). Earn them on mint, from the weekly drop, and by winning at the tables. Spend them on wagers, tournaments, and treasury shares. Chips are freely transferable wallet-to-wallet.</p>
+      <h4>WEEKLY DROP</h4><p>Each week every NFT can claim chips = its tier reward + level bonus. The drop rolls automatically on a schedule the house sets.</p>
+      <h4>THE TABLES</h4><p>Craps and blackjack, multiplayer. Buy in with chips, cash out on a win. Dealers are server-authoritative and every settlement is oracle-signed — no client-side cheating.</p>
+      <h4>TREASURY</h4><p>Burn 10,000 chips per monthly share; the house deposits AVAX yield and shareholders claim their cut. That's what gives chips real value.</p>
+      <h4>TOURNAMENTS</h4><p>Enter with chips, lock your best stack as your score, climb the leaderboard for prizes.</p>`;
+    el.dataset.filled = '1';
+  }
+  docsPanel.classList.add('open');
+}
+/* ── mint wiring (ethers + injected wallet, Fuji testnet) ── */
+const MINT_CFG = { address: '0x6defA84b02efcEd65930341B1b20aDb6BC881809', chainId: '0xa869', priceEth: '0.01' };
+const MINT_ABI = [
+  'function mint(uint256 quantity) payable',
+  'function setName(uint256 tokenId, string name)',
+  'function balanceOf(address owner) view returns (uint256)',
+  'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)'
+];
+let mintSigner = null, mintAccount = null;
+function mintStatus(msg, ok) { const s = document.getElementById('mint-status'); s.textContent = msg; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; }
+function updateMintCost() {
+  const q = Math.max(1, Math.min(5, parseInt(document.getElementById('mint-qty').value || '1', 10)));
+  document.getElementById('mint-cost').textContent = 'Total: ' + (0.01 * q).toFixed(2) + ' AVAX';
+}
+function openMintPanel() {
+  mintPanel.classList.add('open');
+  updateMintCost();
+  if (!mintAccount) mintStatus('Connect a wallet on Avalanche Fuji to mint.');
+}
+document.getElementById('mint-qty').addEventListener('input', updateMintCost);
+document.getElementById('mint-connect').addEventListener('click', async () => {
+  try {
+    if (!window.ethereum) return mintStatus('No wallet found. Install MetaMask/Core.', false);
+    if (!window.ethers)  return mintStatus('Wallet library still loading — try again.', false);
+    const accts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    mintAccount = accts[0];
+    try {
+      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: MINT_CFG.chainId }] });
+    } catch (e) { /* user may need to add Fuji manually */ }
+    const provider = new window.ethers.providers.Web3Provider(window.ethereum);
+    mintSigner = provider.getSigner();
+    document.getElementById('mint-connect').style.display = 'none';
+    document.getElementById('mint-form').style.display = 'block';
+    mintStatus('Connected: ' + mintAccount.slice(0,6) + '…' + mintAccount.slice(-4));
+  } catch (e) { mintStatus('Connect failed: ' + (e.message || e), false); }
+});
+document.getElementById('mint-go').addEventListener('click', async () => {
+  try {
+    if (!mintSigner) return mintStatus('Connect a wallet first.', false);
+    const qty = Math.max(1, Math.min(5, parseInt(document.getElementById('mint-qty').value || '1', 10)));
+    const name = document.getElementById('mint-name').value.trim();
+    const c = new window.ethers.Contract(MINT_CFG.address, MINT_ABI, mintSigner);
+    mintStatus('Confirm the mint in your wallet…');
+    const tx = await c.mint(qty, { value: window.ethers.utils.parseEther((0.01 * qty).toFixed(2)) });
+    mintStatus('Minting… waiting for confirmation.');
+    await tx.wait();
+    if (name) {
+      const bal = await c.balanceOf(mintAccount);
+      const tokenId = await c.tokenOfOwnerByIndex(mintAccount, bal.sub(1));
+      mintStatus('Minted! Naming your Chad…');
+      const tx2 = await c.setName(tokenId, name);
+      await tx2.wait();
+      mintStatus('Welcome, ' + name + '! Pass minted. Head north to the floor.');
+    } else {
+      mintStatus('Pass minted! You can name it later. Head north to the floor.');
+    }
+  } catch (e) {
+    const m = (e.data && e.data.message) || e.message || String(e);
+    mintStatus('Mint failed: ' + m, false);
+  }
+});
+
 function update() {
   tick++;
   readTaps();
@@ -4271,15 +4558,18 @@ function update() {
   }
   if (!started) { aQueued = bQueued = false; return; }
   if (chatOpen()) { aQueued = bQueued = false; return; }   // chat panel has focus
-  if (scene === 'floor') floorUpdate();
+  if (popupOpen()) { aQueued = bQueued = false; return; }  // mint/docs popup has focus
+  if (scene === 'entry') entryUpdate();
+  else if (scene === 'floor') floorUpdate();
   else if (scene === 'blackjack') bjUpdate();
   else if (scene === 'craps') crUpdate();
 }
 function render() {
-  if (scene === 'floor') floorRender();
+  if (scene === 'entry') entryRender();
+  else if (scene === 'floor') floorRender();
   else if (scene === 'blackjack') bjRender();
   else if (scene === 'craps') crRender();
-  if (scene !== 'floor') {
+  if (scene !== 'floor' && scene !== 'entry') {
     const vg = ctx.createRadialGradient(W/2, 110, 60, W/2, 110, 200);
     vg.addColorStop(0, 'rgba(255,190,90,0.04)');
     vg.addColorStop(1, 'rgba(8,5,14,0.35)');
