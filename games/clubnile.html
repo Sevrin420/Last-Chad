@@ -1184,17 +1184,26 @@ const SPRITES = {
                                  shoes:'#ffd766' }),
   remote2:     makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#2f8fa8',
                                  hair:'#20657a', coat:'#3d6a78', pants:'#20313a',
-                                 shoes:'#120d10', tie:'#f0c268' })
+                                 shoes:'#120d10', tie:'#f0c268' }),
+  /* the Nile Three — a full-size band, same style as everyone else */
+  bandSinger:  makeCharacterHD({ head:'bob', body:'dress', skin:'#f0c49a', hair:'#14100d',
+                                 hat:'#7a1a26', coat:'#7a1a26', pants:'#7a1a26', shoes:'#d9c07a',
+                                 tie:'#c0392b', headAcc:'feather', faceAcc:'none',
+                                 metal:'#d9c07a', jewel:'#c0392b', feather:'#c0392b' }),
+  bandCello:   makeCharacterHD({ head:'fez', body:'suit', skin:'#c68a5e', hair:'#14100d',
+                                 hat:'#0f0c14', coat:'#123c6e', pants:'#0d0a12', shoes:'#120d10', tie:'#d9c07a' }),
+  bandDrum:    makeCharacterHD({ head:'fez', body:'suit', skin:'#e9b98c', hair:'#14100d',
+                                 hat:'#1f5f4a', coat:'#1f5f4a', pants:'#0d0a12', shoes:'#120d10', tie:'#c9a13b' })
 };
 const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
 /* ============================ map (floor) ============================ */
-const BAR = { c0:10, c1:13, row:2 };          // short bar, top-right corner
+const STAGE = { c0:1, c1:6, r0:2, r1:4 };     // rectangular stage, left half of top wall
+const BAR = { c0:7, c1:10, row:2 };           // bar starts right after the stage
 const CRAPS_T = { c0:2, c1:5, r0:8, r1:9 };
 const BJ_T = { c0:9, c1:12, r0:8, r1:9 };
 const PALMS = [];                             // only one big palm now (bottom-right)
 const BIGPALM = { c:13, r:12 };
-const STAGE = { c:1, r:2 };                   // band stage, back-left corner
 const SARC = { c:1, r:12 };                   // sarcophagus, bottom-left
 const DOOR = { c:7, r:14 };
 const RUG = { c0:5, c1:9, r0:5, r1:12 };
@@ -1208,22 +1217,21 @@ for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRA
 for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
 /* big palm (bottom-right), sarcophagus + rope (bottom-left), pharaoh
-   statue (right wall), and the band stage (back-left corner) */
+   statue (right wall) */
 [[13,11],[13,12],[1,11],[1,12],[13,6],[13,7],[13,8],[13,9]].forEach(([c,r]) => solid.add(key(c,r)));
-[[1,2],[2,2],[1,3],[2,3]].forEach(([c,r]) => solid.add(key(c,r)));   // stage
-solid.add(key(7,2));
+/* the raised band stage is solid across its footprint */
+for (let c = STAGE.c0; c <= STAGE.c1; c++) for (let r = STAGE.r0; r <= STAGE.r1; r++) solid.add(key(c,r));
 solid.add(key(3,7));
 solid.add(key(11,7));
 
 const talkMap = {};
-for (let c = BAR.c0; c <= BAR.c1; c++) talkMap[key(c, BAR.row)] = 'bartender';
-talkMap[key(12,3)] = 'bartender';             // step up to the bar
+for (let c = BAR.c0; c <= BAR.c1; c++) { talkMap[key(c, BAR.row)] = 'bartender'; talkMap[key(c, BAR.row + 1)] = 'bartender'; }
 for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) talkMap[key(c,r)] = 'craps';
 talkMap[key(3,7)] = 'craps';
 for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) talkMap[key(c,r)] = 'blackjack';
 talkMap[key(11,7)] = 'blackjack';
-/* walk up to the band to request a song */
-[[1,2],[2,2],[1,3],[2,3],[3,2],[2,4],[3,3]].forEach(([c,r]) => talkMap[key(c,r)] = 'band');
+/* walk up to the front of the stage to request a song */
+for (let c = STAGE.c0; c <= STAGE.c1; c++) { talkMap[key(c, STAGE.r1)] = 'band'; talkMap[key(c, STAGE.r1 + 1)] = 'band'; }
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
 
 /* ============================ chips ============================ */
@@ -1571,7 +1579,7 @@ function nextLine(id) {
 /* ============================ entities ============================ */
 const player = { x: 7.5*TS, y: 13*TS - 2, dir: 'up', frame: 0, animT: 0, moving: false };
 const npcs = [
-  { id:'bartender',  sprite:'bartender',  x: 12*TS,  y: 2*TS + 1,  dir:'down' },
+  { id:'bartender',  sprite:'bartender',  x: 8.5*TS, y: 2*TS + 1,  dir:'down' },
   { id:'craps',      sprite:'crapsDealer',x: 3.5*TS, y: 8*TS - 3,  dir:'down' },
   { id:'blackjack',  sprite:'bjDealer',   x: 11.5*TS,y: 8*TS - 3,  dir:'down' }
 ];
@@ -2256,49 +2264,61 @@ const palmCanvas = makeCanvas(22, 34, g => {
   g.fillRect(7, 10, 1.5, 1.5); g.fillRect(13.5, 10, 1.5, 1.5);
   g.fillStyle = '#a06a34'; g.fillRect(7, 10, 0.6, 0.6); g.fillRect(13.5, 10, 0.6, 0.6);
 });
-/* diagonal cabaret stage across the back-left corner with a jamming
-   three-piece band: cellist, drummer, and a singer at the mic */
-const stageCanvas = makeCanvas(78, 60, g => {
-  /* raised parquet platform, cut on the diagonal */
-  g.fillStyle = C.shadow; g.beginPath();
-  g.moveTo(2, 54); g.lineTo(74, 30); g.lineTo(74, 40); g.lineTo(2, 60); g.closePath(); g.fill();
-  g.fillStyle = C.woodDark; g.beginPath();
-  g.moveTo(0, 50); g.lineTo(72, 24); g.lineTo(72, 34); g.lineTo(0, 58); g.closePath(); g.fill();
-  g.fillStyle = C.wood; g.beginPath();
-  g.moveTo(0, 48); g.lineTo(72, 22); g.lineTo(72, 26); g.lineTo(0, 52); g.closePath(); g.fill();
-  g.strokeStyle = C.goldDark; g.lineWidth = 1;
-  g.beginPath(); g.moveTo(0, 48); g.lineTo(72, 22); g.stroke();
-  g.fillStyle = C.goldHi; g.beginPath(); g.moveTo(0, 47.5); g.lineTo(72, 21.5); g.lineTo(72, 22); g.lineTo(0, 48); g.closePath(); g.fill();
-  /* deco backdrop fan behind the band */
-  g.strokeStyle = 'rgba(217,174,95,0.5)'; g.lineWidth = 1;
-  for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(30, 20); g.lineTo(30 + i * 8, 2); g.stroke(); }
+/* big rectangular cabaret stage across the left half of the back wall.
+   Its floor is a deep plum parquet (a different colour from the sandstone
+   room) with a gold front nosing and a deco sunburst backdrop. */
+const STAGE_PX = { x: STAGE.c0 * TS - 4, y: STAGE.r0 * TS - 4,
+                   w: (STAGE.c1 - STAGE.c0 + 1) * TS + 5, h: (STAGE.r1 - STAGE.r0 + 1) * TS + 6 };
+const stageCanvas = makeCanvas(STAGE_PX.w, STAGE_PX.h, g => {
+  const w = g.canvas.width, h = g.canvas.height;
+  /* plum platform */
+  g.fillStyle = '#241636'; g.fillRect(0, 4, w, h - 4);
+  g.fillStyle = '#3a2450'; g.fillRect(0, 4, w, h - 8);
+  g.fillStyle = '#4a2f64'; g.fillRect(0, 4, w, 3);
+  /* parquet sheen lines */
+  g.fillStyle = 'rgba(120,80,160,0.28)';
+  for (let x = 4; x < w; x += 9) g.fillRect(x, 8, 4, 0.6);
+  for (let y = 12; y < h - 4; y += 6) g.fillRect(2, y, w - 4, 0.5);
+  /* gold front nosing + back trim */
+  g.fillStyle = C.goldDark; g.fillRect(0, h - 4, w, 3);
+  g.fillStyle = C.goldHi; g.fillRect(0, h - 4, w, 1);
+  g.fillStyle = C.goldDark; g.fillRect(0, 3, w, 1.5);
+  g.fillStyle = C.goldHi; g.fillRect(0, 3, w, 0.5);
+  /* art-deco sunburst backdrop across the back of the stage */
+  g.strokeStyle = 'rgba(217,174,95,0.4)'; g.lineWidth = 1;
+  const bx = w / 2;
+  for (let i = -5; i <= 5; i++) { g.beginPath(); g.moveTo(bx, 16); g.lineTo(bx + i * 9, 2); g.stroke(); }
+  g.fillStyle = 'rgba(217,174,95,0.5)'; g.fillRect(bx - 1, 2, 2, 14);
 });
-function drawMusician(g, kind, x, y, seed) {
+/* an instrument prop set in front of a full-size band member */
+function drawInstrument(g, kind, x, y, seed) {
   const t = tick + seed * 17;
-  const bob = Math.floor(t / 10) % 2;                 // heads nod to the beat
   const sway = (Math.floor(t / 14) % 3) - 1;
   if (kind === 'cello') {
-    g.fillStyle = '#5e3820'; g.fillRect(x + 3, y - 6, 5, 12);        // body
-    g.fillStyle = '#8f5531'; g.fillRect(x + 4, y - 5, 3, 10);
-    g.fillStyle = '#2a1c12'; g.fillRect(x + 5, y - 12, 1, 7);        // neck
-    g.strokeStyle = '#e8dcc0'; g.lineWidth = 0.4; g.beginPath(); g.moveTo(x + 7, y - 12); g.lineTo(x + 9 + sway, y - 4); g.stroke();
+    g.fillStyle = C.shadow; g.beginPath(); g.ellipse(x, y + 2, 6, 2, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#5e3820'; g.fillRect(x - 4, y - 12, 8, 14);       // body
+    g.fillStyle = '#8f5531'; g.fillRect(x - 3, y - 11, 6, 12);
+    g.fillStyle = C.woodHi; g.fillRect(x - 2, y - 10, 2, 10);
+    g.fillStyle = '#2a1c12'; g.fillRect(x - 0.5, y - 20, 1.5, 9);    // neck
+    g.fillStyle = C.gold; g.fillRect(x - 1, y - 21, 2.5, 1.5);       // scroll
+    g.strokeStyle = '#e8dcc0'; g.lineWidth = 0.5;
+    g.beginPath(); g.moveTo(x + 3, y - 20); g.lineTo(x + 8 + sway, y - 8); g.stroke();  // bow
   } else if (kind === 'drum') {
-    g.fillStyle = C.goldDark; g.fillRect(x + 1, y - 2, 10, 7);       // bass drum
-    g.fillStyle = '#c0392b'; g.fillRect(x + 2, y - 1, 8, 5);
-    g.fillStyle = C.goldHi; g.fillRect(x + 5, y, 2, 2);
-    g.fillStyle = '#2a1c12'; g.fillRect(x - 1 + sway, y - 8, 1, 6);  // stick
-    g.fillRect(x + 11 - sway, y - 8, 1, 6);
+    g.fillStyle = C.shadow; g.beginPath(); g.ellipse(x, y + 2, 9, 2.5, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = C.goldDark; g.fillRect(x - 9, y - 8, 18, 11);      // bass drum
+    g.fillStyle = '#7a1a26'; g.fillRect(x - 8, y - 7, 16, 9);
+    g.fillStyle = '#f4ead2'; g.beginPath(); g.arc(x, y - 2.5, 4.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = C.goldHi; g.fillRect(x - 9, y - 8, 18, 1);
+    g.strokeStyle = '#2a1c12'; g.lineWidth = 1;                      // sticks
+    g.beginPath(); g.moveTo(x - 11, y - 14 + sway); g.lineTo(x - 4, y - 6); g.stroke();
+    g.beginPath(); g.moveTo(x + 11, y - 14 - sway); g.lineTo(x + 4, y - 6); g.stroke();
   } else if (kind === 'mic') {
-    g.fillStyle = '#2a1c12'; g.fillRect(x + 4, y - 10, 1, 12);       // mic stand
-    g.fillStyle = C.gold; g.fillRect(x + 3.5, y - 12, 2, 2.5);       // mic head
-    g.fillStyle = C.goldHi; g.fillRect(x + 3.5, y - 12, 2, 0.8);
+    g.fillStyle = C.shadow; g.beginPath(); g.ellipse(x, y + 2, 4, 1.6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#2a1c12'; g.fillRect(x - 0.5, y - 20, 1.5, 22);   // stand
+    g.fillStyle = '#3a2a1a'; g.fillRect(x - 3, y + 1, 7, 1.5);       // base
+    g.fillStyle = C.gold; g.fillRect(x - 1.5, y - 23, 3.5, 3.5);     // mic head
+    g.fillStyle = C.goldHi; g.fillRect(x - 1.5, y - 23, 3.5, 1);
   }
-  /* the musician — a little tux figure, head nodding */
-  g.fillStyle = '#efc298'; g.fillRect(x - 1, y - 12 - bob, 5, 4);    // head
-  g.fillStyle = '#1a1216'; g.fillRect(x - 1, y - 13 - bob, 5, 1.5);  // hair
-  g.fillStyle = kind === 'mic' ? '#7a1a26' : '#2a2536';              // torso
-  g.fillRect(x - 2, y - 8, 7, 8);
-  g.fillStyle = '#f4ead2'; g.fillRect(x + 1, y - 8, 1, 6);           // shirt front
 }
 /* decorative sarcophagus behind a rope stanchion (left wall) */
 const sarcCanvas = makeCanvas(28, 58, g => {
@@ -4385,11 +4405,17 @@ function drawTitle(g) {
   g.textAlign = 'left';
   g.textBaseline = 'top';
 }
-/* torch sconces: framing the stage and the bar on the back wall, plus
-   one low on each side wall */
+/* torch sconces: one between the stage and bar, one right of the bar,
+   plus one low on each side wall */
 const SCONCES = [
-  { x: 66, y: 18 }, { x: W - 66, y: 18 },
+  { x: 122, y: 18 }, { x: W - 18, y: 18 },
   { x: 6, y: 182 }, { x: W - 6, y: 182 }
+];
+/* the Nile Three, standing full-size on the stage */
+const BAND = [
+  { sprite: 'bandCello',  inst: 'cello', x: 34, y: 76, seed: 0 },
+  { sprite: 'bandDrum',   inst: 'drum',  x: 62, y: 78, seed: 1 },
+  { sprite: 'bandSinger', inst: 'mic',   x: 92, y: 74, seed: 2 }
 ];
 function floorRender() {
   ctx.drawImage(bg, 0, 0, W, H);
@@ -4404,13 +4430,13 @@ function floorRender() {
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6, barCanvas.lw, barCanvas.lh) });
   items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS, crapsCanvas.lw, crapsCanvas.lh) });
   items.push({ y: (BJ_T.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ_T.c0*TS, BJ_T.r0*TS, bjCanvas.lw, bjCanvas.lh) });
-  /* diagonal stage + jamming three-piece band, back-left corner */
-  items.push({ y: 30, draw: g => {
-    g.drawImage(stageCanvas, 0, 6, stageCanvas.lw, stageCanvas.lh);
-    drawMusician(g, 'cello', 12, 30, 0);
-    drawMusician(g, 'drum', 30, 32, 1);
-    drawMusician(g, 'mic', 50, 28, 2);
-  } });
+  /* the big rectangular stage floor sits under the band */
+  ctx.drawImage(stageCanvas, STAGE_PX.x, STAGE_PX.y, stageCanvas.lw, stageCanvas.lh);
+  /* the Nile Three — full-size players jamming, y-sorted with the crowd */
+  BAND.forEach(m => items.push({ y: m.y, draw: g => {
+    drawEntity(g, { sprite: m.sprite, dir: 'down', frame: 0, x: m.x, y: m.y, staticNPC: true }, tick + m.seed * 20);
+    drawInstrument(g, m.inst, m.x, m.y + 2, m.seed);
+  } }));
   /* big statement palm, bottom-right (2x, extra detail) */
   items.push({ y: BIGPALM.r*TS + 14, draw: g => g.drawImage(palmCanvas, BIGPALM.c*TS - 20, BIGPALM.r*TS - 40, palmCanvas.lw*2, palmCanvas.lh*2) });
   /* sarcophagus + stanchion moved to the bottom-left */
@@ -4462,7 +4488,7 @@ function floorSeatPos(target) {
     const b = npcs[0];
     return { x: b.x + 8, y: b.y - 22, mode: 'ne' };
   }
-  if (target === 'band') return { x: 34, y: 20, mode: 'ne' };
+  if (target === 'band') return { x: 60, y: 44, mode: 'ne' };
   const npc = npcs.find(n => n.id === target);
   if (npc) return { x: npc.x, y: npc.y - 4 };
   const gu = guests.find(g2 => g2.id === target);
