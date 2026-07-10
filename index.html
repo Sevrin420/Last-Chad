@@ -257,7 +257,7 @@ const sndSelect = new Audio('assets/membersonly/select.wav');
 sndCapcom.preload = 'auto'; sndSelect.preload = 'auto';
 function play(a) { try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} }
 
-/* a soft double knock, synthesised — played when you rap the door */
+/* three spaced knocks, synthesised — played when you rap the door */
 const knock = (() => {
   let ac = null;
   function thud(t, freq, gain) {
@@ -275,8 +275,9 @@ const knock = (() => {
     if (!ac) { if (!AC) return; ac = new AC(); }
     if (ac.state === 'suspended') ac.resume();
     const t = ac.currentTime;
-    thud(t, 172, 0.28);
-    thud(t + 0.15, 156, 0.24);
+    thud(t,        172, 0.28);   // three deliberate, spaced raps
+    thud(t + 0.34, 160, 0.26);
+    thud(t + 0.68, 150, 0.24);
   } };
 })();
 
@@ -305,9 +306,9 @@ const rain = (() => {
     src.start();
     /* slow shimmer so it breathes like real rainfall */
     const lfo = ac.createOscillator(); lfo.frequency.value = 0.15;
-    const lfoGain = ac.createGain(); lfoGain.gain.value = 0.05;
+    const lfoGain = ac.createGain(); lfoGain.gain.value = 0.025;
     lfo.connect(lfoGain); lfoGain.connect(gain.gain); lfo.start();
-    gain.gain.setTargetAtTime(0.22, ac.currentTime, 0.6);
+    gain.gain.setTargetAtTime(0.11, ac.currentTime, 0.6);   // rain at 50% volume
   }
   function stop() {
     if (!ac || !gain) return;
@@ -415,11 +416,15 @@ async function advance() {
     stage = 'door';
     return;
   }
-  /* stage 'door' → knock, then step inside */
+  /* stage 'door' → three knocks, a beat, then step inside */
   entering = true;
-  knock.play();
+  knock.play();                        // three spaced raps (~0.85s)
   rain.stop();
-  overlay.classList.add('active');     // fade the screen to black...
+  await delay(900);                    // let the knocks finish...
+  if (!powered) return;
+  await delay(1000);                   // ...hold a 1-second pause...
+  if (!powered) return;
+  overlay.classList.add('active');     // ...then fade the screen to black...
   await delay(650);
   if (!powered) return;
   window.location.href = 'games/clubnile.html';   // ...and the game fades in
