@@ -729,113 +729,6 @@ const HD_HEADS = {
       '............SSSS....................',
       '............ssss....................'
     ]
-  },
-  /* REWORK v2 (in progress): a bare slicked-hair gentleman head so the
-     men aren't all in fezzes. Old method saved in clubnile-sprites-v1-
-     backup.html — revert there if this direction is whack. */
-  slick: {
-    down: symRows([
-      '.........KKKKKKKKK',
-      '.......KKKKKKKKKKK',
-      '......KKKKKKKKKKKK',
-      '.....KKKKKKKKKKKKK',
-      '.....KKKKKKKKKKKKK',
-      '....KKKKKKKKKKKKKK',
-      '....SSSSSSSSSSSSSS',
-      '...SSsSSSSSSSSSSSS',
-      '...SSsSSSSSSSSSSSS',
-      '..SSsSSSSSSSSSSSSS',
-      '..SSsSSSSSSSSSSSSS',
-      '..SSsSSSSSSSSSSSSS',
-      '.SSsSSSSEEEEEESSSS',
-      '.SSsSSEWEEEEEEWESS',
-      '.SSsSSEWEEEEEEWESS',
-      '.SSsSSEWEEEEEEWESS',
-      '.SSsSSEWEEEEEEWESS',
-      '.SSsSSEWEEEEEEWESS',
-      '.SSsSSEWWWWWWWWESS',
-      '.SSsSSSEWWWWWWESSS',
-      '.SSsSSSSEEEEEESSSS',
-      '.SSsSSSSSSSSSSSSSS',
-      '.SSssSSSSSSSSSSSSS',
-      '.SSsssSSSSSSSSSSSS',
-      '..SSssSSSSSSSSSSSM',
-      '..SSsssSSSSSSSSSSS',
-      '...SSssssSSSSSSSSS',
-      '....sssssSSSSSSSSS',
-      '..........ssssssss',
-      '.............sssss',
-      '...............SSS',
-      '...............sss'
-    ]),
-    up: symRows([
-      '.........KKKKKKKKK',
-      '.......KKKKKKKKKKK',
-      '......KKKKKKKKKKKK',
-      '.....KKKKKKKKKKKKK',
-      '.....KKKKKKKKKKKKK',
-      '....KKKKKKKKKKKKKK',
-      '....KKKKKKKKKKKKKK',
-      '...KKKKKKKKKKKKKKK',
-      '...KKKKKKKKKKKKKKK',
-      '..KKKKKKKKKKKKKKKK',
-      '..KKKKKKKKKKKKKKKK',
-      '..KKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kKKKKKKKKKKKKKKK',
-      '..kkKKKKKKKKKKKKKK',
-      '..kkKKKKKKKKKKKKKK',
-      '...kkKKKKKKKKKKKKK',
-      '...kkkKKKKKKKKKKKK',
-      '....kkkKKKKKKKKKKK',
-      '.....kkkkkkkkkkkkk',
-      '.......kkkkkkkkkkk',
-      '..........ssssssss',
-      '.............sssss',
-      '...............SSS',
-      '...............sss'
-    ]),
-    side: [
-      '..........KKKKKKKKKKKK..............',
-      '........KKKKKKKKKKKKKKKK............',
-      '.......KKKKKKKKKKKKKKKKKK...........',
-      '......KKKKKKKKKKKKKKKKKKKK..........',
-      '......KKKKKKKKKKKKKKKKKKKK..........',
-      '.....KKKKKKKKKKKKKKKKKKKKK..........',
-      '.....KKSSSSSSSSKKKKKKKKKKKK.........',
-      '....KSSSSSSSSSSSKKKKKKKKKKKK........',
-      '...1SSSSSSSSSSSSKKKKKKKKKKKK........',
-      '...1SSSSSSSSSSSSKKKKKKKKKKKK........',
-      '..1SSSSSSSSSSSSSKKKKKKKKKKKK........',
-      '..SSSSSSSSSSSSSSKKKKKKKKKKKK........',
-      '..11SSSEEEEEESSSKKKKKKKKKKKKKKKK....',
-      '..SSSEWEEEEEEWESKKKKKKKKKKKKKKKK....',
-      '..SSEWEEEEEEWESSKKKKKKKKKKKKKKKK....',
-      '..SSEWEEEEEEWESSKKKKKKKKKKKKKKkk....',
-      '..SSEWEEEEEEWESSKKKKKKKKKKKKKKkk....',
-      '..SSEWEEEEEEWESSKKKKKKKKKKKKKkk.....',
-      '..SSEWWWWWWWWESSSKKKKKKKKKKKKkk.....',
-      '..SSSSEWWWWWWESSSSKKKKKKKKKKKkk.....',
-      '..SSSSSSEEEEEESSSSSSKKKKKKKKKkk.....',
-      '.sSSSSSSSSSSSSSSSSSKKKKKKKkk........',
-      '..MSSSSSSSSSSSSSSSSSSkkkkk..........',
-      '..sSSSSSSSSSSSSSSSSSSkk.............',
-      '...ssSSSSSSSSSSSSSSss...............',
-      '.....ssSSSSSSSSSSSss................',
-      '.......ssSSSSSSSSss.................',
-      '.........ssSSSSss...................',
-      '...........ssssss...................',
-      '............SSSS....................',
-      '............SSSS....................',
-      '............ssss....................'
-    ]
   }
 };
 /* bodies and legs carry front and side variants — the profile is
@@ -1228,7 +1121,7 @@ function traitsForToken(id) {
     ? { head:'bob', body:'dress', skin, hair, hat: garment, coat: garment, pants: garment,
         shoes: metal, tie: jewel, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_F) + ' “' + pick(NICK) + '”' }
-    : { head: rnd() < 0.42 ? 'slick' : 'fez', body:'suit', skin, hair, hat: pick(T.hatM), coat: garment, pants: mixc(garment, '#0d0a12', 0.4),
+    : { head:'fez', body:'suit', skin, hair, hat: pick(T.hatM), coat: garment, pants: mixc(garment, '#0d0a12', 0.4),
         shoes: '#120d10', tie: jewel, shirt:'#f4ead2', headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_M) + ' “' + pick(NICK) + '”' };
   t.id = id;
@@ -4526,11 +4419,11 @@ const SCONCES = [
   { x: 90, y: 18 }, { x: W - 18, y: 18 },
   { x: 6, y: 182 }, { x: W - 6, y: 182 }
 ];
-/* the Nile Three, standing full-size, higher up on the raised stage */
+/* the Nile Three, standing full-size on the raised stage */
 const BAND = [
-  { sprite: 'bandCello',  inst: 'cello', x: 26, y: 58, seed: 0 },
-  { sprite: 'bandDrum',   inst: 'drum',  x: 47, y: 60, seed: 1 },
-  { sprite: 'bandSinger', inst: 'mic',   x: 68, y: 56, seed: 2 }
+  { sprite: 'bandCello',  inst: 'cello', x: 26, y: 66, seed: 0 },
+  { sprite: 'bandDrum',   inst: 'drum',  x: 47, y: 68, seed: 1 },
+  { sprite: 'bandSinger', inst: 'mic',   x: 68, y: 64, seed: 2 }
 ];
 function floorRender() {
   ctx.drawImage(bg, 0, 0, W, H);
@@ -4585,7 +4478,7 @@ function floorRender() {
   }
   /* popups over heads on the floor: you, the staff, and the regulars —
      the bartender's bubble is deferred so it rides over the HUD */
-  drawPopups(floorSeatPos, p => p.target !== 'bartender', 0.81);
+  drawPopups(floorSeatPos, p => p.target !== 'bartender', 0.65);
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
   vg.addColorStop(1, 'rgba(8,5,14,0.5)');
@@ -4646,7 +4539,7 @@ function render() {
   }
   if (started) drawHUD(ctx);
   /* the bartender's bubble rides over the chip counter and everything */
-  if (scene === 'floor' && started) drawPopups(floorSeatPos, p => p.target === 'bartender', 0.81);
+  if (scene === 'floor' && started) drawPopups(floorSeatPos, p => p.target === 'bartender', 0.65);
   if (trans.active) {
     const a = trans.t < 15 ? trans.t / 15 : (30 - trans.t) / 15;
     ctx.fillStyle = 'rgba(6,4,10,' + Math.min(1, a) + ')';
