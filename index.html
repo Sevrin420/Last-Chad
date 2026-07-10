@@ -95,6 +95,30 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+/* a silver glint sweeps across the title once it lands */
+#boot-shine {
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 45%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(105deg,
+    rgba(255,255,255,0) 0%,
+    rgba(226,232,240,0.35) 42%,
+    rgba(255,255,255,0.95) 50%,
+    rgba(226,232,240,0.35) 58%,
+    rgba(255,255,255,0) 100%);
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+#boot-shine.sweep { animation: shineSweep 0.75s ease-in-out forwards; }
+@keyframes shineSweep {
+  0%   { left: -60%; opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { left: 115%; opacity: 0; }
+}
 /* bezel over the gold, same as the game */
 #bezel {
   position: absolute;
@@ -205,7 +229,7 @@ body {
       <div class="rain-overlay"><img src="assets/membersonly/rain.gif" alt=""></div>
       <button class="knocker" id="knocker" aria-label="Knock"></button>
     </div>
-    <div id="boot"><canvas id="boot-cvs" width="480" height="480"></canvas></div>
+    <div id="boot"><canvas id="boot-cvs" width="480" height="480"></canvas><div id="boot-shine"></div></div>
     <div class="overlay" id="overlay"></div>
   </div>
   <img class="frame" src="assets/membersonly/egypt-console.png" alt="Members Only console">
@@ -285,13 +309,18 @@ if (document.fonts && document.fonts.load) {
 async function bootUp() {
   powered = true;
   paintBootCard();
+  const shine = document.getElementById('boot-shine');
+  shine.classList.remove('sweep');
   /* park the card above the screen with no animation, then slide in */
   boot.style.transition = 'none';
   boot.classList.remove('in', 'gone');
   void boot.offsetHeight;
   boot.style.transition = '';
   boot.classList.add('in');            // Club Nile title drifts down
-  await delay(3700);
+  await delay(2750);                   // ...lands
+  if (!powered) return;
+  shine.classList.add('sweep');        // a silver glint sweeps across it
+  await delay(1000);
   if (!powered) return;
   doorScene.classList.add('show');     // door fades in underneath
   boot.classList.add('gone');          // title card fades away

@@ -3979,6 +3979,43 @@ function drawFlame(g, x, y) {
   g.fillStyle = '#fff4d0';
   g.fillRect(x+3, y+4, 1, 1);
 }
+/* wall-mounted torch sconces, drawn in two passes: a wide flickering
+   pool of firelight (added over the dusk grade) and the crisp fixture
+   (iron bracket, gold bowl, three-tone flame) on top */
+function drawSconceGlow(g, x, y, seed) {
+  const t = tick + seed * 13;
+  const r = 26 + (Math.floor(t / 14) % 3) * 3;
+  const glow = g.createRadialGradient(x, y + 2, 2, x, y + 2, r);
+  glow.addColorStop(0, 'rgba(255,176,84,0.42)');
+  glow.addColorStop(0.5, 'rgba(255,150,70,0.16)');
+  glow.addColorStop(1, 'rgba(255,150,70,0)');
+  g.fillStyle = glow;
+  g.fillRect(x - r, y + 2 - r, r * 2, r * 2);
+}
+function drawSconceFixture(g, x, y, seed) {
+  const t = tick + seed * 13;
+  const f = Math.floor(t / 7) % 3;
+  const flick = ((seed * 37 + Math.floor(t / 9)) % 5) - 2;   // per-sconce sway
+  /* wrought-iron back plate + bracket arm */
+  g.fillStyle = '#2a1d12'; g.fillRect(x - 2, y - 4, 4, 12);
+  g.fillStyle = '#4a3418'; g.fillRect(x - 2, y - 4, 4, 1);
+  /* gilded bowl */
+  g.fillStyle = C.goldDark; g.fillRect(x - 3, y + 6, 7, 3);
+  g.fillStyle = C.gold;     g.fillRect(x - 3, y + 6, 7, 1);
+  g.fillStyle = C.goldHi;   g.fillRect(x - 3, y + 6, 2, 1);
+  /* embers */
+  g.fillStyle = '#7a2d12'; g.fillRect(x - 2, y + 5, 5, 1);
+  /* three-tone flame with a white-hot core, swaying per sconce */
+  const fx = x + flick * 0.5;
+  g.fillStyle = f === 0 ? C.flame3 : C.flame1;
+  g.fillRect(fx - 2, y, 5, 6);
+  g.fillStyle = f === 1 ? C.flame1 : C.flame2;
+  g.fillRect(fx - 1, y - 3, 3, 5);
+  g.fillStyle = '#ffe6a6';
+  g.fillRect(fx, y - 4 + (f === 2 ? -1 : 0), 1, 4);
+  g.fillStyle = '#fff6dc';
+  g.fillRect(fx, y + 1, 1, 2);
+}
 function drawHUD(g) {
   const grad = g.createLinearGradient(0, 2, 0, 14);
   grad.addColorStop(0, 'rgba(30,22,48,0.85)');
@@ -4073,10 +4110,22 @@ function drawTitle(g) {
   g.textAlign = 'left';
   g.textBaseline = 'top';
 }
+/* torch sconces bolted to the walls: two on the back wall flanking the
+   bar, three down each side wall */
+const SCONCES = [
+  { x: 3*TS + 6, y: 20 }, { x: 11*TS + 6, y: 20 },
+  { x: 6, y: 74 }, { x: 6, y: 128 }, { x: 6, y: 182 },
+  { x: W - 6, y: 74 }, { x: W - 6, y: 128 }, { x: W - 6, y: 182 }
+];
 function floorRender() {
   ctx.drawImage(bg, 0, 0, W, H);
-  drawFlame(ctx, 3*TS + 4, 18);
-  drawFlame(ctx, 11*TS + 4, 18);
+  /* evening grade: cool dusk wash over the whole room */
+  const dusk = ctx.createLinearGradient(0, 0, 0, H);
+  dusk.addColorStop(0, 'rgba(26,20,54,0.34)');
+  dusk.addColorStop(0.5, 'rgba(20,16,44,0.24)');
+  dusk.addColorStop(1, 'rgba(12,9,26,0.4)');
+  ctx.fillStyle = dusk;
+  ctx.fillRect(0, 0, W, H);
   const items = [];
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6, barCanvas.lw, barCanvas.lh) });
   items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS, crapsCanvas.lw, crapsCanvas.lh) });
@@ -4095,6 +4144,12 @@ function floorRender() {
     ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 2);
   }
   ctx.globalAlpha = 1;
+  /* sconces sit on top of the wall grade so their firelight reads warm
+     against the dusk */
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < SCONCES.length; i++) drawSconceGlow(ctx, SCONCES[i].x, SCONCES[i].y, i);
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < SCONCES.length; i++) drawSconceFixture(ctx, SCONCES[i].x, SCONCES[i].y, i);
   if (started && !dlg.open) {
     const t = interactTarget();
     if (t) {
@@ -4109,7 +4164,7 @@ function floorRender() {
   drawPopups(floorSeatPos, p => p.target !== 'bartender');
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
-  vg.addColorStop(1, 'rgba(8,5,14,0.42)');
+  vg.addColorStop(1, 'rgba(8,5,14,0.5)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
   if (dlg.open) drawDialog(ctx);
