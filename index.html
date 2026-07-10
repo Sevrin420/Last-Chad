@@ -118,7 +118,8 @@ body {
   pointer-events: none;
   border: 0.3cqw solid #34303c;
 }
-/* knocker hotspot (positioned for the zoomed-out door) */
+/* knocker hotspot (positioned for the zoomed-out door) — invisible,
+   no glow; the door speaks for itself */
 .knocker {
   position: absolute;
   width: 10%;
@@ -130,12 +131,6 @@ body {
   border-radius: 50%;
   border: none;
   background: transparent;
-  box-shadow: 0 0 30px rgba(201,168,76,0.3), 0 0 60px rgba(201,168,76,0.15);
-  animation: knockGlow 2.5s ease-in-out infinite;
-}
-@keyframes knockGlow {
-  0%,100% { box-shadow: 0 0 30px rgba(201,168,76,0.3), 0 0 60px rgba(201,168,76,0.15), 0 0 100px rgba(201,168,76,0.08); }
-  50%     { box-shadow: 0 0 45px rgba(255,233,106,0.7), 0 0 90px rgba(201,168,76,0.4), 0 0 140px rgba(201,168,76,0.2); }
 }
 /* A button on the console knocks too */
 .hot {

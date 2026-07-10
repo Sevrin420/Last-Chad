@@ -3885,7 +3885,9 @@ for (let i = 0; i < 14; i++) {
 }
 
 /* ============================ title + state ============================ */
-let titleAlpha = 1, started = false, tick = 0;
+/* the title card lives on the homepage boot now — the game opens
+   straight onto the floor, fading in from black */
+let titleAlpha = 0, started = true, tick = 0;
 
 /* ============================ floor scene ============================ */
 function floorUpdate() {
