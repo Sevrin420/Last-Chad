@@ -95,30 +95,6 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
-/* a silver glint sweeps across the title once it lands */
-#boot-shine {
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 45%;
-  height: 100%;
-  pointer-events: none;
-  background: linear-gradient(105deg,
-    rgba(255,255,255,0) 0%,
-    rgba(226,232,240,0.35) 42%,
-    rgba(255,255,255,0.95) 50%,
-    rgba(226,232,240,0.35) 58%,
-    rgba(255,255,255,0) 100%);
-  mix-blend-mode: screen;
-  opacity: 0;
-}
-#boot-shine.sweep { animation: shineSweep 0.75s ease-in-out forwards; }
-@keyframes shineSweep {
-  0%   { left: -60%; opacity: 0; }
-  15%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { left: 115%; opacity: 0; }
-}
 /* blinking PRESS A once the card has landed */
 #boot-press {
   position: absolute;
@@ -244,7 +220,7 @@ body {
       <div class="rain-overlay"><img src="assets/membersonly/rain.gif" alt=""></div>
       <button class="knocker" id="knocker" aria-label="Knock"></button>
     </div>
-    <div id="boot"><canvas id="boot-cvs" width="480" height="480"></canvas><div id="boot-shine"></div><div id="boot-press">PRESS A</div></div>
+    <div id="boot"><canvas id="boot-cvs" width="480" height="480"></canvas><div id="boot-press">PRESS A</div></div>
     <div class="overlay" id="overlay"></div>
   </div>
   <img class="frame" src="assets/membersonly/egypt-console.png" alt="Members Only console">
@@ -280,6 +256,29 @@ const sndCapcom = new Audio('assets/membersonly/capcom.wav');
 const sndSelect = new Audio('assets/membersonly/select.wav');
 sndCapcom.preload = 'auto'; sndSelect.preload = 'auto';
 function play(a) { try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} }
+
+/* a soft double knock, synthesised — played when you rap the door */
+const knock = (() => {
+  let ac = null;
+  function thud(t, freq, gain) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.5, t + 0.11);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t + 0.2);
+  }
+  return { play() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!ac) { if (!AC) return; ac = new AC(); }
+    if (ac.state === 'suspended') ac.resume();
+    const t = ac.currentTime;
+    thud(t, 172, 0.28);
+    thud(t + 0.15, 156, 0.24);
+  } };
+})();
 
 /* rain, synthesised: filtered noise loop with a gentle swell — no file,
    CSP-clean, starts with the door scene and stops when we leave it */
@@ -371,8 +370,6 @@ async function bootUp() {
   ready = false;
   stage = 'boot';
   paintBootCard();
-  const shine = document.getElementById('boot-shine');
-  shine.classList.remove('sweep');
   pressA.classList.remove('on');
   doorScene.classList.remove('show');
   /* park the card above the screen with no animation, then slide in */
@@ -382,10 +379,7 @@ async function bootUp() {
   boot.style.transition = '';
   boot.classList.add('in');            // Club Nile title drifts down
   play(sndCapcom);                     // ...to the arcade jingle
-  await delay(2750);                   // ...lands
-  if (!powered) return;
-  shine.classList.add('sweep');        // a silver glint sweeps across it
-  await delay(700);
+  await delay(2900);                   // ...lands
   if (!powered) return;
   pressA.classList.add('on');          // PRESS A blinks
   ready = true;
@@ -421,9 +415,9 @@ async function advance() {
     stage = 'door';
     return;
   }
-  /* stage 'door' → step inside */
+  /* stage 'door' → knock, then step inside */
   entering = true;
-  play(sndSelect);
+  knock.play();
   rain.stop();
   overlay.classList.add('active');     // fade the screen to black...
   await delay(650);
