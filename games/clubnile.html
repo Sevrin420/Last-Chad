@@ -341,7 +341,8 @@ body {
    claimWinnings, and tips become on-chain ERC-1155 chip transfers.
    ========================================================================== */
 
-const TS = 16, COLS = 15, ROWS = 15, W = 240, H = 240;
+const TS = 16, COLS = 15, ROWS = 30, W = 240, H = 240;
+const WORLD_H = ROWS * TS;                     // the floor is twice as long now; the camera scrolls
 const cvs = document.getElementById('screen');
 const ctx = cvs.getContext('2d');
 /* 2x supersampled backing store: the game still thinks in 240x240, but
@@ -942,36 +943,36 @@ const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
 /* ============================ map (floor) ============================ */
 const STAGE = { c0:1, c1:4, r0:2, r1:3 };     // rectangular raised stage, back-left
-const BAR = { c0:6, c1:10, row:2 };           // bar (a touch longer) with a gap after the stage
-const CRAPS_T = { c0:2, c1:5, r0:8, r1:9 };
-const BJ_T = { c0:9, c1:12, r0:8, r1:9 };
-const PALMS = [];                             // only one big palm now (bottom-right)
-const BIGPALM = { c:13, r:12 };
-const SARC = { c:1, r:12 };                   // sarcophagus, bottom-left
-const DOOR = { c:7, r:14 };
-const RUG = { c0:5, c1:9, r0:5, r1:12 };
+const BAR = { c0:6, c1:10, row:2 };           // bar at the back, beside the stage
+/* four gaming tables flank the long central runner: an upper pair and a
+   lower pair, one craps + one blackjack each */
+const TABLES = [
+  { game:'craps',     c0:1,  c1:4,  r0:8,  r1:9  },
+  { game:'blackjack', c0:10, c1:13, r0:8,  r1:9  },
+  { game:'craps',     c0:1,  c1:4,  r0:20, r1:21 },
+  { game:'blackjack', c0:10, c1:13, r0:20, r1:21 }
+];
+const FOUNTAIN = { c0:6, c1:8, r0:14, r1:15 };  // centre-piece fountain on the runner
+const PALMS = [[1,5],[13,5],[1,17],[13,17]];    // potted palms filling the long hall
+const BIGPALM = { c:13, r:26 };                 // statement palm, bottom-right
+const SARC = { c:1, r:26 };                     // sarcophagus, bottom-left
+const DOOR = { c:7, r:ROWS-1 };                 // south entrance — players walk in and head north
+const RUG = { c0:5, c1:9, r0:4, r1:27 };        // long runner up the middle
 
 const solid = new Set();
 const key = (c,r) => c + ',' + r;
-for (let c = 0; c < COLS; c++) { solid.add(key(c,0)); solid.add(key(c,1)); solid.add(key(c,14)); }
-for (let r = 0; r < ROWS; r++) { solid.add(key(0,r)); solid.add(key(14,r)); }
+for (let c = 0; c < COLS; c++) { solid.add(key(c,0)); solid.add(key(c,1)); solid.add(key(c,ROWS-1)); }
+for (let r = 0; r < ROWS; r++) { solid.add(key(0,r)); solid.add(key(COLS-1,r)); }
 for (let c = BAR.c0; c <= BAR.c1; c++) solid.add(key(c, BAR.row));
-for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) solid.add(key(c,r));
-for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) solid.add(key(c,r));
-PALMS.forEach(([c,r]) => solid.add(key(c,r)));
-/* big palm (bottom-right); sarcophagus + rope stanchion (bottom-left corner) */
-[[13,11],[13,12],[1,12],[1,13],[2,13]].forEach(([c,r]) => solid.add(key(c,r)));
-/* the raised band stage is solid across its footprint */
+for (const t of TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r <= t.r1; r++) solid.add(key(c,r));
 for (let c = STAGE.c0; c <= STAGE.c1; c++) for (let r = STAGE.r0; r <= STAGE.r1; r++) solid.add(key(c,r));
-solid.add(key(3,7));
-solid.add(key(11,7));
+for (let c = FOUNTAIN.c0; c <= FOUNTAIN.c1; c++) for (let r = FOUNTAIN.r0; r <= FOUNTAIN.r1; r++) solid.add(key(c,r));
+PALMS.forEach(([c,r]) => solid.add(key(c,r)));
+[[BIGPALM.c,BIGPALM.r],[SARC.c,SARC.r],[SARC.c+1,SARC.r]].forEach(([c,r]) => solid.add(key(c,r)));
 
 const talkMap = {};
 for (let c = BAR.c0; c <= BAR.c1; c++) { talkMap[key(c, BAR.row)] = 'bartender'; talkMap[key(c, BAR.row + 1)] = 'bartender'; }
-for (let c = CRAPS_T.c0; c <= CRAPS_T.c1; c++) for (let r = CRAPS_T.r0; r <= CRAPS_T.r1; r++) talkMap[key(c,r)] = 'craps';
-talkMap[key(3,7)] = 'craps';
-for (let c = BJ_T.c0; c <= BJ_T.c1; c++) for (let r = BJ_T.r0; r <= BJ_T.r1; r++) talkMap[key(c,r)] = 'blackjack';
-talkMap[key(11,7)] = 'blackjack';
+for (const t of TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r <= t.r1; r++) talkMap[key(c,r)] = t.game;
 /* walk up to the front of the stage to request a song */
 for (let c = STAGE.c0; c <= STAGE.c1; c++) { talkMap[key(c, STAGE.r1)] = 'band'; talkMap[key(c, STAGE.r1 + 1)] = 'band'; }
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
@@ -1319,15 +1320,16 @@ function nextLine(id) {
 }
 
 /* ============================ entities ============================ */
-const player = { x: 7.5*TS, y: 13*TS - 2, dir: 'up', frame: 0, animT: 0, moving: false };
+const player = { x: 7.5*TS, y: (ROWS-2.5)*TS, dir: 'up', frame: 0, animT: 0, moving: false };
+let camY = 0;   // vertical camera offset into the taller world (set each floor frame)
 const npcs = [
-  { id:'bartender',  sprite:'bartender',  x: 8*TS,   y: 2*TS + 1,  dir:'down' },
-  { id:'craps',      sprite:'crapsDealer',x: 3.5*TS, y: 8*TS - 3,  dir:'down' },
-  { id:'blackjack',  sprite:'bjDealer',   x: 11.5*TS,y: 8*TS - 3,  dir:'down' }
+  { id:'bartender',  sprite:'bartender',  x: 8*TS,   y: 2*TS + 1,  dir:'down' }
 ];
 const guests = [
-  { id:'guestF', sprite:'guestF', x: 5.5*TS, y: 6.5*TS, dir:'down', frame:0, animT:0, moveT:0, dx:0, dy:0 },
-  { id:'guestM', sprite:'guestM', x: 9.5*TS, y: 11.5*TS, dir:'left', frame:0, animT:0, moveT:0, dx:0, dy:0 }
+  { id:'guestF', sprite:'guestF', x: 5.5*TS, y: 6.5*TS,  dir:'down', frame:0, animT:0, moveT:0, dx:0, dy:0 },
+  { id:'guestM', sprite:'guestM', x: 9.5*TS, y: 12.5*TS, dir:'left', frame:0, animT:0, moveT:0, dx:0, dy:0 },
+  { id:'guestF', sprite:'guestF', x: 10.5*TS,y: 16.5*TS, dir:'down', frame:0, animT:0, moveT:0, dx:0, dy:0 },
+  { id:'guestM', sprite:'guestM', x: 4.5*TS, y: 23.5*TS, dir:'right',frame:0, animT:0, moveT:0, dx:0, dy:0 }
 ];
 
 /* ============================ input ============================ */
@@ -1699,8 +1701,8 @@ function moveEntity(ent, dx, dy, speed) {
 
 /* ============================ floor background ============================ */
 const bg = document.createElement('canvas');
-bg.width = W * 2; bg.height = H * 2;
-bg.lw = W; bg.lh = H;
+bg.width = W * 2; bg.height = WORLD_H * 2;
+bg.lw = W; bg.lh = WORLD_H;
 (function paintBackground() {
   const g = bg.getContext('2d');
   g.setTransform(2, 0, 0, 2, 0, 0);
@@ -1723,7 +1725,7 @@ bg.lw = W; bg.lh = H;
         g.fillRect(c*TS + px + (hx % 2) * 0.5, r*TS + py, 0.5, 0.5);
       }
       /* occasional scarab inlay tile */
-      if (h2(c, r) % 19 === 3 && r > 2 && r < 13) {
+      if (h2(c, r) % 19 === 3 && r > 2 && r < ROWS-2) {
         const ix = c*TS + 5, iy = r*TS + 5;
         g.fillStyle = C.floorDot;
         g.fillRect(ix + 2, iy, 2, 1); g.fillRect(ix + 1, iy + 1, 4, 2);
@@ -1772,9 +1774,10 @@ bg.lw = W; bg.lh = H;
       g.beginPath(); g.arc(cx, cy, 13, 0, Math.PI * 2); g.stroke();
     }
   };
-  med(rx + rw/2, ry + rh/2, true);
-  med(rx + 9, ry + 9, false); med(rx + rw - 9, ry + 9, false);
-  med(rx + 9, ry + rh - 9, false); med(rx + rw - 9, ry + rh - 9, false);
+  for (let my = ry + 3*TS; my < ry + rh - 2*TS; my += 6*TS) {
+    med(rx + rw/2, my, true);
+    med(rx + 8, my, false); med(rx + rw - 8, my, false);
+  }
   /* ── north wall: bevelled sandstone blocks + embossed glyph frieze ── */
   g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
   for (let row = 0; row < 4; row++) {
@@ -1851,28 +1854,28 @@ bg.lw = W; bg.lh = H;
     g.fillStyle = C.sideWallLight; g.fillRect(x, y, TS, 1);
     g.fillStyle = C.sideWallDark; g.fillRect(x, y + 7, TS, 1);
   };
-  for (let y = 2*TS; y < H; y += 8) { sideBlock(0, y); sideBlock(14*TS, y); }
-  for (let x = 0; x < W; x += TS) sideBlock(x, 14*TS), sideBlock(x, 14*TS + 8);
-  g.fillStyle = C.goldHi;       g.fillRect(0, 14*TS, W, 1);
-  g.fillStyle = C.wallGoldDark; g.fillRect(0, 14*TS + 1, W, 1);
+  for (let y = 2*TS; y < WORLD_H; y += 8) { sideBlock(0, y); sideBlock((COLS-1)*TS, y); }
+  for (let x = 0; x < W; x += TS) sideBlock(x, (ROWS-1)*TS), sideBlock(x, (ROWS-1)*TS + 8);
+  g.fillStyle = C.goldHi;       g.fillRect(0, (ROWS-1)*TS, W, 1);
+  g.fillStyle = C.wallGoldDark; g.fillRect(0, (ROWS-1)*TS + 1, W, 1);
   /* interior shadow from side walls */
   g.fillStyle = 'rgba(60,40,20,0.15)';
-  g.fillRect(TS, 2*TS, 2, H - 3*TS);
-  g.fillRect(14*TS - 2, 2*TS, 2, H - 3*TS);
+  g.fillRect(TS, 2*TS, 2, WORLD_H - 3*TS);
+  g.fillRect((COLS-1)*TS - 2, 2*TS, 2, WORLD_H - 3*TS);
   /* ── door: gold arch + warm glow spilling out ── */
   const dx = DOOR.c*TS;
-  g.fillStyle = '#120c14'; g.fillRect(dx + 2, 14*TS, TS - 4, TS);
-  const doorGlow = g.createLinearGradient(0, 14*TS, 0, 14*TS + 10);
+  g.fillStyle = '#120c14'; g.fillRect(dx + 2, (ROWS-1)*TS, TS - 4, TS);
+  const doorGlow = g.createLinearGradient(0, (ROWS-1)*TS, 0, (ROWS-1)*TS + 10);
   doorGlow.addColorStop(0, 'rgba(255,190,90,0.35)');
   doorGlow.addColorStop(1, 'rgba(255,190,90,0)');
-  g.fillStyle = doorGlow; g.fillRect(dx + 2, 14*TS, TS - 4, 10);
-  g.fillStyle = C.goldHi; g.fillRect(dx + 1, 14*TS, TS - 2, 1);
-  g.fillStyle = C.wallGold; g.fillRect(dx + 1, 14*TS, 1, TS); g.fillRect(dx + TS - 2, 14*TS, 1, TS);
-  g.fillStyle = C.wallGoldDark; g.fillRect(dx + 2, 14*TS + 1, 1, TS - 1); g.fillRect(dx + TS - 3, 14*TS + 1, 1, TS - 1);
+  g.fillStyle = doorGlow; g.fillRect(dx + 2, (ROWS-1)*TS, TS - 4, 10);
+  g.fillStyle = C.goldHi; g.fillRect(dx + 1, (ROWS-1)*TS, TS - 2, 1);
+  g.fillStyle = C.wallGold; g.fillRect(dx + 1, (ROWS-1)*TS, 1, TS); g.fillRect(dx + TS - 2, (ROWS-1)*TS, 1, TS);
+  g.fillStyle = C.wallGoldDark; g.fillRect(dx + 2, (ROWS-1)*TS + 1, 1, TS - 1); g.fillRect(dx + TS - 3, (ROWS-1)*TS + 1, 1, TS - 1);
   /* welcome mat */
-  g.fillStyle = C.rug; g.fillRect(dx + 2, 13*TS + 10, TS - 4, 6);
-  g.fillStyle = C.rugLight; g.fillRect(dx + 2, 13*TS + 10, TS - 4, 1);
-  g.fillStyle = C.rugGold; g.fillRect(dx + 3, 13*TS + 12, TS - 6, 1);
+  g.fillStyle = C.rug; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 6);
+  g.fillStyle = C.rugLight; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 1);
+  g.fillStyle = C.rugGold; g.fillRect(dx + 3, (ROWS-2)*TS + 12, TS - 6, 1);
 })();
 
 /* ============================ floor objects ============================ */
@@ -1957,6 +1960,35 @@ const bjCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.fillStyle = C.goldHi; g.fillRect(10, 4, 4, 1);
   g.fillStyle = '#2f7f96'; g.fillRect(w-14, 6, 4, 2);
   g.fillStyle = C.white; g.fillRect(w-14, 4, 4, 2);
+});
+/* tiered stone fountain — centre-piece on the long runner */
+const fountainCanvas = makeCanvas(48, 46, g => {
+  const cx = 24;
+  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(cx, 42, 22, 5, 0, 0, Math.PI*2); g.fill();
+  /* lower basin */
+  g.fillStyle = '#6e5330'; g.beginPath(); g.ellipse(cx, 36, 22, 8, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#9a7c48'; g.beginPath(); g.ellipse(cx, 34, 22, 7.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = C.goldHi;  g.beginPath(); g.ellipse(cx, 33.4, 22, 7.2, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#5e4a2a'; g.beginPath(); g.ellipse(cx, 34.4, 18.5, 6, 0, 0, Math.PI*2); g.fill();
+  /* water pool */
+  g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(cx, 34, 17.5, 5.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#3f8fb6'; g.beginPath(); g.ellipse(cx, 33.4, 15, 4.4, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#8fd4e6'; g.fillRect(cx-9, 33, 5, 0.6); g.fillRect(cx+3, 34, 5, 0.6); g.fillRect(cx-3, 35, 4, 0.6);
+  /* pedestal */
+  g.fillStyle = '#6e5330'; g.fillRect(cx-4, 20, 8, 14);
+  g.fillStyle = '#8f6e3c'; g.fillRect(cx-4, 20, 3, 14);
+  /* falling water streams to the pool */
+  g.fillStyle = 'rgba(160,220,240,0.7)'; g.fillRect(cx-9, 22, 1, 11); g.fillRect(cx+8, 22, 1, 11);
+  /* upper bowl */
+  g.fillStyle = '#9a7c48'; g.beginPath(); g.ellipse(cx, 20, 11, 4, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = C.goldHi;  g.beginPath(); g.ellipse(cx, 19.4, 11, 3.6, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(cx, 19, 8, 2.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#8fd4e6'; g.beginPath(); g.ellipse(cx, 18.5, 4, 1.2, 0, 0, Math.PI*2); g.fill();
+  /* central jet + lotus finial */
+  g.fillStyle = '#b7e6f2'; g.fillRect(cx-1, 8, 2, 11);
+  g.fillStyle = '#e8f7fb'; g.fillRect(cx-1, 8, 1, 11);
+  g.fillStyle = C.gold;    g.beginPath(); g.ellipse(cx, 7, 2.5, 3.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = C.goldHi;  g.fillRect(cx-0.6, 5, 1, 3);
 });
 const palmCanvas = makeCanvas(22, 34, g => {
   g.fillStyle = C.shadow;
@@ -2906,6 +2938,7 @@ const bj = {
   decideUntil:0, revealed:false, pendFlip:null, afterFlip:null
 };
 function enterBlackjack() {
+  floorReturn = { x: player.x, y: player.y };
   scene = 'blackjack';
   bj.state = 'bet'; bj.menuIdx = 0; bj.actIdx = 0; bj.result = '';
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
@@ -3402,6 +3435,7 @@ function crBetKeys() {
   return b;
 }
 function enterCraps() {
+  floorReturn = { x: player.x, y: player.y };
   scene = 'craps';
   cr.mode = 'board'; cr.point = 0; cr.dice = [3,4]; cr.rollT = 0;
   cr.bets = crBetKeys();
@@ -3823,6 +3857,7 @@ function drawRollPopup() {
 
 /* ============================ scene helpers ============================ */
 let scene = 'floor';
+let floorReturn = null;        // where to drop the player back after they leave a table
 const IDLE_KICK_MS = 180000;   // 3 min without input at a table → seat freed
 const BJ_DECIDE_MS = 15000;    // blackjack action clock → auto-stand
 let lastActMs = Date.now();
@@ -3834,9 +3869,10 @@ function leaveTable(which) {
   tableDisconnect();
   popups.length = 0;         // stale table bubbles don't follow you out
   scene = 'floor';
-  if (which === 'craps') { player.x = 3.5*TS; player.y = 10.8*TS; }
-  else { player.x = 11.5*TS; player.y = 10.8*TS; }
-  player.dir = 'up'; player.frame = 0;
+  /* drop back where you sat down, so leaving any of the four tables lands right */
+  if (floorReturn) { player.x = floorReturn.x; player.y = floorReturn.y; }
+  else { player.x = 7.5*TS; player.y = (ROWS-2.5)*TS; }
+  player.dir = 'down'; player.frame = 0;
 }
 function uiPanel() {
   const grad = ctx.createLinearGradient(0, 180, 0, 236);
@@ -3932,8 +3968,8 @@ function floorUpdate() {
         if (g.animT % 18 === 0) g.frame = 1 - g.frame;
       }
     } else g.frame = 0;
-    g.x = Math.max(1.5*TS, Math.min(13.5*TS - 1, g.x));
-    g.y = Math.max(4.5*TS, Math.min(13.5*TS - 1, g.y));
+    g.x = Math.max(1.5*TS, Math.min((COLS-1.5)*TS - 1, g.x));
+    g.y = Math.max(4.5*TS, Math.min((ROWS-1.5)*TS - 1, g.y));
   }
   for (const p of confetti) {
     p.y += p.v; p.sway += 0.02;
@@ -4103,8 +4139,11 @@ function drawTitle(g) {
 /* torch sconces: one between the stage and bar, one right of the bar,
    plus one low on each side wall */
 const SCONCES = [
-  { x: 90, y: 18 }, { x: W - 18, y: 18 },
-  { x: 6, y: 182 }, { x: W - 6, y: 182 }
+  { x: 90, y: 18 }, { x: W - 90, y: 18 },        // back wall, either side of the bar
+  { x: 6, y: 6*TS },  { x: W - 6, y: 6*TS },
+  { x: 6, y: 13*TS }, { x: W - 6, y: 13*TS },
+  { x: 6, y: 19*TS }, { x: W - 6, y: 19*TS },
+  { x: 6, y: 25*TS }, { x: W - 6, y: 25*TS }
 ];
 /* the Nile Three, standing full-size, higher up on the raised stage */
 const BAND = [
@@ -4113,30 +4152,45 @@ const BAND = [
   { sprite: 'bandSinger', inst: 'mic',   x: 68, y: 56, seed: 2 }
 ];
 function floorRender() {
-  ctx.drawImage(bg, 0, 0, W, H);
-  /* evening grade: cool dusk wash over the whole room */
-  const dusk = ctx.createLinearGradient(0, 0, 0, H);
+  /* camera follows the player up the long hall, clamped to the world */
+  camY = Math.max(0, Math.min(WORLD_H - H, Math.round(player.y - H / 2)));
+  ctx.save();
+  ctx.translate(0, -camY);
+  ctx.drawImage(bg, 0, 0, W, WORLD_H);
+  /* evening grade: cool dusk wash over the visible window */
+  const dusk = ctx.createLinearGradient(0, camY, 0, camY + H);
   dusk.addColorStop(0, 'rgba(26,20,54,0.34)');
   dusk.addColorStop(0.5, 'rgba(20,16,44,0.24)');
   dusk.addColorStop(1, 'rgba(12,9,26,0.4)');
   ctx.fillStyle = dusk;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, camY, W, H);
+  /* the stage floor slab sits under the band at the back */
+  ctx.drawImage(stageCanvas, STAGE_PX.x, STAGE_PX.y, stageCanvas.lw, stageCanvas.lh);
   const items = [];
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6, barCanvas.lw, barCanvas.lh) });
-  items.push({ y: (CRAPS_T.r1+1)*TS, draw: g => g.drawImage(crapsCanvas, CRAPS_T.c0*TS, CRAPS_T.r0*TS, crapsCanvas.lw, crapsCanvas.lh) });
-  items.push({ y: (BJ_T.r1+1)*TS,    draw: g => g.drawImage(bjCanvas, BJ_T.c0*TS, BJ_T.r0*TS, bjCanvas.lw, bjCanvas.lh) });
-  /* the big rectangular stage floor sits under the band */
-  ctx.drawImage(stageCanvas, STAGE_PX.x, STAGE_PX.y, stageCanvas.lw, stageCanvas.lh);
+  /* four gaming tables, each with a dealer standing behind it */
+  for (const t of TABLES) {
+    const cv = t.game === 'craps' ? crapsCanvas : bjCanvas;
+    const sp = t.game === 'craps' ? 'crapsDealer' : 'bjDealer';
+    const tx = t.c0*TS, ty = t.r0*TS, midx = (t.c0 + (t.c1 - t.c0 + 1) / 2) * TS;
+    items.push({ y: t.r0*TS - 2, draw: g => drawEntity(g, { sprite: sp, dir: 'down', frame: 0, x: midx, y: ty - 1, staticNPC: true }, tick + tx) });
+    items.push({ y: (t.r1+1)*TS, draw: g => g.drawImage(cv, tx, ty, cv.lw, cv.lh) });
+  }
   /* the Nile Three — full-size players jamming, y-sorted with the crowd */
   BAND.forEach(m => items.push({ y: m.y, draw: g => {
     drawEntity(g, { sprite: m.sprite, dir: 'down', frame: 0, x: m.x, y: m.y, staticNPC: true }, tick + m.seed * 20);
     drawInstrument(g, m.inst, m.x, m.y + 2, m.seed);
   } }));
+  /* fountain centre-piece on the runner */
+  const fw = (FOUNTAIN.c1 - FOUNTAIN.c0 + 1) * TS, fcx = FOUNTAIN.c0*TS + fw/2;
+  items.push({ y: (FOUNTAIN.r1+1)*TS, draw: g => g.drawImage(fountainCanvas, fcx - fountainCanvas.lw/2, FOUNTAIN.r0*TS - 6, fountainCanvas.lw, fountainCanvas.lh) });
+  /* potted palms filling the hall */
+  PALMS.forEach(([c,r]) => items.push({ y: r*TS + 14, draw: g => g.drawImage(palmCanvas, c*TS - 3, r*TS - 18, palmCanvas.lw, palmCanvas.lh) }));
   /* big statement palm, bottom-right (2x, extra detail) */
   items.push({ y: BIGPALM.r*TS + 14, draw: g => g.drawImage(palmCanvas, BIGPALM.c*TS - 20, BIGPALM.r*TS - 40, palmCanvas.lw*2, palmCanvas.lh*2) });
   /* sarcophagus in the bottom-left corner, rope stanchion to its right */
-  items.push({ y: 13*TS + 12, draw: g => g.drawImage(sarcCanvas, 2, 13*TS - 50, sarcCanvas.lw, sarcCanvas.lh) });
-  items.push({ y: 13*TS + 10, draw: g => g.drawImage(stanchionCanvas, 30, 13*TS - 50, stanchionCanvas.lw, stanchionCanvas.lh) });
+  items.push({ y: SARC.r*TS + 12, draw: g => g.drawImage(sarcCanvas, 2, SARC.r*TS - 44, sarcCanvas.lw, sarcCanvas.lh) });
+  items.push({ y: SARC.r*TS + 10, draw: g => g.drawImage(stanchionCanvas, 30, SARC.r*TS - 44, stanchionCanvas.lw, stanchionCanvas.lh) });
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
@@ -4145,11 +4199,10 @@ function floorRender() {
   for (const p of confetti) {
     ctx.fillStyle = p.col;
     ctx.globalAlpha = 0.7;
-    ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 2);
+    ctx.fillRect(Math.round(p.x), Math.round(p.y) + camY, 1, 2);
   }
   ctx.globalAlpha = 1;
-  /* sconces sit on top of the wall grade so their firelight reads warm
-     against the dusk */
+  /* sconces sit on top of the wall grade so their firelight reads warm */
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < SCONCES.length; i++) drawSconceGlow(ctx, SCONCES[i].x, SCONCES[i].y, i);
   ctx.globalCompositeOperation = 'source-over';
@@ -4163,9 +4216,11 @@ function floorRender() {
       ctx.fillText('!', Math.round(player.x) - 2, Math.round(player.y) - 34 - bounce);
     }
   }
-  /* popups over heads on the floor: you, the staff, and the regulars —
+  /* floor popups (world space): you, the staff, the regulars —
      the bartender's bubble is deferred so it rides over the HUD */
   drawPopups(floorSeatPos, p => p.target !== 'bartender', 1.01);
+  ctx.restore();
+  /* screen-space vignette + overlays */
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
   vg.addColorStop(1, 'rgba(8,5,14,0.5)');
@@ -4227,8 +4282,12 @@ function render() {
   if (started) drawHUD(ctx);
   /* the craps stickman + his call ride over the timer, chip counter and HUD */
   if (scene === 'craps' && started) crDealerTop(tableSeatPos(CR_SEATS, { x: 64, y: 30, mode: 'ne' }));
-  /* the bartender's bubble rides over the chip counter and everything */
-  if (scene === 'floor' && started) drawPopups(floorSeatPos, p => p.target === 'bartender', 1.01);
+  /* the bartender's bubble rides over the chip counter and everything (camera-offset) */
+  if (scene === 'floor' && started) {
+    ctx.save(); ctx.translate(0, -camY);
+    drawPopups(floorSeatPos, p => p.target === 'bartender', 1.01);
+    ctx.restore();
+  }
   if (trans.active) {
     const a = trans.t < 15 ? trans.t / 15 : (30 - trans.t) / 15;
     ctx.fillStyle = 'rgba(6,4,10,' + Math.min(1, a) + ')';
