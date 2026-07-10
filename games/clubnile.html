@@ -579,163 +579,34 @@ const HD_HEADS = {
 
 /* bodies and legs carry front and side variants — the profile is
    roughly half the front width, like a real LTTP walk sprite */
+/* bodies + legs (v2): 3 men torsos (suit/tux/vest), 5 dresses
+   (dress/gown/fringe/beaded/wrap); trousers or cream spats; skirt legs bare.
+   front = 16-half mirrored, side = 32 wide, both 12 rows. */
 const HD_BODIES = {
-  suit: {
-    front: symRows([
-      '........33333333',
-      '......33JJJJJLCC',
-      '......JJJJJJJLCR',
-      '.....JJJJJJJJJLC',
-      '.....JjJJJJJJJJG',
-      '.....JjJJJJJJJJJ',
-      '.....JjJJJJJJJJG',
-      '.....JjjJJJJJJJJ',
-      '.....1SjjJJJJJJJ',
-      '......sjjjJJJJJJ',
-      '......jjjjjjjjjj',
-      '.......jjjjjjjjj'
-    ]),
-    side: [
-      '.........3333333333.............',
-      '........3JJJJJJJJJJj............',
-      '........3JJJJJJJJJJj............',
-      '........3JJJJJJJJJJj............',
-      '........3JJJjJJJJJJj............',
-      '........3JJJjJJJJJJj............',
-      '........JJJJjJJJJJJj............',
-      '........JJJJjJJJJJJj............',
-      '........JJJ1SJJJJJJj............',
-      '........jjj1Sjjjjjjj............',
-      '.........jjjjjjjjjj.............',
-      '..........jjjjjjjj..............'
-    ]
-  },
-  /* sleeveless flapper dress: bare arms, gold necklace, fringe hem */
-  dress: {
-    front: symRows([
-      '..........333333',
-      '.......1SJJJJJJJ',
-      '.......1SJJJJJJG',
-      '.......1SJJJJJJJ',
-      '........sJJJJJJJ',
-      '........JJJJJJJJ',
-      '........JJJJJJJJ',
-      '.......JJJJJJJJJ',
-      '.......JJJJJJJJJ',
-      '......JJjJjJjJjJ',
-      '......jJjJjJjJjJ',
-      '......jjjjjjjjjj'
-    ]),
-    side: [
-      '.........3333333333.............',
-      '........3JJJJJJJJJJj............',
-      '........3JJJJJJJJJJj............',
-      '........3JJJJJJJJJJj............',
-      '........3JJJJJJJJJJj............',
-      '........JJJJJJJJJJJj............',
-      '........JJJJJJJJJJJj............',
-      '........JJJJJJJJJJJj............',
-      '........JJ1SJJJJJJJj............',
-      '........JjJjJjJjJjJj............',
-      '.........jJjJjJjJjj.............',
-      '..........jjjjjjjj..............'
-    ]
-  }
+  suit: { front: ['........3333333333333333........','......33JJJJJLCCCCLJJJJJ33......','......JJJJJJJLCRRCLJJJJJJJ......','.....JJJJJJJJJLCCLJJJJJJJJJ.....','.....JjJJJJJJJJGGJJJJJJJJjJ.....','.....JjJJJJJJJJJJJJJJJJJJjJ.....','.....JjJJJJJJJJGGJJJJJJJJjJ.....','.....JjjJJJJJJJJJJJJJJJJjjJ.....','.....1SjjJJJJJJJJJJJJJJjjS1.....','......sjjjJJJJJJJJJJJJjjjs......','......jjjjjjjjjjjjjjjjjjjj......','.......jjjjjjjjjjjjjjjjjj.......'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJjJJJJJJj............','........3JJJjJJJJJJj............','........JJJJjJJJJJJj............','........JJJJjJJJJJJj............','........JJJ1SJJJJJJj............','........jjj1Sjjjjjjj............','.........jjjjjjjjjj.............','..........jjjjjjjj..............'] },
+  tux: { front: ['........3333333333333333........','......33JJJLCCCCCCCCLJJJ33......','......JJJJJLCCCCCCCCLJJJJJ......','.....JJJJJLCCCCCCCCCCLJJJJJ.....','.....JjJJJLCGCCCCCCGCLJJJjJ.....','.....JjJJJLCCCCCCCCCCLJJJjJ.....','.....JjJJJLCGCCCCCCGCLJJJjJ.....','.....JjjJJLCCCCCCCCCCLJJjjJ.....','.....1SjjJJLCCCCCCCCLJJjjS1.....','......sjjjJJCCCCCCCCJJjjjs......','......jjjjjjjjjjjjjjjjjjjj......','.......jjjjjjjjjjjjjjjjjj.......'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJjJJJJJJj............','........3JJJjJJJJJJj............','........JJJJjJJJJJJj............','........JJJJjJJJJJJj............','........JJJ1SJJJJJJj............','........jjj1Sjjjjjjj............','.........jjjjjjjjjj.............','..........jjjjjjjj..............'] },
+  vest: { front: ['........3333333333333333........','......33JJJLCCCCCCCCLJJJ33......','......JJJJJLCCCRRCCCLJJJJJ......','.....JJJJJJLCGCCCCGCLJJJJJJ.....','.....JjJJJJLCCCGGCCCLJJJJjJ.....','.....JjJJJJLCGCCCCGCLJJJJjJ.....','.....JjJJJJLCCCGGCCCLJJJJjJ.....','.....JjjJJJLCGCCCCGCLJJJjjJ.....','.....1SjjJJLCCCGGCCCLJJjjS1.....','......sjjjJLCCCCCCCCLJjjjs......','......jjjjjjjjjjjjjjjjjjjj......','.......jjjjjjjjjjjjjjjjjj.......'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJjJJJJJJj............','........3JJJjJJJJJJj............','........JJJJjJJJJJJj............','........JJJJjJJJJJJj............','........JJJ1SJJJJJJj............','........jjj1Sjjjjjjj............','.........jjjjjjjjjj.............','..........jjjjjjjj..............'] },
+  dress: { front: ['..........333333333333..........','.......1SJJJJJJJJJJJJJJS1.......','.......1SJJJJJJGGJJJJJJS1.......','.......1SJJJJJJJJJJJJJJS1.......','........sJJJJJJJJJJJJJJs........','........JJJJJJJJJJJJJJJJ........','........JJJJJJJJJJJJJJJJ........','.......JJJJJJJJJJJJJJJJJJ.......','.......JJJJJJJJJJJJJJJJJJ.......','......JJjJjJjJjJJjJjJjJjJJ......','......jJjJjJjJjJJjJjJjJjJj......','......jjjjjjjjjjjjjjjjjjjj......'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJ1SJJJJJJJj............','........JjJjJjJjJjJj............','.........jJjJjJjJjj.............','..........jjjjjjjj..............'] },
+  gown: { front: ['..........333333333333..........','.......1SJJJJJJJJJJJJJJS1.......','.......1SJJJJJJGGJJJJJJS1.......','.......1SJJJJJJJJJJJJJJS1.......','........sJJJJJJJJJJJJJJs........','........JJJJJJJJJJJJJJJJ........','........JJJJJJJJJJJJJJJJ........','........JJJJJJJJJJJJJJJJ........','........JJJJJJJJJJJJJJJJ........','........JJJJJJJJJJJJJJJJ........','........JJJJJJJJJJJJJJJJ........','........JjJJJJJJJJJJJJjJ........'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJ1SJJJJJJJj............','........JjJjJjJjJjJj............','.........jJjJjJjJjj.............','..........jjjjjjjj..............'] },
+  fringe: { front: ['..........333333333333..........','.......1SJJJJJJJJJJJJJJS1.......','.......1SJJJJJJGGJJJJJJS1.......','.......1SJJJJJJJJJJJJJJS1.......','........sJJJJJJJJJJJJJJs........','........JJJJJJJJJJJJJJJJ........','......JjJjJjJjJjjJjJjJjJjJ......','......jJjJjJjJjJJjJjJjJjJj......','......JjJjJjJjJjjJjJjJjJjJ......','......jJjJjJjJjJJjJjJjJjJj......','......JjJjJjJjJjjJjJjJjJjJ......','......jjjjjjjjjjjjjjjjjjjj......'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJ1SJJJJJJJj............','........JjJjJjJjJjJj............','.........jJjJjJjJjj.............','..........jjjjjjjj..............'] },
+  beaded: { front: ['..........333333333333..........','.......1SJJJJJJJJJJJJJJS1.......','.......1SJJJJJJJJJJJJJJS1.......','.......1SJJJJJJJJJJJJJJS1.......','........sJJJJJJJJJJJJJJs........','........JJJJJJJJJJJJJJJJ........','........GJGJGJGJJGJGJGJG........','........JJJJJJJJJJJJJJJJ........','.......JJJJJJJJJJJJJJJJJJ.......','......JjGjJjGjJjjJjGjJjGjJ......','......jJjGjJjGjJJjGjJjGjJj......','......jjjjjjjjjjjjjjjjjjjj......'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJ1SJJJJJJJj............','........JjJjJjJjJjJj............','.........jJjJjJjJjj.............','..........jjjjjjjj..............'] },
+  wrap: { front: ['..........333333333333..........','.......1SJJJJJJjjJJJJJJS1.......','.......1SJJJJJjSSjJJJJJS1.......','.......1SJJJJjSSSSjJJJJS1.......','........sJJJjSSSSSSjJJJs........','........JJJjSJJJJJJSjJJJ........','........JJJJJJJJJJJJJJJJ........','.......JJJJJJJJJJJJJJJJJJ.......','.......JJJJJJJJJJJJJJJJJJ.......','......JJjJjJjJjJJjJjJjJjJJ......','......jJjJjJjJjJJjJjJjJjJj......','......jjjjjjjjjjjjjjjjjjjj......'],
+    side: ['.........3333333333.............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........3JJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJJJJJJJJJJj............','........JJ1SJJJJJJJj............','........JjJjJjJjJjJj............','.........jJjJjJjJjj.............','..........jjjjjjjj..............'] }
 };
 const HD_LEGS = {
-  suit: {
-    front: [
-      symRows([
-        '.........BBBB...',
-        '.........BBBB...',
-        '.........bBBb...',
-        '.........bBBb...',
-        '.........FFFF...',
-        '........FFFFF...',
-        '........fffff...',
-        '................'
-      ]),
-      [
-        '........BBBB........BBBB........',
-        '........BBBB........BBBB........',
-        '.......bBBb..........bBBb.......',
-        '.......bBBb..........bBBb.......',
-        '......FFFF............FFFF......',
-        '.....FFFFF............FFFFF.....',
-        '.....fffff............fffff.....',
-        '................................'
-      ]
-    ],
-    side: [
-      [
-        '...........BBBBBB...............',
-        '...........BBBBBB...............',
-        '...........bBBBBb...............',
-        '...........bBBBBb...............',
-        '..........FFFFFF................',
-        '.........FFFFFFF................',
-        '.........fffffff................',
-        '................................'
-      ],
-      [
-        '...........BBBBBB...............',
-        '..........BBBB..BBBB............',
-        '.........bBBB....BBBb...........',
-        '........bBBb......bBBb..........',
-        '.......FFFF........FFFF.........',
-        '......FFFFF........FFFFF........',
-        '......fffff........fffff........',
-        '................................'
-      ]
-    ]
-  },
-  /* bare legs under the dress, shoes only */
-  dress: {
-    front: [
-      symRows([
-        '.........SSSS...',
-        '.........SSSS...',
-        '.........sSSs...',
-        '.........sSSs...',
-        '.........FFFF...',
-        '........FFFFF...',
-        '........fffff...',
-        '................'
-      ]),
-      [
-        '........SSSS........SSSS........',
-        '........SSSS........SSSS........',
-        '.......sSSs..........sSSs.......',
-        '.......sSSs..........sSSs.......',
-        '......FFFF............FFFF......',
-        '.....FFFFF............FFFFF.....',
-        '.....fffff............fffff.....',
-        '................................'
-      ]
-    ],
-    side: [
-      [
-        '...........SSSSSS...............',
-        '...........SSSSSS...............',
-        '...........sSSSSs...............',
-        '...........sSSSSs...............',
-        '..........FFFFFF................',
-        '.........FFFFFFF................',
-        '.........fffffff................',
-        '................................'
-      ],
-      [
-        '...........SSSSSS...............',
-        '..........SSSS..SSSS............',
-        '.........sSSS....SSSs...........',
-        '........sSSs......sSSs..........',
-        '.......FFFF........FFFF.........',
-        '......FFFFF........FFFFF........',
-        '......fffff........fffff........',
-        '................................'
-      ]
-    ]
-  }
+  suit: { front: [ ['.........BBBB......BBBB.........','.........BBBB......BBBB.........','.........bBBb......bBBb.........','.........bBBb......bBBb.........','.........FFFF......FFFF.........','........FFFFF......FFFFF........','........fffff......fffff........','................................'], ['........BBBB........BBBB........','........BBBB........BBBB........','.......bBBb..........bBBb.......','.......bBBb..........bBBb.......','......FFFF............FFFF......','.....FFFFF............FFFFF.....','.....fffff............fffff.....','................................'] ],
+    side: [ ['...........BBBBBB...............','...........BBBBBB...............','...........bBBBBb...............','...........bBBBBb...............','..........FFFFFF................','.........FFFFFFF................','.........fffffff................','................................'], ['...........BBBBBB...............','..........BBBB..BBBB............','.........bBBB....BBBb...........','........bBBb......bBBb..........','.......FFFF........FFFF.........','......FFFFF........FFFFF........','......fffff........fffff........','................................'] ] },
+  spats: { front: [ ['.........BBBB......BBBB.........','.........BBBB......BBBB.........','.........bBBb......bBBb.........','.........bBBb......bBBb.........','.........2222......2222.........','........22FF2......2FF22........','........fff22......22fff........','................................'], ['........BBBB........BBBB........','........BBBB........BBBB........','.......bBBb..........bBBb.......','.......bBBb..........bBBb.......','......2222............2222......','.....22FF2............22FF2.....','.....fff22............fff22.....','................................'] ],
+    side: [ ['...........BBBBBB...............','...........BBBBBB...............','...........bBBBBb...............','...........bBBBBb...............','..........222222................','.........22FFFF2................','.........fff2222................','................................'], ['...........BBBBBB...............','..........BBBB..BBBB............','.........bBBB....BBBb...........','........bBBb......bBBb..........','.......2222........2222.........','......22FF2........22FF2........','......fff22........fff22........','................................'] ] },
+  dress: { front: [ ['.........SSSS......SSSS.........','.........SSSS......SSSS.........','.........sSSs......sSSs.........','.........sSSs......sSSs.........','.........FFFF......FFFF.........','........FFFFF......FFFFF........','........fffff......fffff........','................................'], ['........SSSS........SSSS........','........SSSS........SSSS........','.......sSSs..........sSSs.......','.......sSSs..........sSSs.......','......FFFF............FFFF......','.....FFFFF............FFFFF.....','.....fffff............fffff.....','................................'] ],
+    side: [ ['...........SSSSSS...............','...........SSSSSS...............','...........sSSSSs...............','...........sSSSSs...............','..........FFFFFF................','.........FFFFFFF................','.........fffffff................','................................'], ['...........SSSSSS...............','..........SSSS..SSSS............','.........sSSS....SSSs...........','........sSSs......sSSs..........','.......FFFF........FFFF.........','......FFFFF........FFFFF........','......fffff........fffff........','................................'] ] }
 };
 function paintRowsHD(g, rows, pal, yOff, xOff) {
   for (let y = 0; y < rows.length; y++) {
@@ -894,7 +765,8 @@ function makeCharacterHD(t) {
   };
   const acc = (t.headAcc && t.headAcc !== 'none') || (t.faceAcc && t.faceAcc !== 'none')
     ? accPainter(t, ax) : null;
-  const hd = HD_HEADS[t.head || 'fez'], bd = HD_BODIES[t.body || 'suit'], lg = HD_LEGS[t.body || 'suit'];
+  const legStyle = t.legs || (['dress','gown','fringe','beaded','wrap'].includes(t.body) ? 'dress' : 'suit');
+  const hd = HD_HEADS[t.head || 'fez'], bd = HD_BODIES[t.body || 'suit'], lg = HD_LEGS[legStyle] || HD_LEGS.suit;
   const out = {};
   out.down  = [0,1].map(f => buildFrameHD(hd.down, bd.front, lg.front[f], pal, false, acc, 'down'));
   out.up    = [0,1].map(f => buildFrameHD(hd.up,   bd.front, lg.front[f], pal, false, acc, 'up'));
@@ -971,11 +843,14 @@ function traitsForToken(id) {
   let finalTier = tier;
   if (leg) { garment = leg.garment; metal = leg.metal; jewel = leg.jewel; headAcc = leg.headAcc; faceAcc = leg.faceAcc; feather = leg.feather; finalTier = 'legendary'; }
   const trim = tier === 'common' ? mixc(garment, '#f4ead2', 0.25) : metal;
+  const bodyF = pick(['dress','gown','fringe','beaded','wrap']);
+  const bodyM = pick(['suit','tux','vest']);
+  const legsM = rnd() < 0.35 ? 'spats' : 'suit';   // cream spats flair on some gents
   const t = female
-    ? { head, body:'dress', skin, hair, hat: garment, coat: garment, pants: garment,
+    ? { head, body: bodyF, skin, hair, hat: garment, coat: garment, pants: garment,
         shoes: metal, tie: jewel, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_F) + ' “' + pick(NICK) + '”' }
-    : { head, body:'suit', skin, hair, hat: pick(T.hatM), coat: garment, pants: mixc(garment, '#0d0a12', 0.4),
+    : { head, body: bodyM, legs: legsM, skin, hair, hat: pick(T.hatM), coat: garment, pants: mixc(garment, '#0d0a12', 0.4),
         shoes: '#120d10', tie: jewel, shirt:'#f4ead2', headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_M) + ' “' + pick(NICK) + '”' };
   t.id = id;
