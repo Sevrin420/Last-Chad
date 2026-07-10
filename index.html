@@ -76,35 +76,24 @@ body {
   mix-blend-mode: screen;
 }
 .rain-overlay img { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* boot splash: the Club Nile card that slides down, then fades */
+/* boot splash: the game's own title card (sunburst + CLUB NILE),
+   painted on a canvas, slides down then fades */
 #boot {
   position: absolute;
   inset: 0;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3cqw;
-  background:
-    radial-gradient(ellipse at 50% 30%, rgba(201,168,76,0.16) 0%, transparent 60%),
-    #060409;
+  background: #0a0710;
   transform: translateY(-105%);
   transition: transform 0.9s cubic-bezier(0.25, 0.9, 0.3, 1), opacity 0.8s ease;
 }
 #boot.in   { transform: translateY(0); }
 #boot.gone { opacity: 0; pointer-events: none; }
-.boot-dice  { font-size: 9cqw; }
-.boot-title {
-  font-size: 7.4cqw;
-  color: #ffdf7a;
-  letter-spacing: 0.6cqw;
-  text-shadow: 0 0 14px rgba(255,223,122,0.55), 0 0.6cqw 0 #7a5c14;
-}
-.boot-sub {
-  font-size: 2.6cqw;
-  color: #b99a4e;
-  letter-spacing: 0.8cqw;
+#boot canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 /* bezel over the gold, same as the game */
 #bezel {
@@ -199,24 +188,17 @@ body {
   box-shadow: inset 0 0.3cqw 0 rgba(255,235,170,0.5), 0 0.4cqw 0.8cqw rgba(0,0,0,0.5);
   pointer-events: none;
 }
-/* welcome beat */
+/* stepping inside: fade the screen to black, then the game fades in */
 .overlay {
   position: absolute;
   inset: 0;
   z-index: 4;
-  background: rgba(0,0,0,0.88);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 6%;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.55s ease;
 }
-.overlay.active { display: flex; }
-.ov-text {
-  font-size: 3.4cqw;
-  color: #c9a84c;
-  text-align: center;
-  line-height: 2.2;
-}
+.overlay.active { opacity: 1; }
 </style>
 </head>
 <body>
@@ -228,12 +210,8 @@ body {
       <div class="rain-overlay"><img src="assets/membersonly/rain.gif" alt=""></div>
       <button class="knocker" id="knocker" aria-label="Knock"></button>
     </div>
-    <div id="boot">
-      <div class="boot-dice">&#127922;</div>
-      <div class="boot-title">CLUB NILE</div>
-      <div class="boot-sub">MEMBERS ONLY</div>
-    </div>
-    <div class="overlay" id="overlay"><div class="ov-text" id="ovText"></div></div>
+    <div id="boot"><canvas id="boot-cvs" width="480" height="480"></canvas></div>
+    <div class="overlay" id="overlay"></div>
   </div>
   <img class="frame" src="assets/membersonly/egypt-console.png" alt="Members Only console">
   <div id="bezel"></div>
@@ -256,7 +234,6 @@ const doorScene = document.getElementById('door-scene');
 const boot     = document.getElementById('boot');
 const knocker  = document.getElementById('knocker');
 const overlay  = document.getElementById('overlay');
-const ovText   = document.getElementById('ovText');
 const btnA     = document.getElementById('btn-a');
 
 let powered = false;
@@ -264,26 +241,65 @@ let entering = false;
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function typewrite(el, text, speed) {
-  el.textContent = '';
-  for (let i = 0; i < text.length; i++) {
-    el.textContent += text[i];
-    await delay(speed || 130);
+/* the game's own title card: art-deco sunburst + gold CLUB NILE */
+function paintBootCard() {
+  const g = document.getElementById('boot-cvs').getContext('2d');
+  g.setTransform(2, 0, 0, 2, 0, 0);
+  const W = 240, H = 240;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = '#0a0710';
+  g.fillRect(0, 0, W, H);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.strokeStyle = 'rgba(217,174,95,0.28)'; g.lineWidth = 1;
+  for (let i = -4; i <= 4; i++) {
+    g.beginPath();
+    g.moveTo(W/2, 100);
+    g.lineTo(W/2 + i * 26, 20);
+    g.stroke();
   }
+  g.font = '16px "Press Start 2P", monospace';
+  g.fillStyle = '#5e2216';
+  g.fillText('CLUB', W/2 + 1, 89.5);
+  g.fillText('NILE', W/2 + 1, 111.5);
+  const tGrad = g.createLinearGradient(0, 78, 0, 120);
+  tGrad.addColorStop(0, '#fff2b8');
+  tGrad.addColorStop(0.5, '#ffdf7a');
+  tGrad.addColorStop(1, '#cfa63e');
+  g.fillStyle = tGrad;
+  g.fillText('CLUB', W/2, 88);
+  g.fillText('NILE', W/2, 110);
+  g.fillStyle = '#f2c76a';
+  g.fillRect(W/2 - 40, 124, 80, 1);
+  g.fillStyle = '#fff2b8';
+  g.fillRect(W/2 - 2, 122, 4, 4);
+  g.font = '8px "Press Start 2P", monospace';
+  g.fillStyle = '#f9f5ea';
+  g.fillText('EST. 1926', W/2, 136);
+  g.fillStyle = '#f2c76a';
+  g.fillText('MEMBERS ONLY', W/2, 150);
+}
+if (document.fonts && document.fonts.load) {
+  Promise.all([
+    document.fonts.load('8px "Press Start 2P"'),
+    document.fonts.load('16px "Press Start 2P"')
+  ]).catch(() => {}).then(paintBootCard);
+} else {
+  paintBootCard();
 }
 
 async function bootUp() {
   powered = true;
+  paintBootCard();
   /* park the card above the screen with no animation, then slide in */
   boot.style.transition = 'none';
   boot.classList.remove('in', 'gone');
   void boot.offsetHeight;
   boot.style.transition = '';
-  boot.classList.add('in');            // Club Nile card slides down
+  boot.classList.add('in');            // Club Nile title slides down
   await delay(1700);
   if (!powered) return;
   doorScene.classList.add('show');     // door fades in underneath
-  boot.classList.add('gone');          // card fades away
+  boot.classList.add('gone');          // title card fades away
 }
 
 function powerDown() {
@@ -300,11 +316,10 @@ function powerDown() {
 async function enter() {
   if (!powered || entering) return;
   entering = true;
-  overlay.classList.add('active');
-  await typewrite(ovText, 'Welcome to Club Nile');
-  await delay(900);
+  overlay.classList.add('active');     // fade the screen to black...
+  await delay(650);
   if (!powered) return;
-  window.location.href = 'games/clubnile.html';
+  window.location.href = 'games/clubnile.html';   // ...and the game fades in
 }
 
 knocker.addEventListener('click', enter);

@@ -87,6 +87,19 @@ body {
   pointer-events: none;
   border: 0.3cqw solid #34303c;
 }
+/* arriving from the door: the game fades in from black */
+#boot-fade {
+  position: absolute;
+  left: 3.37%;
+  top: 2.56%;
+  width: 93.24%;
+  height: 61.77%;
+  z-index: 4;
+  background: #000;
+  pointer-events: none;
+  animation: bootFade 1s ease 0.15s forwards;
+}
+@keyframes bootFade { to { opacity: 0; } }
 /* ---- Touch controls (all % of the frame).
         RIGHT button = A (select) · LEFT button = B (back) ---- */
 .hot { position: absolute; z-index: 3; touch-action: none; }
@@ -283,6 +296,7 @@ body {
   <img class="frame" src="../assets/membersonly/egypt-console.png" alt="Club Nile console">
   <div id="bezel"></div>
   <div id="bezel-in"></div>
+  <div id="boot-fade"></div>
   <div class="hot" id="dpad"></div>
   <div class="hot" id="btn-b"></div>
   <div class="hot" id="btn-a"></div>
