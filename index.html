@@ -334,11 +334,10 @@ addEventListener('keydown', e => {
   const el = document.getElementById('power');
   const knob = document.getElementById('pw-knob');
   const MIN = 3, MAX = 51;
-  let on = false, drag = null, holdT = null;
+  let on = false, drag = null;
   const setKnob = f => { knob.style.left = (MIN + f * (MAX - MIN)) + '%'; };
   setKnob(0);
   function commit() {
-    holdT = null;
     on = !on;
     setKnob(on ? 1 : 0);
     if (on) bootUp(); else powerDown();
@@ -352,13 +351,10 @@ addEventListener('keydown', e => {
     if (!drag) return;
     const f = Math.max(0, Math.min(1, drag.f + (e.clientX - drag.x0) / drag.w));
     setKnob(f);
-    const inTarget = on ? f < 0.25 : f > 0.75;
-    /* quick flick to power on; a deliberate half-second hold to shut off */
-    if (inTarget && !holdT) holdT = setTimeout(commit, on ? 500 : 200);
-    else if (!inTarget && holdT) { clearTimeout(holdT); holdT = null; }
+    /* no hold — the moment the knob slides across, it commits */
+    if (on ? f < 0.25 : f > 0.75) { drag = null; commit(); }
   });
   ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => {
-    if (holdT) { clearTimeout(holdT); holdT = null; }
     drag = null;
     setKnob(on ? 1 : 0);
   }));

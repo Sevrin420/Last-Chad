@@ -1621,11 +1621,10 @@ function powerOff() {
   const el = document.getElementById('power');
   const knob = document.getElementById('pw-knob');
   const MIN = 3, MAX = 51;                 // knob left% at OFF / ON
-  let on = true, drag = null, holdT = null;
+  let on = true, drag = null;
   const setKnob = f => { knob.style.left = (MIN + f * (MAX - MIN)) + '%'; };
   setKnob(1);
   function commit() {
-    holdT = null;
     on = !on;
     setKnob(on ? 1 : 0);
     if (!on) powerOff();
@@ -1639,13 +1638,10 @@ function powerOff() {
     if (!drag) return;
     const f = Math.max(0, Math.min(1, drag.f + (e.clientX - drag.x0) / drag.w));
     setKnob(f);
-    const inTarget = on ? f < 0.25 : f > 0.75;
-    /* quick flick to power on; a deliberate half-second hold to kill it */
-    if (inTarget && !holdT) holdT = setTimeout(commit, on ? 500 : 200);
-    else if (!inTarget && holdT) { clearTimeout(holdT); holdT = null; }
+    /* no hold — the moment the knob slides across, it commits */
+    if (on ? f < 0.25 : f > 0.75) { drag = null; commit(); }
   });
   ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => {
-    if (holdT) { clearTimeout(holdT); holdT = null; }
     drag = null;
     setKnob(on ? 1 : 0);
   }));
