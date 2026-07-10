@@ -45,14 +45,6 @@ contract Gamble {
     uint256 public nextNonce;
 
     // ── Events ──────────────────────────────────────────────────────────────
-    event CoinFlip(
-        uint256 indexed tokenId,
-        address indexed player,
-        uint256 wager,
-        bool    won,
-        bytes32 seed
-    );
-
     event GameResolved(
         uint256 indexed tokenId,
         address indexed player,
@@ -106,28 +98,7 @@ contract Gamble {
         maxPayoutMultiplier = mult;
     }
 
-    // ── Path 1: on-chain coin flip ───────────────────────────────────────────
-    /// @notice 40% chance to win 2x the wager. Outcome derived from block entropy.
-    function flip(uint256 tokenId, uint256 wager) external {
-        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!membersOnly.isActive(tokenId), "Token is active");
-        require(wager >= minWager && wager <= maxWager, "Wager out of range");
-
-        items.burnChips(msg.sender, wager);
-
-        bytes32 seed = keccak256(abi.encodePacked(
-            tokenId, wager, block.prevrandao, block.timestamp, msg.sender
-        ));
-        bool won = uint256(seed) % 100 < 40;
-
-        if (won) {
-            items.mintChips(msg.sender, wager * 2);
-        }
-
-        emit CoinFlip(tokenId, msg.sender, wager, won, seed);
-    }
-
-    // ── Path 2: oracle-signed game resolution ────────────────────────────────
+    // ── Path 1: oracle-signed game resolution ────────────────────────────────
     /// @notice Settle any off-chain game (blackjack, poker, etc.).
     ///         The Worker signs keccak256(tokenId, wager, payout, gameId, nonce, player).
     ///         Spends `wager` chips; if payout > 0 awards that many chips back.
@@ -160,7 +131,7 @@ contract Gamble {
         emit GameResolved(tokenId, msg.sender, gameId, wager, payout);
     }
 
-    // ── Path 3: two-tx settlement (poker, craps) ───────────────────────────
+    // ── Path 2: two-tx settlement (poker, craps) ───────────────────────────
     /// @notice TX 1 — Player commits chips before the game starts.
     ///         Chips are spent immediately. Returns a nonce for the session.
     function commitWager(uint256 tokenId, uint256 wager) external returns (uint256) {

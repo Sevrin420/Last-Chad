@@ -60,7 +60,7 @@ All project assets (images, GIFs, audio, etc.) live in **`assets/membersonly/`**
 
 ## Project Overview
 
-**Members Only** is an NFT-gated casino on Avalanche. 222 Chad NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
+**Members Only** is an NFT-gated casino on Avalanche. 333 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
 
 ### Elevator Pitch
 
@@ -74,19 +74,19 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 | Contract | Purpose |
 |----------|---------|
-| `MembersOnly.sol` | ERC-721 NFT (222 max, 0.01 AVAX, tiers, levels, weekly chip claims, partner bonus, Merkle whitelist) |
+| `MembersOnly.sol` | ERC-721 NFT (333 max, 0.01 AVAX, tiers, levels, time-based weekly chip claims, partner bonus, Merkle whitelist) |
 | `MembersOnlyItems.sol` | ERC-1155 items + chips (token ID 0) + treasury yield vault (burn 10k chips/share, monthly AVAX yield) |
-| `Gamble.sol` | Chip wagering: commitWager/claimWinnings (craps), flip (coin), resolveGame (oracle) |
+| `Gamble.sol` | Chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
 | `Market.sol` | Player-to-player NFT trading |
 | `Tournament.sol` | Tournament system: enter, lock score, rebuy, leaderboard |
 
 **Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, and Tournament (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
 
 **Key constants:**
-- `MAX_SUPPLY`: 222
+- `MAX_SUPPLY`: 333
 - `MINT_PRICE`: 0.01 AVAX
 - `MAX_MINT_PER_WALLET`: 5
-- Level by mint order: #1-50=L1, #51-100=L2, #101-150=L3, #151-222=L4
+- Level by mint order: #1-83=L1, #84-166=L2, #167-249=L3, #250-333=L4
 - Tiers (1-3) set by owner to match metadata traits
 
 ---

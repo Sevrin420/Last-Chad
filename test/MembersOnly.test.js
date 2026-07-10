@@ -161,13 +161,13 @@ describe("MembersOnly", function () {
   describe("Level System", function () {
     it("should return correct levels by token ID range", async function () {
       expect(await membersOnly.getLevel(1)).to.equal(1);
-      expect(await membersOnly.getLevel(50)).to.equal(1);
-      expect(await membersOnly.getLevel(51)).to.equal(2);
-      expect(await membersOnly.getLevel(100)).to.equal(2);
-      expect(await membersOnly.getLevel(101)).to.equal(3);
-      expect(await membersOnly.getLevel(150)).to.equal(3);
-      expect(await membersOnly.getLevel(151)).to.equal(4);
-      expect(await membersOnly.getLevel(222)).to.equal(4);
+      expect(await membersOnly.getLevel(83)).to.equal(1);
+      expect(await membersOnly.getLevel(84)).to.equal(2);
+      expect(await membersOnly.getLevel(166)).to.equal(2);
+      expect(await membersOnly.getLevel(167)).to.equal(3);
+      expect(await membersOnly.getLevel(249)).to.equal(3);
+      expect(await membersOnly.getLevel(250)).to.equal(4);
+      expect(await membersOnly.getLevel(333)).to.equal(4);
     });
   });
 
@@ -194,9 +194,10 @@ describe("MembersOnly", function () {
       ).to.be.revertedWith("Already claimed this week");
     });
 
-    it("should allow claiming after week advances", async function () {
+    it("should allow claiming after a week passes (time-based)", async function () {
       await membersOnly.connect(user1).claimWeeklyChips(1);
-      await membersOnly.advanceWeek();
+      await ethers.provider.send("evm_increaseTime", [7 * 24 * 60 * 60]);
+      await ethers.provider.send("evm_mine", []);
       await membersOnly.connect(user1).claimWeeklyChips(1);
     });
 

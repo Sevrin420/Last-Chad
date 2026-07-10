@@ -93,7 +93,6 @@ export const MEMBERS_ONLY_ABI = [
   // Weekly claiming
   'function currentWeek() view returns (uint256)',
   'function claimWeeklyChips(uint256 tokenId)',
-  'function advanceWeek()',
   'function getWeeklyReward(uint256 tokenId) view returns (uint256)',
   'function hasClaimed(uint256 tokenId, uint256 week) view returns (bool)',
   // Active lock
@@ -158,8 +157,6 @@ export const ITEMS_ABI = [
 ];
 
 export const GAMBLE_ABI = [
-  // Coin flip (on-chain, 40% win)
-  'function flip(uint256 tokenId, uint256 wager) external',
   // Generic oracle-signed settlement (blackjack, poker, etc.)
   'function resolveGame(uint256 tokenId, uint256 wager, uint256 payout, uint8 gameId, uint256 nonce, bytes oracleSig) external',
   // Admin
@@ -175,7 +172,6 @@ export const GAMBLE_ABI = [
   'function wagerAmounts(uint256 nonce) view returns (uint256)',
   'function nextNonce() view returns (uint256)',
   // Events
-  'event CoinFlip(uint256 indexed tokenId, address indexed player, uint256 wager, bool won, bytes32 seed)',
   'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
   'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
   'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',

@@ -16,7 +16,7 @@ interface IMembersOnlyItems {
 }
 
 contract MembersOnly is ERC721Enumerable, Ownable {
-    uint256 public constant MAX_SUPPLY = 222;
+    uint256 public constant MAX_SUPPLY = 333;
     uint256 public constant MINT_PRICE = 0.01 ether;              // 0.01 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
     uint256 public constant BASE_CHIPS = 50;
@@ -42,9 +42,14 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ── Level Bonus (mint-order based) ──
     mapping(uint8 => uint256) public levelBonusChips;     // level (1-4) => bonus weekly chips
 
-    // ── Weekly Chip Claiming ──
-    uint256 public currentWeek;
+    // ── Weekly Chip Claiming (time-based: a new week rolls automatically every 7 days) ──
+    uint256 public constant WEEK = 7 days;
+    uint256 public immutable deployTime;
     mapping(uint256 => mapping(uint256 => bool)) public weekClaimed; // tokenId => week => claimed
+
+    function currentWeek() public view returns (uint256) {
+        return (block.timestamp - deployTime) / WEEK;
+    }
 
     // ── Core State ──
     IMembersOnlyItems public items;
@@ -68,7 +73,6 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     event TierRewardSet(uint8 tier, uint256 amount);
     event LevelBonusSet(uint8 level, uint256 amount);
     event WeeklyChipsClaimed(uint256 indexed tokenId, uint256 week, uint256 amount);
-    event WeekAdvanced(uint256 newWeek);
     event MerkleRootSet(bytes32 merkleRoot);
 
     modifier onlyGameOrOwner() {
@@ -78,6 +82,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
 
     constructor(string memory baseURI) ERC721("Members Only", "MEMBER") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
+        deployTime = block.timestamp;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -261,11 +266,11 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // Level System (mint-order based, pure function)
     // ─────────────────────────────────────────────────────────
     function getLevel(uint256 tokenId) public pure returns (uint8) {
-        require(tokenId >= 1 && tokenId <= 222, "Invalid token ID");
-        if (tokenId <= 50) return 1;
-        if (tokenId <= 100) return 2;
-        if (tokenId <= 150) return 3;
-        return 4; // 151-222
+        require(tokenId >= 1 && tokenId <= MAX_SUPPLY, "Invalid token ID");
+        if (tokenId <= 83) return 1;
+        if (tokenId <= 166) return 2;
+        if (tokenId <= 249) return 3;
+        return 4; // 250-333
     }
 
     function setLevelBonus(uint8 level, uint256 amount) external onlyOwner {
@@ -279,7 +284,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function claimWeeklyChips(uint256 tokenId) external {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
-        require(!weekClaimed[tokenId][currentWeek], "Already claimed this week");
+        require(!weekClaimed[tokenId][currentWeek()], "Already claimed this week");
 
         uint8 tier = tokenTier[tokenId];
         uint256 reward = tierChipReward[tier];
@@ -288,15 +293,10 @@ contract MembersOnly is ERC721Enumerable, Ownable {
 
         require(reward > 0, "No chips to claim");
 
-        weekClaimed[tokenId][currentWeek] = true;
+        weekClaimed[tokenId][currentWeek()] = true;
         items.mintChips(msg.sender, reward);
 
-        emit WeeklyChipsClaimed(tokenId, currentWeek, reward);
-    }
-
-    function advanceWeek() external onlyOwner {
-        currentWeek++;
-        emit WeekAdvanced(currentWeek);
+        emit WeeklyChipsClaimed(tokenId, currentWeek(), reward);
     }
 
     // ─────────────────────────────────────────────────────────
