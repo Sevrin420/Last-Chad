@@ -43,12 +43,27 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     mapping(uint8 => uint256) public levelBonusChips;     // level (1-4) => bonus weekly chips
 
     // ── Weekly Chip Claiming (time-based: a new week rolls automatically every 7 days) ──
-    uint256 public constant WEEK = 7 days;
-    uint256 public immutable deployTime;
+    // weekAnchor is the moment "week 0" begins; the owner can set it to a specific
+    // day/time (e.g. Monday 00:00 UTC) so every weekly drop lands on that schedule.
+    uint256 public weekLength = 7 days;
+    uint256 public weekAnchor;
     mapping(uint256 => mapping(uint256 => bool)) public weekClaimed; // tokenId => week => claimed
 
     function currentWeek() public view returns (uint256) {
-        return (block.timestamp - deployTime) / WEEK;
+        return (block.timestamp - weekAnchor) / weekLength;
+    }
+
+    // timestamp at which the next weekly drop unlocks — handy for the UI countdown
+    function nextDropAt() external view returns (uint256) {
+        return weekAnchor + (currentWeek() + 1) * weekLength;
+    }
+
+    function setWeekSchedule(uint256 anchor, uint256 length) external onlyOwner {
+        require(anchor <= block.timestamp, "Anchor must be past/now");
+        require(length >= 1 hours && length <= 30 days, "Length out of range");
+        weekAnchor = anchor;
+        weekLength = length;
+        emit WeekScheduleSet(anchor, length);
     }
 
     // ── Core State ──
@@ -73,6 +88,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     event TierRewardSet(uint8 tier, uint256 amount);
     event LevelBonusSet(uint8 level, uint256 amount);
     event WeeklyChipsClaimed(uint256 indexed tokenId, uint256 week, uint256 amount);
+    event WeekScheduleSet(uint256 anchor, uint256 length);
     event MerkleRootSet(bytes32 merkleRoot);
 
     modifier onlyGameOrOwner() {
@@ -82,7 +98,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
 
     constructor(string memory baseURI) ERC721("Members Only", "MEMBER") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
-        deployTime = block.timestamp;
+        weekAnchor = block.timestamp;
     }
 
     // ─────────────────────────────────────────────────────────

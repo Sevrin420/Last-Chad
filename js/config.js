@@ -92,6 +92,10 @@ export const MEMBERS_ONLY_ABI = [
   'function setLevelBonus(uint8 level, uint256 amount)',
   // Weekly claiming
   'function currentWeek() view returns (uint256)',
+  'function nextDropAt() view returns (uint256)',
+  'function weekAnchor() view returns (uint256)',
+  'function weekLength() view returns (uint256)',
+  'function setWeekSchedule(uint256 anchor, uint256 length)',
   'function claimWeeklyChips(uint256 tokenId)',
   'function getWeeklyReward(uint256 tokenId) view returns (uint256)',
   'function hasClaimed(uint256 tokenId, uint256 week) view returns (bool)',
@@ -127,7 +131,7 @@ export const MEMBERS_ONLY_ABI = [
   'event ChipsSpent(uint256 indexed tokenId, uint256 amount, uint256 remainingChips)',
   'event TierSet(uint256 indexed tokenId, uint8 tier)',
   'event WeeklyChipsClaimed(uint256 indexed tokenId, uint256 week, uint256 amount)',
-  'event WeekAdvanced(uint256 newWeek)',
+  'event WeekScheduleSet(uint256 anchor, uint256 length)',
 ];
 
 // Backwards-compatible alias
