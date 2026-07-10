@@ -1640,7 +1640,8 @@ function powerOff() {
     const f = Math.max(0, Math.min(1, drag.f + (e.clientX - drag.x0) / drag.w));
     setKnob(f);
     const inTarget = on ? f < 0.25 : f > 0.75;
-    if (inTarget && !holdT) holdT = setTimeout(commit, 500);
+    /* quick flick to power on; a deliberate half-second hold to kill it */
+    if (inTarget && !holdT) holdT = setTimeout(commit, on ? 500 : 200);
     else if (!inTarget && holdT) { clearTimeout(holdT); holdT = null; }
   });
   ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => {
@@ -2669,9 +2670,10 @@ function modalDraw(seatPos) {
 }
 
 /* ============================ popups (bubbles/emoji/tips) ============================ */
-function drawPopups(seatPos) {
+function drawPopups(seatPos, filter) {
   for (let i = popups.length - 1; i >= 0; i--) {
     const p = popups[i];
+    if (filter && !filter(p)) continue;
     if (p.delay > 0) { p.delay--; continue; }   // a beat before speaking
     p.t++;
     if (p.t > p.life) { popups.splice(i, 1); continue; }
@@ -3686,11 +3688,14 @@ function crUpdate() {
     else if (item === 'TIP') openTipModal();
   }
 }
+/* the stickman and his calls render over EVERYTHING at the craps table */
+function crDealerTop(seatPos) {
+  drawEntity(ctx, { sprite:'crapsDealer', dir:'down', frame:0, x:58, y:36, staticNPC:true }, tick);
+  drawPopups(seatPos, p => p.target === 'dealer');
+}
 function crRender() {
   ctx.drawImage(crRoom, 0, 0, W, H);
   drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
-  /* the stickman works the top of the table, beside the clock */
-  drawEntity(ctx, { sprite:'crapsDealer', dir:'down', frame:0, x:58, y:36, staticNPC:true }, tick);
   ctx.font = FONT; ctx.textBaseline = 'top';
   const comeout = cr.point === 0;
   /* your chips sitting on the felt (dimmed = bet is OFF on the come out) */
@@ -3752,8 +3757,8 @@ function crRender() {
     const sp = seatPos(cr.net.shooter === social.youId ? 'you' : cr.net.shooter);
     if (sp) drawDie(ctx, sp.x + 8, sp.y - 27, 5, 8);
   }
-  drawPopups(seatPos);
-  if (modal) { modalDraw(seatPos); drawNetDot(); return; }
+  drawPopups(seatPos, p => p.target !== 'dealer');
+  if (modal) { modalDraw(seatPos); crDealerTop(seatPos); drawNetDot(); return; }
   /* slim control band: carousel + chip tray only — the felt and the
      dealer carry all the game information */
   uiPanelSmall();
@@ -3764,6 +3769,7 @@ function crRender() {
     if (cr.mode !== 'rolling') cr.popupT--;
     drawTray(cr.unitIdx, true, cr.removeMode);
     drawRollPopup();
+    crDealerTop(seatPos);
     drawNetDot();
     return;
   }
@@ -3783,6 +3789,7 @@ function crRender() {
   if (cr.mode === 'board' && (live.phase === 'betting' || live.phase === 'action')) {
     drawTimerBox(live.phase === 'betting' ? 'BETS' : 'ROLL', secs, secs <= 3);
   }
+  crDealerTop(seatPos);
   drawNetDot();
 }
 /* slimmer control band used at the craps table */

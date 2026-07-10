@@ -84,9 +84,9 @@ body {
   z-index: 2;
   background: #0a0710;
   transform: translateY(-105%);
-  transition: transform 0.9s cubic-bezier(0.25, 0.9, 0.3, 1), opacity 0.8s ease;
+  transition: transform 2.7s cubic-bezier(0.25, 0.9, 0.3, 1), opacity 0.8s ease;
 }
-#boot.in   { transform: translateY(0); }
+#boot.in   { transform: translateY(4%); }   /* settles a touch low */
 #boot.gone { opacity: 0; pointer-events: none; }
 #boot canvas {
   width: 100%;
@@ -295,8 +295,8 @@ async function bootUp() {
   boot.classList.remove('in', 'gone');
   void boot.offsetHeight;
   boot.style.transition = '';
-  boot.classList.add('in');            // Club Nile title slides down
-  await delay(1700);
+  boot.classList.add('in');            // Club Nile title drifts down
+  await delay(3700);
   if (!powered) return;
   doorScene.classList.add('show');     // door fades in underneath
   boot.classList.add('gone');          // title card fades away
@@ -358,7 +358,8 @@ addEventListener('keydown', e => {
     const f = Math.max(0, Math.min(1, drag.f + (e.clientX - drag.x0) / drag.w));
     setKnob(f);
     const inTarget = on ? f < 0.25 : f > 0.75;
-    if (inTarget && !holdT) holdT = setTimeout(commit, 500);
+    /* quick flick to power on; a deliberate half-second hold to shut off */
+    if (inTarget && !holdT) holdT = setTimeout(commit, on ? 500 : 200);
     else if (!inTarget && holdT) { clearTimeout(holdT); holdT = null; }
   });
   ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => {
