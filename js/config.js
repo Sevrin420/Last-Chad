@@ -167,6 +167,11 @@ export const GAMBLE_ABI = [
   // Two-tx settlement (poker, craps)
   'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
   'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
+  // The Cage: buy-in (burn) / cash-out (oracle-signed mint)
+  'function cageBuyIn(uint256 tokenId, uint256 amount) external returns (uint256)',
+  'function cageCashOut(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig) external',
+  'function cageLimit() view returns (uint256)',
+  'function setCageLimit(uint256 limit) external',
   // View
   'function minWager() view returns (uint256)',
   'function maxWager() view returns (uint256)',
@@ -176,6 +181,8 @@ export const GAMBLE_ABI = [
   // Events
   'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
   'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
+  'event CageBuyIn(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
+  'event CageCashOut(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
   'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
 ];
 

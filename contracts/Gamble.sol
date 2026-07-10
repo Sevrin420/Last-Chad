@@ -179,4 +179,56 @@ contract Gamble {
 
         emit WinningsClaimed(tokenId, msg.sender, payout, nonce);
     }
+
+    // ── The Cage: buy-in / cash-out ──────────────────────────────────────────
+    // Withdraw chips from your wallet into a play session (chips are BURNED now);
+    // gamble with that stack; return the remainder at the cage. Anything you don't
+    // cash out stays burned — i.e. all lost chips are burnt.
+    uint256 public cageLimit = 1_000_000;   // max chips per buy-in (owner-tunable)
+
+    event CageBuyIn(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce);
+    event CageCashOut(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce);
+
+    function setCageLimit(uint256 limit) external onlyGameOwner {
+        require(limit > 0, "Limit must be > 0");
+        cageLimit = limit;
+    }
+
+    /// @notice Buy in at the cage: burns `amount` chips and opens a play session.
+    ///         The Worker credits your off-chain stack against the returned nonce.
+    function cageBuyIn(uint256 tokenId, uint256 amount) external returns (uint256) {
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!membersOnly.isActive(tokenId), "Token is active");
+        require(amount > 0 && amount <= cageLimit, "Amount out of range");
+
+        uint256 nonce = nextNonce++;
+        items.burnChips(msg.sender, amount);
+
+        emit CageBuyIn(tokenId, msg.sender, amount, nonce);
+        return nonce;
+    }
+
+    /// @notice Cash out at the cage: mints your remaining stack back to your wallet.
+    ///         The Worker signs keccak256(tokenId, amount, nonce, player) for the
+    ///         balance you're leaving with; losses are never re-minted.
+    function cageCashOut(
+        uint256 tokenId,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata oracleSig
+    ) external {
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!usedNonces[nonce], "Nonce already used");
+
+        bytes32 message = keccak256(abi.encodePacked(tokenId, amount, nonce, msg.sender));
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+        require(ECDSA.recover(ethHash, oracleSig) == oracle, "Invalid oracle signature");
+
+        usedNonces[nonce] = true;
+        if (amount > 0) {
+            items.mintChips(msg.sender, amount);
+        }
+
+        emit CageCashOut(tokenId, msg.sender, amount, nonce);
+    }
 }
