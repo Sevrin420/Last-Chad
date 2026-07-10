@@ -1453,35 +1453,13 @@ cvs.addEventListener('pointerdown', e => {
 });
 
 /* ============================ sound ============================ */
-/* All audio is synthesised live with the Web Audio API — no files, so it
-   loads instantly and passes the CSP untouched. Two looping mood tunes
-   (title mystique / speakeasy swing) run on a lookahead scheduler, and
-   small one-shot voices cover chips, dice, cards, footsteps and text. */
+/* The soundtrack is an 8-bit "In da Club" loop (an mp3); every sound
+   EFFECT is still synthesised live with the Web Audio API — chips, dice,
+   cards, footsteps and text — so they stay crisp and instant. */
 const sound = (() => {
-  let ac = null, master, musicBus, sfxBus, noiseBuf;
+  let ac = null, master, sfxBus, noiseBuf, music = null;
   let muted = localStorage.getItem('clubnile_mute') === '1';
-  let tune = null, stepAt = 0, stepN = 0, lastBlip = 0, stepFoot = 0;
-  const F = n => 440 * Math.pow(2, (n - 69) / 12);      // midi note → Hz
-
-  /* — the two mood tunes, written on the double harmonic (“Nile”) scale —
-     D  Eb  F#  G  A  Bb  C#  ·  32 eighth-note steps per loop           */
-  const _ = 0;
-  const TUNES = {
-    title: {   /* slow torchlit mystery for the card */
-      stepDur: 0.36, swing: 0,
-      mel:  [74,_,_,_, 73,_,74,_, 70,_,_,_, 69,_,_,_,  67,_,69,_, 70,_,69,_, 66,_,_,_, _,_,_,_],
-      bass: [38,_,_,_, _,_,_,_, 45,_,_,_, _,_,_,_,  38,_,_,_, _,_,_,_, 46,_,_,_, 45,_,_,_],
-      hat: null, snare: null, melGain: 0.13, bassGain: 0.42
-    },
-    casino: {  /* jaunty 1920s swing for the floor and the tables */
-      stepDur: 0.27, swing: 0.085,
-      mel:  [62,_,66,_, 67,_,69,_, 70,69,_,67, 69,_,_,_,  62,_,66,_, 67,_,69,_, 74,_,73,70, 69,_,_,_],
-      bass: [38,_,41,_, 45,_,47,_, 48,_,47,_, 45,_,41,_,  38,_,41,_, 45,_,47,_, 50,_,49,_, 45,_,45,_],
-      hat:  [1,_,1,_, 1,_,1,_, 1,_,1,_, 1,_,1,_,  1,_,1,_, 1,_,1,_, 1,_,1,_, 1,_,1,_],
-      snare:[_,_,_,_, _,_,_,_, 1,_,_,_, _,_,_,_,  _,_,_,_, _,_,_,_, 1,_,_,_, _,_,_,_],
-      melGain: 0.11, bassGain: 0.4
-    }
-  };
+  let lastBlip = 0, stepFoot = 0;
 
   function ensure() {
     if (ac) return true;
@@ -1490,17 +1468,20 @@ const sound = (() => {
     ac = new AC();
     master = ac.createGain(); master.gain.value = muted ? 0 : 1;
     master.connect(ac.destination);
-    musicBus = ac.createGain(); musicBus.gain.value = 0.16; musicBus.connect(master);
     sfxBus = ac.createGain(); sfxBus.gain.value = 0.5; sfxBus.connect(master);
     noiseBuf = ac.createBuffer(1, ac.sampleRate / 2, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    setInterval(schedule, 90);
+    /* the looping game music, kept separate so it streams from file */
+    music = new Audio('../assets/membersonly/indaclub.mp3');
+    music.loop = true;
+    music.volume = muted ? 0 : 0.4;
     return true;
   }
   function unlock() {                    // must run inside a user gesture
     if (!ensure()) return;
     if (ac.state === 'suspended') ac.resume();
+    if (music && !muted) music.play().catch(() => {});
   }
   function tone(t, freq, dur, type, gain, bus, slide) {
     const o = ac.createOscillator(), g = ac.createGain();
@@ -1522,22 +1503,6 @@ const sound = (() => {
     s.connect(f); f.connect(g); g.connect(bus || sfxBus);
     s.start(t); s.stop(t + dur + 0.05);
   }
-  function schedule() {
-    if (!tune || ac.state !== 'running') return;
-    if (stepAt < ac.currentTime) stepAt = ac.currentTime + 0.05;
-    const T = TUNES[tune];
-    while (stepAt < ac.currentTime + 0.28) {
-      const i = stepN % 32;
-      if (!muted) {
-        const when = stepAt + (T.swing && (i % 2) ? T.swing : 0);
-        if (T.mel[i]) tone(when, F(T.mel[i]), T.stepDur * 1.9, 'square', T.melGain, musicBus);
-        if (T.bass[i]) tone(when, F(T.bass[i]), T.stepDur * (T.swing ? 1.7 : 3.6), 'triangle', T.bassGain, musicBus);
-        if (T.hat && T.hat[i]) hiss(when, 0.03, 0.07, 6200, 2, musicBus);
-        if (T.snare && T.snare[i]) hiss(when, 0.09, 0.11, 1700, 0.8, musicBus);
-      }
-      stepAt += T.stepDur; stepN++;
-    }
-  }
   function ready() { return ac && ac.state === 'running' && !muted; }
   const t0 = () => ac.currentTime;
 
@@ -1548,17 +1513,19 @@ const sound = (() => {
       muted = !muted;
       localStorage.setItem('clubnile_mute', muted ? '1' : '0');
       if (ac) master.gain.value = muted ? 0 : 1;
+      if (music) {
+        music.volume = muted ? 0 : 0.4;
+        if (muted) music.pause();
+        else music.play().catch(() => {});
+      }
       return muted;
     },
-    setTune(name) {
-      if (name === tune) return;
-      tune = name; stepN = 0; stepAt = 0;
-    },
-    blip(hi) {                          // typewriter text tick
+    setTune() { /* single looping track now — kept for callers */ },
+    blip(hi) {                          // typewriter text tick (quiet)
       if (!ready()) return;
       if (t0() - lastBlip < 0.05) return;
       lastBlip = t0();
-      tone(t0(), hi ? 1240 : 1020, 0.045, 'square', 0.05, sfxBus);
+      tone(t0(), hi ? 1240 : 1020, 0.045, 'square', 0.018, sfxBus);
     },
     step() {                            // soft sandstone footstep
       if (!ready()) return;
@@ -4188,7 +4155,6 @@ function floorSeatPos(target) {
 /* ============================ main loop ============================ */
 function update() {
   tick++;
-  sound.setTune(!started || titleAlpha > 0.5 ? 'title' : 'casino');
   readTaps();
   tapNow = tapPt; tapPt = null;
   if (started && titleAlpha > 0) titleAlpha = Math.max(0, titleAlpha - 0.03);
