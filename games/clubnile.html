@@ -869,8 +869,15 @@ function traitsForToken(id) {
         shoes: '#120d10', tie: jewel, shirt:'#f4ead2', headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_M) + ' “' + pick(NICK) + '”' };
   t.id = id;
+  /* backdrop scene (0-15) from a separate hash so the rest of the traits are
+     unchanged; maps to one cell of the 4x4 Egyptian scene sheet */
+  t.bg = Math.floor(mulberry32((id * 2654435761 ^ 0x9e3779b9) >>> 0)() * 16);
   return t;
 }
+const BG_NAMES = ['Moonlit Temple','Pylon Gate','Bazaar at Dusk','Desert Shrine',
+  'Great Pyramid','Temple of Palms','Market Day','Tomb Door',
+  'Colonnade Night','Nile Felucca','Tomb Entrance','Pyramid Noon',
+  'Temple Ruins','Sphinx Day','The Great Sphinx','Lantern Gate'];
 /* deterministic guests seeded from any token (used for the floor crowd too) */
 function characterForToken(id) { return makeCharacterHD(traitsForToken(id)); }
 /* the front (down) frame, trimmed and upscaled — the NFT card image */
