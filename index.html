@@ -264,19 +264,58 @@ body {
 /* The console boots when the power switch slides ON: the Club Nile card
    drops onto the screen to a jingle, glints, and shows PRESS A. The NFT
    gate returns here later — membership checked before the game loads. */
-const boot     = document.getElementById('boot');
-const overlay  = document.getElementById('overlay');
-const btnA     = document.getElementById('btn-a');
-const pressA   = document.getElementById('boot-press');
+const boot      = document.getElementById('boot');
+const doorScene = document.getElementById('door-scene');
+const knocker   = document.getElementById('knocker');
+const overlay   = document.getElementById('overlay');
+const btnA      = document.getElementById('btn-a');
+const pressA    = document.getElementById('boot-press');
 
 let powered = false;
 let entering = false;
+let stage = 'boot';                    // 'boot' (title card) → 'door' (rainy door)
 
 /* arcade jingle on boot, blip on confirm */
 const sndCapcom = new Audio('assets/membersonly/capcom.wav');
 const sndSelect = new Audio('assets/membersonly/select.wav');
 sndCapcom.preload = 'auto'; sndSelect.preload = 'auto';
 function play(a) { try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} }
+
+/* rain, synthesised: filtered noise loop with a gentle swell — no file,
+   CSP-clean, starts with the door scene and stops when we leave it */
+const rain = (() => {
+  let ac = null, src = null, gain = null;
+  function start() {
+    if (ac) { try { ac.resume(); } catch (e) {} return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ac = new AC();
+    const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < d.length; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.02 * white) / 1.02;   // brownish noise
+      d[i] = last * 3.2;
+    }
+    src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200;
+    const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 420;
+    gain = ac.createGain(); gain.gain.value = 0.0;
+    src.connect(hp); hp.connect(lp); lp.connect(gain); gain.connect(ac.destination);
+    src.start();
+    /* slow shimmer so it breathes like real rainfall */
+    const lfo = ac.createOscillator(); lfo.frequency.value = 0.15;
+    const lfoGain = ac.createGain(); lfoGain.gain.value = 0.05;
+    lfo.connect(lfoGain); lfoGain.connect(gain.gain); lfo.start();
+    gain.gain.setTargetAtTime(0.22, ac.currentTime, 0.6);
+  }
+  function stop() {
+    if (!ac || !gain) return;
+    gain.gain.setTargetAtTime(0.0, ac.currentTime, 0.2);
+  }
+  return { start, stop };
+})();
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -326,14 +365,16 @@ if (document.fonts && document.fonts.load) {
   paintBootCard();
 }
 
-let ready = false;                     // PRESS A is live
+let ready = false;                     // PRESS A is live on the title card
 async function bootUp() {
   powered = true;
   ready = false;
+  stage = 'boot';
   paintBootCard();
   const shine = document.getElementById('boot-shine');
   shine.classList.remove('sweep');
   pressA.classList.remove('on');
+  doorScene.classList.remove('show');
   /* park the card above the screen with no animation, then slide in */
   boot.style.transition = 'none';
   boot.classList.remove('in', 'gone');
@@ -354,19 +395,36 @@ function powerDown() {
   powered = false;
   entering = false;
   ready = false;
+  stage = 'boot';
   try { sndCapcom.pause(); } catch (e) {}
+  rain.stop();
   overlay.classList.remove('active');
   pressA.classList.remove('on');
+  doorScene.classList.remove('show');
   boot.style.transition = 'none';
   boot.classList.remove('in', 'gone');
   void boot.offsetHeight;
   boot.style.transition = '';
 }
 
-async function enter() {
-  if (!powered || entering || !ready) return;
+/* the A button / tap / Enter drives the sequence one step at a time */
+async function advance() {
+  if (!powered || entering) return;
+  if (stage === 'boot') {
+    if (!ready) return;
+    ready = false;
+    play(sndSelect);                   // confirm blip
+    pressA.classList.remove('on');
+    doorScene.classList.add('show');   // rainy door fades in...
+    boot.classList.add('gone');        // ...as the title card fades out
+    rain.start();                      // ...and the rain comes up
+    stage = 'door';
+    return;
+  }
+  /* stage 'door' → step inside */
   entering = true;
-  play(sndSelect);                     // confirm blip
+  play(sndSelect);
+  rain.stop();
   overlay.classList.add('active');     // fade the screen to black...
   await delay(650);
   if (!powered) return;
@@ -376,13 +434,14 @@ async function enter() {
 btnA.addEventListener('pointerdown', e => {
   e.preventDefault();
   btnA.classList.add('pressed');
-  enter();
+  advance();
 });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
   btnA.addEventListener(ev, () => btnA.classList.remove('pressed')));
-boot.addEventListener('pointerdown', e => { e.preventDefault(); enter(); });
+boot.addEventListener('pointerdown', e => { e.preventDefault(); advance(); });
+knocker.addEventListener('click', advance);
 addEventListener('keydown', e => {
-  if (['Enter', ' ', 'e', 'E', 'z', 'Z'].includes(e.key)) enter();
+  if (['Enter', ' ', 'e', 'E', 'z', 'Z'].includes(e.key)) advance();
 });
 
 /* ── power switch: swipe the knob and hold half a second to flip it ── */
