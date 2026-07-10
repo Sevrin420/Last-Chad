@@ -109,57 +109,72 @@ body {
 }
 #label-b { left: 58%; top: 83.9%; }
 #label-a { left: 76.3%; top: 77.6%; }
-/* CHAT button under the A (select) button */
-#btn-chat {
+/* matching pill buttons riding the game screen: CHAT bottom-right,
+   MUTE top-right */
+#btn-chat, #btn-mute {
+  position: absolute;
+  z-index: 4;
+  width: 15%;
+  padding: 1cqw 0;
+  text-align: center;
+  color: #f2d488;
+  font-size: 2.6cqw;
+  letter-spacing: 0.3cqw;
+  background: rgba(24,14,4,0.72);
+  border: 0.55cqw solid #8a6015;
+  border-radius: 3cqw;
+  cursor: pointer;
+}
+#btn-chat { left: 78%; top: 59.4%; }
+#btn-mute { left: 78%; top: 4.2%; }
+#btn-chat.pressed, #btn-mute.pressed { background: rgba(255,235,170,0.35); }
+#btn-mute.muted {
+  color: #7d6b45;
+  text-decoration: line-through;
+  text-decoration-color: #c0392b;
+  text-decoration-thickness: 0.45cqw;
+}
+/* power switch where CHAT used to live: slide the knob and HOLD half a
+   second to flip it — OFF kills the game cold */
+#power {
   position: absolute;
   z-index: 3;
   left: 72.5%;
   top: 90.2%;
   width: 18%;
-  padding: 1.5cqw 0;
-  text-align: center;
-  color: #f2d488;
-  font-size: 3cqw;
-  letter-spacing: 0.3cqw;
-  background: rgba(24,14,4,0.6);
-  border: 0.55cqw solid #8a6015;
-  border-radius: 3cqw;
+  height: 5%;
+  touch-action: none;
   cursor: pointer;
 }
-#btn-chat.pressed { background: rgba(255,235,170,0.35); }
-/* music toggle: a small circle riding the top-right of the game screen.
-   Muted = the whole ring turns red with a line through it, no-sign style */
-#btn-mute {
+#pw-track {
   position: absolute;
-  z-index: 3;
-  left: 85%;
-  top: 4%;
-  width: 8.5cqw;
-  height: 8.5cqw;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  color: #f2d488;
-  font-size: 6.6cqw;
+  inset: 0;
   background: rgba(24,14,4,0.72);
   border: 0.55cqw solid #8a6015;
-  border-radius: 50%;
-  overflow: hidden;
-  cursor: pointer;
+  border-radius: 3.2cqw;
 }
-#btn-mute.muted { color: #7d6b45; border-color: #c0392b; }
-#btn-mute.muted::after {
-  content: '';
+.pw-txt {
   position: absolute;
-  left: -8%;
-  right: -8%;
-  top: calc(50% - 0.28cqw);
-  height: 0.56cqw;
-  background: #c0392b;
-  transform: rotate(-45deg);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2.1cqw;
+  letter-spacing: 0.2cqw;
+  color: #b99a4e;
+  pointer-events: none;
 }
-#btn-mute.pressed { background: rgba(255,235,170,0.35); }
+.pw-txt.pw-on  { left: 10%; }
+.pw-txt.pw-off { right: 8%; }
+#pw-knob {
+  position: absolute;
+  top: 7%;
+  left: 3%;
+  width: 46%;
+  height: 86%;
+  border-radius: 2.6cqw;
+  background: linear-gradient(180deg, #e8c060, #8a6015);
+  box-shadow: inset 0 0.3cqw 0 rgba(255,235,170,0.5), 0 0.4cqw 0.8cqw rgba(0,0,0,0.5);
+  pointer-events: none;
+}
 /* ---- Casino-wide chat panel: covers the CONTROL area (d-pad and
         buttons), never the game screen above ---- */
 #chat-panel {
@@ -274,7 +289,14 @@ body {
   <div class="btn-label" id="label-b">B</div>
   <div class="btn-label" id="label-a">A</div>
   <div id="btn-chat">CHAT</div>
-  <div id="btn-mute">♪</div>
+  <div id="btn-mute">MUTE</div>
+  <div id="power">
+    <div id="pw-track">
+      <span class="pw-txt pw-on">ON</span>
+      <span class="pw-txt pw-off">OFF</span>
+      <div id="pw-knob"></div>
+    </div>
+  </div>
   <div id="chat-panel">
     <div id="chat-head">
       <span>CASINO CHAT</span>
@@ -1575,6 +1597,45 @@ muteBtn.addEventListener('pointerdown', e => {
 });
 updateMuteBtn();
 
+/* ── power switch: swipe the knob across and HOLD it half a second.
+   OFF settles any live stakes silently and shuts the game down cold. */
+function powerOff() {
+  try { settleCurrentStakes('Power off'); } catch (e) { /* still leave */ }
+  window.location.href = '../index.html';
+}
+(function initPower() {
+  const el = document.getElementById('power');
+  const knob = document.getElementById('pw-knob');
+  const MIN = 3, MAX = 51;                 // knob left% at OFF / ON
+  let on = true, drag = null, holdT = null;
+  const setKnob = f => { knob.style.left = (MIN + f * (MAX - MIN)) + '%'; };
+  setKnob(1);
+  function commit() {
+    holdT = null;
+    on = !on;
+    setKnob(on ? 1 : 0);
+    if (!on) powerOff();
+  }
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    drag = { x0: e.clientX, w: el.getBoundingClientRect().width * 0.48, f: on ? 1 : 0 };
+  });
+  el.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const f = Math.max(0, Math.min(1, drag.f + (e.clientX - drag.x0) / drag.w));
+    setKnob(f);
+    const inTarget = on ? f < 0.25 : f > 0.75;
+    if (inTarget && !holdT) holdT = setTimeout(commit, 500);
+    else if (!inTarget && holdT) { clearTimeout(holdT); holdT = null; }
+  });
+  ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => {
+    if (holdT) { clearTimeout(holdT); holdT = null; }
+    drag = null;
+    setKnob(on ? 1 : 0);
+  }));
+})();
+
 /* ============================ dialogue box ============================ */
 const dlg = { open:false, id:null, name:'', pages:[], page:0, chars:0, action:null };
 const DLG_SPEED = 0.22;   // slow, cosy typewriter
@@ -2485,31 +2546,38 @@ function openLeaveModal() { modal = { type: 'leave' }; }
 function bjHandLive() {
   return scene === 'blackjack' && ['dealing','player','dealerTurn','anim'].includes(bj.state);
 }
+/* settle any live stakes without ceremony — used when leaving a table
+   and when the power switch cuts the game */
+function settleCurrentStakes(reason) {
+  if (scene === 'craps') {
+    crCashOut(reason);                      // pass rides if the point is on
+  } else if (scene === 'blackjack' && bjHandLive()) {
+    /* the hand stands where it is and settles — quitting can't dodge it */
+    while (bj.dealQ && bj.dealQ.length) {
+      const n = bj.dealQ.shift();
+      (n === 'dealer' ? bj.dealer : bj.hand).push(bj.deck.pop());
+    }
+    while (bj.hand.length < 2) bj.hand.push(bj.deck.pop());
+    while (bj.dealer.length < 2) bj.dealer.push(bj.deck.pop());
+    while (handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
+    const dv = handValue(bj.dealer), pv = handValue(bj.hand);
+    let payout = 0, msg;
+    if (pv > 21) msg = 'bust, -' + bj.bet;
+    else if (dv > 21 || pv > dv) { payout = bj.bet * 2; msg = 'you won! +' + bj.bet; }
+    else if (pv === dv) { payout = bj.bet; msg = 'push'; }
+    else msg = 'dealer ' + dv + ' beats ' + pv + ', -' + bj.bet;
+    if (payout) setChips(chips + payout);
+    journal(null);
+    pushChat('', 'Hand settled on the way out: ' + msg, true);
+    bj.state = 'bet';
+  }
+}
 function confirmLeaveCurrent() {
   if (scene === 'craps') {
-    crCashOut('Left the table');            // pass rides if the point is on
+    settleCurrentStakes('Left the table');
     startTransition(() => leaveTable('craps'));
   } else if (scene === 'blackjack') {
-    if (bjHandLive()) {
-      /* the hand stands where it is and settles — leaving can't dodge it */
-      while (bj.dealQ && bj.dealQ.length) {
-        const n = bj.dealQ.shift();
-        (n === 'dealer' ? bj.dealer : bj.hand).push(bj.deck.pop());
-      }
-      while (bj.hand.length < 2) bj.hand.push(bj.deck.pop());
-      while (bj.dealer.length < 2) bj.dealer.push(bj.deck.pop());
-      while (handValue(bj.dealer) < 17) bj.dealer.push(bj.deck.pop());
-      const dv = handValue(bj.dealer), pv = handValue(bj.hand);
-      let payout = 0, msg;
-      if (pv > 21) msg = 'bust, -' + bj.bet;
-      else if (dv > 21 || pv > dv) { payout = bj.bet * 2; msg = 'you won! +' + bj.bet; }
-      else if (pv === dv) { payout = bj.bet; msg = 'push'; }
-      else msg = 'dealer ' + dv + ' beats ' + pv + ', -' + bj.bet;
-      if (payout) setChips(chips + payout);
-      journal(null);
-      pushChat('', 'Hand settled on the way out: ' + msg, true);
-      bj.state = 'bet';
-    }
+    settleCurrentStakes('Left the table');
     startTransition(() => leaveTable('blackjack'));
   }
 }
@@ -2643,8 +2711,8 @@ function drawBubble(cx, anchorY, text, mode, age) {
   const h = shown * lineH + pad * 2 - 2;
   let x, y;
   if (mode === 'ne') {                      // above and right of the head
-    /* stays on screen and clear of the mute circle in the top-right */
-    x = Math.max(2, Math.min(W - w - 24, cx + 4));
+    /* stays on screen and clear of the MUTE pill in the top-right */
+    x = Math.max(2, Math.min(W - w - 46, cx + 4));
     y = Math.max(2, anchorY - h - 6);
   } else {
     x = Math.max(2, Math.min(W - w - 2, Math.round(cx - w / 2)));

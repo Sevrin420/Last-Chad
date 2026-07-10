@@ -8,9 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   The whole site lives inside the gold console. The homepage's
-   rainy door renders inside the screen window; knocking (or the
-   A button) steps into Club Nile.
+   The console starts powered OFF — a blank screen. Slide the
+   power switch to ON: the Club Nile card slides down, fades,
+   and the rainy door appears. Knock (or press A) to step in.
    ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
@@ -42,7 +42,7 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* screen window (same geometry as the game) */
+/* screen window — powered off it's just dark glass */
 #screen {
   position: absolute;
   left: 4.33%;
@@ -53,10 +53,19 @@ body {
   overflow: hidden;
   background: #0a0710;
 }
-#screen .door-img {
+/* the door scene, zoomed out to show the whole door */
+#door-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  pointer-events: none;
+}
+#door-scene.show { opacity: 1; pointer-events: auto; }
+#door-scene .door-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   display: block;
 }
@@ -67,6 +76,36 @@ body {
   mix-blend-mode: screen;
 }
 .rain-overlay img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* boot splash: the Club Nile card that slides down, then fades */
+#boot {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3cqw;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(201,168,76,0.16) 0%, transparent 60%),
+    #060409;
+  transform: translateY(-105%);
+  transition: transform 0.9s cubic-bezier(0.25, 0.9, 0.3, 1), opacity 0.8s ease;
+}
+#boot.in   { transform: translateY(0); }
+#boot.gone { opacity: 0; pointer-events: none; }
+.boot-dice  { font-size: 9cqw; }
+.boot-title {
+  font-size: 7.4cqw;
+  color: #ffdf7a;
+  letter-spacing: 0.6cqw;
+  text-shadow: 0 0 14px rgba(255,223,122,0.55), 0 0.6cqw 0 #7a5c14;
+}
+.boot-sub {
+  font-size: 2.6cqw;
+  color: #b99a4e;
+  letter-spacing: 0.8cqw;
+}
 /* bezel over the gold, same as the game */
 #bezel {
   position: absolute;
@@ -90,13 +129,13 @@ body {
   pointer-events: none;
   border: 0.3cqw solid #34303c;
 }
-/* knocker hotspot on the door */
+/* knocker hotspot (positioned for the zoomed-out door) */
 .knocker {
   position: absolute;
-  width: 12%;
+  width: 10%;
   aspect-ratio: 1;
-  top: 67%;
-  left: 70%;
+  top: 61.5%;
+  left: 63%;
   transform: translate(-50%, -50%);
   cursor: pointer;
   border-radius: 50%;
@@ -109,7 +148,7 @@ body {
   0%,100% { box-shadow: 0 0 30px rgba(201,168,76,0.3), 0 0 60px rgba(201,168,76,0.15), 0 0 100px rgba(201,168,76,0.08); }
   50%     { box-shadow: 0 0 45px rgba(255,233,106,0.7), 0 0 90px rgba(201,168,76,0.4), 0 0 140px rgba(201,168,76,0.2); }
 }
-/* A button on the console also knocks */
+/* A button on the console knocks too */
 .hot {
   position: absolute;
   z-index: 3;
@@ -120,12 +159,52 @@ body {
 .hot.pressed {
   background: radial-gradient(circle, rgba(255,235,170,0.28) 0%, rgba(255,235,170,0) 70%);
 }
+/* power switch (same spot as in the game) */
+#power {
+  position: absolute;
+  z-index: 3;
+  left: 72.5%;
+  top: 90.2%;
+  width: 18%;
+  height: 5%;
+  touch-action: none;
+  cursor: pointer;
+}
+#pw-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(24,14,4,0.72);
+  border: 0.55cqw solid #8a6015;
+  border-radius: 3.2cqw;
+}
+.pw-txt {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2.1cqw;
+  letter-spacing: 0.2cqw;
+  color: #b99a4e;
+  pointer-events: none;
+}
+.pw-txt.pw-on  { left: 10%; }
+.pw-txt.pw-off { right: 8%; }
+#pw-knob {
+  position: absolute;
+  top: 7%;
+  left: 3%;
+  width: 46%;
+  height: 86%;
+  border-radius: 2.6cqw;
+  background: linear-gradient(180deg, #e8c060, #8a6015);
+  box-shadow: inset 0 0.3cqw 0 rgba(255,235,170,0.5), 0 0.4cqw 0.8cqw rgba(0,0,0,0.5);
+  pointer-events: none;
+}
 /* welcome beat */
 .overlay {
   position: absolute;
   inset: 0;
   z-index: 4;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.88);
   display: none;
   align-items: center;
   justify-content: center;
@@ -144,24 +223,44 @@ body {
 
 <div id="console">
   <div id="screen">
-    <img class="door-img" src="assets/membersonly/door.jpg" alt="Members Only">
-    <div class="rain-overlay"><img src="assets/membersonly/rain.gif" alt=""></div>
-    <button class="knocker" id="knocker" aria-label="Knock"></button>
+    <div id="door-scene">
+      <img class="door-img" src="assets/membersonly/door.jpg" alt="Members Only">
+      <div class="rain-overlay"><img src="assets/membersonly/rain.gif" alt=""></div>
+      <button class="knocker" id="knocker" aria-label="Knock"></button>
+    </div>
+    <div id="boot">
+      <div class="boot-dice">&#127922;</div>
+      <div class="boot-title">CLUB NILE</div>
+      <div class="boot-sub">MEMBERS ONLY</div>
+    </div>
     <div class="overlay" id="overlay"><div class="ov-text" id="ovText"></div></div>
   </div>
   <img class="frame" src="assets/membersonly/egypt-console.png" alt="Members Only console">
   <div id="bezel"></div>
   <div id="bezel-in"></div>
   <div class="hot" id="btn-a" aria-label="A"></div>
+  <div id="power">
+    <div id="pw-track">
+      <span class="pw-txt pw-on">ON</span>
+      <span class="pw-txt pw-off">OFF</span>
+      <div id="pw-knob"></div>
+    </div>
+  </div>
 </div>
 
 <script>
-/* Knock the door (or press A) and step inside. The NFT gate returns
-   here later — membership will be checked before the door opens. */
-const knocker = document.getElementById('knocker');
-const overlay = document.getElementById('overlay');
-const ovText  = document.getElementById('ovText');
-const btnA    = document.getElementById('btn-a');
+/* The console boots when the power switch slides ON: the Club Nile card
+   drops onto the screen, fades, and the door scene takes over. The NFT
+   gate returns here later — membership checked before the door opens. */
+const doorScene = document.getElementById('door-scene');
+const boot     = document.getElementById('boot');
+const knocker  = document.getElementById('knocker');
+const overlay  = document.getElementById('overlay');
+const ovText   = document.getElementById('ovText');
+const btnA     = document.getElementById('btn-a');
+
+let powered = false;
+let entering = false;
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -173,26 +272,86 @@ async function typewrite(el, text, speed) {
   }
 }
 
-let entering = false;
+async function bootUp() {
+  powered = true;
+  /* park the card above the screen with no animation, then slide in */
+  boot.style.transition = 'none';
+  boot.classList.remove('in', 'gone');
+  void boot.offsetHeight;
+  boot.style.transition = '';
+  boot.classList.add('in');            // Club Nile card slides down
+  await delay(1700);
+  if (!powered) return;
+  doorScene.classList.add('show');     // door fades in underneath
+  boot.classList.add('gone');          // card fades away
+}
+
+function powerDown() {
+  powered = false;
+  entering = false;
+  doorScene.classList.remove('show');
+  overlay.classList.remove('active');
+  boot.style.transition = 'none';
+  boot.classList.remove('in', 'gone');
+  void boot.offsetHeight;
+  boot.style.transition = '';
+}
+
 async function enter() {
-  if (entering) return;
+  if (!powered || entering) return;
   entering = true;
   overlay.classList.add('active');
   await typewrite(ovText, 'Welcome to Club Nile');
   await delay(900);
+  if (!powered) return;
   window.location.href = 'games/clubnile.html';
 }
+
 knocker.addEventListener('click', enter);
 btnA.addEventListener('pointerdown', e => {
   e.preventDefault();
   btnA.classList.add('pressed');
   enter();
 });
-['pointerup','pointercancel','pointerleave'].forEach(ev =>
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
   btnA.addEventListener(ev, () => btnA.classList.remove('pressed')));
 addEventListener('keydown', e => {
   if (['Enter', ' ', 'e', 'E', 'z', 'Z'].includes(e.key)) enter();
 });
+
+/* ── power switch: swipe the knob and hold half a second to flip it ── */
+(function initPower() {
+  const el = document.getElementById('power');
+  const knob = document.getElementById('pw-knob');
+  const MIN = 3, MAX = 51;
+  let on = false, drag = null, holdT = null;
+  const setKnob = f => { knob.style.left = (MIN + f * (MAX - MIN)) + '%'; };
+  setKnob(0);
+  function commit() {
+    holdT = null;
+    on = !on;
+    setKnob(on ? 1 : 0);
+    if (on) bootUp(); else powerDown();
+  }
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    drag = { x0: e.clientX, w: el.getBoundingClientRect().width * 0.48, f: on ? 1 : 0 };
+  });
+  el.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const f = Math.max(0, Math.min(1, drag.f + (e.clientX - drag.x0) / drag.w));
+    setKnob(f);
+    const inTarget = on ? f < 0.25 : f > 0.75;
+    if (inTarget && !holdT) holdT = setTimeout(commit, 500);
+    else if (!inTarget && holdT) { clearTimeout(holdT); holdT = null; }
+  });
+  ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => {
+    if (holdT) { clearTimeout(holdT); holdT = null; }
+    drag = null;
+    setKnob(on ? 1 : 0);
+  }));
+})();
 </script>
 </body>
 </html>
