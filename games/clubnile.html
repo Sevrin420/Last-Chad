@@ -920,7 +920,7 @@ function outlineHD(c) {
   }
   g.putImageData(out, 0, 0);
 }
-function buildFrameHD(head, body, legs, pal, mirror) {
+function buildFrameHD(head, body, legs, pal, mirror, acc, dir) {
   const c = document.createElement('canvas');
   c.width = 40; c.height = 56;
   c.lw = 20; c.lh = 28;
@@ -931,6 +931,7 @@ function buildFrameHD(head, body, legs, pal, mirror) {
   paintRowsHD(g, head, pal, 0, 0);      // 32 rows x 36 cells → 16lp of head
   paintRowsHD(g, body, pal, 16, 2);     // 12 rows x 32 cells → 6lp of body
   paintRowsHD(g, legs, pal, 22, 2);     // 8 rows x 32 cells → 4lp of legs
+  if (acc) acc(g, dir, pal);            // 1920s headwear / jewels, before outline
   g.setTransform(1, 0, 0, 1, 0, 0);
   outlineHD(c);
   if (!mirror) return c;
@@ -942,7 +943,87 @@ function buildFrameHD(head, body, legs, pal, mirror) {
   mg.drawImage(c, 0, 0);
   return m;
 }
-/* traits in, character out — the future NFT metadata surface */
+/* ---- 1920s accessories, painted in logical head space over the frame.
+   Head region: x 0..18 (centre 9), y 0..16; eyes ~y7-9; neck ~y15-16.
+   Side view: face centres near x4. Kept within y >= -1 to avoid clipping. */
+function blk(g, x, y, w, h, col) { if (!col) return; g.fillStyle = col; g.fillRect(x, y, w, h); }
+const ACC_HEAD = {
+  none() {},
+  band(g, dir, a) {
+    const cx = dir === 'side' ? 4 : 9, x0 = dir === 'side' ? 1 : 1.5, w = dir === 'side' ? 12 : 15;
+    blk(g, x0, 3.6, w, 1.5, a.metal);
+    blk(g, x0, 3.6, w, 0.5, a.metalHi);
+    blk(g, cx - 1, 3.1, 2, 2, a.jewel);
+    blk(g, cx - 0.4, 3.3, 0.8, 0.8, '#ffffff');
+  },
+  feather(g, dir, a) {
+    ACC_HEAD.band(g, dir, a);
+    const cx = dir === 'side' ? 6 : 8;
+    blk(g, cx - 0.6, -1, 0.8, 3.5, a.feather);
+    blk(g, cx + 1, -1, 0.8, 3.5, a.feather);
+    blk(g, cx, -1.2, 1.4, 5.5, a.feather);
+    blk(g, cx + 0.4, -1, 0.7, 5, a.featherHi);
+  },
+  tiara(g, dir, a) {
+    ACC_HEAD.band(g, dir, a);
+    const cx = dir === 'side' ? 4 : 9;
+    blk(g, cx - 2, 1.8, 0.9, 1.8, a.metal);
+    blk(g, cx, 1.0, 0.9, 2.6, a.metal);
+    blk(g, cx + 1.4, 1.8, 0.9, 1.8, a.metal);
+    blk(g, cx - 0.2, 0.6, 1, 1, a.jewel);
+  },
+  plume(g, dir, a) {   // tall single ostrich plume
+    ACC_HEAD.band(g, dir, a);
+    const cx = dir === 'side' ? 6 : 9;
+    for (let i = 0; i < 6; i++) blk(g, cx - 1 + (i % 2), 4 - i, 1.6 - i * 0.12, 1, i < 4 ? a.feather : a.featherHi);
+    blk(g, cx - 0.2, -1.4, 0.9, 6, a.featherHi);
+  }
+};
+const ACC_FACE = {
+  none() {},
+  monocle(g, dir, a) {
+    const ex = dir === 'side' ? 5 : 11.5, ey = 8;
+    g.strokeStyle = a.metal; g.lineWidth = 0.5; g.strokeRect(ex - 1, ey - 1, 2.4, 2.4);
+    blk(g, ex - 1, ey + 1.6, 0.5, 3, a.metal);
+  },
+  pearls(g, dir, a) {
+    const y = 15.2, x0 = dir === 'side' ? 2 : 4, x1 = dir === 'side' ? 7 : 14;
+    for (let x = x0; x <= x1; x += 1.1) blk(g, x, y + Math.sin(x) * 0.5, 0.9, 0.9, '#f4ecd8');
+  },
+  bowtie(g, dir, a) {
+    const cx = dir === 'side' ? 4 : 9;
+    blk(g, cx - 2.2, 15, 2, 1.8, a.tie2);
+    blk(g, cx + 0.4, 15, 2, 1.8, a.tie2);
+    blk(g, cx - 0.4, 15.4, 0.9, 1, mixc(a.tie2, '#000', 0.35));
+  },
+  rose(g, dir, a) {
+    const x = dir === 'side' ? 3 : 6.5, y = 18.5;
+    blk(g, x, y, 1.6, 1.6, a.jewel);
+    blk(g, x + 0.4, y + 0.4, 0.7, 0.7, a.jewelHi);
+  },
+  cig(g, dir, a) {
+    if (dir === 'up') return;
+    const mx = dir === 'side' ? 2.5 : 12, my = 12, dx = dir === 'side' ? -1 : 1;
+    blk(g, dir === 'side' ? mx - 3.5 : mx, my, 4, 0.5, '#2a1d12');
+    blk(g, mx + dx * 4, my - 0.3, 1, 1, '#f4ecd8');
+    blk(g, mx + dx * 5, my - 0.6, 0.7, 0.7, '#ff8c42');
+  },
+  mask(g, dir, a) {   // domino masquerade mask
+    if (dir === 'up') return;
+    const cx = dir === 'side' ? 4.5 : 9;
+    blk(g, cx - (dir === 'side' ? 3 : 5), 6.4, dir === 'side' ? 6 : 10, 2.8, a.metal);
+    blk(g, cx - (dir === 'side' ? 3 : 5), 6.4, dir === 'side' ? 6 : 10, 0.6, a.metalHi);
+    blk(g, cx - 2, 7, 1.4, 1.4, '#0d0a12');
+    if (dir !== 'side') blk(g, cx + 0.8, 7, 1.4, 1.4, '#0d0a12');
+  }
+};
+function accPainter(t, ax) {
+  const hf = ACC_HEAD[t.headAcc] || ACC_HEAD.none;
+  const ff = ACC_FACE[t.faceAcc] || ACC_FACE.none;
+  return (g, dir) => { ff(g, dir, ax); hf(g, dir, ax); };
+}
+
+/* traits in, character out — the NFT metadata surface (333 of these) */
 function makeCharacterHD(t) {
   const skin = ramp(t.skin), hat = ramp(t.hat), coat = ramp(t.coat);
   const pants = ramp(t.pants), hair = ramp(t.hair), shoes = ramp(t.shoes);
@@ -957,18 +1038,128 @@ function makeCharacterHD(t) {
     E: '#1a1216', W: '#fff6e6', M: '#8e4a42',
     B: pants.base, b: pants.sh, F: shoes.base, f: shoes.sh
   };
+  const metal = ramp(t.metal || '#d9c07a');
+  const jewel = ramp(t.jewel || '#b02a3c');
+  const ax = {
+    metal: metal.base, metalHi: metal.hi, dark: '#1c1620', band: t.jewel || '#7a1a26',
+    jewel: jewel.base, jewelHi: jewel.hi, tie2: t.tie || '#1a1216',
+    feather: (t.feather && ramp(t.feather).base) || '#e9dfce',
+    featherHi: (t.feather && ramp(t.feather).hi) || '#fff8ea'
+  };
+  const acc = (t.headAcc && t.headAcc !== 'none') || (t.faceAcc && t.faceAcc !== 'none')
+    ? accPainter(t, ax) : null;
   const hd = HD_HEADS[t.head || 'fez'], bd = HD_BODIES[t.body || 'suit'], lg = HD_LEGS[t.body || 'suit'];
   const out = {};
-  out.down  = [0,1].map(f => buildFrameHD(hd.down, bd.front, lg.front[f], pal, false));
-  out.up    = [0,1].map(f => buildFrameHD(hd.up,   bd.front, lg.front[f], pal, false));
-  out.left  = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, false));
-  out.right = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, true));
+  out.down  = [0,1].map(f => buildFrameHD(hd.down, bd.front, lg.front[f], pal, false, acc, 'down'));
+  out.up    = [0,1].map(f => buildFrameHD(hd.up,   bd.front, lg.front[f], pal, false, acc, 'up'));
+  out.left  = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, false, acc, 'side'));
+  out.right = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, true,  acc, 'side'));
   return out;
 }
+/* ================= 333 unique 1920s characters (NFT collection) =================
+   A character is pure data: traitsForToken(id) is deterministic, so token #N
+   always renders the same guest. Rendered fronts ship as a zip; when a wallet
+   owns a token, the game loads that token's traits for the player sprite. */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const CN_TRAITS = {
+  skin: ['#f6cfa4','#f0c49a','#e9b98c','#e0a878','#d3a87e','#c68a5e','#a9714a','#8a5a38','#6f4429'],
+  hair: ['#2a1c12','#14100d','#3a2718','#5a3a1e','#7a4a24','#b07a34','#d9b45a','#e8dcc0','#8a2a1e','#6b6b74'],
+  /* 1920s jewel tones for gowns & tuxedos */
+  garment: ['#1f5f4a','#123c6e','#7a1a26','#4a2564','#123a3a','#5a3b12','#2a2536','#0f0c14',
+            '#7d1f3d','#b0862c','#2f6f6f','#8a3a1c','#c9a13b','#5c1a2c','#324a6e','#6b2560'],
+  metal: ['#d9c07a','#c9a13b','#b8b8c4','#c98a4a','#e8dcc0','#8a6a2a'],
+  jewel: ['#c0392b','#2f7f96','#3a8a5a','#6b46a8','#c98a1a','#b03a5a','#2f55a0','#d4d4dc'],
+  hatM:  ['#0f0c14','#5c1a2c','#123c6e','#1f5f4a','#2a2536','#7a1a26','#4a2564','#c9a13b'],
+  feather:['#e9dfce','#c0392b','#2f7f96','#3a8a5a','#6b46a8','#d9c07a','#b03a5a'],
+  headAccF: ['band','feather','tiara','plume','band','feather'],
+  headAccM: ['none','none','feather','band','none'],
+  faceAccM: ['none','monocle','bowtie','cig','rose','mask','none','bowtie'],
+  faceAccF: ['none','pearls','pearls','rose','mask','none']
+};
+const FIRST_M = ['Vinny','Duke','Sal','Rocco','Ace','Guido','Enzo','Marco','Nico','Louie','Rex','Bruno','Gus','Milo','Otto','Cyrus'];
+const FIRST_F = ['Ruby','Vivian','Josephine','Cleo','Pearl','Ada','Mabel','Greta','Dot','Lola','Estelle','Zelda','Ivy','Nadia','Coco','Thea'];
+const NICK = ['the Ace','Snake Eyes','Big Shot','the Kid','Highroller','Lucky','the Sheik','Bootlegs','the Fox','Diamond','Midnight','the Nile','Goldie','the Charm','Velvet','Slick'];
+const LEGENDARY = {
+  1:   { name:'The Golden Idol',  metal:'#e8c24a', garment:'#c9a13b', jewel:'#fff2b8', headAcc:'plume', faceAcc:'monocle', feather:'#e8c24a' },
+  7:   { name:'Midnight Sheik',   metal:'#c9a13b', garment:'#0f0c14', jewel:'#c0392b', headAcc:'feather', faceAcc:'mask', feather:'#c0392b' },
+  33:  { name:'Silver Moonlight', metal:'#d4d4dc', garment:'#324a6e', jewel:'#cfe4ff', headAcc:'tiara', faceAcc:'pearls', feather:'#e8dcc0' },
+  77:  { name:'The Emerald Vamp', metal:'#d9c07a', garment:'#1f5f4a', jewel:'#3a8a5a', headAcc:'plume', faceAcc:'rose', feather:'#3a8a5a' },
+  100: { name:'Pharaoh of Chips', metal:'#e8c24a', garment:'#123c6e', jewel:'#c9a13b', headAcc:'tiara', faceAcc:'mask', feather:'#d9c07a' },
+  222: { name:'The Ruby Baroness',metal:'#d4d4dc', garment:'#7a1a26', jewel:'#c0392b', headAcc:'plume', faceAcc:'pearls', feather:'#c0392b' },
+  333: { name:'The Last Chad',    metal:'#e8c24a', garment:'#0f0c14', jewel:'#e8c24a', headAcc:'feather', faceAcc:'monocle', feather:'#e8c24a' }
+};
+function traitsForToken(id) {
+  const rnd = mulberry32(id * 2654435761 >>> 0);
+  const pick = arr => arr[Math.floor(rnd() * arr.length)];
+  const female = rnd() < 0.5;
+  const T = CN_TRAITS;
+  const roll = rnd();
+  const tier = roll < 0.015 ? 'legendary' : roll < 0.09 ? 'epic' : roll < 0.32 ? 'rare' : 'common';
+  const skin = pick(T.skin), hair = pick(T.hair);
+  let garment = pick(T.garment), metal = pick(T.metal), jewel = pick(T.jewel);
+  let headAcc, faceAcc, feather = pick(T.feather);
+  if (female) {
+    headAcc = tier === 'common' ? (rnd() < 0.5 ? 'band' : 'none') : pick(T.headAccF);
+    faceAcc = pick(T.faceAccF);
+  } else {
+    headAcc = tier === 'common' ? 'none' : pick(T.headAccM);
+    faceAcc = pick(T.faceAccM);
+  }
+  if (tier === 'epic' || tier === 'legendary') { garment = pick(['#c9a13b','#0f0c14','#7a1a26','#1f5f4a','#324a6e','#4a2564','#d4d4dc']); metal = pick(['#e8c24a','#d4d4dc','#c98a4a']); }
+  const leg = LEGENDARY[id];
+  let finalTier = tier;
+  if (leg) { garment = leg.garment; metal = leg.metal; jewel = leg.jewel; headAcc = leg.headAcc; faceAcc = leg.faceAcc; feather = leg.feather; finalTier = 'legendary'; }
+  const trim = tier === 'common' ? mixc(garment, '#f4ead2', 0.25) : metal;
+  const t = female
+    ? { head:'bob', body:'dress', skin, hair, hat: garment, coat: garment, pants: garment,
+        shoes: metal, tie: jewel, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
+        name: leg ? leg.name : pick(FIRST_F) + ' “' + pick(NICK) + '”' }
+    : { head:'fez', body:'suit', skin, hair, hat: pick(T.hatM), coat: garment, pants: mixc(garment, '#0d0a12', 0.4),
+        shoes: '#120d10', tie: jewel, shirt:'#f4ead2', headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
+        name: leg ? leg.name : pick(FIRST_M) + ' “' + pick(NICK) + '”' };
+  t.id = id;
+  return t;
+}
+/* deterministic guests seeded from any token (used for the floor crowd too) */
+function characterForToken(id) { return makeCharacterHD(traitsForToken(id)); }
+/* the front (down) frame, trimmed and upscaled — the NFT card image */
+function buildFrontCanvas(id, scale) {
+  scale = scale || 10;
+  const fr = characterForToken(id).down[0];   // 40x56 backing
+  const sx = 6, sy = 0, sw = 28, sh = 54;      // crop to the character
+  const c = document.createElement('canvas');
+  c.width = sw * scale; c.height = sh * scale;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(fr, sx, sy, sw, sh, 0, 0, sw * scale, sh * scale);
+  return c;
+}
+/* always-on API for the image generator and the future NFT gate */
+window.ClubNile = {
+  COUNT: 333,
+  traits: traitsForToken,
+  frontDataURL(id, scale) { return buildFrontCanvas(id, scale).toDataURL('image/png'); }
+};
+
+/* the player: a specific owned token if the wallet handed one over, else #1 */
+let PLAYER_TOKEN = 1;
+try {
+  const s = JSON.parse(sessionStorage.getItem('clubnile_session') || 'null');
+  if (s && s.tokenId) PLAYER_TOKEN = Math.max(1, Math.min(333, parseInt(s.tokenId, 10) || 1));
+} catch (e) { /* guest play */ }
+
 const SPRITES = {
-  player:      makeCharacterHD({ head:'fez',   body:'suit',  skin:'#f6cfa4', hat:'#d84a34',
-                                 hair:'#3a2718', coat:'#f8f1e2', pants:'#2c2536',
-                                 shoes:'#241a20', tie:'#1a1216' }),
+  player:      characterForToken(PLAYER_TOKEN),
+  bartender:   makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#d84a34',
+                                 hair:'#14100d', coat:'#fdfaf1', pants:'#1a1216',
+                                 shoes:'#120d10', tie:'#b02a3c' }),
   bartender:   makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#d84a34',
                                  hair:'#14100d', coat:'#fdfaf1', pants:'#1a1216',
                                  shoes:'#120d10', tie:'#b02a3c' }),
@@ -4243,6 +4434,7 @@ try {
 if (new URLSearchParams(location.search).has('debug')) {
   window.CN = {
     enterCraps, enterBlackjack, leaveTable, player, cr, bj, social, popups, sound, SPRITES,
+    traitsForToken, characterForToken, PLAYER_TOKEN,
     get chips() { return chips; }, setChips,
     skipTitle() { started = true; titleAlpha = 0; }
   };

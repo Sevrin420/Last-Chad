@@ -1,0 +1,10325 @@
+[
+ {
+  "tokenId": 1,
+  "name": "Club Nile #1 — The Golden Idol",
+  "image": "images/1.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#fff2b8"
+   }
+  ]
+ },
+ {
+  "tokenId": 2,
+  "name": "Club Nile #2 — Louie “the Fox”",
+  "image": "images/2.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 3,
+  "name": "Club Nile #3 — Mabel “Diamond”",
+  "image": "images/3.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 4,
+  "name": "Club Nile #4 — Otto “Bootlegs”",
+  "image": "images/4.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 5,
+  "name": "Club Nile #5 — Thea “Slick”",
+  "image": "images/5.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 6,
+  "name": "Club Nile #6 — Ivy “the Charm”",
+  "image": "images/6.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 7,
+  "name": "Club Nile #7 — Midnight Sheik",
+  "image": "images/7.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 8,
+  "name": "Club Nile #8 — Gus “Snake Eyes”",
+  "image": "images/8.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 9,
+  "name": "Club Nile #9 — Milo “the Fox”",
+  "image": "images/9.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 10,
+  "name": "Club Nile #10 — Vinny “Diamond”",
+  "image": "images/10.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 11,
+  "name": "Club Nile #11 — Rocco “Diamond”",
+  "image": "images/11.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 12,
+  "name": "Club Nile #12 — Estelle “Goldie”",
+  "image": "images/12.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 13,
+  "name": "Club Nile #13 — Milo “Diamond”",
+  "image": "images/13.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 14,
+  "name": "Club Nile #14 — Gus “Lucky”",
+  "image": "images/14.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 15,
+  "name": "Club Nile #15 — Ruby “Diamond”",
+  "image": "images/15.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 16,
+  "name": "Club Nile #16 — Nadia “Goldie”",
+  "image": "images/16.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 17,
+  "name": "Club Nile #17 — Ruby “Bootlegs”",
+  "image": "images/17.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 18,
+  "name": "Club Nile #18 — Enzo “Diamond”",
+  "image": "images/18.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 19,
+  "name": "Club Nile #19 — Enzo “the Charm”",
+  "image": "images/19.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 20,
+  "name": "Club Nile #20 — Estelle “Velvet”",
+  "image": "images/20.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 21,
+  "name": "Club Nile #21 — Ruby “Big Shot”",
+  "image": "images/21.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 22,
+  "name": "Club Nile #22 — Guido “Lucky”",
+  "image": "images/22.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 23,
+  "name": "Club Nile #23 — Otto “the Kid”",
+  "image": "images/23.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 24,
+  "name": "Club Nile #24 — Enzo “Bootlegs”",
+  "image": "images/24.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 25,
+  "name": "Club Nile #25 — Lola “the Nile”",
+  "image": "images/25.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 26,
+  "name": "Club Nile #26 — Cyrus “the Ace”",
+  "image": "images/26.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 27,
+  "name": "Club Nile #27 — Duke “Diamond”",
+  "image": "images/27.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 28,
+  "name": "Club Nile #28 — Rocco “Big Shot”",
+  "image": "images/28.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 29,
+  "name": "Club Nile #29 — Greta “Bootlegs”",
+  "image": "images/29.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 30,
+  "name": "Club Nile #30 — Dot “the Charm”",
+  "image": "images/30.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 31,
+  "name": "Club Nile #31 — Louie “Lucky”",
+  "image": "images/31.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 32,
+  "name": "Club Nile #32 — Otto “Goldie”",
+  "image": "images/32.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 33,
+  "name": "Club Nile #33 — Silver Moonlight",
+  "image": "images/33.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#cfe4ff"
+   }
+  ]
+ },
+ {
+  "tokenId": 34,
+  "name": "Club Nile #34 — Pearl “the Charm”",
+  "image": "images/34.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 35,
+  "name": "Club Nile #35 — Greta “Diamond”",
+  "image": "images/35.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 36,
+  "name": "Club Nile #36 — Josephine “Velvet”",
+  "image": "images/36.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 37,
+  "name": "Club Nile #37 — Enzo “Snake Eyes”",
+  "image": "images/37.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 38,
+  "name": "Club Nile #38 — Cyrus “Bootlegs”",
+  "image": "images/38.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 39,
+  "name": "Club Nile #39 — Ada “the Nile”",
+  "image": "images/39.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 40,
+  "name": "Club Nile #40 — Ivy “the Fox”",
+  "image": "images/40.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 41,
+  "name": "Club Nile #41 — Milo “Lucky”",
+  "image": "images/41.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#d4d4dc"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 42,
+  "name": "Club Nile #42 — Lola “Goldie”",
+  "image": "images/42.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 43,
+  "name": "Club Nile #43 — Lola “Lucky”",
+  "image": "images/43.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 44,
+  "name": "Club Nile #44 — Marco “Bootlegs”",
+  "image": "images/44.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 45,
+  "name": "Club Nile #45 — Vivian “Diamond”",
+  "image": "images/45.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 46,
+  "name": "Club Nile #46 — Cleo “the Kid”",
+  "image": "images/46.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 47,
+  "name": "Club Nile #47 — Louie “the Nile”",
+  "image": "images/47.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 48,
+  "name": "Club Nile #48 — Coco “Bootlegs”",
+  "image": "images/48.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 49,
+  "name": "Club Nile #49 — Marco “the Nile”",
+  "image": "images/49.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 50,
+  "name": "Club Nile #50 — Rocco “the Nile”",
+  "image": "images/50.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 51,
+  "name": "Club Nile #51 — Marco “the Sheik”",
+  "image": "images/51.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 52,
+  "name": "Club Nile #52 — Ruby “Goldie”",
+  "image": "images/52.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 53,
+  "name": "Club Nile #53 — Nico “Goldie”",
+  "image": "images/53.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 54,
+  "name": "Club Nile #54 — Vivian “the Ace”",
+  "image": "images/54.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 55,
+  "name": "Club Nile #55 — Bruno “the Fox”",
+  "image": "images/55.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 56,
+  "name": "Club Nile #56 — Milo “Velvet”",
+  "image": "images/56.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 57,
+  "name": "Club Nile #57 — Nico “Midnight”",
+  "image": "images/57.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 58,
+  "name": "Club Nile #58 — Thea “Bootlegs”",
+  "image": "images/58.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 59,
+  "name": "Club Nile #59 — Vivian “Big Shot”",
+  "image": "images/59.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#d4d4dc"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 60,
+  "name": "Club Nile #60 — Ace “Bootlegs”",
+  "image": "images/60.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 61,
+  "name": "Club Nile #61 — Pearl “Slick”",
+  "image": "images/61.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 62,
+  "name": "Club Nile #62 — Coco “the Fox”",
+  "image": "images/62.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 63,
+  "name": "Club Nile #63 — Rex “Velvet”",
+  "image": "images/63.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 64,
+  "name": "Club Nile #64 — Enzo “the Sheik”",
+  "image": "images/64.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 65,
+  "name": "Club Nile #65 — Cleo “Highroller”",
+  "image": "images/65.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 66,
+  "name": "Club Nile #66 — Marco “Big Shot”",
+  "image": "images/66.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 67,
+  "name": "Club Nile #67 — Mabel “the Charm”",
+  "image": "images/67.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 68,
+  "name": "Club Nile #68 — Cyrus “Velvet”",
+  "image": "images/68.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 69,
+  "name": "Club Nile #69 — Milo “the Fox”",
+  "image": "images/69.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 70,
+  "name": "Club Nile #70 — Marco “the Ace”",
+  "image": "images/70.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 71,
+  "name": "Club Nile #71 — Vivian “Midnight”",
+  "image": "images/71.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 72,
+  "name": "Club Nile #72 — Rocco “Diamond”",
+  "image": "images/72.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 73,
+  "name": "Club Nile #73 — Zelda “Big Shot”",
+  "image": "images/73.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 74,
+  "name": "Club Nile #74 — Nadia “the Sheik”",
+  "image": "images/74.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 75,
+  "name": "Club Nile #75 — Zelda “Highroller”",
+  "image": "images/75.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 76,
+  "name": "Club Nile #76 — Rocco “the Nile”",
+  "image": "images/76.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 77,
+  "name": "Club Nile #77 — The Emerald Vamp",
+  "image": "images/77.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 78,
+  "name": "Club Nile #78 — Ace “the Fox”",
+  "image": "images/78.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 79,
+  "name": "Club Nile #79 — Otto “Slick”",
+  "image": "images/79.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 80,
+  "name": "Club Nile #80 — Bruno “Highroller”",
+  "image": "images/80.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 81,
+  "name": "Club Nile #81 — Marco “the Charm”",
+  "image": "images/81.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 82,
+  "name": "Club Nile #82 — Milo “Goldie”",
+  "image": "images/82.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 83,
+  "name": "Club Nile #83 — Dot “Diamond”",
+  "image": "images/83.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 84,
+  "name": "Club Nile #84 — Vinny “Snake Eyes”",
+  "image": "images/84.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 85,
+  "name": "Club Nile #85 — Estelle “Velvet”",
+  "image": "images/85.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 86,
+  "name": "Club Nile #86 — Vivian “Big Shot”",
+  "image": "images/86.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 87,
+  "name": "Club Nile #87 — Coco “Lucky”",
+  "image": "images/87.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 88,
+  "name": "Club Nile #88 — Louie “Snake Eyes”",
+  "image": "images/88.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 89,
+  "name": "Club Nile #89 — Bruno “the Fox”",
+  "image": "images/89.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 90,
+  "name": "Club Nile #90 — Estelle “Diamond”",
+  "image": "images/90.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 91,
+  "name": "Club Nile #91 — Milo “the Kid”",
+  "image": "images/91.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 92,
+  "name": "Club Nile #92 — Zelda “Bootlegs”",
+  "image": "images/92.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 93,
+  "name": "Club Nile #93 — Milo “the Sheik”",
+  "image": "images/93.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 94,
+  "name": "Club Nile #94 — Gus “the Sheik”",
+  "image": "images/94.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 95,
+  "name": "Club Nile #95 — Louie “Bootlegs”",
+  "image": "images/95.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 96,
+  "name": "Club Nile #96 — Zelda “Goldie”",
+  "image": "images/96.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 97,
+  "name": "Club Nile #97 — Josephine “Slick”",
+  "image": "images/97.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 98,
+  "name": "Club Nile #98 — Nico “the Kid”",
+  "image": "images/98.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 99,
+  "name": "Club Nile #99 — Gus “the Charm”",
+  "image": "images/99.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 100,
+  "name": "Club Nile #100 — Pharaoh of Chips",
+  "image": "images/100.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c9a13b"
+   }
+  ]
+ },
+ {
+  "tokenId": 101,
+  "name": "Club Nile #101 — Louie “Midnight”",
+  "image": "images/101.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 102,
+  "name": "Club Nile #102 — Nadia “Velvet”",
+  "image": "images/102.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 103,
+  "name": "Club Nile #103 — Greta “the Ace”",
+  "image": "images/103.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 104,
+  "name": "Club Nile #104 — Otto “Bootlegs”",
+  "image": "images/104.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 105,
+  "name": "Club Nile #105 — Guido “the Nile”",
+  "image": "images/105.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 106,
+  "name": "Club Nile #106 — Nico “Midnight”",
+  "image": "images/106.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 107,
+  "name": "Club Nile #107 — Thea “the Nile”",
+  "image": "images/107.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 108,
+  "name": "Club Nile #108 — Rocco “Diamond”",
+  "image": "images/108.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 109,
+  "name": "Club Nile #109 — Enzo “Snake Eyes”",
+  "image": "images/109.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 110,
+  "name": "Club Nile #110 — Sal “the Kid”",
+  "image": "images/110.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 111,
+  "name": "Club Nile #111 — Rex “Snake Eyes”",
+  "image": "images/111.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 112,
+  "name": "Club Nile #112 — Dot “Lucky”",
+  "image": "images/112.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 113,
+  "name": "Club Nile #113 — Ada “Lucky”",
+  "image": "images/113.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 114,
+  "name": "Club Nile #114 — Rocco “Slick”",
+  "image": "images/114.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 115,
+  "name": "Club Nile #115 — Marco “Diamond”",
+  "image": "images/115.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 116,
+  "name": "Club Nile #116 — Marco “Lucky”",
+  "image": "images/116.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 117,
+  "name": "Club Nile #117 — Bruno “Midnight”",
+  "image": "images/117.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 118,
+  "name": "Club Nile #118 — Mabel “the Ace”",
+  "image": "images/118.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 119,
+  "name": "Club Nile #119 — Cleo “Lucky”",
+  "image": "images/119.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 120,
+  "name": "Club Nile #120 — Ada “Diamond”",
+  "image": "images/120.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 121,
+  "name": "Club Nile #121 — Nico “Diamond”",
+  "image": "images/121.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 122,
+  "name": "Club Nile #122 — Dot “Bootlegs”",
+  "image": "images/122.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 123,
+  "name": "Club Nile #123 — Cleo “the Kid”",
+  "image": "images/123.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 124,
+  "name": "Club Nile #124 — Estelle “Lucky”",
+  "image": "images/124.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 125,
+  "name": "Club Nile #125 — Thea “Snake Eyes”",
+  "image": "images/125.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 126,
+  "name": "Club Nile #126 — Louie “Big Shot”",
+  "image": "images/126.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 127,
+  "name": "Club Nile #127 — Gus “the Sheik”",
+  "image": "images/127.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 128,
+  "name": "Club Nile #128 — Enzo “the Nile”",
+  "image": "images/128.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 129,
+  "name": "Club Nile #129 — Ivy “Goldie”",
+  "image": "images/129.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 130,
+  "name": "Club Nile #130 — Nico “the Kid”",
+  "image": "images/130.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 131,
+  "name": "Club Nile #131 — Marco “Slick”",
+  "image": "images/131.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 132,
+  "name": "Club Nile #132 — Milo “the Ace”",
+  "image": "images/132.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 133,
+  "name": "Club Nile #133 — Nadia “Velvet”",
+  "image": "images/133.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 134,
+  "name": "Club Nile #134 — Ada “Snake Eyes”",
+  "image": "images/134.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 135,
+  "name": "Club Nile #135 — Rex “the Ace”",
+  "image": "images/135.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 136,
+  "name": "Club Nile #136 — Nadia “the Ace”",
+  "image": "images/136.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 137,
+  "name": "Club Nile #137 — Duke “Velvet”",
+  "image": "images/137.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 138,
+  "name": "Club Nile #138 — Enzo “Slick”",
+  "image": "images/138.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 139,
+  "name": "Club Nile #139 — Louie “the Nile”",
+  "image": "images/139.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 140,
+  "name": "Club Nile #140 — Ada “Velvet”",
+  "image": "images/140.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 141,
+  "name": "Club Nile #141 — Milo “Midnight”",
+  "image": "images/141.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 142,
+  "name": "Club Nile #142 — Cyrus “Diamond”",
+  "image": "images/142.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 143,
+  "name": "Club Nile #143 — Gus “Snake Eyes”",
+  "image": "images/143.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 144,
+  "name": "Club Nile #144 — Gus “the Charm”",
+  "image": "images/144.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 145,
+  "name": "Club Nile #145 — Gus “Highroller”",
+  "image": "images/145.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 146,
+  "name": "Club Nile #146 — Ivy “the Kid”",
+  "image": "images/146.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 147,
+  "name": "Club Nile #147 — Pearl “Midnight”",
+  "image": "images/147.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 148,
+  "name": "Club Nile #148 — Josephine “the Sheik”",
+  "image": "images/148.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 149,
+  "name": "Club Nile #149 — Mabel “Midnight”",
+  "image": "images/149.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 150,
+  "name": "Club Nile #150 — Milo “the Sheik”",
+  "image": "images/150.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 151,
+  "name": "Club Nile #151 — Sal “Snake Eyes”",
+  "image": "images/151.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 152,
+  "name": "Club Nile #152 — Zelda “Slick”",
+  "image": "images/152.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 153,
+  "name": "Club Nile #153 — Thea “the Charm”",
+  "image": "images/153.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 154,
+  "name": "Club Nile #154 — Coco “the Charm”",
+  "image": "images/154.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 155,
+  "name": "Club Nile #155 — Gus “the Charm”",
+  "image": "images/155.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 156,
+  "name": "Club Nile #156 — Gus “the Kid”",
+  "image": "images/156.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 157,
+  "name": "Club Nile #157 — Duke “the Fox”",
+  "image": "images/157.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 158,
+  "name": "Club Nile #158 — Zelda “Big Shot”",
+  "image": "images/158.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 159,
+  "name": "Club Nile #159 — Dot “Diamond”",
+  "image": "images/159.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 160,
+  "name": "Club Nile #160 — Coco “the Fox”",
+  "image": "images/160.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 161,
+  "name": "Club Nile #161 — Ruby “the Sheik”",
+  "image": "images/161.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 162,
+  "name": "Club Nile #162 — Gus “Velvet”",
+  "image": "images/162.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 163,
+  "name": "Club Nile #163 — Gus “Velvet”",
+  "image": "images/163.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 164,
+  "name": "Club Nile #164 — Estelle “Bootlegs”",
+  "image": "images/164.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 165,
+  "name": "Club Nile #165 — Coco “Bootlegs”",
+  "image": "images/165.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 166,
+  "name": "Club Nile #166 — Marco “the Ace”",
+  "image": "images/166.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 167,
+  "name": "Club Nile #167 — Duke “Midnight”",
+  "image": "images/167.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 168,
+  "name": "Club Nile #168 — Sal “Midnight”",
+  "image": "images/168.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 169,
+  "name": "Club Nile #169 — Vivian “Diamond”",
+  "image": "images/169.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 170,
+  "name": "Club Nile #170 — Gus “the Kid”",
+  "image": "images/170.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 171,
+  "name": "Club Nile #171 — Josephine “Lucky”",
+  "image": "images/171.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 172,
+  "name": "Club Nile #172 — Ivy “Diamond”",
+  "image": "images/172.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 173,
+  "name": "Club Nile #173 — Ruby “Big Shot”",
+  "image": "images/173.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 174,
+  "name": "Club Nile #174 — Gus “Big Shot”",
+  "image": "images/174.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 175,
+  "name": "Club Nile #175 — Gus “Bootlegs”",
+  "image": "images/175.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 176,
+  "name": "Club Nile #176 — Ada “Goldie”",
+  "image": "images/176.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 177,
+  "name": "Club Nile #177 — Gus “Midnight”",
+  "image": "images/177.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 178,
+  "name": "Club Nile #178 — Sal “Goldie”",
+  "image": "images/178.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 179,
+  "name": "Club Nile #179 — Marco “Highroller”",
+  "image": "images/179.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 180,
+  "name": "Club Nile #180 — Duke “Slick”",
+  "image": "images/180.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 181,
+  "name": "Club Nile #181 — Louie “the Ace”",
+  "image": "images/181.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 182,
+  "name": "Club Nile #182 — Ivy “Highroller”",
+  "image": "images/182.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 183,
+  "name": "Club Nile #183 — Estelle “the Charm”",
+  "image": "images/183.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 184,
+  "name": "Club Nile #184 — Greta “Diamond”",
+  "image": "images/184.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 185,
+  "name": "Club Nile #185 — Lola “Slick”",
+  "image": "images/185.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 186,
+  "name": "Club Nile #186 — Ada “the Kid”",
+  "image": "images/186.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 187,
+  "name": "Club Nile #187 — Enzo “the Nile”",
+  "image": "images/187.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 188,
+  "name": "Club Nile #188 — Vivian “Bootlegs”",
+  "image": "images/188.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 189,
+  "name": "Club Nile #189 — Enzo “the Charm”",
+  "image": "images/189.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 190,
+  "name": "Club Nile #190 — Ace “Bootlegs”",
+  "image": "images/190.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 191,
+  "name": "Club Nile #191 — Greta “Slick”",
+  "image": "images/191.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 192,
+  "name": "Club Nile #192 — Mabel “Goldie”",
+  "image": "images/192.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 193,
+  "name": "Club Nile #193 — Estelle “Diamond”",
+  "image": "images/193.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 194,
+  "name": "Club Nile #194 — Greta “Snake Eyes”",
+  "image": "images/194.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 195,
+  "name": "Club Nile #195 — Ada “Highroller”",
+  "image": "images/195.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 196,
+  "name": "Club Nile #196 — Thea “the Nile”",
+  "image": "images/196.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 197,
+  "name": "Club Nile #197 — Sal “Midnight”",
+  "image": "images/197.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 198,
+  "name": "Club Nile #198 — Bruno “Midnight”",
+  "image": "images/198.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 199,
+  "name": "Club Nile #199 — Louie “the Ace”",
+  "image": "images/199.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 200,
+  "name": "Club Nile #200 — Nico “the Sheik”",
+  "image": "images/200.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 201,
+  "name": "Club Nile #201 — Nico “Diamond”",
+  "image": "images/201.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 202,
+  "name": "Club Nile #202 — Ivy “Goldie”",
+  "image": "images/202.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 203,
+  "name": "Club Nile #203 — Milo “the Fox”",
+  "image": "images/203.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 204,
+  "name": "Club Nile #204 — Mabel “the Fox”",
+  "image": "images/204.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 205,
+  "name": "Club Nile #205 — Vinny “Snake Eyes”",
+  "image": "images/205.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 206,
+  "name": "Club Nile #206 — Bruno “the Kid”",
+  "image": "images/206.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 207,
+  "name": "Club Nile #207 — Vinny “the Sheik”",
+  "image": "images/207.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 208,
+  "name": "Club Nile #208 — Milo “the Nile”",
+  "image": "images/208.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 209,
+  "name": "Club Nile #209 — Dot “the Fox”",
+  "image": "images/209.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 210,
+  "name": "Club Nile #210 — Vinny “the Fox”",
+  "image": "images/210.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 211,
+  "name": "Club Nile #211 — Enzo “the Nile”",
+  "image": "images/211.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 212,
+  "name": "Club Nile #212 — Ivy “the Ace”",
+  "image": "images/212.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 213,
+  "name": "Club Nile #213 — Louie “Big Shot”",
+  "image": "images/213.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 214,
+  "name": "Club Nile #214 — Mabel “Highroller”",
+  "image": "images/214.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 215,
+  "name": "Club Nile #215 — Nadia “the Kid”",
+  "image": "images/215.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 216,
+  "name": "Club Nile #216 — Cleo “the Nile”",
+  "image": "images/216.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 217,
+  "name": "Club Nile #217 — Guido “Velvet”",
+  "image": "images/217.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 218,
+  "name": "Club Nile #218 — Josephine “Big Shot”",
+  "image": "images/218.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 219,
+  "name": "Club Nile #219 — Rocco “Goldie”",
+  "image": "images/219.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 220,
+  "name": "Club Nile #220 — Lola “Bootlegs”",
+  "image": "images/220.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 221,
+  "name": "Club Nile #221 — Thea “Big Shot”",
+  "image": "images/221.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 222,
+  "name": "Club Nile #222 — The Ruby Baroness",
+  "image": "images/222.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "plume"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 223,
+  "name": "Club Nile #223 — Ada “Big Shot”",
+  "image": "images/223.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 224,
+  "name": "Club Nile #224 — Mabel “the Ace”",
+  "image": "images/224.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 225,
+  "name": "Club Nile #225 — Ada “the Nile”",
+  "image": "images/225.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 226,
+  "name": "Club Nile #226 — Gus “Velvet”",
+  "image": "images/226.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 227,
+  "name": "Club Nile #227 — Gus “the Charm”",
+  "image": "images/227.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 228,
+  "name": "Club Nile #228 — Lola “the Kid”",
+  "image": "images/228.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 229,
+  "name": "Club Nile #229 — Louie “the Charm”",
+  "image": "images/229.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 230,
+  "name": "Club Nile #230 — Thea “the Charm”",
+  "image": "images/230.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 231,
+  "name": "Club Nile #231 — Dot “the Ace”",
+  "image": "images/231.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 232,
+  "name": "Club Nile #232 — Vinny “Big Shot”",
+  "image": "images/232.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 233,
+  "name": "Club Nile #233 — Milo “Lucky”",
+  "image": "images/233.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 234,
+  "name": "Club Nile #234 — Rocco “the Nile”",
+  "image": "images/234.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 235,
+  "name": "Club Nile #235 — Ruby “the Fox”",
+  "image": "images/235.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 236,
+  "name": "Club Nile #236 — Duke “Big Shot”",
+  "image": "images/236.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 237,
+  "name": "Club Nile #237 — Rex “the Sheik”",
+  "image": "images/237.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 238,
+  "name": "Club Nile #238 — Greta “Velvet”",
+  "image": "images/238.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 239,
+  "name": "Club Nile #239 — Lola “Highroller”",
+  "image": "images/239.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 240,
+  "name": "Club Nile #240 — Greta “Slick”",
+  "image": "images/240.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 241,
+  "name": "Club Nile #241 — Sal “the Sheik”",
+  "image": "images/241.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 242,
+  "name": "Club Nile #242 — Enzo “Snake Eyes”",
+  "image": "images/242.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 243,
+  "name": "Club Nile #243 — Coco “Midnight”",
+  "image": "images/243.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 244,
+  "name": "Club Nile #244 — Ada “Bootlegs”",
+  "image": "images/244.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 245,
+  "name": "Club Nile #245 — Rex “Slick”",
+  "image": "images/245.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 246,
+  "name": "Club Nile #246 — Otto “the Charm”",
+  "image": "images/246.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 247,
+  "name": "Club Nile #247 — Duke “Diamond”",
+  "image": "images/247.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 248,
+  "name": "Club Nile #248 — Nadia “Bootlegs”",
+  "image": "images/248.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 249,
+  "name": "Club Nile #249 — Estelle “Slick”",
+  "image": "images/249.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 250,
+  "name": "Club Nile #250 — Rocco “the Kid”",
+  "image": "images/250.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 251,
+  "name": "Club Nile #251 — Vivian “the Ace”",
+  "image": "images/251.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 252,
+  "name": "Club Nile #252 — Rocco “the Fox”",
+  "image": "images/252.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 253,
+  "name": "Club Nile #253 — Cyrus “Goldie”",
+  "image": "images/253.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 254,
+  "name": "Club Nile #254 — Sal “Highroller”",
+  "image": "images/254.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 255,
+  "name": "Club Nile #255 — Duke “the Fox”",
+  "image": "images/255.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 256,
+  "name": "Club Nile #256 — Nadia “Highroller”",
+  "image": "images/256.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 257,
+  "name": "Club Nile #257 — Ace “Diamond”",
+  "image": "images/257.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 258,
+  "name": "Club Nile #258 — Otto “Velvet”",
+  "image": "images/258.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 259,
+  "name": "Club Nile #259 — Cleo “Highroller”",
+  "image": "images/259.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#c9a13b"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 260,
+  "name": "Club Nile #260 — Dot “Slick”",
+  "image": "images/260.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 261,
+  "name": "Club Nile #261 — Rocco “the Fox”",
+  "image": "images/261.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 262,
+  "name": "Club Nile #262 — Estelle “Lucky”",
+  "image": "images/262.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 263,
+  "name": "Club Nile #263 — Dot “the Kid”",
+  "image": "images/263.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 264,
+  "name": "Club Nile #264 — Nico “Big Shot”",
+  "image": "images/264.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 265,
+  "name": "Club Nile #265 — Coco “Highroller”",
+  "image": "images/265.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 266,
+  "name": "Club Nile #266 — Cyrus “the Sheik”",
+  "image": "images/266.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 267,
+  "name": "Club Nile #267 — Mabel “Snake Eyes”",
+  "image": "images/267.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 268,
+  "name": "Club Nile #268 — Dot “Velvet”",
+  "image": "images/268.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 269,
+  "name": "Club Nile #269 — Mabel “the Fox”",
+  "image": "images/269.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 270,
+  "name": "Club Nile #270 — Otto “Lucky”",
+  "image": "images/270.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 271,
+  "name": "Club Nile #271 — Vinny “Velvet”",
+  "image": "images/271.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 272,
+  "name": "Club Nile #272 — Cleo “Lucky”",
+  "image": "images/272.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 273,
+  "name": "Club Nile #273 — Nico “Big Shot”",
+  "image": "images/273.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 274,
+  "name": "Club Nile #274 — Louie “the Ace”",
+  "image": "images/274.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 275,
+  "name": "Club Nile #275 — Rocco “Highroller”",
+  "image": "images/275.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 276,
+  "name": "Club Nile #276 — Thea “Goldie”",
+  "image": "images/276.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 277,
+  "name": "Club Nile #277 — Nico “the Nile”",
+  "image": "images/277.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 278,
+  "name": "Club Nile #278 — Enzo “Big Shot”",
+  "image": "images/278.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 279,
+  "name": "Club Nile #279 — Dot “the Nile”",
+  "image": "images/279.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 280,
+  "name": "Club Nile #280 — Pearl “Diamond”",
+  "image": "images/280.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 281,
+  "name": "Club Nile #281 — Pearl “Midnight”",
+  "image": "images/281.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 282,
+  "name": "Club Nile #282 — Vinny “Goldie”",
+  "image": "images/282.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 283,
+  "name": "Club Nile #283 — Coco “Diamond”",
+  "image": "images/283.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5c1a2c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 284,
+  "name": "Club Nile #284 — Greta “Midnight”",
+  "image": "images/284.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 285,
+  "name": "Club Nile #285 — Greta “Midnight”",
+  "image": "images/285.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 286,
+  "name": "Club Nile #286 — Marco “the Charm”",
+  "image": "images/286.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 287,
+  "name": "Club Nile #287 — Sal “Diamond”",
+  "image": "images/287.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 288,
+  "name": "Club Nile #288 — Lola “Slick”",
+  "image": "images/288.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#4a2564"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 289,
+  "name": "Club Nile #289 — Rex “Goldie”",
+  "image": "images/289.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "rose"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 290,
+  "name": "Club Nile #290 — Dot “Highroller”",
+  "image": "images/290.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 291,
+  "name": "Club Nile #291 — Louie “the Ace”",
+  "image": "images/291.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 292,
+  "name": "Club Nile #292 — Ruby “Slick”",
+  "image": "images/292.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 293,
+  "name": "Club Nile #293 — Nico “the Sheik”",
+  "image": "images/293.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 294,
+  "name": "Club Nile #294 — Vinny “the Sheik”",
+  "image": "images/294.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 295,
+  "name": "Club Nile #295 — Enzo “Slick”",
+  "image": "images/295.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 296,
+  "name": "Club Nile #296 — Gus “Bootlegs”",
+  "image": "images/296.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#d4d4dc"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 297,
+  "name": "Club Nile #297 — Rex “Lucky”",
+  "image": "images/297.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 298,
+  "name": "Club Nile #298 — Ada “Diamond”",
+  "image": "images/298.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 299,
+  "name": "Club Nile #299 — Ada “Velvet”",
+  "image": "images/299.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 300,
+  "name": "Club Nile #300 — Vivian “the Ace”",
+  "image": "images/300.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 301,
+  "name": "Club Nile #301 — Cyrus “the Nile”",
+  "image": "images/301.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 302,
+  "name": "Club Nile #302 — Nico “Midnight”",
+  "image": "images/302.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2a2536"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 303,
+  "name": "Club Nile #303 — Otto “Velvet”",
+  "image": "images/303.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 304,
+  "name": "Club Nile #304 — Rocco “Velvet”",
+  "image": "images/304.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 305,
+  "name": "Club Nile #305 — Thea “Lucky”",
+  "image": "images/305.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 306,
+  "name": "Club Nile #306 — Ruby “Bootlegs”",
+  "image": "images/306.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 307,
+  "name": "Club Nile #307 — Josephine “Snake Eyes”",
+  "image": "images/307.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 308,
+  "name": "Club Nile #308 — Coco “Velvet”",
+  "image": "images/308.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7a1a26"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 309,
+  "name": "Club Nile #309 — Louie “the Fox”",
+  "image": "images/309.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 310,
+  "name": "Club Nile #310 — Coco “the Kid”",
+  "image": "images/310.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 311,
+  "name": "Club Nile #311 — Enzo “Lucky”",
+  "image": "images/311.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#b0862c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 312,
+  "name": "Club Nile #312 — Cleo “Midnight”",
+  "image": "images/312.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 313,
+  "name": "Club Nile #313 — Vivian “Diamond”",
+  "image": "images/313.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 314,
+  "name": "Club Nile #314 — Ivy “Lucky”",
+  "image": "images/314.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c0392b"
+   }
+  ]
+ },
+ {
+  "tokenId": 315,
+  "name": "Club Nile #315 — Greta “the Nile”",
+  "image": "images/315.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "tiara"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 316,
+  "name": "Club Nile #316 — Sal “Velvet”",
+  "image": "images/316.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 317,
+  "name": "Club Nile #317 — Vinny “Big Shot”",
+  "image": "images/317.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 318,
+  "name": "Club Nile #318 — Dot “the Nile”",
+  "image": "images/318.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123a3a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 319,
+  "name": "Club Nile #319 — Dot “Bootlegs”",
+  "image": "images/319.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#6b2560"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 320,
+  "name": "Club Nile #320 — Duke “the Nile”",
+  "image": "images/320.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 321,
+  "name": "Club Nile #321 — Coco “the Kid”",
+  "image": "images/321.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#8a3a1c"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 322,
+  "name": "Club Nile #322 — Vivian “Midnight”",
+  "image": "images/322.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#3a8a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 323,
+  "name": "Club Nile #323 — Thea “the Ace”",
+  "image": "images/323.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#d4d4dc"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 324,
+  "name": "Club Nile #324 — Rocco “the Kid”",
+  "image": "images/324.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#1f5f4a"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f7f96"
+   }
+  ]
+ },
+ {
+  "tokenId": 325,
+  "name": "Club Nile #325 — Nadia “the Charm”",
+  "image": "images/325.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#123c6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#6b46a8"
+   }
+  ]
+ },
+ {
+  "tokenId": 326,
+  "name": "Club Nile #326 — Vivian “the Charm”",
+  "image": "images/326.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#d4d4dc"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 327,
+  "name": "Club Nile #327 — Enzo “Diamond”",
+  "image": "images/327.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "epic"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "mask"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#d4d4dc"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#c98a1a"
+   }
+  ]
+ },
+ {
+  "tokenId": 328,
+  "name": "Club Nile #328 — Ruby “Bootlegs”",
+  "image": "images/328.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#2f6f6f"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 329,
+  "name": "Club Nile #329 — Marco “the Charm”",
+  "image": "images/329.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "bowtie"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#5a3b12"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#d4d4dc"
+   }
+  ]
+ },
+ {
+  "tokenId": 330,
+  "name": "Club Nile #330 — Rex “Goldie”",
+  "image": "images/330.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "none"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#7d1f3d"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 331,
+  "name": "Club Nile #331 — Estelle “Slick”",
+  "image": "images/331.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "rare"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Flapper"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "band"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "pearls"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#324a6e"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#b03a5a"
+   }
+  ]
+ },
+ {
+  "tokenId": 332,
+  "name": "Club Nile #332 — Duke “Snake Eyes”",
+  "image": "images/332.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "common"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "none"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "cig"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#2f55a0"
+   }
+  ]
+ },
+ {
+  "tokenId": 333,
+  "name": "Club Nile #333 — The Last Chad",
+  "image": "images/333.png",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "legendary"
+   },
+   {
+    "trait_type": "Silhouette",
+    "value": "Gentleman"
+   },
+   {
+    "trait_type": "Headwear",
+    "value": "feather"
+   },
+   {
+    "trait_type": "Accessory",
+    "value": "monocle"
+   },
+   {
+    "trait_type": "Garment",
+    "value": "#0f0c14"
+   },
+   {
+    "trait_type": "Jewel",
+    "value": "#e8c24a"
+   }
+  ]
+ }
+]
