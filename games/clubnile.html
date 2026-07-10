@@ -4104,20 +4104,9 @@ function floorRender() {
       ctx.fillText('!', Math.round(player.x) - 2, Math.round(player.y) - 34 - bounce);
     }
   }
-  /* popups over heads on the floor: you, the staff, and the regulars */
-  drawPopups(target => {
-    if (target === 'you') return { x: player.x, y: player.y - 6 };
-    /* the bartender is too close to the top — his bubble goes right */
-    if (target === 'bartender') {
-      const b = npcs[0];
-      return { x: b.x + 8, y: b.y - 22, mode: 'ne' };
-    }
-    const npc = npcs.find(n => n.id === target);
-    if (npc) return { x: npc.x, y: npc.y - 4 };
-    const gu = guests.find(g2 => g2.id === target);
-    if (gu) return { x: gu.x, y: gu.y - 4 };
-    return null;
-  });
+  /* popups over heads on the floor: you, the staff, and the regulars —
+     the bartender's bubble is deferred so it rides over the HUD */
+  drawPopups(floorSeatPos, p => p.target !== 'bartender');
   const vg = ctx.createRadialGradient(W/2, H/2 - 10, 60, W/2, H/2, 190);
   vg.addColorStop(0, 'rgba(255,190,90,0.05)');
   vg.addColorStop(1, 'rgba(8,5,14,0.42)');
@@ -4125,6 +4114,20 @@ function floorRender() {
   ctx.fillRect(0, 0, W, H);
   if (dlg.open) drawDialog(ctx);
   if (titleAlpha > 0) drawTitle(ctx);
+}
+
+/* where floor bubbles anchor; the bartender's goes right of his head */
+function floorSeatPos(target) {
+  if (target === 'you') return { x: player.x, y: player.y - 6 };
+  if (target === 'bartender') {
+    const b = npcs[0];
+    return { x: b.x + 8, y: b.y - 22, mode: 'ne' };
+  }
+  const npc = npcs.find(n => n.id === target);
+  if (npc) return { x: npc.x, y: npc.y - 4 };
+  const gu = guests.find(g2 => g2.id === target);
+  if (gu) return { x: gu.x, y: gu.y - 4 };
+  return null;
 }
 
 /* ============================ main loop ============================ */
@@ -4162,6 +4165,8 @@ function render() {
     ctx.fillRect(0, 0, W, H);
   }
   if (started) drawHUD(ctx);
+  /* the bartender's bubble rides over the chip counter and everything */
+  if (scene === 'floor' && started) drawPopups(floorSeatPos, p => p.target === 'bartender');
   if (trans.active) {
     const a = trans.t < 15 ? trans.t / 15 : (30 - trans.t) / 15;
     ctx.fillStyle = 'rgba(6,4,10,' + Math.min(1, a) + ')';
