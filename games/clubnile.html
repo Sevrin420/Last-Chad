@@ -1459,6 +1459,7 @@ const sound = (() => {
   }
   function ready() { return ac && ac.state === 'running' && !muted; }
   const t0 = () => ac.currentTime;
+  const F = n => 440 * Math.pow(2, (n - 69) / 12);   // MIDI note → Hz
 
   return {
     unlock,
