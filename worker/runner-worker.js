@@ -80,6 +80,7 @@ const GAMBLE_ABI = [
   'function wagerAmounts(uint256 nonce) view returns (uint256)',
   'function wagerPlayers(uint256 nonce) view returns (address)',
   'function usedNonces(uint256 nonce) view returns (bool)',
+  'event CageBuyIn(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
 ];
 
 
@@ -137,6 +138,17 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/craps/cashout') {
         return await handleCrapsCashout(request, env);
+      }
+
+      // ── The Cage: buy-in registration + cash-out signing ──
+      if (request.method === 'POST' && url.pathname === '/cage/buyin') {
+        return await handleCageBuyin(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/cage/balance') {
+        return await handleCageBalance(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/cage/cashout') {
+        return await handleCageCashout(request, env);
       }
 
       // ── WebSocket upgrade → Durable Object ──
@@ -474,6 +486,101 @@ async function handlePokerCashout(request, env) {
   await env.RUNNER_KV.delete(key);
 
   return json({ ok: true, payout, nonce: Number(nonce), signature });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  THE CAGE — buy chips in to play, cash your stack back to your wallet.
+//  The server tracks the authoritative play stack per token so a client can
+//  never cash out more than it actually holds. Buy-in is verified on-chain via
+//  the CageBuyIn event (proof the chips were burned).
+//  NOTE: table wins/losses should adjust cage:{tokenId}.stack so that lost chips
+//  stay burnt — wire the craps/blackjack settlement into this stack next.
+// ═══════════════════════════════════════════════════════════════════════════
+const CAGE_SESSION_TTL = 60 * 60 * 24 * 30;  // 30 days
+
+// POST /cage/buyin  { tokenId, player, txHash }
+async function handleCageBuyin(request, env) {
+  const { tokenId, player, txHash } = await parseBody(request);
+  if (tokenId == null || !player || !txHash) {
+    return json({ error: 'Missing tokenId, player, or txHash' }, 400);
+  }
+  if (!ethers.isAddress(player)) return json({ error: 'Invalid player address' }, 400);
+
+  const seenKey = `cage_tx:${String(txHash).toLowerCase()}`;
+  if (await env.RUNNER_KV.get(seenKey)) return json({ error: 'Buy-in already registered' }, 409);
+
+  const provider = new ethers.JsonRpcProvider(env.READ_RPC);
+  const receipt  = await provider.getTransactionReceipt(txHash);
+  if (!receipt || receipt.status !== 1) return json({ error: 'Transaction not found or failed' }, 400);
+
+  // Find the CageBuyIn event from the Gamble contract in this tx (proves the burn)
+  const iface = new ethers.Interface(GAMBLE_ABI);
+  let amount = 0;
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== env.GAMBLE_ADDRESS.toLowerCase()) continue;
+    let parsed;
+    try { parsed = iface.parseLog(log); } catch { continue; }
+    if (parsed && parsed.name === 'CageBuyIn'
+        && String(parsed.args.tokenId) === String(tokenId)
+        && parsed.args.player.toLowerCase() === player.toLowerCase()) {
+      amount = Number(parsed.args.amount);
+      break;
+    }
+  }
+  if (amount <= 0) return json({ error: 'No matching CageBuyIn in this transaction' }, 400);
+
+  const key = `cage:${tokenId}`;
+  const cur = (await env.RUNNER_KV.get(key, { type: 'json' })) || { player: player.toLowerCase(), stack: 0 };
+  cur.player = player.toLowerCase();
+  cur.stack  = (cur.stack || 0) + amount;
+  delete cur.pendingCashout;   // fresh play
+  await env.RUNNER_KV.put(key, JSON.stringify(cur), { expirationTtl: CAGE_SESSION_TTL });
+  await env.RUNNER_KV.put(seenKey, '1', { expirationTtl: CAGE_SESSION_TTL });
+
+  return json({ ok: true, credited: amount, stack: cur.stack });
+}
+
+// POST /cage/balance  { tokenId }  → the authoritative play stack
+async function handleCageBalance(request, env) {
+  const { tokenId } = await parseBody(request);
+  if (tokenId == null) return json({ error: 'Missing tokenId' }, 400);
+  const cur = (await env.RUNNER_KV.get(`cage:${tokenId}`, { type: 'json' })) || { stack: 0 };
+  return json({ ok: true, stack: cur.stack || 0 });
+}
+
+// POST /cage/cashout  { tokenId, player }
+// Signs the CURRENT server-tracked stack for on-chain cageCashOut. Idempotent:
+// a retry returns the same signature (the on-chain usedNonces prevents double-mint).
+async function handleCageCashout(request, env) {
+  const { tokenId, player } = await parseBody(request);
+  if (tokenId == null || !player) return json({ error: 'Missing tokenId or player' }, 400);
+  if (!ethers.isAddress(player)) return json({ error: 'Invalid player address' }, 400);
+
+  const key = `cage:${tokenId}`;
+  const cur = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!cur) return json({ error: 'Nothing to cash out' }, 400);
+  if (cur.player && cur.player.toLowerCase() !== player.toLowerCase()) {
+    return json({ error: 'Player mismatch' }, 403);
+  }
+  if (cur.pendingCashout) return json({ ok: true, ...cur.pendingCashout });   // idempotent retry
+  if ((cur.stack || 0) <= 0) return json({ error: 'Nothing to cash out' }, 400);
+
+  const amount = cur.stack;
+  // Fresh unused nonce, far above the sequential commitWager/cageBuyIn nonces
+  const nonce = (BigInt(1) << BigInt(200)) + BigInt(Date.now()) * BigInt(1000) + BigInt(Math.floor(Math.random() * 1000));
+
+  const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
+  const messageHash  = ethers.solidityPackedKeccak256(
+    ['uint256', 'uint256', 'uint256', 'address'],
+    [BigInt(tokenId), BigInt(amount), nonce, player]
+  );
+  const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
+
+  cur.pendingCashout = { amount, nonce: nonce.toString(), signature };
+  cur.stack = 0;
+  await env.RUNNER_KV.put(key, JSON.stringify(cur), { expirationTtl: CAGE_SESSION_TTL });
+
+  return json({ ok: true, amount, nonce: nonce.toString(), signature });
 }
 
 // ---------------------------------------------------------------------------
