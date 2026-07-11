@@ -1370,6 +1370,18 @@ function pushChat(name, text, sys) {
   renderChatLog();
   if (!chatOpen()) { social.unread++; updateChatBtn(); }
 }
+/* after every round, tell the player their total winnings — a chat line
+   plus a floating tally over their seat. `always` posts a "no win" note
+   too (for discrete hands/spins); craps passes false so multi-roll
+   points don't spam a line on every throw. */
+function roundMessage(unit, won, always) {
+  if (won > 0) {
+    pushChat('', 'You won ' + won + ' chips this ' + unit + '!', true);
+    addPopup('you', 'tip', '+' + won);
+  } else if (always) {
+    pushChat('', 'No win this ' + unit + ' — better luck next one.', true);
+  }
+}
 function bubbleFor(id, name, text) {
   /* speech bubble over whoever said it, if they're visible right now */
   if (id === social.lobbyId) { addPopup('you', 'bubble', text); return; }
@@ -3620,6 +3632,7 @@ function bjUpdate() {
         if (payout) setChips(chips + payout);   // payout mint (≙ claimWinnings)
         if (payout > bj.bet) sound.win();
         else if (payout === 0) sound.lose();
+        roundMessage('hand', Math.max(0, payout - bj.bet), true);   // winnings above the stake
         journal(null);                          // stake settled — clear the journal
         if (!bj.busted && dv <= 21) dealerSay('Dealer stands on ' + dv + '.', 340, CALL_BEAT);
         bj.flash = payout > bj.bet ? 40 : 0;
@@ -4066,6 +4079,7 @@ function crResolve() {
   cr.flash = winTot > 0 ? 40 : 0;
   if (winTot > 0) sound.win();
   else if (seven) sound.lose();
+  roundMessage('roll', winTot, false);
   cr.outcome = out.slice(0, 2);
   crJournal();
   if (cr.postRoll) {
@@ -4509,6 +4523,7 @@ function rouResolve() {
   if (out.length === 1) out.push('NO WIN THIS SPIN');
   rou.flash = profit > 0 ? 40 : 0;
   if (profit > 0) sound.win(); else sound.lose();
+  roundMessage('spin', profit, true);
   rou.history.unshift(n); if (rou.history.length > 6) rou.history.pop();
   rou.bets = rouBetKeys();                // every wager is a one-spin bet
   rou.outcome = out.slice(0, 2);
