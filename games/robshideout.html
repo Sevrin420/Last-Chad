@@ -444,12 +444,12 @@ body {
   <div id="mint-panel" class="popup-panel">
     <div class="popup-head"><span>MINT YOUR PASS</span><button class="popup-close" data-close="mint-panel" type="button">X</button></div>
     <div class="popup-body">
-      <p class="popup-lead">333 Rob's Hideout outlaws. 0.01 AVAX each · max 5 per wallet. Minting grants chips and a seat at the tables.</p>
+      <p class="popup-lead">1111 Rob's Hideout outlaws. 0.1 ETH each · max 5 per wallet. Every holder rides free into the weekly tournament — plus chips and a seat at the tables.</p>
       <button id="mint-connect" type="button">CONNECT WALLET</button>
       <div id="mint-form" style="display:none">
         <label>NAME YOUR OUTLAW (12 max)<input id="mint-name" maxlength="12" autocomplete="off" spellcheck="false" placeholder="e.g. SCARLET"></label>
         <label>QUANTITY<input id="mint-qty" type="number" min="1" max="5" value="1"></label>
-        <div id="mint-cost">Total: 0.01 AVAX</div>
+        <div id="mint-cost">Total: 0.1 ETH</div>
         <button id="mint-go" type="button">MINT</button>
       </div>
       <div id="mint-status"></div>
@@ -4810,7 +4810,10 @@ function openDocsPanel() {
   requestAnimationFrame(() => docsGoTo(0, false));
 }
 /* ── mint wiring (ethers + injected wallet, Fuji testnet) ── */
-const MINT_CFG = { address: '0x6defA84b02efcEd65930341B1b20aDb6BC881809', chainId: '0xa869', priceEth: '0.01' };
+/* priceEth / label are the single source of truth for the mint UI and tx.
+   Launch model: 0.1 ETH. NOTE: address/chainId still point at the Fuji
+   staging contract — swap both when the 1111-supply mainnet contract ships. */
+const MINT_CFG = { address: '0x6defA84b02efcEd65930341B1b20aDb6BC881809', chainId: '0xa869', priceEth: '0.1', priceLabel: 'ETH' };
 const MINT_ABI = [
   'function mint(uint256 quantity) payable',
   'function setName(uint256 tokenId, string name)',
@@ -4819,14 +4822,15 @@ const MINT_ABI = [
 ];
 let mintSigner = null, mintAccount = null;
 function mintStatus(msg, ok) { const s = document.getElementById('mint-status'); s.textContent = msg; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; }
+function mintTotal(q) { return (parseFloat(MINT_CFG.priceEth) * q).toFixed(2).replace(/\.?0+$/, ''); }
 function updateMintCost() {
   const q = Math.max(1, Math.min(5, parseInt(document.getElementById('mint-qty').value || '1', 10)));
-  document.getElementById('mint-cost').textContent = 'Total: ' + (0.01 * q).toFixed(2) + ' AVAX';
+  document.getElementById('mint-cost').textContent = 'Total: ' + mintTotal(q) + ' ' + MINT_CFG.priceLabel;
 }
 function openMintPanel() {
   mintPanel.classList.add('open');
   updateMintCost();
-  if (!mintAccount) mintStatus('Connect a wallet on Avalanche Fuji to mint.');
+  if (!mintAccount) mintStatus('Connect your wallet to mint your pass.');
 }
 document.getElementById('mint-qty').addEventListener('input', updateMintCost);
 document.getElementById('mint-connect').addEventListener('click', async () => {
@@ -4852,13 +4856,13 @@ document.getElementById('mint-go').addEventListener('click', async () => {
     const name = document.getElementById('mint-name').value.trim();
     const c = new window.ethers.Contract(MINT_CFG.address, MINT_ABI, mintSigner);
     mintStatus('Confirm the mint in your wallet…');
-    const tx = await c.mint(qty, { value: window.ethers.utils.parseEther((0.01 * qty).toFixed(2)) });
+    const tx = await c.mint(qty, { value: window.ethers.utils.parseEther(mintTotal(qty)) });
     mintStatus('Minting… waiting for confirmation.');
     await tx.wait();
     if (name) {
       const bal = await c.balanceOf(mintAccount);
       const tokenId = await c.tokenOfOwnerByIndex(mintAccount, bal.sub(1));
-      mintStatus('Minted! Naming your Chad…');
+      mintStatus('Minted! Naming your outlaw…');
       const tx2 = await c.setName(tokenId, name);
       await tx2.wait();
       mintStatus('Welcome, ' + name + '! Pass minted. Head north to the floor.');
