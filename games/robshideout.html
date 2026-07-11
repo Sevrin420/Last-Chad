@@ -1139,6 +1139,9 @@ const SPRITES = {
   bjDealer:    makeCharacterHD({ head:'newsboy', body:'suit',  skin:'#d3a87e', hat:'#5e3f24',
                                  hair:'#14100d', coat:'#22784e', pants:'#1a1216',
                                  shoes:'#120d10', tie:'#f0c268' }),
+  rouletteDealer: makeCharacterHD({ head:'bob', body:'dress', skin:'#f0c49a', hat:'#7a1a26',
+                                 hair:'#20140f', coat:'#7a1a26', pants:'#7a1a26',
+                                 shoes:'#d9c07a', tie:'#f0c268' }),
   guestF:      makeCharacterHD({ head:'bob',   body:'dress', skin:'#f6cfa4', hat:'#e86a80',
                                  hair:'#1c1316', coat:'#c02c42', pants:'#c02c42',
                                  shoes:'#ffd766' }),
@@ -1182,7 +1185,7 @@ const BAR = { c0:6, c1:10, row:2 };           // bar at the back, beside the sta
 const TABLES = [
   { game:'craps',     c0:1,  c1:4,  r0:8,  r1:9  },
   { game:'blackjack', c0:10, c1:13, r0:8,  r1:9  },
-  { game:'craps',     c0:1,  c1:4,  r0:20, r1:21 },
+  { game:'roulette',  c0:1,  c1:4,  r0:20, r1:21 },
   { game:'blackjack', c0:10, c1:13, r0:20, r1:21 }
 ];
 const FOUNTAIN = { c0:6, c1:8, r0:14, r1:15 };  // centre-piece fountain on the runner
@@ -1276,6 +1279,12 @@ const bootNotes = [];
       if (simulatePassBet(point)) { setChips(chips + pass * 2); bootNotes.push('Your pass bet rode on: point ' + point + ' hit! +' + pass); }
       else bootNotes.push('Your pass bet rode on: seven out, -' + pass);
     }
+  } else if (j.g === 'rou') {
+    /* roulette chips are one-spin bets — an interrupted round comes down */
+    const bets = j.bets || {};
+    let refund = 0;
+    for (const k in bets) refund += Math.max(0, Math.floor(bets[k] || 0));
+    if (refund > 0) { setChips(chips + refund); bootNotes.push('Roulette bets taken down: ' + refund + ' chips returned'); }
   }
 })();
 
@@ -1519,6 +1528,12 @@ const NPC_TALK = {
     lines: [["Twenty-one, lad. Beat the dealer and the loot is yours."]],
     action: 'blackjack',
     broke: ["The felt is for players holding chips.", "Come back when your pouch jingles."]
+  },
+  roulette: {
+    name: 'ROSE · THE WHEEL',
+    lines: [["Care to tempt the wheel, outlaw? Lay your chips and let it spin."]],
+    action: 'roulette',
+    broke: ["No chips, no spin, friend.", "Fill your pouch at the cage and come back."]
   },
   band: {
     name: 'THE MERRY MINSTRELS',
@@ -2015,9 +2030,10 @@ function dialogSelect() {
   dlg.open = false;
   if (dlg.action === 'exit') { try { settleCurrentStakes('Left'); } catch (e) {} window.location.reload(); return; }
   /* every table is played on chips you've withdrawn at the cage — no chips, no seat */
-  if (dlg.action === 'craps' || dlg.action === 'blackjack') {
+  if (dlg.action === 'craps' || dlg.action === 'blackjack' || dlg.action === 'roulette') {
     if (chips <= 0) { addPopup('you', 'bubble', 'Buy chips at the cage first!', 200); return; }
-    startTransition(() => dlg.action === 'craps' ? enterCraps() : enterBlackjack());
+    startTransition(() => dlg.action === 'craps' ? enterCraps()
+      : dlg.action === 'roulette' ? enterRoulette() : enterBlackjack());
     return;
   }
   if (dlg.action === 'songs') { songMenu.open = true; songMenu.idx = 0; }
@@ -2303,6 +2319,80 @@ const bjCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.fillStyle = C.goldHi; g.fillRect(10, 4, 4, 1);
   g.fillStyle = '#2f7f96'; g.fillRect(w-14, 6, 4, 2);
   g.fillStyle = C.white; g.fillRect(w-14, 4, 4, 2);
+});
+/* ── roulette: single-zero European wheel ─────────────────────────── */
+const WHEEL_ORDER = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,
+                     5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+const ROU_RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+const rouColOf = num => num === 0 ? 'g' : (ROU_RED.has(num) ? 'r' : 'b');
+/* pre-render a wheel face of radius R (pockets, rim, optional numerals) */
+function buildWheel(R, withNums) {
+  const size = Math.ceil(R * 2 + 8), c = size / 2, N = 37, step = (Math.PI * 2) / N;
+  return makeCanvas(size, size, g => {
+    /* outer wooden rim + brass track */
+    g.fillStyle = '#3a2415'; g.beginPath(); g.arc(c, c, R + 3.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = C.woodDark; g.beginPath(); g.arc(c, c, R + 2.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = C.wood;     g.beginPath(); g.arc(c, c, R + 1.4, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#caa14a';  g.beginPath(); g.arc(c, c, R + 0.6, 0, Math.PI * 2); g.fill();
+    for (let i = 0; i < N; i++) {
+      const num = WHEEL_ORDER[i];
+      const a0 = -Math.PI / 2 + (i - 0.5) * step, a1 = a0 + step;
+      g.beginPath(); g.moveTo(c, c); g.arc(c, c, R, a0, a1); g.closePath();
+      g.fillStyle = num === 0 ? '#2e7d4f' : (ROU_RED.has(num) ? '#b23a3a' : '#241e28');
+      g.fill();
+      g.strokeStyle = 'rgba(240,220,180,0.45)'; g.lineWidth = 0.5; g.stroke();
+      if (withNums) {
+        const am = -Math.PI / 2 + i * step, rr = R - 6.5;
+        g.save();
+        g.translate(c + Math.cos(am) * rr, c + Math.sin(am) * rr);
+        g.rotate(am + Math.PI / 2);
+        g.fillStyle = '#fff6e0'; g.font = '5px "Press Start 2P", monospace';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(String(num), 0, 0);
+        g.restore();
+      }
+    }
+    /* pocket ring shadow for depth */
+    g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1;
+    g.beginPath(); g.arc(c, c, R * 0.55, 0, Math.PI * 2); g.stroke();
+  });
+}
+const rouWheelSmall = buildWheel(15, false);
+const rouWheelBig = buildWheel(70, true);
+/* the wheel turret/cross-arm hub, drawn spinning on top of the wheel */
+function drawWheelHub(g, cx, cy, R, ang) {
+  g.save(); g.translate(cx, cy); g.rotate(ang);
+  g.fillStyle = '#8a6a2e';
+  for (let k = 0; k < 4; k++) {
+    g.save(); g.rotate(k * Math.PI / 2);
+    g.fillRect(-1, -R * 0.5, 2, R * 0.5);
+    g.restore();
+  }
+  g.fillStyle = '#caa14a'; g.beginPath(); g.arc(0, 0, R * 0.2, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#f0d488'; g.beginPath(); g.arc(-R * 0.06, -R * 0.06, R * 0.09, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#7a5a24'; g.lineWidth = 0.5; g.beginPath(); g.arc(0, 0, R * 0.2, 0, Math.PI * 2); g.stroke();
+  g.restore();
+}
+/* the floor table: a betting layout with a small wheel to one side */
+const rouletteCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
+  const w = 4*TS, h = 2*TS;
+  g.fillStyle = C.shadow; g.fillRect(2, h, w - 4, 4);
+  g.fillStyle = C.woodDark; g.fillRect(0, 0, w, h);
+  g.fillStyle = C.wood; g.fillRect(1, 1, w-2, h-2);
+  g.fillStyle = C.woodHi; g.fillRect(1, 1, w-2, 1);
+  g.fillStyle = C.feltGreenDark; g.fillRect(4, 4, w-8, h-8);
+  g.fillStyle = C.feltGreen; g.fillRect(5, 5, w-10, h-10);
+  g.fillStyle = C.feltGreenHi; g.fillRect(7, 6, w-14, 2);
+  /* a compact 3x6 patch of red/black number cells on the left */
+  const cols = ['#b23a3a', '#241e28'];
+  for (let cx = 0; cx < 6; cx++) for (let ry = 0; ry < 3; ry++) {
+    g.fillStyle = cols[(cx + ry) % 2];
+    g.fillRect(7 + cx * 5, 9 + ry * 6, 4, 5);
+  }
+  g.fillStyle = '#2e7d4f'; g.fillRect(4, 9, 2, 17);   // zero strip
+  /* the small wheel nestled on the right side of the table */
+  g.drawImage(rouWheelSmall, w - 40, h/2 - 18, 36, 36);
+  drawWheelHub(g, w - 22, h/2, 15, 0.6);
 });
 /* tiered stone fountain — centre-piece on the long runner */
 const fountainCanvas = makeCanvas(48, 46, g => {
@@ -2772,6 +2862,14 @@ const QUIPS = {
     "Insurance? I wouldn't insure a tax collector.",
     "Now we're cooking over the fire."
   ],
+  roulette: [
+    "Round and round — where she stops, only the wood knows.",
+    "Red or black, outlaw? The wheel plays no favourites.",
+    "One little ball, a whole night's fortune.",
+    "Lay it on a number and hold your breath.",
+    "The wheel took a bishop's purse last week.",
+    "Zero's the house's arrow — mind it."
+  ],
   guestF: [
     "This den is the merriest in the wood!",
     "Off to the archery butts at dawn!",
@@ -2951,6 +3049,9 @@ function bjHandLive() {
 function settleCurrentStakes(reason) {
   if (scene === 'craps') {
     crCashOut(reason);                      // pass rides if the point is on
+  } else if (scene === 'roulette') {
+    if (rou.mode === 'spinning') rouResolve();   // a spin in flight pays out
+    else rouRefund();                            // otherwise bets come down
   } else if (scene === 'blackjack' && bjHandLive()) {
     /* the hand stands where it is and settles — quitting can't dodge it */
     while (bj.dealQ && bj.dealQ.length) {
@@ -2976,6 +3077,9 @@ function confirmLeaveCurrent() {
   if (scene === 'craps') {
     settleCurrentStakes('Left the table');
     startTransition(() => leaveTable('craps'));
+  } else if (scene === 'roulette') {
+    settleCurrentStakes('Left the table');
+    startTransition(() => leaveTable('roulette'));
   } else if (scene === 'blackjack') {
     settleCurrentStakes('Left the table');
     startTransition(() => leaveTable('blackjack'));
@@ -3024,6 +3128,8 @@ function modalDraw(seatPos) {
     let note = '';
     if (scene === 'craps' && cr.point !== 0 && cr.bets.pass > 0) note = 'PASS BET RIDES TO A RESULT';
     else if (scene === 'craps' && crTotalBets() > 0) note = 'YOUR BETS COME DOWN';
+    else if (scene === 'roulette' && rou.mode === 'spinning') note = 'THE SPIN PLAYS OUT';
+    else if (scene === 'roulette' && rouTotalBets() > 0) note = 'YOUR BETS COME DOWN';
     else if (bjHandLive()) note = 'YOUR HAND STANDS AND SETTLES';
     if (note) uiText(note, C.dim, 204);
     return;
@@ -4228,6 +4334,355 @@ function drawRollPopup() {
   drawDie(ctx, x + 88 + b2, y + 28 + (rolling ? ((tick + 1) % 3) - 1 : 0), cr.dice[1], 42);
 }
 
+/* ============================ roulette scene ============================ */
+/* Single-zero European wheel. The tabletop is mostly betting layout with
+   a small wheel to one side; when it spins, a big-wheel popup with a
+   moving ball takes over. Every wager is a one-spin bet:
+   STRAIGHT 35:1 · COLUMN/DOZEN 2:1 · RED/BLACK/ODD/EVEN/1-18/19-36 1:1. */
+const ROU_SEATS = [ {x:52,y:186}, {x:97,y:190}, {x:143,y:190}, {x:188,y:186} ];
+const ROU_MENU = ['SPIN','EMOJI','TIP'];   // B leaves the table
+const ROU_SPIN_TICKS = 240;                // ~4s of ball on the track
+const ROU_BET_MS = 15000, ROU_ACTION_MS = 10000;
+const ROU_GX = 47, ROU_GY = 56, ROU_CW = 12, ROU_CH = 13;
+const ROU_ZERO = { x:34, y:ROU_GY, w:12, h:ROU_CH*3 };
+function rouNumBox(n) {
+  const i = n - 1, col = Math.floor(i / 3), row = 2 - (i % 3);
+  return { x: ROU_GX + col*ROU_CW, y: ROU_GY + row*ROU_CH, w:ROU_CW, h:ROU_CH };
+}
+const ROU_COL_KEY = ['c3','c2','c1'];      // top row → column of {3,6..36}
+function rouColBox(r) { return { x: ROU_GX + 12*ROU_CW, y: ROU_GY + r*ROU_CH, w:12, h:ROU_CH }; }
+const ROU_DOZ = [
+  { key:'d1', x:47,  y:97, w:47, h:12, label:'1st12' },
+  { key:'d2', x:95,  y:97, w:47, h:12, label:'2nd12' },
+  { key:'d3', x:143, y:97, w:48, h:12, label:'3rd12' }
+];
+const ROU_EVEN = [
+  { key:'low',  x:47,  y:111, w:24, h:13, label:'1-18'  },
+  { key:'even', x:71,  y:111, w:24, h:13, label:'EVEN'  },
+  { key:'red',  x:95,  y:111, w:24, h:13, label:'RED'   },
+  { key:'black',x:119, y:111, w:24, h:13, label:'BLK'   },
+  { key:'odd',  x:143, y:111, w:24, h:13, label:'ODD'   },
+  { key:'high', x:167, y:111, w:24, h:13, label:'19-36' }
+];
+const ROU_WHEEL_POS = { cx:176, cy:150, r:15 };
+const rouRoom = makeCanvas(W, H, g => {
+  paintTableRoom(g);
+  const rr = (x, y, w, h, r) => {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  };
+  g.fillStyle = C.shadow; g.fillRect(24, 190, 192, 6);
+  g.fillStyle = C.woodDark; rr(17, 37, 206, 156, 11); g.fill();
+  g.fillStyle = C.wood; rr(19, 39, 202, 152, 10); g.fill();
+  g.strokeStyle = C.woodHi; g.lineWidth = 1; rr(20.5, 40.5, 199, 150, 9); g.stroke();
+  g.fillStyle = '#4e1b26'; rr(24, 44, 192, 144, 8); g.fill();
+  g.fillStyle = '#6e2734'; rr(25, 45, 190, 142, 7); g.fill();
+  g.strokeStyle = 'rgba(255,150,140,0.28)'; rr(26.5, 46.5, 187, 139, 7); g.stroke();
+  g.fillStyle = C.rugGold;
+  const stud = (x, y) => { g.fillRect(x, y - 1, 1, 1); g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y + 1, 1, 1); };
+  for (let x = 44; x <= 196; x += 22) { stud(x, 46); stud(x + 11, 186); }
+  for (let y = 66; y <= 166; y += 20) { stud(27, y); stud(213, y); }
+  /* felt */
+  g.fillStyle = C.feltGreenDark; g.fillRect(30, 48, 180, 136);
+  g.fillStyle = C.feltGreen; g.fillRect(31, 49, 178, 134);
+  const shn = g.createRadialGradient(120, 100, 10, 120, 100, 130);
+  shn.addColorStop(0, 'rgba(140,220,170,0.20)'); shn.addColorStop(1, 'rgba(140,220,170,0)');
+  g.fillStyle = shn; g.fillRect(31, 49, 178, 134);
+  for (let i = 0; i < 1400; i++) {
+    const nx = 31 + (h2(i, 9) * 1.83 + i * 0.163) % 178;
+    const ny = 49 + (h2(9, i) * 1.31 + i * 0.087) % 134;
+    g.fillStyle = (i % 2) ? 'rgba(0,34,18,0.14)' : 'rgba(190,255,214,0.08)';
+    g.fillRect(nx, ny, 0.5, 0.5);
+  }
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const cell = (b, fill, label, lc, fs) => {
+    g.fillStyle = fill; g.fillRect(b.x, b.y, b.w - 1, b.h - 1);
+    g.strokeStyle = 'rgba(240,220,180,0.35)'; g.lineWidth = 0.5;
+    g.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
+    if (label) { g.fillStyle = lc; g.font = (fs || 5) + 'px "Press Start 2P", monospace';
+      g.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + 0.5); }
+  };
+  /* zero + the 36 numbered pockets, coloured like a real layout */
+  cell(ROU_ZERO, '#2e7d4f', '0', '#fff6e0', 7);
+  for (let n = 1; n <= 36; n++) cell(rouNumBox(n), ROU_RED.has(n) ? '#b23a3a' : '#241e28', String(n), '#fff6e0', 5);
+  /* column 2:1, dozens, and the even-money row */
+  for (let r = 0; r < 3; r++) cell(rouColBox(r), 'rgba(16,44,30,0.42)', '2:1', '#f4e6c0', 5);
+  for (const d of ROU_DOZ) cell(d, 'rgba(16,44,30,0.42)', d.label, '#f4e6c0', 6);
+  for (const e of ROU_EVEN) {
+    const fill = e.key === 'red' ? '#9a3030' : e.key === 'black' ? '#20191f' : 'rgba(16,44,30,0.42)';
+    cell(e, fill, e.label, (e.key === 'red' || e.key === 'black') ? '#fff6e0' : '#f4e6c0', 5);
+  }
+  /* the wheel well on the right */
+  g.fillStyle = '#0f2a1b'; g.beginPath(); g.arc(ROU_WHEEL_POS.cx, ROU_WHEEL_POS.cy, 21, 0, Math.PI*2); g.fill();
+  g.strokeStyle = C.woodDark; g.lineWidth = 2; g.beginPath(); g.arc(ROU_WHEEL_POS.cx, ROU_WHEEL_POS.cy, 21, 0, Math.PI*2); g.stroke();
+  g.strokeStyle = '#caa14a'; g.lineWidth = 1; g.beginPath(); g.arc(ROU_WHEEL_POS.cx, ROU_WHEEL_POS.cy, 19, 0, Math.PI*2); g.stroke();
+  /* watermark, tucked lower-left away from the wheel */
+  g.font = FONT; g.textAlign = 'center'; g.textBaseline = 'top';
+  g.fillStyle = 'rgba(18,48,33,0.8)'; g.fillText("ROB'S HIDEOUT", 90, 176);
+  g.textAlign = 'left'; g.textBaseline = 'top';
+});
+const rou = {
+  mode:'board', bets:{}, unitIdx:0, menuIdx:0, removeMode:false,
+  result:-1, spinT:0, outcome:[], outT:0, flash:0, popupT:0,
+  solo:{ phase:'betting', until:0 }, history:[]
+};
+function rouBetKeys() {
+  const b = {};
+  for (let n = 0; n <= 36; n++) b['n' + n] = 0;
+  ['red','black','odd','even','low','high','d1','d2','d3','c1','c2','c3'].forEach(k => b[k] = 0);
+  return b;
+}
+function rouTotalBets() { return Object.values(rou.bets).reduce((a, b) => a + b, 0); }
+function rouJournal() { journal(rouTotalBets() > 0 ? { g:'rou', bets:rou.bets } : null); }
+function rouSoloPhase(p) {
+  rou.solo.phase = p;
+  rou.solo.until = Date.now() + (p === 'betting' ? ROU_BET_MS : ROU_ACTION_MS);
+  if (p === 'betting') dealerSay(BET_CALLS[Math.floor(Math.random() * BET_CALLS.length)], 300);
+  else dealerSay('No more bets — the wheel is set!', 300);
+}
+function enterRoulette() {
+  floorReturn = { x: player.x, y: player.y };
+  scene = 'roulette';
+  rou.mode = 'board'; rou.bets = rouBetKeys();
+  rou.menuIdx = 0; rou.removeMode = false; rou.result = -1; rou.spinT = 0;
+  rou.outcome = []; rou.outT = 0; rou.flash = 0; rou.popupT = 0;
+  modal = null; popups.length = 0;
+  rouSoloPhase('betting');
+  lastActMs = Date.now();
+  tableConnect('roulette');
+}
+function rouSpotAt(pt) {
+  if (!pt) return null;
+  const within = b => pt.x >= b.x - 1 && pt.x <= b.x + b.w + 1 && pt.y >= b.y - 1 && pt.y <= b.y + b.h + 1;
+  if (within(ROU_ZERO)) return 'n0';
+  for (let n = 1; n <= 36; n++) if (within(rouNumBox(n))) return 'n' + n;
+  for (let r = 0; r < 3; r++) if (within(rouColBox(r))) return ROU_COL_KEY[r];
+  for (const d of ROU_DOZ) if (within(d)) return d.key;
+  for (const e of ROU_EVEN) if (within(e)) return e.key;
+  return null;
+}
+function rouSpotCenter(key) {
+  if (key[0] === 'n') { const n = +key.slice(1); const b = n === 0 ? ROU_ZERO : rouNumBox(n); return { x:b.x + b.w/2, y:b.y + b.h/2 }; }
+  if (key[0] === 'c') { const b = rouColBox(ROU_COL_KEY.indexOf(key)); return { x:b.x + b.w/2, y:b.y + b.h/2 }; }
+  if (key[0] === 'd') { const b = ROU_DOZ.find(d => d.key === key); return { x:b.x + b.w/2, y:b.y + b.h/2 }; }
+  const e = ROU_EVEN.find(e => e.key === key); return { x:e.x + e.w/2, y:e.y + e.h/2 };
+}
+function rouRefund() {
+  let r = 0; for (const k in rou.bets) r += rou.bets[k];
+  rou.bets = rouBetKeys();
+  if (r > 0) setChips(chips + r);
+  journal(null);
+}
+function rouStartSpin() {
+  rou.result = Math.floor(Math.random() * 37);   // server-authoritative in the live build
+  rou.mode = 'spinning'; rou.spinT = ROU_SPIN_TICKS; rou.outcome = [];
+  dealerSay('Round she goes!', 260);
+}
+function rouCall(n, red) {
+  if (n === 0) return 'Zero! The house arrow strikes.';
+  return n + ' — ' + (red ? 'red' : 'black') + ', ' + (n % 2 ? 'odd' : 'even') + ', ' + (n <= 18 ? 'in the low' : 'up high') + '.';
+}
+function rouResolve() {
+  const n = rou.result, red = ROU_RED.has(n);
+  const out = []; let profit = 0;
+  const pay = (amt, mult, label) => { setChips(chips + amt * (mult + 1)); profit += amt * mult; out.push(label + ' +' + amt * mult); };
+  for (let k = 0; k <= 36; k++) { const a = rou.bets['n' + k]; if (a && k === n) pay(a, 35, n + ' STRAIGHT'); }
+  const b = rou.bets;
+  if (n !== 0) {
+    if (b.red   && red)        pay(b.red,   1, 'RED');
+    if (b.black && !red)       pay(b.black, 1, 'BLACK');
+    if (b.odd   && n % 2 === 1) pay(b.odd,  1, 'ODD');
+    if (b.even  && n % 2 === 0) pay(b.even, 1, 'EVEN');
+    if (b.low   && n <= 18)     pay(b.low,  1, '1-18');
+    if (b.high  && n >= 19)     pay(b.high, 1, '19-36');
+    const doz = n <= 12 ? 'd1' : n <= 24 ? 'd2' : 'd3';
+    if (b[doz]) pay(b[doz], 2, 'DOZEN');
+    const col = n % 3 === 0 ? 'c3' : n % 3 === 1 ? 'c1' : 'c2';
+    if (b[col]) pay(b[col], 2, 'COLUMN');
+  }
+  out.unshift(n + (n === 0 ? ' ZERO' : (red ? ' RED' : ' BLACK')));
+  if (out.length === 1) out.push('NO WIN THIS SPIN');
+  rou.flash = profit > 0 ? 40 : 0;
+  if (profit > 0) sound.win(); else sound.lose();
+  rou.history.unshift(n); if (rou.history.length > 6) rou.history.pop();
+  rou.bets = rouBetKeys();                // every wager is a one-spin bet
+  rou.outcome = out.slice(0, 2);
+  rouJournal();
+  dealerSay(rouCall(n, red), 360, CALL_BEAT);
+  rou.outT = profit > 0 ? 300 : 240;
+  rou.mode = 'outcome';
+}
+function rouUpdate() {
+  if (rou.mode === 'spinning') {
+    aQueued = bQueued = false;
+    if (rou.spinT % (rou.spinT > 90 ? 7 : 14) === 0) sound.click();   // ball rattling, slowing
+    if (--rou.spinT <= 0) { sound.thud(); rou.popupT = 72; rouResolve(); }
+    return;
+  }
+  if (modalUpdate()) { lastActMs = Date.now(); return; }
+  if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
+  if (rou.mode === 'outcome') {
+    if (rou.flash > 0) rou.flash--;
+    if (--rou.outT <= 0 || aQueued) { aQueued = false; lastActMs = Date.now(); rou.mode = 'board'; rouSoloPhase('betting'); }
+    return;
+  }
+  if (rou.flash > 0) rou.flash--;
+  if (!rou.outcome.length) maybeTableQuip('roulette');
+  if (aQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
+  else if (Date.now() - lastActMs > IDLE_KICK_MS) {
+    rouRefund(); pushChat('', 'Idle at roulette — seat freed', true);
+    startTransition(() => leaveTable('roulette')); return;
+  }
+  if (Date.now() > rou.solo.until) {
+    if (rou.solo.phase === 'betting') rouSoloPhase('action');
+    else if (rouTotalBets() > 0) { rouStartSpin(); return; }
+    else rouSoloPhase('betting');
+  }
+  const unit = UNITS[rou.unitIdx];
+  const canBet = rou.solo.phase === 'betting';
+  if (tapNow) {
+    const hit = trayHit(tapNow, true);
+    if (hit === TRAY.length) { rou.removeMode = !rou.removeMode; sound.tick(); }
+    else if (hit >= 0) { rou.unitIdx = hit; rou.removeMode = false; sound.tick(); }
+    else {
+      const spot = rouSpotAt(tapNow);
+      if (spot) {
+        if (!canBet) flash('SPIN WINDOW · BETS CLOSED');
+        else if (rou.removeMode) {
+          if (rou.bets[spot] <= 0) flash('NOTHING ON THAT SPOT');
+          else { const take = Math.min(unit, rou.bets[spot]); rou.bets[spot] -= take; setChips(chips + take); sound.chip(); rouJournal(); }
+        }
+        else if (chips < unit) flash('NOT ENOUGH CHIPS');
+        else { rou.bets[spot] += unit; setChips(chips - unit); sound.chip(); rouJournal(); }
+      }
+    }
+  }
+  if (tapLeft)  { rou.menuIdx = (rou.menuIdx + ROU_MENU.length - 1) % ROU_MENU.length; caroNudge(-1); }
+  if (tapRight) { rou.menuIdx = (rou.menuIdx + 1) % ROU_MENU.length; caroNudge(1); }
+  if (aQueued) {
+    aQueued = false;
+    const item = ROU_MENU[rou.menuIdx];
+    if (item === 'SPIN') {
+      if (rou.solo.phase !== 'action') flash('BETS OPEN · SPIN NEXT');
+      else if (rouTotalBets() === 0) flash('PLACE A BET FIRST');
+      else rouStartSpin();
+    } else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
+    else if (item === 'TIP') openTipModal();
+  }
+}
+function rouDrawTableWheel() {
+  const { cx, cy, r } = ROU_WHEEL_POS;
+  ctx.drawImage(rouWheelSmall, cx - rouWheelSmall.lw/2, cy - rouWheelSmall.lh/2, rouWheelSmall.lw, rouWheelSmall.lh);
+  drawWheelHub(ctx, cx, cy, r, tick * 0.03);
+  ctx.fillStyle = C.gold;
+  ctx.beginPath(); ctx.moveTo(cx, cy - r + 1); ctx.lineTo(cx - 3, cy - r - 4); ctx.lineTo(cx + 3, cy - r - 4); ctx.closePath(); ctx.fill();
+}
+function rouDrawHistory() {
+  ctx.font = FONT; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = C.dim; ctx.fillText('LAST', 40, 130);
+  for (let i = 0; i < rou.history.length; i++) {
+    const n = rou.history[i], col = rouColOf(n);
+    const x = 40 + (i % 3) * 24, y = 142 + Math.floor(i / 3) * 16;
+    ctx.fillStyle = col === 'r' ? '#b23a3a' : col === 'g' ? '#2e7d4f' : '#241e28';
+    ctx.fillRect(x, y, 20, 13);
+    ctx.strokeStyle = 'rgba(240,220,180,0.4)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, 19, 12);
+    ctx.fillStyle = '#fff6e0'; ctx.font = '6px "Press Start 2P", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(n), x + 10, y + 7);
+    ctx.font = FONT; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  }
+}
+function drawRoulettePopup() {
+  const x = 20, y = 26, w = 200, h = 200;
+  const grad = ctx.createLinearGradient(0, y, 0, y + h);
+  grad.addColorStop(0, 'rgba(30,22,48,0.97)'); grad.addColorStop(1, 'rgba(14,10,24,0.97)');
+  ctx.fillStyle = grad; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = C.rugGold; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  ctx.strokeStyle = 'rgba(122,92,34,0.8)'; ctx.lineWidth = 1; ctx.strokeRect(x + 3.5, y + 3.5, w - 7, h - 7);
+  ctx.fillStyle = C.goldHi;
+  ctx.fillRect(x + 1, y + 1, 2, 2); ctx.fillRect(x + w - 3, y + 1, 2, 2);
+  ctx.fillRect(x + 1, y + h - 3, 2, 2); ctx.fillRect(x + w - 3, y + h - 3, 2, 2);
+  const cx = 120, cy = 118, R = 62, step = (Math.PI * 2) / 37;
+  const idx = WHEEL_ORDER.indexOf(rou.result < 0 ? 0 : rou.result);
+  const p = rou.mode === 'spinning' ? (ROU_SPIN_TICKS - rou.spinT) / ROU_SPIN_TICKS : 1;
+  const e = 1 - Math.pow(1 - Math.min(1, p), 3);           // ease-out: fast then settling
+  const wheelRot = -idx * step + 3 * Math.PI * 2 * (1 - e);
+  const ballAng = -Math.PI / 2 - 6 * Math.PI * 2 * (1 - e);
+  const ballRad = (R - 3) + 9 * (1 - e);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(wheelRot);
+  ctx.drawImage(rouWheelBig, -rouWheelBig.lw/2, -rouWheelBig.lh/2, rouWheelBig.lw, rouWheelBig.lh);
+  ctx.restore();
+  drawWheelHub(ctx, cx, cy, R, wheelRot * 0.5);
+  /* fixed pointer at the top of the track */
+  ctx.fillStyle = C.gold;
+  ctx.beginPath(); ctx.moveTo(cx, cy - R + 3); ctx.lineTo(cx - 5, cy - R - 7); ctx.lineTo(cx + 5, cy - R - 7); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#7a5a24'; ctx.lineWidth = 0.5; ctx.stroke();
+  /* the ball */
+  const bx = cx + Math.cos(ballAng) * ballRad, by = cy + Math.sin(ballAng) * ballRad;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(bx + 0.6, by + 1, 3.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fffdf4'; ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#cfc7b6'; ctx.beginPath(); ctx.arc(bx + 0.8, by + 0.8, 1.1, 0, Math.PI * 2); ctx.fill();
+  ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  if (rou.mode === 'spinning') {
+    ctx.fillStyle = C.gold;
+    ctx.fillText(rou.spinT > 90 ? 'ROUND SHE GOES...' : 'NO MORE BETS...', cx, y + 10);
+  } else {
+    const n = rou.result, col = rouColOf(n);
+    ctx.fillStyle = C.dim; ctx.fillText('THE BALL FALLS ON', cx, y + 9);
+    ctx.fillStyle = 'rgba(10,7,16,0.72)'; ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '18px "Press Start 2P", monospace'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = col === 'r' ? '#ff8a78' : col === 'g' ? '#66cc78' : '#f2ede0';
+    ctx.fillText(String(n), cx, cy + 1);
+    ctx.font = FONT; ctx.textBaseline = 'top'; ctx.fillStyle = C.white;
+    ctx.fillText(n === 0 ? 'ZERO — HOUSE' : (col === 'r' ? 'RED' : 'BLACK') + ' · ' + (n % 2 ? 'ODD' : 'EVEN'), cx, y + h - 18);
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+}
+function rouRender() {
+  ctx.drawImage(rouRoom, 0, 0, W, H);
+  drawFlame(ctx, 30, 10); drawFlame(ctx, 202, 10);
+  ctx.font = FONT; ctx.textBaseline = 'top';
+  /* your chips resting on the felt */
+  for (const key in rou.bets) { const amt = rou.bets[key]; if (!amt) continue; const c = rouSpotCenter(key); drawBetChip(ctx, c.x, c.y, amt, false); }
+  rouDrawTableWheel();
+  rouDrawHistory();
+  const hop = (rou.flash > 0 && Math.floor(tick / 10) % 2) ? -1 : 0;
+  drawTableSeats(ROU_SEATS, hop);
+  const seatPos = tableSeatPos(ROU_SEATS, { x: 120, y: 40 });
+  /* the croupier stands behind the table */
+  drawEntity(ctx, { sprite:'rouletteDealer', dir:'down', frame:0, x:120, y:46, staticNPC:true }, tick);
+  drawPopups(seatPos);
+  if (modal) { modalDraw(seatPos); drawNetDot(); return; }
+  if (rou.mode === 'spinning' || rou.popupT > 0) {
+    if (rou.mode !== 'spinning') rou.popupT--;
+    uiPanelSmall();
+    drawTray(rou.unitIdx, true, rou.removeMode);
+    drawRoulettePopup();
+    drawNetDot();
+    return;
+  }
+  uiPanelSmall();
+  const secs = Math.max(0, Math.ceil((rou.solo.until - Date.now()) / 1000));
+  if (flashT > 0) { flashT--; uiText(flashMsg, '#e05a70', 203); }
+  else if (rou.mode === 'outcome') {
+    const win = rou.flash > 0 && Math.floor(tick / 6) % 2;
+    const line = rou.outcome[Math.floor(tick / 100) % Math.max(1, rou.outcome.length)] || '';
+    uiText(line, win ? C.gold : C.white, 203);
+  } else if (rou.removeMode) {
+    uiText('TAP A BET TO TAKE IT DOWN', '#ff9c8a', 203);
+  } else {
+    drawCarousel(ROU_MENU, rou.menuIdx, 202);
+  }
+  drawTray(rou.unitIdx, true, rou.removeMode);
+  if (rou.mode === 'board') drawTimerBox(rou.solo.phase === 'betting' ? 'BETS' : 'SPIN', secs, secs <= 3);
+  drawNetDot();
+}
+
 /* ============================ scene helpers ============================ */
 let scene = 'entry';
 let floorReturn = null;        // where to drop the player back after they leave a table
@@ -4542,8 +4997,8 @@ function floorRender() {
   items.push({ y: BAR.row*TS + 16, draw: g => g.drawImage(barCanvas, BAR.c0*TS, BAR.row*TS - 6, barCanvas.lw, barCanvas.lh) });
   /* four gaming tables, each with a dealer standing behind it */
   for (const t of TABLES) {
-    const cv = t.game === 'craps' ? crapsCanvas : bjCanvas;
-    const sp = t.game === 'craps' ? 'crapsDealer' : 'bjDealer';
+    const cv = t.game === 'craps' ? crapsCanvas : t.game === 'roulette' ? rouletteCanvas : bjCanvas;
+    const sp = t.game === 'craps' ? 'crapsDealer' : t.game === 'roulette' ? 'rouletteDealer' : 'bjDealer';
     const tx = t.c0*TS, ty = t.r0*TS, midx = (t.c0 + (t.c1 - t.c0 + 1) / 2) * TS;
     items.push({ y: t.r0*TS - 2, draw: g => drawEntity(g, { sprite: sp, dir: 'down', frame: 0, x: midx, y: ty - 1, staticNPC: true }, tick + tx) });
     items.push({ y: (t.r1+1)*TS, draw: g => g.drawImage(cv, tx, ty, cv.lw, cv.lh) });
@@ -5072,12 +5527,14 @@ function update() {
   else if (scene === 'floor') floorUpdate();
   else if (scene === 'blackjack') bjUpdate();
   else if (scene === 'craps') crUpdate();
+  else if (scene === 'roulette') rouUpdate();
 }
 function render() {
   if (scene === 'entry') entryRender();
   else if (scene === 'floor') floorRender();
   else if (scene === 'blackjack') bjRender();
   else if (scene === 'craps') crRender();
+  else if (scene === 'roulette') rouRender();
   if (scene !== 'floor' && scene !== 'entry') {
     const vg = ctx.createRadialGradient(W/2, 110, 60, W/2, 110, 200);
     vg.addColorStop(0, 'rgba(255,190,90,0.04)');
@@ -5119,7 +5576,8 @@ if (document.fonts && document.fonts.load) {
 addEventListener('beforeunload', e => {
   const bjLive = scene === 'blackjack' && ['dealing','player','dealerTurn','anim'].includes(bj.state);
   const crLive = scene === 'craps' && crTotalBets() > 0;
-  if (bjLive || crLive) { e.preventDefault(); e.returnValue = ''; }
+  const rouLive = scene === 'roulette' && rouTotalBets() > 0;
+  if (bjLive || crLive || rouLive) { e.preventDefault(); e.returnValue = ''; }
 });
 
 /* ── Web3 integration map (next phase) ────────────────────────────────
@@ -5148,7 +5606,7 @@ try {
 /* test hook (only with ?debug=1 in the URL) */
 if (new URLSearchParams(location.search).has('debug')) {
   window.CN = {
-    enterCraps, enterBlackjack, leaveTable, player, cr, bj, social, popups, sound, SPRITES,
+    enterCraps, enterBlackjack, enterRoulette, leaveTable, player, cr, bj, rou, social, popups, sound, SPRITES,
     traitsForToken, characterForToken, PLAYER_TOKEN,
     get chips() { return chips; }, setChips,
     skipTitle() { started = true; titleAlpha = 0; }
