@@ -28,7 +28,6 @@ on:
           - validate         # On-chain validation: confirm all contracts are live and wired
           - gamble-open      # Open the gambling den (authorize Gamble in MembersOnly)
           - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
-          - award-owner-chips # Award chips to every Chad in the owner wallet
           - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
           - approve-market   # Whitelist MembersOnly + Items on the Market contract
           - setup-invitation # Create invitation item + airdrop to wallets
@@ -260,30 +259,6 @@ jobs:
           PRIVATE_KEY:  ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           GAMBLE_OPEN:  ${{ inputs.target == 'gamble-open' && 'true' || 'false' }}
         run: npx hardhat run scripts/toggleGamble.js --network ${{ inputs.network }}
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 7: Award chips to every Chad in the owner wallet
-  # ───────────────────────────────────────────────────────────────────────────
-  award-owner-chips:
-    name: Award Chips to Owner Chads (Avalanche Mainnet)
-    runs-on: ubuntu-latest
-    if: inputs.target == 'award-owner-chips'
-    environment: mainnet
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Award chips to each Chad in owner wallet
-        env:
-          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/awardOwnerCells.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 8: Whitelist MembersOnly + Items on the Market contract
