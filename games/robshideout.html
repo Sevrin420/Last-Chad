@@ -216,10 +216,11 @@ body {
   pointer-events: none;
   text-shadow: 0 0.2cqw 0 rgba(0,0,0,0.6);
 }
-.pw-txt.pw-off { left: 8%; }     /* knob rests here at OFF */
-.pw-txt.pw-on  { right: 7%; }    /* slide toward ON */
-#power.on .pw-txt.pw-on  { color: #b6f0a0; text-shadow: 0 0 1.6cqw rgba(120,220,120,0.8); }
-#power.on .pw-txt.pw-off { opacity: 0.3; }
+/* the knob exposes the word for the current state: rest LEFT → OFF shows on
+   the right; slide RIGHT → ON shows on the left */
+.pw-txt.pw-off { right: 8%; }
+.pw-txt.pw-on  { left: 8%; }
+#power.on .pw-txt.pw-on { color: #b6f0a0; text-shadow: 0 0 1.6cqw rgba(120,220,120,0.8); }
 #pw-knob {
   position: absolute;
   top: 11%;
@@ -1650,6 +1651,8 @@ const sound = (() => {
   let ac = null, master, sfxBus, noiseBuf, music = null;
   let muted = localStorage.getItem('clubnile_mute') === '1';
   let lastBlip = 0, stepFoot = 0;
+  let curTrack = null, fadeTimer = null;
+  const MUSIC_VOL = 0.2;                  // every track plays at this level (== In Da Club)
 
   function ensure() {
     if (ac) return true;
@@ -1662,17 +1665,46 @@ const sound = (() => {
     noiseBuf = ac.createBuffer(1, ac.sampleRate / 2, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    /* the looping game music, kept separate so it streams from file */
-    music = new Audio('../assets/membersonly/indaclub.mp3');
+    /* the looping game music, kept separate so it streams from file. The
+       actual track is chosen per scene via playTrack() with a fade-in. */
+    music = new Audio();
     music.loop = true;
-    music.volume = muted ? 0 : 0.2;
+    music.volume = 0.0001;
     return true;
+  }
+  /* fade music.volume toward a target over dur ms, then run `after` */
+  function fadeTo(target, dur, after) {
+    if (!music) { if (after) after(); return; }
+    if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
+    const start = music.volume, t0 = performance.now();
+    fadeTimer = setInterval(() => {
+      const k = Math.min(1, (performance.now() - t0) / Math.max(1, dur));
+      music.volume = muted ? 0 : (start + (target - start) * k);
+      if (k >= 1) { clearInterval(fadeTimer); fadeTimer = null; if (after) after(); }
+    }, 40);
+  }
+  /* switch (or start) the looping track, always fading the new one in */
+  function playTrack(file, dur) {
+    if (!ensure()) return;
+    if (ac.state === 'suspended') ac.resume();
+    const name = file.split('/').pop();
+    if (curTrack === name && !music.paused) return;   // already on this track
+    curTrack = name;
+    const fade = dur == null ? 1100 : dur;
+    const startNew = () => {
+      music.src = file; music.loop = true;
+      try { music.currentTime = 0; } catch (e) {}
+      music.volume = 0.0001;
+      if (!muted) { music.play().catch(() => {}); fadeTo(MUSIC_VOL, fade); }
+    };
+    if (!music.paused && music.currentSrc && !muted) fadeTo(0, Math.min(500, fade), startNew);
+    else startNew();
   }
   function unlock() {                    // must run inside a user gesture
     if (!ensure()) return;
     if (ac.state === 'suspended') ac.resume();
-    /* hold the music until the player presses A off the title card */
-    if (music && !muted && booted) music.play().catch(() => {});
+    /* resume the current scene track if a mute/gesture paused it */
+    if (music && !muted && booted && curTrack && music.paused) music.play().catch(() => {});
   }
   function tone(t, freq, dur, type, gain, bus, slide) {
     const o = ac.createOscillator(), g = ac.createGain();
@@ -1700,27 +1732,27 @@ const sound = (() => {
 
   return {
     unlock,
+    playTrack,
     get muted() { return muted; },
+    unmute() {                          // force sound on so the track starts
+      muted = false;
+      localStorage.setItem('clubnile_mute', '0');
+      if (ac) master.gain.value = 1;
+      if (music && curTrack && music.paused) music.play().catch(() => {});
+    },
     toggleMute() {
       muted = !muted;
       localStorage.setItem('clubnile_mute', muted ? '1' : '0');
       if (ac) master.gain.value = muted ? 0 : 1;
       if (music) {
-        music.volume = muted ? 0 : 0.2;
-        if (muted) music.pause();
-        else music.play().catch(() => {});
+        if (muted) { if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; } music.volume = 0; music.pause(); }
+        else { music.play().catch(() => {}); fadeTo(MUSIC_VOL, 500); }
       }
       return muted;
     },
-    setTune() { /* single looping track now — kept for callers */ },
-    playSong(file) {                    // band request: (re)start a track
-      if (!ensure()) return;
-      if (ac.state === 'suspended') ac.resume();
-      if (!music) return;
-      if (file && !music.src.endsWith(file.split('/').pop())) music.src = file;
-      music.currentTime = 0;
-      if (!muted) music.play().catch(() => {});
-    },
+    setTune() { /* per-scene tracks now — kept for callers */ },
+    playSong(file) { playTrack(file, 700); },   // band request → fade to the track
+
     blip(hi) {                          // typewriter text tick (quiet)
       if (!ready()) return;
       if (t0() - lastBlip < 0.05) return;
@@ -1781,10 +1813,11 @@ updateMuteBtn();
 /* ── power / boot: the console starts dark. Flip the wooden ON/OFF switch
    and the ROB'S HIDEOUT title card drops onto the screen to the arcade
    jingle; press A to step into the greenwood. Flipping OFF once you're in
-   settles any live stakes and returns to the homepage. ── */
+   settles any live stakes and drops the console back to its black OFF
+   screen (a reload of this page), skin and all. ── */
 function powerOff() {
   try { settleCurrentStakes('Power off'); } catch (e) { /* still leave */ }
-  window.location.href = '../index.html';
+  window.location.reload();
 }
 (function initBoot() {
   const bootEl  = document.getElementById('boot');
@@ -1803,7 +1836,25 @@ function powerOff() {
   const sndCapcom = new Audio('../assets/membersonly/capcom.wav');
   const sndSelect = new Audio('../assets/membersonly/select.wav');
   sndCapcom.preload = 'auto'; sndSelect.preload = 'auto';
-  const play = a => { try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} };
+  sndCapcom.volume = 1; sndSelect.volume = 1;
+  const play = a => { try { a.muted = false; a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} };
+  /* Safari/mobile only allow audio to start from a real activation gesture
+     (pointerdown/up), not pointermove. The switch commits mid-drag, so we
+     unlock both SFX on the switch's pointerdown by playing them muted once —
+     after that, play() works even when fired from the move handler. */
+  let sfxPrimed = false;
+  function primeSfx() {
+    if (sfxPrimed) return; sfxPrimed = true;
+    [sndCapcom, sndSelect].forEach(a => {
+      try {
+        a.muted = true;
+        const pr = a.play();
+        const settle = () => { try { a.pause(); a.currentTime = 0; } catch (e) {} a.muted = false; };
+        if (pr && pr.then) pr.then(settle).catch(() => { a.muted = false; });
+        else settle();
+      } catch (e) { a.muted = false; }
+    });
+  }
 
   async function bootUp() {
     ready = false;
@@ -1834,7 +1885,10 @@ function powerOff() {
     pressEl.classList.remove('on');
     bootEl.classList.add('dark');            // title fades to a black screen
     setTimeout(() => {
-      sound.unlock();                        // music + SFX rise as the room appears
+      sound.unlock();
+      sound.unmute();                        // auto-unmute so the track starts
+      updateMuteBtn();
+      sound.playTrack('../assets/membersonly/morningmood.mp3');   // fades in with the room
       bootEl.classList.add('gone');          // black slowly fades into the room
     }, 750);
     setTimeout(() => { bootEl.style.display = 'none'; }, 750 + 2000);
@@ -1849,6 +1903,7 @@ function powerOff() {
   }
   el.addEventListener('pointerdown', e => {
     e.preventDefault();
+    primeSfx();                              // unlock audio on this real gesture
     el.setPointerCapture(e.pointerId);
     drag = { x0: e.clientX, w: el.getBoundingClientRect().width * 0.48, f: on ? 1 : 0, moved: false, done: false };
   });
@@ -1912,8 +1967,6 @@ function powerOff() {
     g.font = '8px "Press Start 2P", monospace';
     g.fillStyle = '#f2ead2';
     g.fillText('THE GREENWOOD DEN', W / 2, 137);
-    g.fillStyle = '#9fd06a';
-    g.fillText('MEMBERS ONLY', W / 2, 151);
   }
   if (document.fonts && document.fonts.load) {
     Promise.all([
@@ -1960,7 +2013,7 @@ function dialogSelect() {
   if (dlg.chars < full) { dlg.chars = full; return; }
   if (dlg.page < dlg.pages.length - 1) { dlg.page++; dlg.chars = 0; return; }
   dlg.open = false;
-  if (dlg.action === 'exit') { window.location.href = '../index.html'; return; }
+  if (dlg.action === 'exit') { try { settleCurrentStakes('Left'); } catch (e) {} window.location.reload(); return; }
   /* every table is played on chips you've withdrawn at the cage — no chips, no seat */
   if (dlg.action === 'craps' || dlg.action === 'blackjack') {
     if (chips <= 0) { addPopup('you', 'bubble', 'Buy chips at the cage first!', 200); return; }
@@ -2062,113 +2115,52 @@ bg.lw = W; bg.lh = WORLD_H;
   const g = bg.getContext('2d');
   g.setTransform(2, 0, 0, 2, 0, 0);
   g.imageSmoothingEnabled = false;
-  /* ── sandstone floor: 3-tone checker + dithered grain + inlays ── */
+  /* ── grassy forest clearing floor ── */
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const t = (c + r) % 2 ? C.floorA : C.floorB;
-      g.fillStyle = t;
+      g.fillStyle = (c + r) % 2 ? '#4c7d3c' : '#437034';
       g.fillRect(c*TS, r*TS, TS, TS);
-      /* per-tile bevel: light top edge, dark bottom edge */
-      g.fillStyle = 'rgba(255,246,220,0.35)';
-      g.fillRect(c*TS, r*TS, TS, 1);
-      g.fillStyle = 'rgba(140,110,70,0.25)';
-      g.fillRect(c*TS, r*TS + TS - 1, TS, 1);
-      /* fine grain dither (half-pixel flecks) */
-      for (let k = 0; k < 9; k++) {
-        const hx = h2(c * 9 + k, r), px = hx % TS, py = h2(r * 9 + k, c) % TS;
-        g.fillStyle = hx % 3 === 0 ? 'rgba(255,246,214,0.5)' : (hx % 2 ? C.floorC : C.floorDot);
-        g.fillRect(c*TS + px + (hx % 2) * 0.5, r*TS + py, 0.5, 0.5);
-      }
-      /* occasional scarab inlay tile */
-      if (h2(c, r) % 19 === 3 && r > 2 && r < ROWS-2) {
-        const ix = c*TS + 5, iy = r*TS + 5;
-        g.fillStyle = C.floorDot;
-        g.fillRect(ix + 2, iy, 2, 1); g.fillRect(ix + 1, iy + 1, 4, 2);
-        g.fillRect(ix, iy + 2, 1, 1); g.fillRect(ix + 5, iy + 2, 1, 1);
-        g.fillRect(ix + 2, iy + 3, 2, 2);
-        g.fillStyle = 'rgba(255,246,220,0.5)';
-        g.fillRect(ix + 2, iy + 1, 1, 1);
-      }
     }
   }
-  /* ── rug: tone-ramped weave, double gold border, fringe, medallion ── */
+  /* dappled grass grain + darker clover patches */
+  for (let y = 0; y < WORLD_H; y += 3) for (let x = 0; x < W; x += 3) {
+    const hsh = h2(x, y);
+    if (hsh % 6 === 0) { g.fillStyle = 'rgba(150,200,110,0.15)'; g.fillRect(x, y, 2, 1); }
+    else if (hsh % 13 === 0) { g.fillStyle = 'rgba(18,44,18,0.18)'; g.fillRect(x, y, 1, 2); }
+  }
+  /* scattered grass blade tufts across the clearing */
+  for (let i = 0; i < 240; i++) {
+    const x = (h2(i*7, 3) / 97) * W, y = (h2(3, i*11) / 97) * WORLD_H;
+    g.fillStyle = '#5c9048'; g.fillRect(x, y, 1, 2); g.fillRect(x+1, y-1, 1, 3); g.fillRect(x+2, y, 1, 2);
+  }
+  /* ── worn dirt path running the length of the clearing ── */
   const rx = RUG.c0*TS, ry = RUG.r0*TS, rw = (RUG.c1-RUG.c0+1)*TS, rh = (RUG.r1-RUG.r0+1)*TS;
   for (let y = 0; y < rh; y++) {
-    const band = y < 3 ? C.rugLight : (y > rh - 4 ? C.rugDark : C.rug);
-    g.fillStyle = band;
+    g.fillStyle = ((ry + y) % 8 < 4) ? '#8a6a3e' : '#7c5c34';
     g.fillRect(rx, ry + y, rw, 1);
   }
-  /* weave dither */
-  for (let y = 2; y < rh - 2; y += 2) for (let x = (y % 4) ? 2 : 4; x < rw - 2; x += 4) {
-    g.fillStyle = (h2(x, y) % 2) ? C.rugDark : C.rugLight;
-    g.fillRect(rx + x, ry + y, 0.5, 1);
-    g.fillStyle = 'rgba(255,220,180,0.12)';
-    g.fillRect(rx + x + 0.5, ry + y, 0.5, 0.5);
+  /* darker trodden edges + scattered pebbles */
+  g.fillStyle = 'rgba(40,25,12,0.30)'; g.fillRect(rx, ry, 1.5, rh); g.fillRect(rx + rw - 1.5, ry, 1.5, rh);
+  for (let i = 0; i < 150; i++) {
+    const x = rx + 2 + (h2(i*5, 9) % (rw - 4)), y = ry + (h2(9, i*5) % rh);
+    g.fillStyle = (h2(i, 7) % 3) ? 'rgba(226,214,186,0.45)' : 'rgba(60,40,20,0.4)';
+    g.fillRect(x, y, 1, 1);
   }
-  g.strokeStyle = C.rugGold; g.lineWidth = 1;
-  g.strokeRect(rx + 1.5, ry + 1.5, rw - 3, rh - 3);
-  g.strokeStyle = 'rgba(135,24,43,0.9)';
-  g.strokeRect(rx + 3.5, ry + 3.5, rw - 7, rh - 7);
-  /* fringe ticks top & bottom */
-  g.fillStyle = C.rugGold;
-  for (let x = 2; x < rw - 2; x += 4) {
-    g.fillRect(rx + x, ry - 1, 1, 1);
-    g.fillRect(rx + x + 1, ry + rh, 1, 1);
-  }
-  /* corner ankh accents + centre medallion */
-  const med = (cx, cy, big) => {
-    g.fillStyle = C.rugGold;
-    g.fillRect(cx - 1, cy - (big ? 6 : 3), 2, big ? 12 : 6);
-    g.fillRect(cx - (big ? 6 : 3), cy - 1, big ? 12 : 6, 2);
-    g.fillStyle = C.rugLight;
-    g.fillRect(cx - 1, cy - 1, 2, 2);
-    if (big) {
-      g.strokeStyle = C.rugGold;
-      g.beginPath(); g.arc(cx, cy, 9, 0, Math.PI * 2); g.stroke();
-      g.strokeStyle = 'rgba(232,188,99,0.45)';
-      g.beginPath(); g.arc(cx, cy, 13, 0, Math.PI * 2); g.stroke();
-    }
+  /* leaf clump used for the whole forest border around the clearing */
+  const clump = (cx, cy, rad) => {
+    g.fillStyle = C.leafDark; g.beginPath(); g.arc(cx, cy, rad, 0, 7); g.fill();
+    g.fillStyle = C.leaf;     g.beginPath(); g.arc(cx - rad*0.28, cy - rad*0.28, rad*0.62, 0, 7); g.fill();
+    g.fillStyle = C.leafHi;   g.beginPath(); g.arc(cx - rad*0.4, cy - rad*0.45, rad*0.3, 0, 7); g.fill();
   };
-  for (let my = ry + 3*TS; my < ry + rh - 2*TS; my += 6*TS) {
-    med(rx + rw/2, my, true);
-    med(rx + 8, my, false); med(rx + rw - 8, my, false);
-  }
-  /* ── north wall: bevelled sandstone blocks + embossed glyph frieze ── */
-  g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
-  for (let row = 0; row < 4; row++) {
-    const by = row * 8, off = (row % 2) ? 8 : 0;
-    for (let x = -8; x < W; x += 16) {
-      g.fillStyle = C.wallLight;                      // block top highlight
-      g.fillRect(x + off, by, 16, 1);
-      g.fillStyle = C.wallDark;                       // block base shadow
-      g.fillRect(x + off, by + 7, 16, 1);
-      g.fillStyle = C.wallLine;                       // mortar
-      g.fillRect(x + off + 15, by, 1, 8);
-    }
-  }
-  /* embossed glyphs: dark press + gold face */
-  const glyph = (gx, kind, col) => {
-    g.fillStyle = col;
-    if (kind === 0) { g.fillRect(gx+2,2,1,2); g.fillRect(gx+1,3,3,1); g.fillRect(gx+2,4,1,3); g.fillRect(gx,5,5,1); }
-    else if (kind === 1) { g.fillRect(gx,4,5,1); g.fillRect(gx+1,3,3,1); g.fillRect(gx+2,5,1,1); g.fillRect(gx+4,5,1,2); }
-    else { g.fillRect(gx+1,3,2,1); g.fillRect(gx,4,4,1); g.fillRect(gx+2,5,1,2); g.fillRect(gx+1,7,3,1); }
-  };
-  for (let x = 6; x < W - 8; x += 24) {
-    const kind = Math.floor(x / 24) % 3;
-    glyph(x + 1, kind, 'rgba(90,64,30,0.8)');
-    glyph(x, kind, C.wallGold);
-  }
-  /* gilded cornice with bevel */
-  g.fillStyle = C.wallDark;     g.fillRect(0, 27, W, 1);
-  g.fillStyle = C.goldHi;       g.fillRect(0, 28, W, 1);
-  g.fillStyle = C.wallGold;     g.fillRect(0, 29, W, 2);
-  g.fillStyle = C.wallGoldDark; g.fillRect(0, 31, W, 1);
-  /* wall shadow cast onto the floor */
-  g.fillStyle = 'rgba(60,40,20,0.22)';
-  g.fillRect(0, 32, W, 3);
-  /* pennant banners hung high on the back wall */
+  /* ── back tree line: two dense rows of foliage behind the bandstand ── */
+  for (let x = -6; x <= W + 6; x += 13) clump(x, 7 + (h2(x,1) % 7), 13 + (h2(x,2) % 6));
+  for (let x = -6; x <= W + 6; x += 15) clump(x + 7, 20 + (h2(x,3) % 6), 11 + (h2(x,4) % 5));
+  /* soft shade the trees cast onto the grass */
+  g.fillStyle = 'rgba(12,30,12,0.20)';
+  g.fillRect(0, 32, W, 4);
+  /* greenwood pennants strung between the trees */
   const banner = (bx) => {
-    g.fillStyle = 'rgba(60,40,20,0.35)'; g.fillRect(bx + 1, 4, 12, 20);
+    g.fillStyle = 'rgba(20,40,20,0.3)'; g.fillRect(bx + 1, 4, 12, 20);
     g.fillStyle = '#6a4a2c'; g.fillRect(bx - 1, 2, 14, 1);       // hanging rod
     g.fillStyle = C.rugDark; g.fillRect(bx, 3, 12, 17);
     g.fillStyle = C.rug; g.fillRect(bx + 1, 3, 10, 16);
@@ -2178,18 +2170,19 @@ bg.lw = W; bg.lh = WORLD_H;
     g.beginPath(); g.moveTo(bx, 19); g.lineTo(bx + 6, 26); g.lineTo(bx + 12, 19); g.closePath(); g.fill();
     g.fillStyle = C.rugGold;
     g.fillRect(bx, 3, 12, 1); g.fillRect(bx, 18, 12, 0.5);
-    /* gold ankh emblem */
-    g.fillRect(bx + 5.5, 7, 1, 2); g.fillRect(bx + 4.5, 9, 3, 1);
-    g.fillRect(bx + 5.5, 10, 1, 4); g.fillRect(bx + 3.5, 12, 5, 1);
-    g.fillStyle = C.goldHi; g.fillRect(bx + 5.5, 7, 0.5, 1);
+    /* white arrow emblem */
+    g.fillStyle = C.white;
+    g.fillRect(bx + 5.5, 8, 1, 7);                              // shaft
+    g.fillRect(bx + 5, 7, 2, 1); g.fillRect(bx + 4.5, 9, 3, 1); // head
+    g.fillRect(bx + 4.5, 13, 3, 1);                             // fletching
   };
   banner(38); banner(190);
-  /* ── back-bar shelf: mirror glass + lit bottles ── */
+  /* ── outdoor bar back-board: rough planks + a shelf of bottles/kegs ── */
   const shx = BAR.c0*TS, shw = (BAR.c1-BAR.c0+1)*TS;
   g.fillStyle = '#2c1c10'; g.fillRect(shx, 9, shw, 19);
-  g.fillStyle = '#41307a'; g.fillRect(shx + 1, 10, shw - 2, 8);   // mirror
-  g.fillStyle = 'rgba(180,170,255,0.25)';
-  for (let x = shx + 3; x < shx + shw - 4; x += 7) g.fillRect(x, 10, 2, 8);
+  g.fillStyle = '#4d3220'; g.fillRect(shx + 1, 10, shw - 2, 8);   // wooden back-board
+  g.fillStyle = 'rgba(90,60,30,0.5)';
+  for (let x = shx + 3; x < shx + shw - 4; x += 7) g.fillRect(x, 10, 1, 8);   // plank seams
   g.fillStyle = C.woodLight; g.fillRect(shx, 18, shw, 1);
   g.fillStyle = C.woodDark; g.fillRect(shx, 19, shw, 1);
   const bottleCols = ['#57b273','#e0a648','#6b8fd4','#c05a5a','#57b273','#e0a648'];
@@ -2203,34 +2196,29 @@ bg.lw = W; bg.lh = WORLD_H;
     g.fillRect(bx + 4, 20, 2, 6); g.fillRect(bx + 4, 19, 1, 1);
     g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(bx + 4, 20, 1, 3);
   }
-  /* ── side + south walls: bevelled dark stone ── */
-  const sideBlock = (x, y) => {
-    g.fillStyle = C.sideWall; g.fillRect(x, y, TS, 8);
-    g.fillStyle = C.sideWallLight; g.fillRect(x, y, TS, 1);
-    g.fillStyle = C.sideWallDark; g.fillRect(x, y + 7, TS, 1);
-  };
-  for (let y = 2*TS; y < WORLD_H; y += 8) { sideBlock(0, y); sideBlock((COLS-1)*TS, y); }
-  for (let x = 0; x < W; x += TS) sideBlock(x, (ROWS-1)*TS), sideBlock(x, (ROWS-1)*TS + 8);
-  g.fillStyle = C.goldHi;       g.fillRect(0, (ROWS-1)*TS, W, 1);
-  g.fillStyle = C.wallGoldDark; g.fillRect(0, (ROWS-1)*TS + 1, W, 1);
-  /* interior shadow from side walls */
-  g.fillStyle = 'rgba(60,40,20,0.15)';
-  g.fillRect(TS, 2*TS, 2, WORLD_H - 3*TS);
-  g.fillRect((COLS-1)*TS - 2, 2*TS, 2, WORLD_H - 3*TS);
-  /* ── door: gold arch + warm glow spilling out ── */
+  /* ── side + bottom tree lines enclosing the clearing (gap for the exit) ── */
   const dx = DOOR.c*TS;
-  g.fillStyle = '#120c14'; g.fillRect(dx + 2, (ROWS-1)*TS, TS - 4, TS);
-  const doorGlow = g.createLinearGradient(0, (ROWS-1)*TS, 0, (ROWS-1)*TS + 10);
-  doorGlow.addColorStop(0, 'rgba(255,190,90,0.35)');
-  doorGlow.addColorStop(1, 'rgba(255,190,90,0)');
-  g.fillStyle = doorGlow; g.fillRect(dx + 2, (ROWS-1)*TS, TS - 4, 10);
-  g.fillStyle = C.goldHi; g.fillRect(dx + 1, (ROWS-1)*TS, TS - 2, 1);
-  g.fillStyle = C.wallGold; g.fillRect(dx + 1, (ROWS-1)*TS, 1, TS); g.fillRect(dx + TS - 2, (ROWS-1)*TS, 1, TS);
-  g.fillStyle = C.wallGoldDark; g.fillRect(dx + 2, (ROWS-1)*TS + 1, 1, TS - 1); g.fillRect(dx + TS - 3, (ROWS-1)*TS + 1, 1, TS - 1);
-  /* welcome mat */
-  g.fillStyle = C.rug; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 6);
-  g.fillStyle = C.rugLight; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 1);
-  g.fillStyle = C.rugGold; g.fillRect(dx + 3, (ROWS-2)*TS + 12, TS - 6, 1);
+  for (let y = 2*TS; y <= WORLD_H; y += 14) {
+    clump(5 + (h2(y,4) % 6), y, 13 + (h2(y,5) % 6));
+    clump(W - 5 - (h2(y,6) % 6), y, 13 + (h2(y,7) % 6));
+  }
+  for (let x = -6; x <= W + 6; x += 13) {
+    if (x > dx - 18 && x < dx + TS + 18) continue;
+    clump(x, WORLD_H - 5 + (h2(x,8) % 5), 13 + (h2(x,9) % 5));
+  }
+  /* soft tree-shade down the clearing edges */
+  g.fillStyle = 'rgba(12,30,12,0.16)';
+  g.fillRect(TS, 2*TS, 3, WORLD_H - 3*TS);
+  g.fillRect((COLS-1)*TS - 3, 2*TS, 3, WORLD_H - 3*TS);
+  /* ── south exit: a timber gate back out into the forest ── */
+  g.fillStyle = '#0e1410'; g.fillRect(dx + 1, (ROWS-1)*TS, TS - 2, TS);
+  g.fillStyle = C.woodDark; g.fillRect(dx - 3, (ROWS-1)*TS - 6, 4, TS + 6); g.fillRect(dx + TS - 1, (ROWS-1)*TS - 6, 4, TS + 6);
+  g.fillStyle = C.wood;     g.fillRect(dx - 2, (ROWS-1)*TS - 6, 2, TS + 6); g.fillRect(dx + TS, (ROWS-1)*TS - 6, 2, TS + 6);
+  g.fillStyle = C.woodDark; g.fillRect(dx - 3, (ROWS-1)*TS - 6, TS + 8, 4);
+  g.fillStyle = C.woodHi;   g.fillRect(dx - 3, (ROWS-1)*TS - 6, TS + 8, 1);
+  /* worn dirt threshold at the gate */
+  g.fillStyle = '#7c5c34'; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 6);
+  g.fillStyle = '#8a6a3e'; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 1);
 })();
 
 /* ============================ floor objects ============================ */
@@ -2417,39 +2405,37 @@ const palmCanvas = makeCanvas(22, 34, g => {
   g.fillStyle = '#c94a2a'; g.fillRect(7, 11, 1.5, 1.5); g.fillRect(15, 10, 1.5, 1.5);
   g.fillStyle = '#e87a4a'; g.fillRect(7, 11, 0.6, 0.6); g.fillRect(15, 10, 0.6, 0.6);
 });
-/* rectangular RAISED cabaret stage across the back-left. Its plum parquet
-   top (a different colour from the sandstone room) sits on a visible riser
-   with side edges so the platform reads as lifted; gold nosing + a deco
-   sunburst backdrop. 25% narrower and 20% shorter than the first pass. */
+/* a raised WOODEN bandstand across the back-left where the minstrels play —
+   plank platform on a timber riser, brass nosing, a leafy garland strung
+   along the back. */
 const STAGE_PX = { x: STAGE.c0 * TS - 6, y: STAGE.r0 * TS - 6, w: 76, h: 44 };
 const STAGE_RISE = 6;                          // height of the front riser
 const stageCanvas = makeCanvas(STAGE_PX.w, STAGE_PX.h + STAGE_RISE, g => {
   const w = g.canvas.width, top = STAGE_PX.h;   // top surface height
-  /* the riser (front + side faces) beneath the platform top */
-  g.fillStyle = '#160d22'; g.fillRect(0, top - 3, w, STAGE_RISE + 3);          // dark front face
-  g.fillStyle = '#241636'; g.fillRect(0, top - 3, w, 2);                       // riser highlight
-  g.fillStyle = C.goldDark; g.fillRect(0, top + STAGE_RISE - 1, w, 1);         // base trim
-  /* plum platform top */
-  g.fillStyle = '#3a2450'; g.fillRect(2, 4, w - 4, top - 4);
-  g.fillStyle = '#4a2f64'; g.fillRect(2, 4, w - 4, 3);
-  g.fillStyle = '#2a1a3e'; g.fillRect(2, top - 4, w - 4, 2);                   // front lip shade
+  /* timber riser (front + side faces) beneath the platform */
+  g.fillStyle = '#3a2414'; g.fillRect(0, top - 3, w, STAGE_RISE + 3);          // dark front face
+  g.fillStyle = '#5e3820'; g.fillRect(0, top - 3, w, 2);                       // riser highlight
+  g.fillStyle = C.woodDark; g.fillRect(0, top + STAGE_RISE - 1, w, 1);         // base trim
+  /* wooden plank platform top */
+  g.fillStyle = C.woodDark; g.fillRect(2, 4, w - 4, top - 4);
+  g.fillStyle = C.wood;     g.fillRect(2, 4, w - 4, top - 6);
+  g.fillStyle = C.woodLight; g.fillRect(2, 4, w - 4, 2);
+  g.fillStyle = '#3a2414'; g.fillRect(2, top - 4, w - 4, 2);                   // front lip shade
+  g.fillStyle = 'rgba(40,25,12,0.4)';                                          // plank seams
+  for (let x = 8; x < w - 4; x += 10) g.fillRect(x, 5, 0.6, top - 7);
   /* raised side edges (bevels) */
-  g.fillStyle = '#2a1a3e'; g.fillRect(0, 4, 2, top);      g.fillRect(w - 2, 4, 2, top);
-  g.fillStyle = '#54386e'; g.fillRect(2, 4, 1, top - 4);                       // left highlight
-  /* parquet sheen */
-  g.fillStyle = 'rgba(120,80,160,0.28)';
-  for (let x = 6; x < w - 4; x += 9) g.fillRect(x, 8, 4, 0.6);
-  for (let y = 12; y < top - 4; y += 6) g.fillRect(4, y, w - 8, 0.5);
-  /* gold front nosing along the top edge of the platform */
+  g.fillStyle = '#3a2414'; g.fillRect(0, 4, 2, top);      g.fillRect(w - 2, 4, 2, top);
+  g.fillStyle = C.woodHi;  g.fillRect(2, 4, 1, top - 4);                       // left highlight
+  /* brass nosing along front + back edges */
   g.fillStyle = C.goldDark; g.fillRect(2, top - 3, w - 4, 1.5);
-  g.fillStyle = C.goldHi; g.fillRect(2, top - 3, w - 4, 0.6);
+  g.fillStyle = C.goldHi;   g.fillRect(2, top - 3, w - 4, 0.6);
   g.fillStyle = C.goldDark; g.fillRect(2, 3, w - 4, 1.5);
-  g.fillStyle = C.goldHi; g.fillRect(2, 3, w - 4, 0.5);
-  /* art-deco sunburst backdrop */
-  g.strokeStyle = 'rgba(217,174,95,0.4)'; g.lineWidth = 1;
-  const bx = w / 2;
-  for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(bx, 14); g.lineTo(bx + i * 9, 2); g.stroke(); }
-  g.fillStyle = 'rgba(217,174,95,0.5)'; g.fillRect(bx - 1, 2, 2, 12);
+  g.fillStyle = C.goldHi;   g.fillRect(2, 3, w - 4, 0.5);
+  /* leafy garland strung along the back of the bandstand */
+  g.fillStyle = C.leafDark;
+  for (let x = 3; x < w - 2; x += 7) { g.beginPath(); g.arc(x, 4, 3, 0, 7); g.fill(); }
+  g.fillStyle = C.leaf;
+  for (let x = 5; x < w - 2; x += 7) { g.beginPath(); g.arc(x, 3, 2, 0, 7); g.fill(); }
 });
 /* an instrument prop set in front of a full-size band member */
 function drawInstrument(g, kind, x, y, seed) {
@@ -3319,7 +3305,7 @@ const bjRoom = makeCanvas(W, H, g => {
   }
 });
 const bj = {
-  state:'bet', betAmt:5, trayIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
+  state:'bet', betAmt:0, trayIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
   timer:0, dealQ:[], menuIdx:0, actIdx:0, result:'', flash:0, busted:false,
   decideUntil:0, revealed:false, pendFlip:null, afterFlip:null
 };
@@ -3327,6 +3313,7 @@ function enterBlackjack() {
   floorReturn = { x: player.x, y: player.y };
   scene = 'blackjack';
   bj.state = 'bet'; bj.menuIdx = 0; bj.actIdx = 0; bj.result = '';
+  bj.betAmt = 0;                          // no auto-bet — tap a chip to wager
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
   bj.pendFlip = null; bj.afterFlip = null;
   modal = null;
@@ -4513,8 +4500,6 @@ function drawTitle(g) {
   g.font = FONT;
   g.fillStyle = C.white;
   g.fillText('THE GREENWOOD DEN', W/2, 136);
-  g.fillStyle = C.rugLight;
-  g.fillText('MEMBERS ONLY', W/2, 150);
   if (Math.floor(tick / 30) % 2) {
     g.fillStyle = C.white;
     g.fillText('PRESS A', W/2, 190);
@@ -4659,54 +4644,97 @@ const entryNpcs = [
   { id:'docs',   sprite:'docsHost',  x: 11*TS, y: ENTRY_LECTERN.r*TS - 3, dir:'down' }
 ];
 const entryBg = makeCanvas(W, H, g => {
-  /* sandstone floor */
+  /* ── a grassy forest clearing ── */
   for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
-    g.fillStyle = (c + r) % 2 ? C.floorA : C.floorB;
+    g.fillStyle = (c + r) % 2 ? '#4c7d3c' : '#437034';
     g.fillRect(c*TS, r*TS, TS, TS);
-    g.fillStyle = 'rgba(255,246,220,0.30)'; g.fillRect(c*TS, r*TS, TS, 1);
-    g.fillStyle = 'rgba(140,110,70,0.22)'; g.fillRect(c*TS, r*TS + TS - 1, TS, 1);
   }
-  /* welcome runner up the middle to the arch */
+  /* dappled grass grain + darker patches */
+  for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x += 3) {
+    const hsh = h2(x, y);
+    if (hsh % 6 === 0) { g.fillStyle = 'rgba(150,200,110,0.16)'; g.fillRect(x, y, 2, 1); }
+    else if (hsh % 13 === 0) { g.fillStyle = 'rgba(18,44,18,0.20)'; g.fillRect(x, y, 1, 2); }
+  }
+  /* scattered grass tufts */
+  for (let i = 0; i < 70; i++) {
+    const x = (h2(i*7, 3) / 97) * W, y = (h2(3, i*11) / 97) * H;
+    g.fillStyle = '#5c9048'; g.fillRect(x, y, 1, 2); g.fillRect(x+1, y-1, 1, 3); g.fillRect(x+2, y, 1, 2);
+  }
+  /* ── worn dirt path up the middle to the gate ── */
   const rx = 6*TS, rw = 3*TS;
-  for (let y = 2*TS; y < 14*TS; y++) { g.fillStyle = (y % 6 < 3) ? C.rug : C.rugDark; g.fillRect(rx, y, rw, 1); }
-  g.strokeStyle = C.rugGold; g.lineWidth = 1; g.strokeRect(rx + 1.5, 2*TS + 1.5, rw - 3, 12*TS - 3);
-  /* north wall */
-  g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
-  for (let x = -8; x < W; x += 16) { g.fillStyle = C.wallLight; g.fillRect(x, 0, 16, 1); g.fillStyle = C.wallDark; g.fillRect(x, 15, 16, 1); }
-  g.fillStyle = C.wallGold; g.fillRect(0, 29, W, 2);
-  /* grand arch doorway to the casino */
+  for (let y = TS; y < 15*TS; y++) {
+    g.fillStyle = (y % 8 < 4) ? '#8a6a3e' : '#7c5c34';
+    g.fillRect(rx, y, rw, 1);
+  }
+  g.fillStyle = 'rgba(40,25,12,0.35)'; g.fillRect(rx, TS, 1, 14*TS); g.fillRect(rx+rw-1, TS, 1, 14*TS);
+  for (let i = 0; i < 34; i++) {
+    const x = rx + 2 + (h2(i*5,9) % (rw-4)), y = TS + (h2(9,i*5) % (13*TS));
+    g.fillStyle = 'rgba(226,214,186,0.5)'; g.fillRect(x, y, 1, 1);
+  }
+  /* ── forest border: overlapping leaf clumps ring the clearing ── */
+  const clump = (cx, cy, rad) => {
+    g.fillStyle = C.leafDark; g.beginPath(); g.arc(cx, cy, rad, 0, 7); g.fill();
+    g.fillStyle = C.leaf;     g.beginPath(); g.arc(cx - rad*0.28, cy - rad*0.28, rad*0.62, 0, 7); g.fill();
+    g.fillStyle = C.leafHi;   g.beginPath(); g.arc(cx - rad*0.4, cy - rad*0.45, rad*0.3, 0, 7); g.fill();
+  };
   const ax = ENTRY_DOOR.c0*TS, aw = (ENTRY_DOOR.c1 - ENTRY_DOOR.c0 + 1)*TS;
-  g.fillStyle = '#0d0912'; g.fillRect(ax, 0, aw, 2*TS);
-  const glow = g.createLinearGradient(0, 0, 0, 2*TS); glow.addColorStop(0,'rgba(255,190,90,0.5)'); glow.addColorStop(1,'rgba(255,190,90,0)');
+  for (let x = -6; x <= W + 6; x += 15) {          // top line, gap for the gate
+    if (x > ax - 20 && x < ax + aw + 20) continue;
+    clump(x, 6 + (h2(x,1) % 6), 12 + (h2(x,2) % 5));
+  }
+  for (let y = 2*TS; y <= 15*TS; y += 15) {         // sides
+    clump(4 + (h2(y,4) % 5), y, 12 + (h2(y,5) % 5));
+    clump(W - 4 - (h2(y,6) % 5), y, 12 + (h2(y,7) % 5));
+  }
+  for (let x = -6; x <= W + 6; x += 15) clump(x, H - 4 + (h2(x,8) % 4), 12 + (h2(x,9) % 5));  // bottom
+  /* ── timber gate through the trees to the den ── */
+  g.fillStyle = '#0e1410'; g.fillRect(ax, 0, aw, 2*TS);
+  const glow = g.createLinearGradient(0, 0, 0, 2*TS);
+  glow.addColorStop(0, 'rgba(255,190,90,0.42)'); glow.addColorStop(1, 'rgba(255,190,90,0)');
   g.fillStyle = glow; g.fillRect(ax, 0, aw, 2*TS);
-  g.fillStyle = C.wallGold; g.fillRect(ax-2, 0, 2, 2*TS); g.fillRect(ax+aw, 0, 2, 2*TS);
-  g.fillStyle = C.goldHi;   g.fillRect(ax-2, 0, aw+4, 2);
-  /* side + south walls */
-  const sideBlk = (x,y) => { g.fillStyle = C.sideWall; g.fillRect(x,y,TS,8); g.fillStyle = C.sideWallLight; g.fillRect(x,y,TS,1); g.fillStyle = C.sideWallDark; g.fillRect(x,y+7,TS,1); };
-  for (let y = 2*TS; y < 15*TS; y += 8) { sideBlk(0,y); sideBlk((COLS-1)*TS,y); }
-  for (let x = 0; x < W; x += TS) { sideBlk(x, 14*TS); sideBlk(x, 14*TS+8); }
-  /* mint clerk's counter (left) */
-  const dsk = (bx, bw, label, col) => {
+  g.fillStyle = C.woodDark; g.fillRect(ax - 5, 0, 5, 2.6*TS); g.fillRect(ax + aw, 0, 5, 2.6*TS);
+  g.fillStyle = C.wood;     g.fillRect(ax - 4, 0, 2, 2.6*TS); g.fillRect(ax + aw + 1, 0, 2, 2.6*TS);
+  g.fillStyle = C.woodDark; g.fillRect(ax - 5, 2*TS, aw + 10, 5);
+  g.fillStyle = C.woodHi;   g.fillRect(ax - 5, 2*TS, aw + 10, 1);
+  /* ── signboards on posts BEHIND each stall (raised above the NPCs' heads
+        so the staff never covers the sign) ── */
+  const sign = (cx, label, col) => {
+    const bw2 = 50, bh = 16, by = 25, lx = cx - bw2/2;
+    g.fillStyle = C.woodDark; g.fillRect(cx - 2, by + bh - 2, 4, 58);   // post, runs down behind the stall
+    g.fillStyle = C.woodHi;   g.fillRect(cx - 2, by + bh - 2, 1, 58);
+    g.fillStyle = C.woodDark; g.fillRect(lx - 3, by - 3, bw2 + 6, bh + 6);  // board frame
+    g.fillStyle = col;        g.fillRect(lx, by, bw2, bh);
+    g.fillStyle = 'rgba(255,248,214,0.16)'; g.fillRect(lx, by, bw2, 2);
+    g.fillStyle = 'rgba(0,0,0,0.28)';       g.fillRect(lx, by + bh - 2, bw2, 2);
+    g.fillStyle = C.goldHi; g.font = '7px "Press Start 2P"';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(label, cx, by + bh/2 + 1);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  };
+  /* ── two market stalls (wooden counters) ── */
+  const booth = (bx, bw) => {
     const by = 5*TS;
     g.fillStyle = C.shadow; g.fillRect(bx+2, by+TS-2, bw-4, 4);
     g.fillStyle = C.woodDark; g.fillRect(bx, by, bw, TS);
     g.fillStyle = C.wood;     g.fillRect(bx+1, by+1, bw-2, TS-3);
-    g.fillStyle = C.woodLight;g.fillRect(bx+1, by+1, bw-2, 1);
-    /* placard on the wall above */
-    g.fillStyle = col; g.fillRect(bx+2, by-14, bw-4, 9);
-    g.fillStyle = '#0d0912'; g.fillRect(bx+3, by-13, bw-6, 7);
-    g.fillStyle = C.goldHi; g.font = '6px "Press Start 2P"'; g.textAlign = 'center';
-    g.fillText(label, bx + bw/2, by-11);
-    g.textAlign = 'left';
+    g.fillStyle = C.woodLight; g.fillRect(bx+1, by+1, bw-2, 1);
+    g.fillStyle = 'rgba(40,25,12,0.4)';
+    for (let x = bx+5; x < bx+bw-2; x += 6) g.fillRect(x, by+2, 0.6, TS-4);
   };
-  dsk(ENTRY_DESK.c0*TS, (ENTRY_DESK.c1-ENTRY_DESK.c0+1)*TS, 'MINT', '#7a1a26');
-  dsk(ENTRY_LECTERN.c0*TS, (ENTRY_LECTERN.c1-ENTRY_LECTERN.c0+1)*TS, 'RULES', '#1f5f4a');
+  const leftCx  = (ENTRY_DESK.c0    + (ENTRY_DESK.c1    - ENTRY_DESK.c0    + 1)/2) * TS;
+  const rightCx = (ENTRY_LECTERN.c0 + (ENTRY_LECTERN.c1 - ENTRY_LECTERN.c0 + 1)/2) * TS;
+  sign(leftCx,  'MINT', '#7a3320');
+  sign(rightCx, 'DOCS', '#245c33');
+  booth(ENTRY_DESK.c0*TS,    (ENTRY_DESK.c1-ENTRY_DESK.c0+1)*TS);
+  booth(ENTRY_LECTERN.c0*TS, (ENTRY_LECTERN.c1-ENTRY_LECTERN.c0+1)*TS);
 });
 let casinoEntered = false;
 function canEnterCasino() { return true; }   // TODO: gate on MembersOnly.balanceOf(wallet) > 0
 function enterCasino() {
   if (casinoEntered) return;
   casinoEntered = true;
+  /* crossfade from the morning-mood entry theme to the casino theme */
+  sound.playTrack('../assets/membersonly/myheartwillgoon.mp3');
   startTransition(() => {
     scene = 'floor';
     player.x = 7.5*TS; player.y = (ROWS-2.5)*TS; player.dir = 'up'; player.frame = 0;
@@ -4744,9 +4772,12 @@ function entryUpdate() {
 }
 function entryRender() {
   ctx.drawImage(entryBg, 0, 0, W, H);
-  const dusk = ctx.createLinearGradient(0, 0, 0, H);
-  dusk.addColorStop(0, 'rgba(26,20,54,0.30)'); dusk.addColorStop(1, 'rgba(12,9,26,0.38)');
-  ctx.fillStyle = dusk; ctx.fillRect(0, 0, W, H);
+  /* open-air daylight: soft light from above, cool grass-shade at the feet */
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, 'rgba(205,228,182,0.12)');
+  sky.addColorStop(0.5, 'rgba(120,160,110,0)');
+  sky.addColorStop(1, 'rgba(20,40,20,0.16)');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
   const items = [];
   entryNpcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
@@ -4761,8 +4792,8 @@ function entryRender() {
     const t = interactTarget();
     if (t) { const b = Math.floor(tick/20)%2; ctx.fillStyle = C.gold; ctx.font = FONT; ctx.fillText('!', Math.round(player.x)-2, Math.round(player.y)-34-b); }
   }
-  const vg = ctx.createRadialGradient(W/2, H/2-10, 60, W/2, H/2, 190);
-  vg.addColorStop(0,'rgba(255,190,90,0.05)'); vg.addColorStop(1,'rgba(8,5,14,0.5)');
+  const vg = ctx.createRadialGradient(W/2, H/2-10, 80, W/2, H/2, 205);
+  vg.addColorStop(0,'rgba(255,245,200,0.06)'); vg.addColorStop(1,'rgba(10,26,12,0.34)');
   ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
   if (titleAlpha > 0) drawTitle(ctx);
 }
