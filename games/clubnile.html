@@ -1052,9 +1052,8 @@ const TABLES = [
 ];
 const FOUNTAIN = { c0:6, c1:8, r0:14, r1:15 };  // centre-piece fountain on the runner
 const PALMS = [[1,5],[13,5],[1,17],[13,17]];    // potted palms filling the long hall
-const BIGPALM = { c:13, r:26 };                 // statement palm, bottom-right
-const SARC = { c:1, r:26 };                     // sarcophagus, bottom-left
-const CAGE = { c0:1, c1:3, r0:22, r1:23 };      // the cage — a low-walled teller rectangle (west side)
+const SARC = { c:13, r:26 };                    // sarcophagus, bottom-right (rope stanchion in front)
+const CAGE = { c0:1, c1:3, r0:24, r1:25 };      // the cage — a low-walled teller rectangle (bottom-left)
 const DOOR = { c:7, r:ROWS-1 };                 // south entrance — players walk in and head north
 const RUG = { c0:5, c1:9, r0:4, r1:27 };        // long runner up the middle
 
@@ -1067,7 +1066,7 @@ for (const t of TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r 
 for (let c = STAGE.c0; c <= STAGE.c1; c++) for (let r = STAGE.r0; r <= STAGE.r1; r++) solid.add(key(c,r));
 for (let c = FOUNTAIN.c0; c <= FOUNTAIN.c1; c++) for (let r = FOUNTAIN.r0; r <= FOUNTAIN.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
-[[BIGPALM.c,BIGPALM.r],[SARC.c,SARC.r],[SARC.c+1,SARC.r]].forEach(([c,r]) => solid.add(key(c,r)));
+[[SARC.c,SARC.r],[SARC.c,SARC.r+1]].forEach(([c,r]) => solid.add(key(c,r)));  // sarcophagus + stanchion, bottom-right
 for (let c = CAGE.c0; c <= CAGE.c1; c++) for (let r = CAGE.r0; r <= CAGE.r1; r++) solid.add(key(c,r));  // the cage enclosure is solid
 
 const talkMap = {};
@@ -4337,11 +4336,9 @@ function floorRender() {
   items.push({ y: (FOUNTAIN.r1+1)*TS, draw: g => g.drawImage(fountainCanvas, fcx - fountainCanvas.lw/2, FOUNTAIN.r0*TS - 6, fountainCanvas.lw, fountainCanvas.lh) });
   /* potted palms filling the hall */
   PALMS.forEach(([c,r]) => items.push({ y: r*TS + 14, draw: g => g.drawImage(palmCanvas, c*TS - 3, r*TS - 18, palmCanvas.lw, palmCanvas.lh) }));
-  /* big statement palm, bottom-right (2x, extra detail) */
-  items.push({ y: BIGPALM.r*TS + 14, draw: g => g.drawImage(palmCanvas, BIGPALM.c*TS - 20, BIGPALM.r*TS - 40, palmCanvas.lw*2, palmCanvas.lh*2) });
-  /* sarcophagus in the bottom-left corner, rope stanchion to its right */
-  items.push({ y: SARC.r*TS + 12, draw: g => g.drawImage(sarcCanvas, 2, SARC.r*TS - 44, sarcCanvas.lw, sarcCanvas.lh) });
-  items.push({ y: SARC.r*TS + 10, draw: g => g.drawImage(stanchionCanvas, 30, SARC.r*TS - 44, stanchionCanvas.lw, stanchionCanvas.lh) });
+  /* sarcophagus in the bottom-right corner with the rope stanchion in front of it */
+  items.push({ y: SARC.r*TS + 12, draw: g => g.drawImage(sarcCanvas, (COLS-1)*TS - sarcCanvas.lw + 2, SARC.r*TS - 44, sarcCanvas.lw, sarcCanvas.lh) });
+  items.push({ y: SARC.r*TS + 22, draw: g => g.drawImage(stanchionCanvas, (COLS-1)*TS - sarcCanvas.lw/2 - stanchionCanvas.lw/2 + 2, SARC.r*TS - 28, stanchionCanvas.lw, stanchionCanvas.lh) });
   /* the cage: cashier behind the teller window (window drawn in front of him) */
   /* the cage: low-wall rectangle with the cashier standing inside it */
   const cgx = CAGE.c0*TS, cgTop = CAGE.r0*TS;
