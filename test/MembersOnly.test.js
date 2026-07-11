@@ -256,13 +256,13 @@ describe("MembersOnly", function () {
 
   // ─── Partner Bonus ───
   describe("Partner Bonus", function () {
-    let fakeLil;
+    let partnerNft;
 
     beforeEach(async function () {
-      const FakeLil = await ethers.getContractFactory("FakeLil");
-      fakeLil = await FakeLil.deploy("https://fakelil.xyz/");
-      await fakeLil.connect(user1).mint(1);
-      await membersOnly.registerPartner("FakeLil", await fakeLil.getAddress());
+      const Mock = await ethers.getContractFactory("MockPartnerNFT");
+      partnerNft = await Mock.deploy();
+      await partnerNft.connect(user1).mint(1);
+      await membersOnly.registerPartner("MockPartner", await partnerNft.getAddress());
     });
 
     it("should give bonus chips when minting with partner NFT", async function () {
