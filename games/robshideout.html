@@ -254,8 +254,75 @@ body {
 }
 #mint-go, #mint-connect { align-self: flex-start; background: #7a1a26; color: #ffe9a8; }
 #mint-status { color: #9fd8b0; min-height: 3cqw; }
-#docs-body h4 { color: #f5d76e; margin-top: 1.5cqw; }
-#docs-body p { color: #ddd3bd; }
+/* ── SCROLLS OF SHERWOOD: a carved-wood picker wheel over an aged
+   parchment reading pane. Spin the wheel (scroll / drag / arrows /
+   chevrons) to select a scroll; the parchment turns to it. ── */
+.docs-panel .popup-head { color: #f0e2a6; }
+.docs-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; gap: 1.2cqw; padding: 1.6cqw; }
+.docs-wheel {
+  display: flex; align-items: center; justify-content: center; gap: 2cqw;
+  padding: 1.2cqw 0;
+  background: linear-gradient(180deg, rgba(30,44,26,0.9), rgba(16,26,14,0.9));
+  border: 0.4cqw solid #6f4a2b; border-radius: 1.4cqw;
+  box-shadow: inset 0 0 3cqw rgba(0,0,0,0.55);
+}
+.dw-chev {
+  font-family: inherit; cursor: pointer; user-select: none;
+  background: none; border: none; color: #6f8a5a; font-size: 3cqw; padding: 0 1cqw;
+}
+.dw-chev:active { color: #cfe6a0; }
+.dw-window {
+  position: relative; height: 21cqw; width: 62%;
+  overflow-y: auto; scroll-snap-type: y mandatory;
+  scrollbar-width: none; -ms-overflow-style: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 26%, #000 74%, transparent);
+          mask-image: linear-gradient(180deg, transparent, #000 26%, #000 74%, transparent);
+}
+.dw-window::-webkit-scrollbar { display: none; }
+/* gold selection band across the centre of the wheel */
+.dw-window::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 7cqw;
+  transform: translateY(-50%); pointer-events: none;
+  border-top: 0.3cqw solid rgba(240,226,166,0.35);
+  border-bottom: 0.3cqw solid rgba(240,226,166,0.35);
+}
+.dw-list { display: flex; flex-direction: column; padding: 7cqw 0; }
+.dw-item {
+  height: 7cqw; flex: 0 0 7cqw; scroll-snap-align: center;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; font-size: 2.6cqw; letter-spacing: 0.35cqw;
+  color: #83a06a; opacity: 0.5; cursor: pointer;
+  transition: color .12s, opacity .12s, transform .12s, text-shadow .12s;
+}
+.dw-item.sel {
+  color: #f6e6a0; opacity: 1; transform: scale(1.16);
+  text-shadow: 0 0 2.4cqw rgba(150,205,110,0.7);
+}
+.docs-scroll {
+  flex: 1; overflow-y: auto; min-height: 0;
+  padding: 3cqw 3.4cqw; border-radius: 1.4cqw; line-height: 1.65;
+  color: #34240f;
+  background:
+    repeating-linear-gradient(0deg, rgba(120,86,40,0.05) 0 3cqw, rgba(120,86,40,0.09) 3cqw 6cqw),
+    linear-gradient(180deg, #ecdcae, #dcc891);
+  border: 0.4cqw solid #7a5a2a;
+  box-shadow: inset 0 0 4cqw rgba(120,86,40,0.45);
+}
+.docs-scroll h4 {
+  color: #5a3410; font-size: 3.4cqw; letter-spacing: 0.4cqw;
+  margin-bottom: 1.6cqw; padding-bottom: 1cqw;
+  border-bottom: 0.3cqw solid rgba(90,52,16,0.4);
+}
+.docs-scroll ul { list-style: none; display: flex; flex-direction: column; gap: 1.4cqw; }
+.docs-scroll li {
+  position: relative; padding-left: 4.5cqw; font-size: 2.8cqw; color: #3a2810;
+}
+.docs-scroll li::before {
+  content: '❧'; position: absolute; left: 0.5cqw; top: -0.2cqw;
+  color: #7a5a2a; font-size: 2.8cqw;
+}
+.docs-scroll li.lead::before { content: ''; }
+.docs-scroll li.lead { padding-left: 0; font-style: italic; color: #6a4a24; }
 #chat-head {
   display: flex;
   align-items: center;
@@ -388,9 +455,16 @@ body {
       <div id="mint-status"></div>
     </div>
   </div>
-  <div id="docs-panel" class="popup-panel">
-    <div class="popup-head"><span>HOUSE RULES</span><button class="popup-close" data-close="docs-panel" type="button">X</button></div>
-    <div class="popup-body" id="docs-body"></div>
+  <div id="docs-panel" class="popup-panel docs-panel">
+    <div class="popup-head"><span>SCROLLS OF SHERWOOD</span><button class="popup-close" data-close="docs-panel" type="button">X</button></div>
+    <div class="docs-wrap">
+      <div class="docs-wheel">
+        <button class="dw-chev" id="dw-up" type="button" aria-label="up">▲</button>
+        <div class="dw-window" id="dw-window"><div class="dw-list" id="dw-list"></div></div>
+        <button class="dw-chev" id="dw-down" type="button" aria-label="down">▼</button>
+      </div>
+      <div class="docs-scroll" id="docs-scroll"></div>
+    </div>
   </div>
   <div id="cage-panel" class="popup-panel">
     <div class="popup-head"><span>THE CAGE</span><button class="popup-close" data-close="cage-panel" type="button">X</button></div>
@@ -4641,19 +4715,99 @@ const cagePanel = document.getElementById('cage-panel');
 function popupOpen() { return mintPanel.classList.contains('open') || docsPanel.classList.contains('open') || cagePanel.classList.contains('open'); }
 function closePopup(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.popup-close').forEach(b => b.addEventListener('click', () => closePopup(b.dataset.close)));
+/* the scrolls, kept short and sharp — spin the wheel to read each one */
+const DOCS = [
+  { t: 'THE BAND', b: [
+    { lead: 'Who rides with Rob.' },
+    '1111 outlaws in the collection — no more.',
+    'Mint price: 0.1 ETH.',
+    'Every holder rides FREE into the weekly tournament.'
+  ]},
+  { t: 'THE MINT', b: [
+    { lead: 'Where the mint coin goes.' },
+    '20% — the crew.',
+    '80% — straight to the treasury.'
+  ]},
+  { t: 'THE TREASURY', b: [
+    { lead: 'The hoard is put to work.' },
+    'Treasury is deployed into Aave DeFi.',
+    'Yield → 90% tournament prizes.',
+    'Yield → 10% team, ops & marketing.'
+  ]},
+  { t: 'THE TABLES', b: [
+    { lead: 'How the casino take is split.' },
+    '50% — buy back & burn NFTs.',
+    '25% — tournament pots.',
+    '25% — the crew.'
+  ]},
+  { t: 'TOURNAMENTS', b: [
+    { lead: 'Won by the boldest.' },
+    'Run every week.',
+    'Free entry for every holder.',
+    'Purses funded by treasury yield.',
+    'Biggest stacks take the loot.'
+  ]}
+];
+let docsSel = 0, docsSnapTimer = null;
+const dwWindow = document.getElementById('dw-window');
+const dwList = document.getElementById('dw-list');
+function docsRenderContent() {
+  const d = DOCS[docsSel];
+  const rows = d.b.map(x => typeof x === 'string'
+    ? '<li>' + x + '</li>'
+    : '<li class="lead">' + x.lead + '</li>').join('');
+  const sc = document.getElementById('docs-scroll');
+  sc.innerHTML = '<h4>' + d.t + '</h4><ul>' + rows + '</ul>';
+  sc.scrollTop = 0;
+  [...dwList.children].forEach((el, i) => el.classList.toggle('sel', i === docsSel));
+}
+function docsBuildWheel() {
+  dwList.innerHTML = DOCS.map((d, i) => '<div class="dw-item" data-i="' + i + '">' + d.t + '</div>').join('');
+  dwList.querySelectorAll('.dw-item').forEach(it =>
+    it.addEventListener('click', () => docsGoTo(parseInt(it.dataset.i, 10), true)));
+}
+function docsGoTo(i, smooth) {
+  i = (i + DOCS.length) % DOCS.length;
+  const item = dwList.children[i];
+  if (!item) return;
+  const target = item.offsetTop + item.offsetHeight / 2 - dwWindow.clientHeight / 2;
+  dwWindow.scrollTo({ top: target, behavior: smooth ? 'smooth' : 'auto' });
+  if (docsSel !== i) { docsSel = i; docsRenderContent(); }
+}
+function docsCenteredIndex() {
+  const mid = dwWindow.scrollTop + dwWindow.clientHeight / 2;
+  let best = 0, bd = Infinity;
+  [...dwList.children].forEach((it, i) => {
+    const c = it.offsetTop + it.offsetHeight / 2;
+    const dd = Math.abs(c - mid);
+    if (dd < bd) { bd = dd; best = i; }
+  });
+  return best;
+}
+dwWindow.addEventListener('scroll', () => {
+  const i = docsCenteredIndex();
+  if (i !== docsSel) { docsSel = i; docsRenderContent(); }
+});
+/* mouse wheel spins the selector one scroll at a time */
+docsPanel.addEventListener('wheel', e => {
+  if (!docsPanel.classList.contains('open')) return;
+  e.preventDefault();
+  docsGoTo(docsSel + (e.deltaY > 0 ? 1 : -1), true);
+}, { passive: false });
+document.getElementById('dw-up').addEventListener('click', () => docsGoTo(docsSel - 1, true));
+document.getElementById('dw-down').addEventListener('click', () => docsGoTo(docsSel + 1, true));
+/* arrow keys drive the wheel while the scrolls are open (touch just drags it) */
+addEventListener('keydown', e => {
+  if (!docsPanel.classList.contains('open')) return;
+  if (e.key === 'ArrowUp')   { e.preventDefault(); docsGoTo(docsSel - 1, true); }
+  if (e.key === 'ArrowDown') { e.preventDefault(); docsGoTo(docsSel + 1, true); }
+});
 function openDocsPanel() {
-  const el = document.getElementById('docs-body');
-  if (!el.dataset.filled) {
-    el.innerHTML = `
-      <h4>THE PASS</h4><p>Your Rob's Hideout NFT is your membership. Hold one and the north trail opens onto the den floor.</p>
-      <h4>CHIPS</h4><p>Chips are the house currency (an ERC-1155 token in your wallet, shared across every NFT you hold). Earn them on mint, from the weekly drop, and by winning at the tables. Spend them on wagers, tournaments, and treasury shares. Chips are freely transferable wallet-to-wallet.</p>
-      <h4>WEEKLY DROP</h4><p>Each week every NFT can claim chips = its tier reward + level bonus. The drop rolls automatically on a schedule the house sets.</p>
-      <h4>THE TABLES</h4><p>Craps and blackjack, multiplayer. Buy in with chips, cash out on a win. Dealers are server-authoritative and every settlement is oracle-signed — no client-side cheating.</p>
-      <h4>TREASURY</h4><p>Burn 10,000 chips per monthly share; the house deposits AVAX yield and shareholders claim their cut. That's what gives chips real value.</p>
-      <h4>TOURNAMENTS</h4><p>Enter with chips, lock your best stack as your score, climb the leaderboard for prizes.</p>`;
-    el.dataset.filled = '1';
-  }
+  if (!dwList.children.length) docsBuildWheel();
+  docsSel = 0;
+  docsRenderContent();
   docsPanel.classList.add('open');
+  requestAnimationFrame(() => docsGoTo(0, false));
 }
 /* ── mint wiring (ethers + injected wallet, Fuji testnet) ── */
 const MINT_CFG = { address: '0x6defA84b02efcEd65930341B1b20aDb6BC881809', chainId: '0xa869', priceEth: '0.01' };
