@@ -496,7 +496,7 @@ async function handlePokerCashout(request, env) {
 //  NOTE: table wins/losses should adjust cage:{tokenId}.stack so that lost chips
 //  stay burnt — wire the craps/blackjack settlement into this stack next.
 // ═══════════════════════════════════════════════════════════════════════════
-const CAGE_SESSION_TTL = 60 * 60 * 24 * 30;  // 30 days
+const CAGE_SESSION_TTL = 60 * 60 * 24 * 7;   // 7 days — reclaim an abandoned stack within a week, then it's forfeit
 
 // POST /cage/buyin  { tokenId, player, txHash }
 async function handleCageBuyin(request, env) {

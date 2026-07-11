@@ -1054,7 +1054,7 @@ const FOUNTAIN = { c0:6, c1:8, r0:14, r1:15 };  // centre-piece fountain on the 
 const PALMS = [[1,5],[13,5],[1,17],[13,17]];    // potted palms filling the long hall
 const BIGPALM = { c:13, r:26 };                 // statement palm, bottom-right
 const SARC = { c:1, r:26 };                     // sarcophagus, bottom-left
-const CAGE = { c0:1, c1:3, r:23 };              // the cage — buy chips in / cash chips out (west wall)
+const CAGE = { c0:1, c1:3, r0:22, r1:23 };      // the cage — a low-walled teller rectangle (west side)
 const DOOR = { c:7, r:ROWS-1 };                 // south entrance — players walk in and head north
 const RUG = { c0:5, c1:9, r0:4, r1:27 };        // long runner up the middle
 
@@ -1068,7 +1068,7 @@ for (let c = STAGE.c0; c <= STAGE.c1; c++) for (let r = STAGE.r0; r <= STAGE.r1;
 for (let c = FOUNTAIN.c0; c <= FOUNTAIN.c1; c++) for (let r = FOUNTAIN.r0; r <= FOUNTAIN.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
 [[BIGPALM.c,BIGPALM.r],[SARC.c,SARC.r],[SARC.c+1,SARC.r]].forEach(([c,r]) => solid.add(key(c,r)));
-for (let c = CAGE.c0; c <= CAGE.c1; c++) solid.add(key(c, CAGE.r));   // the cage counter is solid
+for (let c = CAGE.c0; c <= CAGE.c1; c++) for (let r = CAGE.r0; r <= CAGE.r1; r++) solid.add(key(c,r));  // the cage enclosure is solid
 
 const talkMap = {};
 for (let c = BAR.c0; c <= BAR.c1; c++) { talkMap[key(c, BAR.row)] = 'bartender'; talkMap[key(c, BAR.row + 1)] = 'bartender'; }
@@ -1076,7 +1076,7 @@ for (const t of TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r 
 /* walk up to the front of the stage to request a song */
 for (let c = STAGE.c0; c <= STAGE.c1; c++) { talkMap[key(c, STAGE.r1)] = 'band'; talkMap[key(c, STAGE.r1 + 1)] = 'band'; }
 /* step up to the cage window to buy in or cash out */
-for (let c = CAGE.c0; c <= CAGE.c1; c++) { talkMap[key(c, CAGE.r)] = 'cage'; talkMap[key(c, CAGE.r + 1)] = 'cage'; }
+for (let c = CAGE.c0; c <= CAGE.c1; c++) { talkMap[key(c, CAGE.r1)] = 'cage'; talkMap[key(c, CAGE.r1 + 1)] = 'cage'; }
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
 
 /* ============================ chips ============================ */
@@ -1716,8 +1716,12 @@ function dialogSelect() {
   if (dlg.page < dlg.pages.length - 1) { dlg.page++; dlg.chars = 0; return; }
   dlg.open = false;
   if (dlg.action === 'exit') { window.location.href = '../index.html'; return; }
-  if (dlg.action === 'craps') startTransition(() => enterCraps());
-  if (dlg.action === 'blackjack') startTransition(() => enterBlackjack());
+  /* every table is played on chips you've withdrawn at the cage — no chips, no seat */
+  if (dlg.action === 'craps' || dlg.action === 'blackjack') {
+    if (chips <= 0) { addPopup('you', 'bubble', 'Buy chips at the cage first!', 200); return; }
+    startTransition(() => dlg.action === 'craps' ? enterCraps() : enterBlackjack());
+    return;
+  }
   if (dlg.action === 'songs') { songMenu.open = true; songMenu.idx = 0; }
 }
 
@@ -2097,29 +2101,44 @@ const fountainCanvas = makeCanvas(48, 46, g => {
   g.fillStyle = C.goldHi;  g.fillRect(cx-0.6, 5, 1, 3);
 });
 /* the cage — a gilded teller window with bars and a CAGE sign */
-const cageCanvas = makeCanvas(3*TS, 34, g => {
-  const w = 3*TS;
-  g.fillStyle = C.shadow; g.fillRect(2, 32, w-4, 3);
-  /* marble counter base */
-  g.fillStyle = C.woodDark; g.fillRect(0, 22, w, 12);
-  g.fillStyle = C.wood;     g.fillRect(1, 23, w-2, 10);
-  g.fillStyle = C.woodLight; g.fillRect(1, 23, w-2, 1);
-  /* gilded surround */
-  g.fillStyle = '#3a2b12'; g.fillRect(0, 2, w, 21);
-  g.fillStyle = '#6e5330'; g.fillRect(2, 4, w-4, 19);
-  g.fillStyle = '#0d0912'; g.fillRect(5, 6, w-10, 15);            // dark window
-  /* teller bars */
-  g.fillStyle = C.gold;
-  for (let x = 7; x < w-6; x += 4) g.fillRect(x, 6, 1, 15);
-  g.fillStyle = C.goldHi;
-  g.fillRect(2, 4, w-4, 1); g.fillRect(2, 4, 1, 19); g.fillRect(w-3, 4, 1, 19);
-  /* CAGE placard */
-  g.fillStyle = '#7a1a26'; g.fillRect(6, 0, w-12, 6);
-  g.fillStyle = C.goldHi; g.font = '6px "Press Start 2P"'; g.textAlign = 'center';
-  g.fillText('CAGE', w/2, 1); g.textAlign = 'left';
-  /* stacked chips on the counter */
-  g.fillStyle = '#c9a13b'; g.fillRect(w-14, 24, 8, 2); g.fillRect(w-13, 22, 6, 2);
-  g.fillStyle = '#e8c24a'; g.fillRect(w-13, 22, 6, 1);
+/* The cage is a free-standing rectangle of LOW gilded walls with the cashier
+   standing inside it. Two pieces so the clerk renders BETWEEN them:
+   cageBack = rear + side low walls (drawn behind the clerk),
+   cageFront = the front counter wall with the CAGE sign (drawn in front). */
+const CAGE_W = 3*TS, CAGE_H = 2*TS;   // footprint: 3 tiles wide, 2 tall
+function lowWall(g, x, y, w, h) {      // a short gilded parapet wall segment
+  g.fillStyle = '#5a4526'; g.fillRect(x, y, w, h);            // stone body
+  g.fillStyle = '#7a5f34'; g.fillRect(x, y, w, 1);            // top edge
+  g.fillStyle = C.goldDark; g.fillRect(x, y + 1, w, 1);       // gold band
+  g.fillStyle = C.goldHi;  g.fillRect(x, y, 1, h); g.fillRect(x + w - 1, y, 1, h);
+  g.fillStyle = '#3a2b12'; g.fillRect(x, y + h - 1, w, 1);    // base shadow
+}
+const cageBack = makeCanvas(CAGE_W, CAGE_H + 6, g => {
+  const w = CAGE_W;
+  /* interior floor of the enclosure */
+  g.fillStyle = '#2a2030'; g.fillRect(3, 8, w - 6, CAGE_H - 2);
+  /* back wall + two side walls (the front is drawn separately) */
+  lowWall(g, 0, 6, w, 6);             // back parapet
+  lowWall(g, 0, 6, 4, CAGE_H);        // left side
+  lowWall(g, w - 4, 6, 4, CAGE_H);    // right side
+  /* little safe / chip trays on the back counter */
+  g.fillStyle = '#c9a13b'; g.fillRect(6, 9, 6, 2); g.fillRect(7, 7, 4, 2);
+  g.fillStyle = '#e8c24a'; g.fillRect(7, 7, 4, 1);
+  g.fillStyle = '#2f55a0'; g.fillRect(w - 12, 8, 5, 4);        // lapis strongbox
+  g.fillStyle = C.gold; g.fillRect(w - 12, 8, 5, 1);
+});
+const cageFront = makeCanvas(CAGE_W, 12, g => {
+  const w = CAGE_W;
+  g.fillStyle = C.shadow; g.fillRect(2, 10, w - 4, 2);
+  lowWall(g, 0, 2, w, 8);            // front counter wall
+  /* teller opening in the middle of the front counter */
+  g.fillStyle = '#0d0912'; g.fillRect(w/2 - 5, 3, 10, 3);
+  g.fillStyle = C.gold; for (let x = w/2 - 4; x < w/2 + 5; x += 3) g.fillRect(x, 3, 1, 3);
+  /* CAGE sign hung on the front */
+  g.fillStyle = '#7a1a26'; g.fillRect(w/2 - 11, 0, 22, 5);
+  g.fillStyle = C.goldHi; g.fillRect(w/2 - 11, 0, 22, 1);
+  g.font = '6px "Press Start 2P"'; g.textAlign = 'center';
+  g.fillStyle = C.goldHi; g.fillText('CAGE', w/2, 0); g.textAlign = 'left';
 });
 const palmCanvas = makeCanvas(22, 34, g => {
   g.fillStyle = C.shadow;
@@ -4324,8 +4343,11 @@ function floorRender() {
   items.push({ y: SARC.r*TS + 12, draw: g => g.drawImage(sarcCanvas, 2, SARC.r*TS - 44, sarcCanvas.lw, sarcCanvas.lh) });
   items.push({ y: SARC.r*TS + 10, draw: g => g.drawImage(stanchionCanvas, 30, SARC.r*TS - 44, stanchionCanvas.lw, stanchionCanvas.lh) });
   /* the cage: cashier behind the teller window (window drawn in front of him) */
-  items.push({ y: CAGE.r*TS - 6, draw: g => drawEntity(g, { sprite:'cashier', dir:'down', frame:0, x: (CAGE.c0+1)*TS, y: CAGE.r*TS - 2, staticNPC:true }, tick + 40) });
-  items.push({ y: CAGE.r*TS + 9, draw: g => g.drawImage(cageCanvas, CAGE.c0*TS, CAGE.r*TS - 18, cageCanvas.lw, cageCanvas.lh) });
+  /* the cage: low-wall rectangle with the cashier standing inside it */
+  const cgx = CAGE.c0*TS, cgTop = CAGE.r0*TS;
+  items.push({ y: cgTop + 2,          draw: g => g.drawImage(cageBack,  cgx, cgTop - 4, cageBack.lw,  cageBack.lh) });
+  items.push({ y: cgTop + TS + 2,     draw: g => drawEntity(g, { sprite:'cashier', dir:'down', frame:0, x: (CAGE.c0+1.5)*TS, y: cgTop + TS + 4, staticNPC:true }, tick + 40) });
+  items.push({ y: CAGE.r1*TS + 12,    draw: g => g.drawImage(cageFront, cgx, CAGE.r1*TS + 2, cageFront.lw, cageFront.lh) });
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
