@@ -90,7 +90,9 @@ body {
 }
 /* boot handled by the title-card overlay; no auto fade here */
 #boot-fade { display: none; }
-/* ── boot: the Rob's Hideout title card drops onto the screen, then fades ── */
+/* ── boot: at load the screen is a plain black panel (#boot). Flip the
+   switch and the title card slides down inside it; press A and the title
+   darkens, then the black slowly lifts to reveal the room. ── */
 #boot {
   position: absolute;
   left: 13.2%;
@@ -99,15 +101,21 @@ body {
   height: 50.3%;
   z-index: 5;
   overflow: hidden;
-  background: #0a0710;
-  transform: translateY(-108%);
-  transition: transform 2.7s cubic-bezier(0.25, 0.9, 0.3, 1), opacity 0.8s ease;
+  background: #000;
+  opacity: 1;
+  transition: opacity 1.7s ease;   /* the slow fade-in from black into the room */
   pointer-events: none;
-  display: none;   /* revealed by bootUp when the power flips on */
 }
-#boot.in   { transform: translateY(0%); }
 #boot.gone { opacity: 0; }
-#boot canvas {
+.boot-card {
+  position: absolute;
+  inset: 0;
+  transform: translateY(-108%);    /* parked above until the switch flips */
+  transition: transform 2.7s cubic-bezier(0.25, 0.9, 0.3, 1), opacity 0.4s ease;
+}
+.boot-card.in { transform: translateY(0%); }   /* drops down */
+#boot.dark .boot-card { opacity: 0; }           /* title darkens to black */
+.boot-card canvas {
   width: 100%;
   height: 100%;
   display: block;
@@ -164,31 +172,74 @@ body {
   text-decoration-color: #c0392b;
   text-decoration-thickness: 0.45cqw;
 }
-/* power switch: an invisible hotspot laid right over the wooden ON/OFF
-   switch drawn into the forest console art. Flip it to boot Rob's Hideout. */
+/* power switch: a hand-built brass-and-oak slide switch mounted where the
+   art's drawn switch used to be (that one is painted out). Starts OFF (knob
+   left); slide it right to ON to boot Rob's Hideout. */
 #power {
   position: absolute;
   z-index: 3;
-  left: 75.5%;
-  top: 87.3%;
-  width: 20%;
-  height: 8.2%;
+  left: 74%;
+  top: 86.7%;
+  width: 21%;
+  height: 9.4%;
   touch-action: none;
   cursor: pointer;
 }
-/* the art supplies the track, ON/OFF labels and knob — keep the DOM ones
-   present (the boot script still nudges #pw-knob) but invisible */
-#pw-track { position: absolute; inset: 0; background: transparent; border: none; }
-.pw-txt { display: none; }
+#pw-track {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #7a5330 0%, #4d3220 55%, #3a2414 100%);
+  border: 0.5cqw solid #241608;
+  border-radius: 2.6cqw;
+  box-shadow: inset 0 0.5cqw 0 rgba(210,160,90,0.35),
+              inset 0 -0.6cqw 0.8cqw rgba(0,0,0,0.55),
+              0 0.5cqw 0.7cqw rgba(0,0,0,0.45);
+  overflow: hidden;
+}
+/* recessed channel the knob rides in */
+#pw-track::before {
+  content: '';
+  position: absolute;
+  left: 5%; right: 5%; top: 33%; height: 34%;
+  background: rgba(18,10,4,0.6);
+  border-radius: 2cqw;
+  box-shadow: inset 0 0.3cqw 0.5cqw rgba(0,0,0,0.7);
+}
+.pw-txt {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2cqw;
+  letter-spacing: 0.15cqw;
+  color: #e6c877;
+  opacity: 0.85;
+  pointer-events: none;
+  text-shadow: 0 0.2cqw 0 rgba(0,0,0,0.6);
+}
+.pw-txt.pw-off { left: 8%; }     /* knob rests here at OFF */
+.pw-txt.pw-on  { right: 7%; }    /* slide toward ON */
+#power.on .pw-txt.pw-on  { color: #b6f0a0; text-shadow: 0 0 1.6cqw rgba(120,220,120,0.8); }
+#power.on .pw-txt.pw-off { opacity: 0.3; }
 #pw-knob {
   position: absolute;
-  top: 12%;
+  top: 11%;
   left: 3%;
-  width: 44%;
-  height: 76%;
-  border-radius: 2.6cqw;
-  opacity: 0;
-  pointer-events: none;
+  width: 46%;
+  height: 78%;
+  border-radius: 2.2cqw;
+  background: linear-gradient(180deg, #f8e9b6 0%, #d3aa52 45%, #a97f34 100%);
+  border: 0.4cqw solid #5a4014;
+  box-shadow: inset 0 0.4cqw 0 rgba(255,248,214,0.75),
+              inset 0 -0.5cqw 0.5cqw rgba(90,64,20,0.6),
+              0 0.6cqw 0.9cqw rgba(0,0,0,0.55);
+}
+/* grip ridges on the knob */
+#pw-knob::after {
+  content: '';
+  position: absolute;
+  left: 32%; right: 32%; top: 24%; bottom: 24%;
+  background: repeating-linear-gradient(90deg,
+              rgba(90,64,20,0.65) 0 0.4cqw, transparent 0.4cqw 1.3cqw);
 }
 /* ---- Casino-wide chat panel: covers the CONTROL area (d-pad and
         buttons), never the game screen above ---- */
@@ -414,7 +465,7 @@ body {
   <div id="bezel"></div>
   <div id="bezel-in"></div>
   <div id="boot-fade"></div>
-  <div id="boot"><canvas id="boot-cvs" width="480" height="480"></canvas><div id="boot-press">PRESS A</div></div>
+  <div id="boot"><div class="boot-card" id="boot-card"><canvas id="boot-cvs" width="480" height="480"></canvas></div><div id="boot-press">PRESS A</div></div>
   <div class="hot" id="dpad"></div>
   <div class="hot" id="btn-b"></div>
   <div class="hot" id="btn-a"></div>
@@ -1737,6 +1788,7 @@ function powerOff() {
 }
 (function initBoot() {
   const bootEl  = document.getElementById('boot');
+  const bootCard = document.getElementById('boot-card');
   const pressEl = document.getElementById('boot-press');
   const el      = document.getElementById('power');
   const knob    = document.getElementById('pw-knob');
@@ -1757,11 +1809,12 @@ function powerOff() {
     ready = false;
     pressEl.classList.remove('on');
     bootEl.style.display = 'block';
-    bootEl.style.transition = 'none';
-    bootEl.classList.remove('in', 'gone');
-    void bootEl.offsetHeight;                // reflow so the drop replays
-    bootEl.style.transition = '';
-    bootEl.classList.add('in');              // title card drifts down...
+    bootEl.classList.remove('dark', 'gone');
+    bootCard.style.transition = 'none';
+    bootCard.classList.remove('in');
+    void bootCard.offsetHeight;              // reflow so the drop replays
+    bootCard.style.transition = '';
+    bootCard.classList.add('in');            // title card drifts down onto the black...
     play(sndCapcom);                         // ...to the jingle
     await new Promise(r => setTimeout(r, 2700));
     if (!on || booted) return;               // flipped back off mid-drop
@@ -1769,22 +1822,28 @@ function powerOff() {
     ready = true;
   }
 
-  /* A / tap / Enter, once the card has landed → into the game */
+  /* A / tap / Enter, once the card has landed → step into the room:
+     the title darkens to black, holds a beat, then the black slowly lifts
+     to reveal the bottom room, free to explore */
   function confirm() {
     if (!on || !ready || booted) return;
     ready = false;
-    play(sndSelect);
-    pressEl.classList.remove('on');
-    bootEl.classList.add('gone');            // title card fades out...
-    setTimeout(() => { bootEl.style.display = 'none'; }, 850);
     booted = true; started = true; titleAlpha = 0;
     aQueued = bQueued = false;               // don't leak the confirm press into the game
-    sound.unlock();                          // music + SFX come up now
+    play(sndSelect);                         // confirm blip
+    pressEl.classList.remove('on');
+    bootEl.classList.add('dark');            // title fades to a black screen
+    setTimeout(() => {
+      sound.unlock();                        // music + SFX rise as the room appears
+      bootEl.classList.add('gone');          // black slowly fades into the room
+    }, 750);
+    setTimeout(() => { bootEl.style.display = 'none'; }, 750 + 2000);
   }
 
   function commit() {
     on = !on;
     setKnob(on ? 1 : 0);
+    el.classList.toggle('on', on);
     if (on) { if (!booted) bootUp(); }
     else if (booted) powerOff();
   }
