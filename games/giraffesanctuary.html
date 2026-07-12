@@ -5509,14 +5509,14 @@ function entryRender() {
 const T_CAGE = { c0:1, c1:3, r0:4, r1:5 };      // tournament cage, top-left
 const T_TABLES = [
   { game:'blackjack', c0:10, c1:13, r0:4,  r1:5  },  // top-right
-  { game:'craps',     c0:1,  c1:4,  r0:9,  r1:10 },  // bottom-left
-  { game:'roulette',  c0:10, c1:13, r0:9,  r1:10 }   // bottom-right
+  { game:'craps',     c0:6,  c1:9,  r0:12, r1:13 },  // bottom-centre — where the entrance used to be
+  { game:'roulette',  c0:10, c1:13, r0:9,  r1:10 }   // bottom-right; its giraffe stands below, table above him
 ];
 const T_HOST = { c:7, r:2 };                    // tournament host, top-centre
-const T_DOOR = { c0:6, c1:8, r:14 };            // south doorway back to the floor
+const T_DOOR = { c:14, r0:6, r1:8 };            // doorway in the middle of the right wall
 const tourneySolid = new Set();
-for (let c = 0; c < COLS; c++) { tourneySolid.add(key(c,0)); if (c < T_DOOR.c0 || c > T_DOOR.c1) tourneySolid.add(key(c,14)); }
-for (let r = 0; r < 15; r++) { tourneySolid.add(key(0,r)); tourneySolid.add(key(COLS-1,r)); }
+for (let c = 0; c < COLS; c++) { tourneySolid.add(key(c,0)); tourneySolid.add(key(c,14)); }   // top + bottom walls (bottom now closed)
+for (let r = 0; r < 15; r++) { tourneySolid.add(key(0,r)); if (r < T_DOOR.r0 || r > T_DOOR.r1) tourneySolid.add(key(COLS-1,r)); }  // left wall; right wall w/ door gap
 for (let c = T_CAGE.c0; c <= T_CAGE.c1; c++) for (let r = T_CAGE.r0; r <= T_CAGE.r1; r++) tourneySolid.add(key(c,r));
 for (const t of T_TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r <= t.r1; r++) tourneySolid.add(key(c,r));
 tourneySolid.add(key(T_HOST.c, T_HOST.r));      // host podium
@@ -5545,25 +5545,24 @@ const tourneyBg = makeCanvas(W, H, g => {
     g.fillStyle = C.leaf;     g.beginPath(); g.arc(cx - rad*0.28, cy - rad*0.28, rad*0.62, 0, 7); g.fill();
     g.fillStyle = C.leafHi;   g.beginPath(); g.arc(cx - rad*0.4, cy - rad*0.45, rad*0.3, 0, 7); g.fill();
   };
-  const dxl = T_DOOR.c0*TS, dwd = (T_DOOR.c1 - T_DOOR.c0 + 1)*TS;
+  const dyr = T_DOOR.r0*TS, dht = (T_DOOR.r1 - T_DOOR.r0 + 1)*TS;   // door span on the right wall
   for (let x = -6; x <= W + 6; x += 15) clump(x, 5 + (h2(x,1) % 5), 12 + (h2(x,2) % 5));   // top line
   for (let y = 2*TS; y <= 15*TS; y += 15) {                                                 // sides
-    clump(4 + (h2(y,4) % 5), y, 12 + (h2(y,5) % 5));
+    clump(4 + (h2(y,4) % 5), y, 12 + (h2(y,5) % 5));                                         // left side (full)
+    if (y > dyr - 20 && y < dyr + dht + 20) continue;                                        // right side, gap for the door
     clump(W - 4 - (h2(y,6) % 5), y, 12 + (h2(y,7) % 5));
   }
-  for (let x = -6; x <= W + 6; x += 15) {                                                    // bottom, gap for door
-    if (x > dxl - 20 && x < dxl + dwd + 20) continue;
-    clump(x, H - 4 + (h2(x,8) % 4), 12 + (h2(x,9) % 5));
-  }
-  /* south doorway back to the floor */
-  g.fillStyle = '#0e1410'; g.fillRect(dxl, H - TS, dwd, TS);
-  const dg = g.createLinearGradient(0, H - TS, 0, H);
+  for (let x = -6; x <= W + 6; x += 15) clump(x, H - 4 + (h2(x,8) % 4), 12 + (h2(x,9) % 5));  // bottom line (full)
+  /* east doorway back to the floor, in the middle of the right wall */
+  g.fillStyle = '#0e1410'; g.fillRect(W - TS, dyr, TS, dht);
+  const dg = g.createLinearGradient(W - TS, 0, W, 0);
   dg.addColorStop(0, 'rgba(255,200,110,0)'); dg.addColorStop(1, 'rgba(255,200,110,0.4)');
-  g.fillStyle = dg; g.fillRect(dxl, H - TS, dwd, TS);
-  g.fillStyle = C.woodDark; g.fillRect(dxl - 5, H - 1.4*TS, 5, 1.4*TS); g.fillRect(dxl + dwd, H - 1.4*TS, 5, 1.4*TS);
-  g.fillStyle = C.woodDark; g.fillRect(dxl - 5, H - 1.4*TS, dwd + 10, 4);
+  g.fillStyle = dg; g.fillRect(W - TS, dyr, TS, dht);
+  g.fillStyle = C.woodDark; g.fillRect(W - 1.4*TS, dyr - 5, 1.4*TS, 5); g.fillRect(W - 1.4*TS, dyr + dht, 1.4*TS, 5);
+  g.fillStyle = C.woodDark; g.fillRect(W - 4, dyr - 5, 4, dht + 10);
+  g.fillStyle = C.woodHi;   g.fillRect(W - 4, dyr - 5, 1, dht + 10);
   g.fillStyle = C.goldHi; g.font = '6px "Press Start 2P"'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('TO THE FLOOR', dxl + dwd/2, H - 1.4*TS - 6);
+  g.save(); g.translate(W - 1.4*TS - 6, dyr + dht/2); g.rotate(-Math.PI/2); g.fillText('TO THE FLOOR', 0, 0); g.restore();
   /* leaderboard board behind the host */
   const bx = W/2 - 40, by = 6, bw = 80, bh = 24;
   g.fillStyle = C.woodDark; g.fillRect(W/2 - 2, by + bh, 4, 10);         // post
@@ -5579,7 +5578,8 @@ function enterTourney() {
     scene = 'tourney';
     useCurrency(TCHIP_STORE, 0);        // this room spends the tournament purse
     modal = null; popups.length = 0;
-    player.x = 7.5*TS; player.y = 12.4*TS; player.dir = 'up'; player.frame = 0;
+    /* step in through the east-wall doorway */
+    player.x = 12.5*TS; player.y = (T_DOOR.r0 + T_DOOR.r1 + 1) / 2 * TS; player.dir = 'left'; player.frame = 0;
     camY = 0;
   });
 }
@@ -5616,8 +5616,8 @@ function tourneyUpdate() {
     player.animT++;
     if (player.animT % 13 === 0) { player.frame = 1 - player.frame; sound.step(); }
   } else player.frame = 0;
-  /* walk south out through the doorway → back onto the floor */
-  if (player.y > 13.3*TS && player.x > (T_DOOR.c0 - 0.5)*TS && player.x < (T_DOOR.c1 + 1.5)*TS) { leaveTourney(); return; }
+  /* walk east out through the right-wall doorway → back onto the floor */
+  if (player.x > 13.3*TS && player.y > (T_DOOR.r0 - 0.5)*TS && player.y < (T_DOOR.r1 + 1.5)*TS) { leaveTourney(); return; }
   if (aQueued) {
     aQueued = false;
     const t = interactTarget();
@@ -5641,23 +5641,30 @@ function tourneyRender() {
   items.push({ y: cgTop + 2,       draw: g => g.drawImage(cageBack, cgx, cgTop - 4, cageBack.lw, cageBack.lh) });
   items.push({ y: cgTop + TS + 2,  draw: g => drawEntity(g, { sprite:'cashier', dir:'down', frame:0, x:(T_CAGE.c0+1.5)*TS, y:cgTop + TS + 4, staticNPC:true }, tick + 40) });
   items.push({ y: T_CAGE.r1*TS + 12, draw: g => g.drawImage(cageFront, cgx, T_CAGE.r1*TS + 2, cageFront.lw, cageFront.lh) });
-  /* the three tournament tables, each with a dealer */
+  /* the three tournament tables, each with a giraffe dealer */
   for (const t of T_TABLES) {
     const cv = t.game === 'craps' ? crapsCanvas : t.game === 'roulette' ? rouletteCanvas : bjCanvas;
     const sp = t.game === 'craps' ? 'crapsDealer' : t.game === 'roulette' ? 'rouletteDealer' : 'bjDealer';
     const tx = t.c0*TS, ty = t.r0*TS, midx = (t.c0 + (t.c1 - t.c0 + 1) / 2) * TS;
-    items.push({ y: t.r0*TS - 2, draw: g => drawEntity(g, { sprite: sp, dir:'down', frame:0, x: midx, y: ty - 1, staticNPC:true }, tick + tx) });
-    items.push({ y: (t.r1+1)*TS, draw: g => g.drawImage(cv, tx, ty, cv.lw, cv.lh) });
+    if (t.game === 'roulette') {
+      /* the roulette giraffe stands against the bottom wall with the table ABOVE him */
+      const dy = (t.r1 + 3.4) * TS;
+      items.push({ y: (t.r1+1)*TS, draw: g => g.drawImage(cv, tx, ty, cv.lw, cv.lh) });
+      items.push({ y: dy, draw: g => drawEntity(g, { sprite: sp, dir:'up', frame:0, x: midx, y: dy, staticNPC:true }, tick + tx) });
+    } else {
+      items.push({ y: t.r0*TS - 2, draw: g => drawEntity(g, { sprite: sp, dir:'down', frame:0, x: midx, y: ty - 1, staticNPC:true }, tick + tx) });
+      items.push({ y: (t.r1+1)*TS, draw: g => g.drawImage(cv, tx, ty, cv.lw, cv.lh) });
+    }
   }
   /* tournament host at the leaderboard */
   items.push({ y: T_HOST.r*TS + TS, draw: g => drawEntity(g, { sprite:'docsHost', dir:'down', frame:0, x: T_HOST.c*TS + TS/2, y: T_HOST.r*TS + TS + 2, staticNPC:true }, tick + 12) });
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
   items.sort((a,b) => a.y - b.y);
   for (const it of items) it.draw(ctx);
-  /* doorway hint */
-  ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textAlign = 'center';
-  ctx.fillText('▼', (T_DOOR.c0 + T_DOOR.c1 + 1)/2 * TS, H - TS - 8 + (Math.floor(tick/24) % 2));
-  ctx.textAlign = 'left';
+  /* doorway hint on the right wall */
+  ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('►', W - TS - 4 + (Math.floor(tick/24) % 2), (T_DOOR.r0 + T_DOOR.r1 + 1)/2 * TS);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   if (!dlg.open) {
     const t = interactTarget();
     if (t) { const b = Math.floor(tick/20)%2; ctx.fillStyle = C.gold; ctx.font = FONT; ctx.fillText('!', Math.round(player.x)-2, Math.round(player.y)-34-b); }
