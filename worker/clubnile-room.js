@@ -1,32 +1,37 @@
 /**
- * Club Nile — social rooms + shared craps clock (Durable Object)
+ * Club Nile — social rooms + SHARED table games (Durable Object)
  *
  * One DO instance per room name:
  *   'lobby'      — casino-wide chat (every connected player)
- *   'craps'      — table presence + SERVER-AUTHORITATIVE shared dice
- *   'blackjack'  — table presence (hands are per-player vs the dealer)
+ *   'craps'      — table presence + server-authoritative shared DICE
+ *   'roulette'   — table presence + server-authoritative shared WHEEL
+ *   'blackjack'  — table presence + server-authoritative shared DEALER
  *
- * Craps game clock (server-driven, so gameplay continues no matter what
- * any single client does — disconnects, tab closes, idle players):
- *   betting (15s) → action (10s: shooter may roll; auto-roll on timeout)
- *   → dice broadcast → outcome (5s) → betting ...
- *   Shooter = first seated player; rotates on seven-out; passes to the
- *   next seated player if the shooter leaves; table resets when empty.
+ * Every table game is server-driven so play continues no matter what any
+ * single client does (disconnects, tab closes, idle players). The server
+ * owns the random OUTCOME and the clock; each client keeps its own chips
+ * and resolves its own bets/hand against the shared outcome — exactly how
+ * this will map onto Gamble.commitWager / oracle-signed claimWinnings.
  *
- * Chips stay client-side until wallet sign-in lands; the server only
- * owns dice, phases and timers. Clients resolve their own bets from the
- * shared dice (deterministic rules), mirroring how buy-ins will move to
- * Gamble.commitWager / oracle-signed claimWinnings later.
+ *   craps:     betting(15s) → action(10s: shooter may roll; auto-roll on
+ *              timeout) → dice broadcast → outcome(9s) → betting …
+ *   roulette:  betting(15s) → server spins one shared number → outcome(7s)
+ *              → betting … (no shooter; the wheel is on the table clock)
+ *   blackjack: betting(15s) → server deals a shared dealer up-card, players
+ *              play their own hands → action(15s) → server plays the shared
+ *              dealer to 17 → outcome(7s) → betting …
  *
  * Protocol (JSON over WebSocket):
  *   client → server: {t:'chat', text} · {t:'emoji', e} · {t:'tip', to, amount}
- *                    {t:'roll'}                    (craps shooter, action phase)
+ *                    {t:'roll'}                          (craps shooter, action)
  *   server → client: {t:'welcome', id, seat, roster, history, game}
  *                    {t:'join', player} · {t:'leave', id} · {t:'full'}
- *                    {t:'chat', id, name, text} · {t:'emoji', id, e}
- *                    {t:'tip', from, fromName, to, toName, amount}
- *                    {t:'phase', phase, ms, point, shooter}
- *                    {t:'dice', d:[a,b], point, seven, shooter}
+ *                    {t:'chat', id, name, text} · {t:'emoji', id, e} · {t:'tip', …}
+ *                    {t:'phase', phase, ms, …}      (per-game extra fields)
+ *                    {t:'dice', d:[a,b], point, seven, shooter}   (craps)
+ *                    {t:'spin', n}                                (roulette)
+ *   blackjack rides on {t:'phase'}: the 'action' phase carries the dealer
+ *   up-card (up), the 'outcome' phase carries the full dealer hand (dealer).
  */
 
 const MAX_SEATS = 4;
@@ -35,8 +40,23 @@ const CHAT_COOLDOWN_MS = 700;
 const EMOJI_COOLDOWN_MS = 400;
 
 const BETTING_MS = 15000;
-const ACTION_MS = 10000;
-const OUTCOME_MS = 9000;   // covers the long client-side dice reveal (~4.8s) + reading time
+const CRAPS_ACTION_MS = 10000;
+const CRAPS_OUTCOME_MS = 9000;   // covers the long client-side dice reveal (~4.8s) + reading
+const ROU_OUTCOME_MS = 7000;     // covers the client-side wheel spin (~4s) + reading
+const BJ_ACTION_MS = 15000;      // blackjack decision window
+const BJ_OUTCOME_MS = 7000;      // blackjack result hold
+
+const RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+function bjValue(hand) {
+  let v = 0, aces = 0;
+  for (const c of hand) {
+    if (c.r === 1) { aces++; v += 11; }
+    else v += Math.min(c.r, 10);
+  }
+  while (v > 21 && aces > 0) { v -= 10; aces--; }
+  return v;
+}
 
 export class ClubNileRoom {
   constructor(state, env) {
@@ -46,7 +66,7 @@ export class ClubNileRoom {
     this.nextId = 1;
     this.history = null;
     this.room = '';
-    this.game = null;            // craps only: { phase, point, shooter, deadline, timer }
+    this.game = null;            // { type, phase, deadline, timer, ...typeState }
   }
 
   async loadHistory() {
@@ -55,7 +75,10 @@ export class ClubNileRoom {
     }
   }
 
-  isCraps() { return this.room === 'craps'; }
+  gameType() {
+    return (this.room === 'craps' || this.room === 'roulette' || this.room === 'blackjack') ? this.room : null;
+  }
+  isGame() { return this.gameType() !== null; }
 
   roster(exceptId) {
     return [...this.sessions.values()]
@@ -71,57 +94,90 @@ export class ClubNileRoom {
     }
   }
 
-  /* ── craps game clock ─────────────────────────────────────────────── */
+  /* ── shared game engine ───────────────────────────────────────────── */
   ensureGame() {
-    if (!this.game) this.game = { phase: 'idle', point: 0, shooter: null, deadline: 0, timer: null };
+    if (!this.game) this.game = {
+      type: this.gameType(), phase: 'idle', deadline: 0, timer: null,
+      point: 0, shooter: null,        // craps
+      n: -1,                          // roulette
+      up: null, hole: null, dealer: []// blackjack
+    };
+  }
+  drawCard() {
+    const buf = new Uint8Array(2); crypto.getRandomValues(buf);
+    return { r: (buf[0] % 13) + 1, s: buf[1] % 4 };
+  }
+  phaseFields(extra) {
+    const type = this.gameType(), g = this.game, f = {};
+    if (type === 'craps') { f.point = g.point; f.shooter = g.shooter; }
+    else if (type === 'roulette') { f.n = g.n; }
+    return { ...f, ...(extra || {}) };
   }
   gameSnapshot() {
-    if (!this.isCraps()) return null;
+    const type = this.gameType();
+    if (!type) return null;
     this.ensureGame();
-    return {
-      phase: this.game.phase,
-      ms: Math.max(0, this.game.deadline - Date.now()),
-      point: this.game.point,
-      shooter: this.game.shooter
-    };
+    const g = this.game;
+    const base = { type, phase: g.phase, ms: Math.max(0, g.deadline - Date.now()) };
+    if (type === 'craps') { base.point = g.point; base.shooter = g.shooter; }
+    else if (type === 'roulette') { base.n = g.n; }
+    else if (type === 'blackjack') {
+      if (g.phase === 'action') base.up = g.up;
+      if (g.phase === 'outcome') base.dealer = g.dealer;
+    }
+    return base;
   }
   seatedBySeat() {
     return [...this.sessions.values()].sort((a, b) => a.seat - b.seat);
   }
-  startPhase(phase, ms) {
+  startPhase(phase, ms, extra) {
     this.ensureGame();
     if (this.game.timer) clearTimeout(this.game.timer);
     this.game.phase = phase;
     this.game.deadline = Date.now() + ms;
     this.game.timer = setTimeout(() => this.phaseExpired(), ms);
-    this.broadcast({ t: 'phase', phase, ms, point: this.game.point, shooter: this.game.shooter });
+    this.broadcast({ t: 'phase', phase, ms, ...this.phaseFields(extra) });
+  }
+  startGameIfIdle(sessId) {
+    this.ensureGame();
+    if (this.game.phase !== 'idle') return;
+    if (this.gameType() === 'craps') { this.game.shooter = sessId; this.game.point = 0; }
+    this.startPhase('betting', BETTING_MS);
   }
   phaseExpired() {
     if (!this.game) return;
     if (this.sessions.size === 0) { this.resetGame(); return; }
-    if (this.game.phase === 'betting') this.startPhase('action', ACTION_MS);
-    else if (this.game.phase === 'action') this.doRoll();       // shooter slept — table rolls
-    else if (this.game.phase === 'outcome') this.startPhase('betting', BETTING_MS);
+    const type = this.gameType(), phase = this.game.phase;
+    if (type === 'craps') {
+      if (phase === 'betting') this.startPhase('action', CRAPS_ACTION_MS);
+      else if (phase === 'action') this.doRoll();          // shooter slept — table rolls
+      else if (phase === 'outcome') this.startPhase('betting', BETTING_MS);
+    } else if (type === 'roulette') {
+      if (phase === 'betting') this.doSpin();
+      else if (phase === 'outcome') this.startPhase('betting', BETTING_MS);
+    } else if (type === 'blackjack') {
+      if (phase === 'betting') this.dealBlackjack();
+      else if (phase === 'action') this.playDealer();
+      else if (phase === 'outcome') this.startPhase('betting', BETTING_MS);
+    }
   }
+
+  /* craps */
   doRoll() {
     if (!this.game) return;
     if (this.game.timer) clearTimeout(this.game.timer);
-    const buf = new Uint8Array(2);
-    crypto.getRandomValues(buf);
-    const d1 = (buf[0] % 6) + 1, d2 = (buf[1] % 6) + 1;
-    const sum = d1 + d2;
+    const buf = new Uint8Array(2); crypto.getRandomValues(buf);
+    const d1 = (buf[0] % 6) + 1, d2 = (buf[1] % 6) + 1, sum = d1 + d2;
     let seven = false;
     if (this.game.point === 0) {
       if (![2, 3, 7, 11, 12].includes(sum)) this.game.point = sum;
     } else if (sum === this.game.point) {
-      this.game.point = 0;                                      // point hit, shooter keeps dice
+      this.game.point = 0;                                 // point hit, shooter keeps dice
     } else if (sum === 7) {
-      this.game.point = 0;
-      seven = true;
-      this.rotateShooter();
+      this.game.point = 0; seven = true; this.rotateShooter();
     }
     this.broadcast({ t: 'dice', d: [d1, d2], point: this.game.point, seven, shooter: this.game.shooter });
-    this.startPhase('outcome', OUTCOME_MS);
+    this.startPhase('outcome', CRAPS_OUTCOME_MS);
   }
   rotateShooter() {
     const seated = this.seatedBySeat();
@@ -129,9 +185,39 @@ export class ClubNileRoom {
     const idx = seated.findIndex(s => s.id === this.game.shooter);
     this.game.shooter = seated[(idx + 1) % seated.length].id;
   }
+
+  /* roulette */
+  doSpin() {
+    if (!this.game) return;
+    if (this.game.timer) clearTimeout(this.game.timer);
+    const buf = new Uint32Array(1); crypto.getRandomValues(buf);
+    const n = buf[0] % 37;                                 // 0..36, single-zero wheel
+    this.game.n = n;
+    this.broadcast({ t: 'spin', n });
+    this.startPhase('outcome', ROU_OUTCOME_MS);
+  }
+
+  /* blackjack — server owns the shared dealer; clients play their own hands */
+  dealBlackjack() {
+    if (!this.game) return;
+    if (this.game.timer) clearTimeout(this.game.timer);
+    this.game.up = this.drawCard();
+    this.game.hole = this.drawCard();
+    this.game.dealer = [this.game.up, this.game.hole];
+    this.startPhase('action', BJ_ACTION_MS, { up: this.game.up });
+  }
+  playDealer() {
+    if (!this.game) return;
+    if (this.game.timer) clearTimeout(this.game.timer);
+    const d = [this.game.up, this.game.hole];
+    while (bjValue(d) < 17) d.push(this.drawCard());
+    this.game.dealer = d;
+    this.startPhase('outcome', BJ_OUTCOME_MS, { dealer: d });
+  }
+
   resetGame() {
     if (this.game && this.game.timer) clearTimeout(this.game.timer);
-    this.game = { phase: 'idle', point: 0, shooter: null, deadline: 0, timer: null };
+    this.game = null;
   }
 
   /* ── connections ──────────────────────────────────────────────────── */
@@ -169,15 +255,8 @@ export class ClubNileRoom {
     const sess = { id: 'p' + (this.nextId++), name, sprite, seat, lastChat: 0, lastEmoji: 0 };
     this.sessions.set(server, sess);
 
-    /* first player at the craps table starts the clock and holds the dice */
-    if (this.isCraps()) {
-      this.ensureGame();
-      if (this.game.phase === 'idle') {
-        this.game.shooter = sess.id;
-        this.game.point = 0;
-        this.startPhase('betting', BETTING_MS);
-      }
-    }
+    /* the first player at a table starts the shared clock */
+    if (this.isGame()) this.startGameIfIdle(sess.id);
 
     server.send(JSON.stringify({
       t: 'welcome',
@@ -195,19 +274,17 @@ export class ClubNileRoom {
       if (!s) return;
       this.sessions.delete(server);
       this.broadcast({ t: 'leave', id: s.id });
-      /* failsafes: table keeps playing without them */
-      if (this.isCraps() && this.game) {
+      /* failsafes: the table keeps playing without them */
+      if (this.isGame() && this.game) {
         if (this.sessions.size === 0) {
           this.resetGame();
-        } else if (this.game.shooter === s.id) {
+        } else if (this.gameType() === 'craps' && this.game.shooter === s.id) {
           this.rotateShooter();
-          if (this.game.phase === 'action') this.startPhase('action', ACTION_MS);
+          if (this.game.phase === 'action') this.startPhase('action', CRAPS_ACTION_MS);
           else this.broadcast({
-            t: 'phase',
-            phase: this.game.phase,
+            t: 'phase', phase: this.game.phase,
             ms: Math.max(0, this.game.deadline - Date.now()),
-            point: this.game.point,
-            shooter: this.game.shooter
+            point: this.game.point, shooter: this.game.shooter
           });
         }
       }
@@ -255,7 +332,7 @@ export class ClubNileRoom {
       }, ws);
     }
     else if (msg.t === 'roll') {
-      if (this.isCraps() && this.game &&
+      if (this.gameType() === 'craps' && this.game &&
           this.game.phase === 'action' && this.game.shooter === sess.id) {
         this.doRoll();
       }

@@ -1543,16 +1543,22 @@ const tableHandlers = {
     social.youId = m.id;
     social.seat = m.seat;
     social.roster = (m.roster || []).filter(p => p.seat >= 0);
-    if (scene === 'craps' && m.game) crAdoptNet(m.game);
+    if (m.game) {
+      if (scene === 'craps') crAdoptNet(m.game);
+      else if (scene === 'roulette') rouAdoptNet(m.game);
+      else if (scene === 'blackjack') bjAdoptNet(m.game);
+    }
   },
   phase(m) {
-    if (scene !== 'craps') return;
-    cr.net.active = true;
-    cr.net.phase = m.phase;
-    cr.net.until = Date.now() + (m.ms || 0);
-    cr.net.shooter = m.shooter;
-    if (m.phase === 'betting') { cr.outcome = []; cr.point = m.point; }
-    crPhaseCall(m.phase);
+    if (scene === 'craps') {
+      cr.net.active = true;
+      cr.net.phase = m.phase;
+      cr.net.until = Date.now() + (m.ms || 0);
+      cr.net.shooter = m.shooter;
+      if (m.phase === 'betting') { cr.outcome = []; cr.point = m.point; }
+      crPhaseCall(m.phase);
+    } else if (scene === 'roulette') rouNetPhase(m);
+    else if (scene === 'blackjack') bjNetPhase(m);
   },
   dice(m) {
     if (scene !== 'craps') return;
@@ -1561,6 +1567,7 @@ const tableHandlers = {
     cr.mode = 'rolling';
     cr.rollT = CR_ROLL_TICKS;
   },
+  spin(m) { if (scene === 'roulette') rouNetSpin(m); },
   join(m) {
     if (m.player.seat >= 0) social.roster.push(m.player);
     pushChat('', m.player.name + ' sat down', true);
@@ -3664,7 +3671,8 @@ const bjRoom = makeCanvas(W, H, g => {
 const bj = {
   state:'bet', betAmt:0, trayIdx:1, bet:0, deck:[], hand:[], dealer:[], hole:true,
   timer:0, dealQ:[], menuIdx:0, actIdx:0, result:'', flash:0, busted:false,
-  decideUntil:0, revealed:false, pendFlip:null, afterFlip:null
+  decideUntil:0, revealed:false, pendFlip:null, afterFlip:null,
+  net:{ active:false, phase:'', until:0 }   // shared table clock + shared dealer
 };
 function enterBlackjack() {
   floorReturn = { x: player.x, y: player.y };
@@ -3673,6 +3681,7 @@ function enterBlackjack() {
   bj.betAmt = 0;                          // no auto-bet — tap a chip to wager
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
   bj.pendFlip = null; bj.afterFlip = null;
+  bj.net = { active:false, phase:'', until:0 };
   modal = null;
   popups.length = 0;
   lastActMs = Date.now();
@@ -3728,6 +3737,10 @@ function bjTrayTap() {
   else { bj.betAmt += TRAY[hit]; bj.trayIdx = hit; sound.chip(); }
 }
 function bjUpdate() {
+  /* shared table: the server owns the dealer + clock. Fall back to solo if
+     the connection drops mid-session. */
+  if (bj.net.active && !(social.table && social.table.status === 'on')) bjNetGoSolo();
+  if (bj.net.active) return bjUpdateNet();
   if (modalUpdate()) { lastActMs = Date.now(); return; }
   /* B anywhere at the table → leave confirmation */
   if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
@@ -3896,6 +3909,122 @@ function bjUpdate() {
     }
   }
 }
+/* ── shared blackjack: server owns the dealer + clock; you play your own
+   hand against the same dealer everyone else sees ── */
+function bjAdoptNet(g) {
+  bj.net = { active: g.phase !== 'idle', phase: g.phase, until: Date.now() + (g.ms || 0) };
+  bj.hand = []; bj.dealer = []; bj.result = ''; bj.busted = false;
+  bj.betAmt = 0; bj.bet = 0; bj.hole = true;
+  if (g.phase === 'action' || g.phase === 'outcome') {   // joined mid-hand → sit this one out
+    bj.state = 'stood';
+    if (g.up) bj.dealer = [{ r: g.up.r, s: g.up.s, up: true }];
+  } else bj.state = 'bet';
+}
+function bjNetGoSolo() {
+  if (bj.bet > 0 && (bj.state === 'player' || bj.state === 'stood')) { setChips(chips + bj.bet); journal(null); }  // refund in-flight bet
+  bj.net = { active:false, phase:'', until:0 };
+  bj.state = 'bet'; bj.betAmt = 0; bj.bet = 0;
+  bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
+  flash('CONNECTION LOST · PLAY ON SOLO');
+}
+function bjDealNet(up) {
+  bj.bet = bj.betAmt; setChips(chips - bj.bet); sound.chip();
+  bj.deck = newDeck();
+  const c1 = bj.deck.pop(), c2 = bj.deck.pop(); c1.up = true; c2.up = true;
+  bj.hand = [c1, c2];
+  bj.dealer = [{ r: up.r, s: up.s, up: true }];   // the shared dealer up-card
+  bj.hole = true; bj.busted = false; bj.result = ''; bj.menuIdx = 0;
+  bj.state = 'player'; bj.decideUntil = bj.net.until;
+  bjJournal();
+  dealerSay('Dealer shows ' + CARD_CALLED[up.r], 300, CALL_BEAT);
+  if (handValue(bj.hand) === 21) bj.state = 'stood';   // natural — wait on the dealer
+}
+function bjNetSettle(dealerHand) {
+  bj.dealer = (dealerHand || []).map(c => ({ r: c.r, s: c.s, up: true }));   // shared dealer, revealed
+  bj.hole = false;
+  const dv = handValue(bj.dealer), pv = handValue(bj.hand);
+  const natural = pv === 21 && bj.hand.length === 2;
+  let payout = 0;
+  if (bj.busted || pv > 21) { bj.busted = true; bj.result = 'BUST  -' + bj.bet; }
+  else if (natural && !(dv === 21 && bj.dealer.length === 2)) { payout = bj.bet + Math.floor(bj.bet * 1.5); bj.result = 'BLACKJACK!  +' + Math.floor(bj.bet * 1.5); }
+  else if (dv > 21 || pv > dv) { payout = bj.bet * 2; bj.result = 'YOU WIN  +' + bj.bet; }
+  else if (pv === dv) { payout = bj.bet; bj.result = 'PUSH'; }
+  else bj.result = 'DEALER WINS  -' + bj.bet;
+  if (payout) setChips(chips + payout);
+  if (payout > bj.bet) sound.win(); else if (payout === 0) sound.lose();
+  roundMessage('hand', Math.max(0, payout - bj.bet), true);
+  journal(null);
+  bj.flash = payout > bj.bet ? 40 : 0;
+  bj.state = 'result'; bj.actIdx = 0;
+}
+function bjNetPhase(m) {
+  bj.net.active = true;
+  bj.net.phase = m.phase;
+  bj.net.until = Date.now() + (m.ms || 0);
+  if (m.phase === 'betting') {
+    bj.state = 'bet'; bj.hand = []; bj.dealer = []; bj.hole = true;
+    bj.result = ''; bj.busted = false; bj.betAmt = 0; bj.bet = 0; bj.menuIdx = 0; bj.actIdx = 0;
+    dealerSay(BET_CALLS[Math.floor(Math.random() * BET_CALLS.length)], 300);
+  } else if (m.phase === 'action') {
+    if (bj.betAmt > 0 && bj.state === 'bet') bjDealNet(m.up);
+    else { bj.state = 'stood'; bj.hand = []; bj.dealer = m.up ? [{ r:m.up.r, s:m.up.s, up:true }] : []; bj.hole = true; }
+  } else if (m.phase === 'outcome') {
+    if (bj.bet > 0 && (bj.state === 'player' || bj.state === 'stood') && bj.hand.length) bjNetSettle(m.dealer);
+    else { bj.dealer = (m.dealer || []).map(c => ({ r:c.r, s:c.s, up:true })); bj.hole = false; bj.state = 'result'; }
+  }
+}
+function bjUpdateNet() {
+  if (modalUpdate()) { lastActMs = Date.now(); return; }
+  if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
+  if (aQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
+  else if ((bj.state === 'bet' || bj.state === 'result' || bj.state === 'stood') && Date.now() - lastActMs > IDLE_KICK_MS) {
+    pushChat('', 'Idle at blackjack — seat freed', true);
+    startTransition(() => leaveTable('blackjack')); return;
+  }
+  if (bj.state === 'bet') {
+    maybeTableQuip('blackjack');
+    bjTrayTap();
+    if (bj.betAmt > chips) bj.betAmt = chips;
+    const pick = bjMenu(['BET','EMOJI','TIP'], 'actIdx');
+    if (aQueued) {
+      aQueued = false;
+      if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
+      else if (pick === 'TIP') openTipModal();
+      else flash(bj.betAmt < 1 ? 'TAP CHIPS TO BET' : 'BET IN · DEAL IS ON THE CLOCK');
+    }
+  }
+  else if (bj.state === 'player') {
+    const canDouble = bj.hand.length === 2 && chips >= bj.bet;
+    const menu = canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'];
+    const pick = bjMenu(menu, 'menuIdx');
+    if (aQueued) {
+      aQueued = false;
+      if (pick === 'HIT') {
+        const c = bj.deck.pop(); c.up = true; bj.hand.push(c); sound.card(); bjJournal();
+        const v = handValue(bj.hand);
+        if (v > 21) { bj.busted = true; bj.state = 'stood'; }
+        else if (v === 21) bj.state = 'stood';
+      } else if (pick === 'STAND') bj.state = 'stood';
+      else if (pick === 'DOUBLE') {
+        setChips(chips - bj.bet); bj.bet *= 2; sound.chip();
+        const c = bj.deck.pop(); c.up = true; bj.hand.push(c); sound.card();
+        if (handValue(bj.hand) > 21) bj.busted = true;
+        bj.state = 'stood';
+      }
+    }
+    bQueued = false;
+  }
+  else if (bj.state === 'stood') {
+    const pick = bjMenu(['WAIT','EMOJI','TIP'], 'actIdx');
+    if (aQueued) { aQueued = false; if (pick === 'EMOJI') modal = { type:'emoji', idx:0 }; else if (pick === 'TIP') openTipModal(); }
+  }
+  else if (bj.state === 'result') {
+    if (bj.flash > 0) bj.flash--;
+    maybeTableQuip('blackjack');
+    const pick = bjMenu(['EMOJI','TIP'], 'actIdx');
+    if (aQueued) { aQueued = false; if (pick === 'EMOJI') modal = { type:'emoji', idx:0 }; else openTipModal(); }
+  }
+}
 function drawHand(g, hand, x, y, hideFirst) {
   for (let i = 0; i < hand.length; i++) {
     const img = ((hideFirst && i === 0) || hand[i].up === false)
@@ -3958,8 +4087,9 @@ function bjRender() {
       uiText('OUT OF CHIPS', C.white, STATUS_Y);
     } else {
       uiText(bj.betAmt > 0 ? 'BET ' + bj.betAmt : 'TAP CHIPS TO BET', C.white, STATUS_Y);
-      drawCarousel(['DEAL','EMOJI','TIP'], bj.actIdx, CARO_Y);
+      drawCarousel([bj.net.active ? 'BET' : 'DEAL','EMOJI','TIP'], bj.actIdx, CARO_Y);
       drawTray(bj.trayIdx, true, false);
+      if (bj.net.active) { const left = Math.max(0, Math.ceil((bj.net.until - Date.now()) / 1000)); drawTimerBox('BETS', left, left <= 3); }
     }
   } else if (bj.state === 'player') {
     const canDouble = bj.hand.length === 2 && chips >= bj.bet;
@@ -3967,11 +4097,19 @@ function bjRender() {
     uiText('BET ' + bj.bet, C.white, STATUS_Y);
     drawCarousel(canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'], bj.menuIdx, CARO_Y + 8);
     drawTimerBox('PLAY', left, left <= 5);
+  } else if (bj.state === 'stood') {
+    uiText('WAITING ON THE DEALER', C.dim, STATUS_Y);
+    drawCarousel(['WAIT','EMOJI','TIP'], bj.actIdx, CARO_Y);
   } else if (bj.state === 'result') {
     const win = bj.flash > 0 && Math.floor(tick / 6) % 2;
-    uiText(bj.result + '  ·  NEXT BET ' + bj.betAmt, win ? C.gold : C.white, STATUS_Y);
-    drawCarousel(['AGAIN','EMOJI','TIP'], bj.actIdx, CARO_Y);
-    drawTray(bj.trayIdx, true, false);
+    if (bj.net.active) {
+      uiText(bj.result || 'HAND OVER', win ? C.gold : C.white, STATUS_Y);
+      drawCarousel(['EMOJI','TIP'], bj.actIdx, CARO_Y);
+    } else {
+      uiText(bj.result + '  ·  NEXT BET ' + bj.betAmt, win ? C.gold : C.white, STATUS_Y);
+      drawCarousel(['AGAIN','EMOJI','TIP'], bj.actIdx, CARO_Y);
+      drawTray(bj.trayIdx, true, false);
+    }
   } else {
     uiText(bj.state === 'dealerTurn' ? 'DEALER PLAYS...' : 'DEALING...', C.dim, 196);
     uiText('BET ' + bj.bet, C.white, 218);
@@ -4682,6 +4820,7 @@ const rouRoom = makeCanvas(W, H, g => {
 const rou = {
   mode:'board', bets:{}, unitIdx:0, menuIdx:0, removeMode:false,
   result:-1, spinT:0, outcome:[], outT:0, flash:0, popupT:0,
+  net:{ active:false, phase:'', until:0 },   // shared table clock (server-driven)
   solo:{ phase:'betting', until:0 }, history:[]
 };
 function rouBetKeys() {
@@ -4704,6 +4843,7 @@ function enterRoulette() {
   rou.mode = 'board'; rou.bets = rouBetKeys();
   rou.menuIdx = 0; rou.removeMode = false; rou.result = -1; rou.spinT = 0;
   rou.outcome = []; rou.outT = 0; rou.flash = 0; rou.popupT = 0;
+  rou.net = { active:false, phase:'', until:0 };
   modal = null; popups.length = 0;
   rouSoloPhase('betting');
   lastActMs = Date.now();
@@ -4731,10 +4871,36 @@ function rouRefund() {
   if (r > 0) setChips(chips + r);
   journal(null);
 }
-function rouStartSpin() {
-  rou.result = Math.floor(Math.random() * 37);   // server-authoritative in the live build
+function rouStartSpin(serverN) {
+  /* the winning number is server-authoritative when the table is shared;
+     solo play picks its own so an offline wheel still works */
+  rou.result = (serverN != null) ? serverN : Math.floor(Math.random() * 37);
   rou.mode = 'spinning'; rou.spinT = ROU_SPIN_TICKS; rou.outcome = [];
   dealerSay('Round she goes!', 260);
+}
+/* ── shared-table (server clock) hooks, mirroring craps ── */
+function rouAdoptNet(g) {
+  rou.mode = 'board'; rou.outcome = [];
+  rou.net = { active: g.phase !== 'idle', phase: g.phase, until: Date.now() + (g.ms || 0) };
+}
+function rouGoSolo() {
+  rou.net = { active:false, phase:'', until:0 };
+  if (rou.mode !== 'spinning') rou.mode = 'board';
+  rouSoloPhase('betting');
+  flash('CONNECTION LOST · PLAY ON SOLO');
+}
+function rouNetPhase(m) {
+  rou.net.active = true;
+  rou.net.phase = m.phase;
+  rou.net.until = Date.now() + (m.ms || 0);
+  if (m.phase === 'betting') {
+    rou.outcome = []; rou.mode = 'board';
+    dealerSay(BET_CALLS[Math.floor(Math.random() * BET_CALLS.length)], 300);
+  }
+}
+function rouNetSpin(m) {
+  if (rou.mode === 'spinning') return;
+  rouStartSpin(m.n);                    // animate to the shared number everyone sees
 }
 function rouCall(n, red) {
   if (n === 0) return 'Zero! The house arrow strikes.';
@@ -4772,6 +4938,8 @@ function rouResolve() {
   rou.mode = 'outcome';
 }
 function rouUpdate() {
+  /* failsafe: dropped connection mid-game → carry on solo */
+  if (rou.net.active && !(social.table && social.table.status === 'on')) rouGoSolo();
   if (rou.mode === 'spinning') {
     aQueued = bQueued = false;
     if (rou.spinT % (rou.spinT > 90 ? 7 : 14) === 0) sound.click();   // ball rattling, slowing
@@ -4782,6 +4950,8 @@ function rouUpdate() {
   if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
   if (rou.mode === 'outcome') {
     if (rou.flash > 0) rou.flash--;
+    /* shared table: the server posts the next betting window; solo self-advances */
+    if (rou.net.active) return;
     if (--rou.outT <= 0 || aQueued) { aQueued = false; lastActMs = Date.now(); rou.mode = 'board'; rouSoloPhase('betting'); }
     return;
   }
@@ -4792,13 +4962,14 @@ function rouUpdate() {
     rouRefund(); pushChat('', 'Idle at roulette — seat freed', true);
     startTransition(() => leaveTable('roulette')); return;
   }
-  if (Date.now() > rou.solo.until) {
+  /* only the solo clock auto-advances; the shared wheel spins on server time */
+  if (!rou.net.active && Date.now() > rou.solo.until) {
     if (rou.solo.phase === 'betting') rouSoloPhase('action');
     else if (rouTotalBets() > 0) { rouStartSpin(); return; }
     else rouSoloPhase('betting');
   }
   const unit = UNITS[rou.unitIdx];
-  const canBet = rou.solo.phase === 'betting';
+  const canBet = rou.net.active ? rou.net.phase === 'betting' : rou.solo.phase === 'betting';
   if (tapNow) {
     const hit = trayHit(tapNow, true);
     if (hit === TRAY.length) { rou.removeMode = !rou.removeMode; sound.tick(); }
@@ -4822,7 +4993,8 @@ function rouUpdate() {
     aQueued = false;
     const item = ROU_MENU[rou.menuIdx];
     if (item === 'SPIN') {
-      if (rou.solo.phase !== 'action') flash('BETS OPEN · SPIN NEXT');
+      if (rou.net.active) flash('THE WHEEL SPINS ON THE CLOCK');
+      else if (rou.solo.phase !== 'action') flash('BETS OPEN · SPIN NEXT');
       else if (rouTotalBets() === 0) flash('PLACE A BET FIRST');
       else rouStartSpin();
     } else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
@@ -4921,7 +5093,8 @@ function rouRender() {
     return;
   }
   uiPanelSmall();
-  const secs = Math.max(0, Math.ceil((rou.solo.until - Date.now()) / 1000));
+  const rouLive = rou.net.active ? rou.net : rou.solo;
+  const secs = Math.max(0, Math.ceil((rouLive.until - Date.now()) / 1000));
   if (flashT > 0) { flashT--; uiText(flashMsg, '#e05a70', 203); }
   else if (rou.mode === 'outcome') {
     const win = rou.flash > 0 && Math.floor(tick / 6) % 2;
@@ -4933,7 +5106,7 @@ function rouRender() {
     drawCarousel(ROU_MENU, rou.menuIdx, 202);
   }
   drawTray(rou.unitIdx, true, rou.removeMode);
-  if (rou.mode === 'board') drawTimerBox(rou.solo.phase === 'betting' ? 'BETS' : 'SPIN', secs, secs <= 3);
+  if (rou.mode === 'board') drawTimerBox(rouLive.phase === 'betting' ? 'BETS' : 'SPIN', secs, secs <= 3);
   drawNetDot();
 }
 
