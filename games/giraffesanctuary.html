@@ -1581,7 +1581,17 @@ const tableHandlers = {
       pushChat('', m.fromName + ' tipped ' + m.toName + ' ' + m.amount, true);
     }
   },
-  full() { social.youId = null; social.roster = []; }
+  full() {
+    /* the table was full: the server rejected us and closed the socket.
+       Stop makeRoom from reconnect-looping, tell the player, and walk them
+       back out to the floor instead of leaving them stranded seatless. */
+    social.youId = null; social.roster = [];
+    if (social.table) social.table.close();          // sets closed → cancels the retry loop
+    pushChat('', 'That table was full — pull up to another.', true);
+    if (scene === 'craps' || scene === 'blackjack' || scene === 'roulette') {
+      startTransition(() => leaveTable(scene));
+    }
+  }
 };
 social.lobby = makeRoom('lobby', lobbyHandlers);
 
