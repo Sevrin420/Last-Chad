@@ -1192,7 +1192,7 @@ const FOUNTAIN = { c0:6, c1:8, r0:14, r1:15 };  // centre-piece fountain on the 
 const PALMS = [[1,5],[13,5],[1,17],[13,17]];    // potted palms filling the long hall
 const SARC = { c:13, r:26 };                    // sarcophagus, bottom-right (rope stanchion in front)
 const CAGE = { c0:1, c1:3, r0:24, r1:25 };      // the cage — a low-walled teller rectangle (bottom-left)
-const TDOOR = { c0:1, c1:3, r0:22, r1:23 };     // tournament-hall portal, in the gap above the cage
+const TDOOR = { c:0, r0:27, r1:28 };            // west-wall gate under the cage → the tournament hall
 const DOOR = { c:7, r:ROWS-1 };                 // south entrance — players walk in and head north
 const RUG = { c0:5, c1:9, r0:4, r1:27 };        // long runner up the middle
 
@@ -1207,7 +1207,6 @@ for (let c = FOUNTAIN.c0; c <= FOUNTAIN.c1; c++) for (let r = FOUNTAIN.r0; r <= 
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
 [[SARC.c,SARC.r],[SARC.c,SARC.r+1]].forEach(([c,r]) => solid.add(key(c,r)));  // sarcophagus + stanchion, bottom-right
 for (let c = CAGE.c0; c <= CAGE.c1; c++) for (let r = CAGE.r0; r <= CAGE.r1; r++) solid.add(key(c,r));  // the cage enclosure is solid
-for (let c = TDOOR.c0; c <= TDOOR.c1; c++) for (let r = TDOOR.r0; r <= TDOOR.r1; r++) solid.add(key(c,r));  // tournament portal
 
 const talkMap = {};
 for (let c = BAR.c0; c <= BAR.c1; c++) { talkMap[key(c, BAR.row)] = 'bartender'; talkMap[key(c, BAR.row + 1)] = 'bartender'; }
@@ -1216,8 +1215,8 @@ for (const t of TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r 
 for (let c = STAGE.c0; c <= STAGE.c1; c++) { talkMap[key(c, STAGE.r1)] = 'band'; talkMap[key(c, STAGE.r1 + 1)] = 'band'; }
 /* step up to the cage window to buy in or cash out */
 for (let c = CAGE.c0; c <= CAGE.c1; c++) { talkMap[key(c, CAGE.r1)] = 'cage'; talkMap[key(c, CAGE.r1 + 1)] = 'cage'; }
-/* step up beside the tournament portal (above the cage) to enter the hall */
-for (let c = TDOOR.c0; c <= TDOOR.c1; c++) for (let r = TDOOR.r0; r <= TDOOR.r1; r++) talkMap[key(c,r)] = 'tourneydoor';
+/* face the west-wall gate under the cage to enter the tournament hall */
+for (let r = TDOOR.r0; r <= TDOOR.r1; r++) talkMap[key(TDOOR.c, r)] = 'tourneydoor';
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
 
 /* ============================ chips ============================ */
@@ -2297,6 +2296,26 @@ bg.lw = W; bg.lh = WORLD_H;
   /* worn dirt threshold at the gate */
   g.fillStyle = '#7c5c34'; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 6);
   g.fillStyle = '#8a6a3e'; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 1);
+  /* ── west-wall gate (under the cage) → the tournament hall,
+        built to match the south exit but turned to face east ── */
+  const gy = TDOOR.r0*TS, gh = (TDOOR.r1 - TDOOR.r0 + 1)*TS;
+  g.fillStyle = '#0e1410'; g.fillRect(0, gy + 1, TS, gh - 2);        // dark opening in the wall
+  const wg = g.createLinearGradient(0, 0, TS, 0);
+  wg.addColorStop(0, 'rgba(255,190,90,0.42)'); wg.addColorStop(1, 'rgba(255,190,90,0)');
+  g.fillStyle = wg; g.fillRect(0, gy + 1, TS, gh - 2);              // warm glow spilling out
+  g.fillStyle = C.woodDark; g.fillRect(0, gy - 3, TS + 6, 4); g.fillRect(0, gy + gh - 1, TS + 6, 4);   // top + bottom beams
+  g.fillStyle = C.woodHi;   g.fillRect(0, gy - 3, TS + 6, 1);
+  g.fillStyle = C.woodDark; g.fillRect(TS + 2, gy - 3, 4, gh + 6);  // east post
+  g.fillStyle = C.wood;     g.fillRect(TS + 2, gy - 1, 2, gh + 2);
+  /* worn dirt threshold just east of the gate */
+  g.fillStyle = '#7c5c34'; g.fillRect(TS + 6, gy + 4, 6, gh - 8);
+  g.fillStyle = '#8a6a3e'; g.fillRect(TS + 6, gy + 4, 1, gh - 8);
+  /* little TOURNEYS sign over the gate */
+  g.fillStyle = '#245c33'; g.fillRect(2, gy - 12, 44, 9);
+  g.fillStyle = '#2f7a44'; g.fillRect(2, gy - 12, 44, 1);
+  g.fillStyle = C.goldHi; g.font = '6px "Press Start 2P"'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('TOURNEYS', 24, gy - 7);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 })();
 
 /* ============================ floor objects ============================ */
@@ -5121,8 +5140,6 @@ function floorRender() {
   items.push({ y: cgTop + 2,          draw: g => g.drawImage(cageBack,  cgx, cgTop - 4, cageBack.lw,  cageBack.lh) });
   items.push({ y: cgTop + TS + 2,     draw: g => drawEntity(g, { sprite:'cashier', dir:'down', frame:0, x: (CAGE.c0+1.5)*TS, y: cgTop + TS + 4, staticNPC:true }, tick + 40) });
   items.push({ y: CAGE.r1*TS + 12,    draw: g => g.drawImage(cageFront, cgx, CAGE.r1*TS + 2, cageFront.lw, cageFront.lh) });
-  /* tournament-hall portal, in the gap above the cage */
-  items.push({ y: TDOOR.r1*TS + 8, draw: g => g.drawImage(tourneyArch, TDOOR.c0*TS - 4, TDOOR.r0*TS - 4, tourneyArch.lw, tourneyArch.lh) });
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
@@ -5442,8 +5459,8 @@ function leaveTourney() {
     scene = 'floor';
     useCurrency(CHIP_STORE, 500);       // back to real chips on the floor
     popups.length = 0;
-    /* drop back onto the floor beside the portal, just above the cage */
-    player.x = 4.5*TS; player.y = 22.5*TS; player.dir = 'left'; player.frame = 0;
+    /* drop back onto the floor just east of the west-wall gate, under the cage */
+    player.x = 1.5*TS; player.y = (TDOOR.r0 + 0.5)*TS; player.dir = 'left'; player.frame = 0;
     camY = Math.max(0, Math.min(WORLD_H - H, Math.round(player.y - H/2)));
   });
 }
