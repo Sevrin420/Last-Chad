@@ -5,8 +5,9 @@ const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 describe("Tournament", function () {
   let membersOnly, items, tournament;
   let owner, user1, user2;
-  const MINT_PRICE = ethers.parseEther("0.01");
-  const CHIPS_ID = 0n;
+  const MINT_PRICE = ethers.parseEther("10");
+  const CHIPS_ID = 0n;   // regular chips (real money)
+  const TCHIPS_ID = 1n;  // tournament chips — the entry currency (minted 50 at mint)
 
   beforeEach(async function () {
     [owner, user1, user2] = await ethers.getSigners();
@@ -60,10 +61,10 @@ describe("Tournament", function () {
       await time.increase(2);
     });
 
-    it("should burn ERC-1155 chips on entry", async function () {
-      const before = await items.balanceOf(user1.address, CHIPS_ID);
+    it("should burn tournament chips (token 1) on entry", async function () {
+      const before = await items.balanceOf(user1.address, TCHIPS_ID); // 50 from welcome bonus
       await tournament.connect(user1).enterTournament(1, 1);
-      const after = await items.balanceOf(user1.address, CHIPS_ID);
+      const after = await items.balanceOf(user1.address, TCHIPS_ID);
       expect(before - after).to.equal(10n);
     });
 
@@ -79,10 +80,10 @@ describe("Tournament", function () {
       await tournament.createTournament("Free", now + 1, now + 7200, 0, 100, false);
       await time.increase(2);
 
-      const before = await items.balanceOf(user1.address, CHIPS_ID);
+      const before = await items.balanceOf(user1.address, TCHIPS_ID);
       await tournament.connect(user1).enterTournament(2, 1);
-      const after = await items.balanceOf(user1.address, CHIPS_ID);
-      expect(after).to.equal(before); // no chips burned
+      const after = await items.balanceOf(user1.address, TCHIPS_ID);
+      expect(after).to.equal(before); // no tournament chips burned on free entry
     });
 
     it("should reject double entry without rebuy", async function () {

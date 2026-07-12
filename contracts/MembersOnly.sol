@@ -11,16 +11,18 @@ interface IERC721Minimal {
 
 interface IMembersOnlyItems {
     function mintChips(address to, uint256 amount) external;
+    function mintTournamentChips(address to, uint256 amount) external;
     function burnItem(address from, uint256 itemId, uint256 amount) external;
     function balanceOf(address account, uint256 id) external view returns (uint256);
 }
 
 contract MembersOnly is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 333;
-    uint256 public constant MINT_PRICE = 0.01 ether;              // 0.01 AVAX
+    uint256 public constant MINT_PRICE = 10 ether;                // 10 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
-    uint256 public constant BASE_CHIPS = 50;
-    uint256 public constant PARTNER_BONUS_CHIPS = 100;
+    // Welcome bonus, paid in TOURNAMENT chips (free, prize-only currency).
+    uint256 public constant BASE_CHIPS = 50;            // tournament chips per NFT at mint
+    uint256 public constant PARTNER_BONUS_CHIPS = 100;  // extra tournament chips if wallet holds a partner NFT
 
     // ── Partner System ──
     struct Partner {
@@ -35,8 +37,22 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ── Whitelist (Merkle) ──
     bytes32 public merkleRoot;
 
-    // ── Tier System (owner-set per token, matches metadata trait) ──
-    mapping(uint256 => uint8) public tokenTier;           // tokenId => tier (1, 2, or 3)
+    // ── Tier / Rarity System (owner-set per token, matches metadata trait) ──
+    //
+    // Three rarities, assigned to match each token's immutable metadata trait.
+    // Intended distribution across MAX_SUPPLY (333):
+    //   COMMON    (tier 1) — 90%  ≈ 300 tokens —  50 chips / week
+    //   RARE      (tier 2) —  9%  ≈  30 tokens —  80 chips / week
+    //   LEGENDARY (tier 3) —  1%  ≈   3 tokens — 200 chips / week
+    //
+    // The weekly drop is paid in TOURNAMENT chips (MembersOnlyItems token 1) —
+    // free, no cash value, used only to enter tournaments / redeem for prizes.
+    // (Regular chips, token 0, are the real-money table currency worth 0.05 AVAX.)
+    uint8 public constant TIER_COMMON    = 1;
+    uint8 public constant TIER_RARE      = 2;
+    uint8 public constant TIER_LEGENDARY = 3;
+
+    mapping(uint256 => uint8) public tokenTier;           // tokenId => tier (1=common, 2=rare, 3=legendary)
     mapping(uint8 => uint256) public tierChipReward;      // tier => weekly chip amount
 
     // ── Level Bonus (mint-order based) ──
@@ -101,6 +117,11 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     constructor(string memory baseURI) ERC721("Members Only", "MEMBER") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
         weekAnchor = block.timestamp;
+
+        // Default weekly chip drop per rarity (owner-tunable via setTierReward).
+        tierChipReward[TIER_COMMON]    = 50;
+        tierChipReward[TIER_RARE]      = 80;
+        tierChipReward[TIER_LEGENDARY] = 200;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -213,7 +234,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
             _safeMint(msg.sender, totalMinted);
             lastClaimWeek[totalMinted] = currentWeek();   // weekly drop starts accruing from next week
         }
-        items.mintChips(msg.sender, chipsPerMint * quantity);
+        items.mintTournamentChips(msg.sender, chipsPerMint * quantity);  // free welcome tournament chips
     }
 
     // ─────────────────────────────────────────────────────────
@@ -260,7 +281,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function setTier(uint256 tokenId, uint8 tier) external onlyOwner {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
-        require(tier >= 1 && tier <= 4, "Tier must be 1-4");
+        require(tier >= TIER_COMMON && tier <= TIER_LEGENDARY, "Tier must be 1, 2, or 3");
         tokenTier[tokenId] = tier;
         emit TierSet(tokenId, tier);
     }
@@ -269,16 +290,25 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         require(tokenIds.length == tiers.length, "Array length mismatch");
         for (uint256 i = 0; i < tokenIds.length; i++) {
             require(_ownerOf(tokenIds[i]) != address(0), "Token does not exist");
-            require(tiers[i] >= 1 && tiers[i] <= 3, "Tier must be 1-4");
+            require(tiers[i] >= TIER_COMMON && tiers[i] <= TIER_LEGENDARY, "Tier must be 1, 2, or 3");
             tokenTier[tokenIds[i]] = tiers[i];
             emit TierSet(tokenIds[i], tiers[i]);
         }
     }
 
     function setTierReward(uint8 tier, uint256 amount) external onlyOwner {
-        require(tier >= 1 && tier <= 4, "Tier must be 1-4");
+        require(tier >= TIER_COMMON && tier <= TIER_LEGENDARY, "Tier must be 1, 2, or 3");
         tierChipReward[tier] = amount;
         emit TierRewardSet(tier, amount);
+    }
+
+    /// @notice Human-readable rarity label for a token's tier ("" if unset).
+    function tierName(uint256 tokenId) external view returns (string memory) {
+        uint8 tier = tokenTier[tokenId];
+        if (tier == TIER_COMMON)    return "Common";
+        if (tier == TIER_RARE)      return "Rare";
+        if (tier == TIER_LEGENDARY) return "Legendary";
+        return "";
     }
 
     // ─────────────────────────────────────────────────────────
@@ -311,7 +341,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
 
         lastClaimWeek[tokenId] = currentWeek();          // resync (also safe if schedule moved)
         uint256 total = reward * weeksOwed;
-        items.mintChips(msg.sender, total);              // one signed tx mints all stacked weeks
+        items.mintTournamentChips(msg.sender, total);    // weekly drop is TOURNAMENT chips (prize-only)
 
         emit WeeklyChipsClaimed(tokenId, currentWeek(), total);
     }

@@ -4,9 +4,10 @@ const { ethers } = require("hardhat");
 describe("MembersOnly", function () {
   let membersOnly, items;
   let owner, user1, user2, gameContract;
-  const MINT_PRICE = ethers.parseEther("0.01");
+  const MINT_PRICE = ethers.parseEther("10");
   const BASE_CHIPS = 50n;
-  const CHIPS_ID = 0n;
+  const CHIPS_ID = 0n;   // regular chips (real money, 0.05 AVAX)
+  const TCHIPS_ID = 1n;  // tournament chips (free; welcome + weekly drop pay these)
 
   beforeEach(async function () {
     [owner, user1, user2, gameContract] = await ethers.getSigners();
@@ -52,14 +53,15 @@ describe("MembersOnly", function () {
       expect(await membersOnly.balanceOf(user1.address)).to.equal(3);
     });
 
-    it("should assign base chips as ERC-1155 tokens on mint", async function () {
+    it("should assign base (tournament) chips as ERC-1155 tokens on mint", async function () {
       await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS);
+      expect(await items.balanceOf(user1.address, TCHIPS_ID)).to.equal(BASE_CHIPS);
+      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(0n); // no free real-money chips
     });
 
     it("should assign chips for multiple mints in one call", async function () {
       await membersOnly.connect(user1).mint(3, { value: MINT_PRICE * 3n });
-      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS * 3n);
+      expect(await items.balanceOf(user1.address, TCHIPS_ID)).to.equal(BASE_CHIPS * 3n);
     });
 
     it("should reject insufficient payment", async function () {
@@ -195,19 +197,19 @@ describe("MembersOnly", function () {
 
     it("should claim one week of chips after a week passes", async function () {
       await passWeeks(1);
-      const before = await items.balanceOf(user1.address, CHIPS_ID);
+      const before = await items.balanceOf(user1.address, TCHIPS_ID);
       await membersOnly.connect(user1).claimWeeklyChips(1);
-      const after = await items.balanceOf(user1.address, CHIPS_ID);
-      expect(after - before).to.equal(25n); // 20 tier + 5 level
+      const after = await items.balanceOf(user1.address, TCHIPS_ID);
+      expect(after - before).to.equal(25n); // 20 tier + 5 level, paid in tournament chips
     });
 
     it("stacks unclaimed weeks into a single claim", async function () {
       await passWeeks(3);
       expect(await membersOnly.claimableWeeks(1)).to.equal(3);
       expect(await membersOnly.claimableChips(1)).to.equal(75n); // 25 * 3
-      const before = await items.balanceOf(user1.address, CHIPS_ID);
+      const before = await items.balanceOf(user1.address, TCHIPS_ID);
       await membersOnly.connect(user1).claimWeeklyChips(1);
-      expect((await items.balanceOf(user1.address, CHIPS_ID)) - before).to.equal(75n);
+      expect((await items.balanceOf(user1.address, TCHIPS_ID)) - before).to.equal(75n);
     });
 
     it("cannot double-claim within the same week", async function () {
@@ -227,10 +229,10 @@ describe("MembersOnly", function () {
   describe("Chip Trading", function () {
     it("should allow transferring chips between wallets", async function () {
       await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      // user1 has BASE_CHIPS
-      await items.connect(user1).safeTransferFrom(user1.address, user2.address, CHIPS_ID, 20n, "0x");
-      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS - 20n);
-      expect(await items.balanceOf(user2.address, CHIPS_ID)).to.equal(20n);
+      // user1 has BASE_CHIPS tournament chips from the welcome bonus
+      await items.connect(user1).safeTransferFrom(user1.address, user2.address, TCHIPS_ID, 20n, "0x");
+      expect(await items.balanceOf(user1.address, TCHIPS_ID)).to.equal(BASE_CHIPS - 20n);
+      expect(await items.balanceOf(user2.address, TCHIPS_ID)).to.equal(20n);
     });
   });
 
@@ -267,12 +269,12 @@ describe("MembersOnly", function () {
 
     it("should give bonus chips when minting with partner NFT", async function () {
       await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      expect(await items.balanceOf(user1.address, CHIPS_ID)).to.equal(BASE_CHIPS + 100n);
+      expect(await items.balanceOf(user1.address, TCHIPS_ID)).to.equal(BASE_CHIPS + 100n);
     });
 
     it("should not give bonus without partner NFT", async function () {
       await membersOnly.connect(user2).mint(1, { value: MINT_PRICE });
-      expect(await items.balanceOf(user2.address, CHIPS_ID)).to.equal(BASE_CHIPS);
+      expect(await items.balanceOf(user2.address, TCHIPS_ID)).to.equal(BASE_CHIPS);
     });
   });
 

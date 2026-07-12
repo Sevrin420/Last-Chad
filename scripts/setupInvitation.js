@@ -20,6 +20,7 @@ const ITEMS_ABI = [
   'function createItem(string name, uint256 maxSupply, uint256 price, bool stackable, uint8 itemType, uint256 bonusAmount) returns (uint256)',
   'function airdrop(address to, uint256 itemId, uint256 quantity)',
   'function totalItems() view returns (uint256)',
+  'function nextItemId() view returns (uint256)',
 ];
 
 const MEMBERS_ONLY_ABI = [
@@ -48,8 +49,9 @@ async function main() {
     const tx = await items.createItem("Invitation", 0, 0, true, 0, 0);
     const receipt = await tx.wait();
 
-    // Get the new item ID from totalItems
-    invItemId = Number(await items.totalItems());
+    // The new item's ID is the last one allocated (ids 0 & 1 are reserved
+    // currency tokens, so real items start at 2).
+    invItemId = Number(await items.nextItemId()) - 1;
     console.log(`  Invitation created as item #${invItemId}`);
 
     // Set on MembersOnly

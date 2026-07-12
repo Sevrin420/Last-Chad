@@ -134,13 +134,15 @@ async function main() {
   await tx.wait();
   console.log("  Market.setApprovedContract(Items)          ✓");
 
-  // Set tier rewards: T1=20, T2=10, T3=5, T4=0
+  // Set weekly chip drop per rarity: Common=50, Rare=80, Legendary=200
+  // (matches the contract constructor defaults; re-set here to be explicit).
   console.log("\n── Setting tier rewards ──────────────────────────────────");
-  const tierRewards = { 1: 20, 2: 10, 3: 5, 4: 0 };
+  const tierRewards = { 1: 50, 2: 80, 3: 200 }; // 1=Common, 2=Rare, 3=Legendary
+  const tierNames = { 1: 'Common', 2: 'Rare', 3: 'Legendary' };
   for (const [tier, reward] of Object.entries(tierRewards)) {
     tx = await moSetItems.setTierReward(tier, reward);
     await tx.wait();
-    console.log(`  Tier ${tier}: +${reward} chips/week                    ✓`);
+    console.log(`  ${tierNames[tier]} (tier ${tier}): +${reward} chips/week        ✓`);
   }
 
   // ════════════════════════════════════════════════════════════════════════

@@ -9,7 +9,7 @@ interface IMembersOnlyForTournament {
 }
 
 interface IMembersOnlyItemsForTournament {
-    function burnChips(address from, uint256 amount) external;
+    function burnTournamentChips(address from, uint256 amount) external;
 }
 
 /// @title Tournament — configurable tournaments for Members Only casino
@@ -164,9 +164,9 @@ contract Tournament is Ownable, ReentrancyGuard {
             config.entryCount++;
         }
 
-        // Deduct chip cost if any (burns ERC-1155 chip tokens)
+        // Deduct entry cost if any (burns TOURNAMENT chips — token ID 1)
         if (config.chipCost > 0) {
-            items.burnChips(msg.sender, config.chipCost);
+            items.burnTournamentChips(msg.sender, config.chipCost);
         }
 
         emit TournamentEntered(tournamentId, tokenId, config.tournamentChips);

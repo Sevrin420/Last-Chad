@@ -68,26 +68,36 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 **Tech Stack:** Hardhat v2.28.5, Solidity v0.8.26, OpenZeppelin v5.0.0, ethers.js v5 + AppKit/Reown, Cloudflare Workers + Durable Objects.
 
+> 📘 **Full rebuild spec:** [`docs/GIRAFFE_CASINO_BLUEPRINT.md`](docs/GIRAFFE_CASINO_BLUEPRINT.md)
+> — an end-to-end blueprint of every contract, the off-chain worker/DO layer,
+> the oracle settlement scheme, and the deploy runbook. Detailed enough to
+> rebuild the whole casino from scratch. Keep it in sync when contracts change.
+
 ---
 
-## Smart Contracts (5 total, in `/contracts`)
+## Smart Contracts (6 total, in `/contracts`)
 
 | Contract | Purpose |
 |----------|---------|
-| `MembersOnly.sol` | ERC-721 NFT (333 max, 0.01 AVAX, tiers, levels, time-based weekly chip claims, partner bonus, Merkle whitelist) |
-| `MembersOnlyItems.sol` | ERC-1155 items + chips (token ID 0) + treasury yield vault (burn 10k chips/share, monthly AVAX yield) |
-| `Gamble.sol` | Chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
-| `Market.sol` | Player-to-player NFT trading |
-| `Tournament.sol` | Tournament system: enter, lock score, rebuy, leaderboard |
+| `MembersOnly.sol` | ERC-721 NFT (333 max, 10 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
+| `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.05 AVAX-backed) + tournament chips (token 1, free) + items + treasury yield vault |
+| `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
+| `Market.sol` | Player-to-player NFT/item trading |
+| `Tournament.sol` | Tournament system: enter (burns tournament chips), lock score, rebuy, leaderboard |
+| `TraditionalGambling.sol` | Standalone ETH-backed chip house (no NFT gate), 1 chip = 0.005 ETH |
 
 **Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, and Tournament (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
 
 **Key constants:**
 - `MAX_SUPPLY`: 333
-- `MINT_PRICE`: 0.01 AVAX
+- `MINT_PRICE`: 10 AVAX
 - `MAX_MINT_PER_WALLET`: 5
+- `CHIP_PRICE`: 0.05 AVAX per regular chip (buy & redeem, AVAX-backed)
 - Level by mint order: #1-83=L1, #84-166=L2, #167-249=L3, #250-333=L4
-- Tiers (1-3) set by owner to match metadata traits
+- **Rarity tiers** (owner-set to match metadata, target split across 333):
+  - Tier 1 **Common** — 90% (~300) — **50** tournament chips/week
+  - Tier 2 **Rare** — 9% (~30) — **80** tournament chips/week
+  - Tier 3 **Legendary** — 1% (~3) — **200** tournament chips/week
 
 ---
 
@@ -106,15 +116,23 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 ---
 
-## Chip System
+## Chip System (two currencies)
 
-- **Chips** = ERC-1155 token (ID 0) in MembersOnlyItems — **per-wallet, tradeable**
-- Players can freely transfer chips between wallets via standard ERC-1155 transfers
-- **Mint at mint**: MembersOnly calls `items.mintChips(wallet, amount)` on NFT mint
-- **Weekly claim**: `claimWeeklyChips(tokenId)` → mints `tierChipReward[tier] + levelBonusChips[level]` chips to wallet
-- **Spend**: Gamble/Tournament call `items.burnChips(wallet, amount)` — must be authorized in Items
-- **Award**: Gamble calls `items.mintChips(wallet, amount)` for winnings
-- **Authorization**: All contracts that mint/burn chips must be authorized in MembersOnlyItems via `setGameContract`
+**Rule of thumb: anything free is a tournament chip; anything worth real AVAX is a regular chip.**
+
+**Regular chips** = ERC-1155 token **ID 0** — real money, **0.05 AVAX each**, AVAX-backed
+- Get them: `items.buyChips()` (0.05 AVAX each) or win at the main-floor tables
+- Redeem: `items.redeemChips(amount)` → 0.05 AVAX each, always open
+- Spend/award: Gamble calls `items.burnChips` / `items.mintChips` (winnings)
+- **Solvency invariant**: `balance >= chipSupply * 0.05 AVAX`. Free mints (winnings) require the house bankroll to be funded via `items.depositHouse()` or they revert `"House underfunded"`. Owner `withdraw()` can only take the surplus above the reserve.
+
+**Tournament chips** = ERC-1155 token **ID 1** — free, **no cash value**, prize-only
+- Get them: weekly rarity drop (50/80/200) + mint welcome bonus + item perks — all via `items.mintTournamentChips`
+- Spend: `Tournament.enterTournament` burns them via `items.burnTournamentChips`
+- Cannot be redeemed for AVAX; only usable to enter tournaments / redeem for prizes
+- Inside a tournament there's ALSO an internal `entry.tournamentChips` score counter (a `uint`, not a token) — keep distinct
+
+**Authorization**: every contract that mints/burns either chip (MembersOnly, Gamble, Tournament) must be authorized in MembersOnlyItems via `setGameContract`.
 
 ---
 

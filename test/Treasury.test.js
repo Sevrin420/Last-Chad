@@ -4,7 +4,7 @@ const { ethers } = require("hardhat");
 describe("Treasury (in MembersOnlyItems)", function () {
   let membersOnly, items;
   let owner, player1, player2;
-  const MINT_PRICE = ethers.parseEther("0.01");
+  const MINT_PRICE = ethers.parseEther("10");
   const CHIPS_PER_SHARE = 10_000n;
   const CHIPS_ID = 0n;
 
@@ -23,6 +23,10 @@ describe("Treasury (in MembersOnlyItems)", function () {
     // Mint NFTs
     await membersOnly.connect(player1).mint(1, { value: MINT_PRICE });
     await membersOnly.connect(player2).mint(1, { value: MINT_PRICE });
+
+    // Fund the house so the 100k free-minted regular chips stay AVAX-backed
+    // (100,000 chips * 0.05 AVAX = 5,000 AVAX reserve).
+    await items.depositHouse({ value: ethers.parseEther("6000") });
 
     // Give players enough chips
     await items.mintChips(player1.address, 50_000n);
