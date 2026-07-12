@@ -3310,6 +3310,15 @@ function settleCurrentStakes(reason) {
   } else if (scene === 'roulette') {
     if (rou.mode === 'spinning') rouResolve();   // a spin in flight pays out
     else rouRefund();                            // otherwise bets come down
+  } else if (scene === 'blackjack' && bj.net.active) {
+    /* shared table: leaving mid-hand folds — your stake comes back (the
+       shared dealer hasn't been revealed yet) */
+    if (bj.bet > 0 && (bj.state === 'player' || bj.state === 'stood')) {
+      setChips(chips + bj.bet);
+      pushChat('', 'Folded on the way out — ' + bj.bet + ' chips returned', true);
+      journal(null); bj.bet = 0;
+    }
+    bj.state = 'bet';
   } else if (scene === 'blackjack' && bjHandLive()) {
     /* the hand stands where it is and settles — quitting can't dodge it */
     while (bj.dealQ && bj.dealQ.length) {
@@ -3737,10 +3746,26 @@ function bjTrayTap() {
   else { bj.betAmt += TRAY[hit]; bj.trayIdx = hit; sound.chip(); }
 }
 function bjUpdate() {
-  /* shared table: the server owns the dealer + clock. Fall back to solo if
-     the connection drops mid-session. */
-  if (bj.net.active && !(social.table && social.table.status === 'on')) bjNetGoSolo();
-  if (bj.net.active) return bjUpdateNet();
+  /* shared table only: the server owns the dealer + clock. No solo play —
+     the table sits idle until the shared clock is live. */
+  const online = social.table && social.table.status === 'on';
+  if (modalUpdate()) { lastActMs = Date.now(); return; }
+  if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
+  if (!online || !bj.net.active) {
+    /* refund an in-flight bet if the connection drops mid-hand */
+    if (bj.bet > 0 && (bj.state === 'player' || bj.state === 'stood')) {
+      setChips(chips + bj.bet); bj.bet = 0; journal(null);
+      bj.state = 'bet'; bj.hand = []; bj.dealer = []; bj.hole = true;
+    }
+    if (aQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
+    else if (Date.now() - lastActMs > IDLE_KICK_MS) { pushChat('', 'Idle at blackjack — seat freed', true); startTransition(() => leaveTable('blackjack')); return; }
+    aQueued = false;
+    return;
+  }
+  return bjUpdateNet();
+}
+/* ── legacy solo blackjack loop (unused now the table is shared) ── */
+function bjUpdateSolo() {
   if (modalUpdate()) { lastActMs = Date.now(); return; }
   /* B anywhere at the table → leave confirmation */
   if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
@@ -3919,13 +3944,6 @@ function bjAdoptNet(g) {
     bj.state = 'stood';
     if (g.up) bj.dealer = [{ r: g.up.r, s: g.up.s, up: true }];
   } else bj.state = 'bet';
-}
-function bjNetGoSolo() {
-  if (bj.bet > 0 && (bj.state === 'player' || bj.state === 'stood')) { setChips(chips + bj.bet); journal(null); }  // refund in-flight bet
-  bj.net = { active:false, phase:'', until:0 };
-  bj.state = 'bet'; bj.betAmt = 0; bj.bet = 0;
-  bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
-  flash('CONNECTION LOST · PLAY ON SOLO');
 }
 function bjDealNet(up) {
   bj.bet = bj.betAmt; setChips(chips - bj.bet); sound.chip();
@@ -4278,25 +4296,11 @@ const cr = {
   mode:'board', point:0, dice:[3,4], rollT:0,
   bets:{}, unitIdx:0, menuIdx:0, removeMode:false,
   outcome:[], outT:0, flash:0,
-  net:{ active:false, phase:'', until:0, shooter:null },
-  solo:{ phase:'betting', until:0 },
+  net:{ active:false, phase:'', until:0, shooter:null },   // shared table clock (server-driven; no solo)
   rollLand:null, postRoll:null, popupT:0
 };
 /* long theatrical roll (~4.8s): die 1 lands, die 2 spins on */
 const CR_ROLL_TICKS = 288, CR_LOCK1 = 126;
-/* solo table clock mirrors the multiplayer one so the countdowns are
-   always visible: betting window → roll window → next round */
-const SOLO_BET_MS = 15000, SOLO_ACTION_MS = 10000;
-function crSoloPhase(p) {
-  cr.solo.phase = p;
-  cr.solo.until = Date.now() + (p === 'betting' ? SOLO_BET_MS : SOLO_ACTION_MS);
-  crPhaseCall(p);
-}
-function crStartRoll() {
-  cr.rollLand = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
-  cr.mode = 'rolling';
-  cr.rollT = CR_ROLL_TICKS;
-}
 function crBetKeys() {
   const b = { pass: 0, field: 0 };
   PLACE_NUMS.forEach(n => b['p' + n] = 0);
@@ -4314,7 +4318,6 @@ function enterCraps() {
   cr.rollLand = null; cr.postRoll = null; cr.popupT = 0;
   modal = null;
   popups.length = 0;
-  crSoloPhase('betting');
   lastActMs = Date.now();
   tableConnect('craps');
 }
@@ -4353,16 +4356,6 @@ function crAdoptNet(g) {
   cr.outcome = [];
   cr.mode = 'board';
   cr.net = { active: g.phase !== 'idle', phase: g.phase, until: Date.now() + (g.ms || 0), shooter: g.shooter };
-}
-/* connection lost mid-game: KEEP the point and every bet and continue
-   solo — nothing refunds, so pulling the plug can't dodge a hand */
-function crGoSolo() {
-  cr.net = { active:false, phase:'', until:0, shooter:null };
-  cr.postRoll = null;
-  cr.outcome = [];
-  if (cr.mode !== 'rolling') { cr.rollLand = null; cr.mode = 'board'; }
-  crSoloPhase('betting');
-  flash('CONNECTION LOST · PLAY ON SOLO');
 }
 function crShooterName() {
   if (cr.net.shooter === social.youId) return 'YOU';
@@ -4472,8 +4465,6 @@ function crResolve() {
   }
 }
 function crUpdate() {
-  /* failsafe: dropped connection mid-game → refund and continue solo */
-  if (cr.net.active && !(social.table && social.table.status === 'on')) crGoSolo();
   /* dice animation always progresses (server rolls arrive any time).
      Long lazy tumble: faces flip slowly, the first bone settles early,
      the second keeps spinning before it drops. */
@@ -4501,13 +4492,9 @@ function crUpdate() {
   if (modalUpdate()) { lastActMs = Date.now(); return; }
   /* B anywhere at the table → leave confirmation */
   if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
-  if (cr.mode === 'outcome') {          /* solo pause between rolls */
+  if (cr.mode === 'outcome') {          /* brief hold on a result */
     if (cr.flash > 0) cr.flash--;
-    if (--cr.outT <= 0 || aQueued) {
-      aQueued = false; lastActMs = Date.now();
-      cr.mode = 'board';
-      if (!cr.net.active) crSoloPhase('betting');
-    }
+    if (--cr.outT <= 0 || aQueued) { aQueued = false; lastActMs = Date.now(); cr.mode = 'board'; }
     return;
   }
   if (cr.flash > 0) cr.flash--;
@@ -4520,17 +4507,11 @@ function crUpdate() {
     startTransition(() => leaveTable('craps'));
     return;
   }
-  /* solo table clock: betting window → roll window → (auto) roll */
-  if (!cr.net.active && Date.now() > cr.solo.until) {
-    if (cr.solo.phase === 'betting') crSoloPhase('action');
-    else if (crTotalBets() > 0) { crStartRoll(); return; }
-    else crSoloPhase('betting');
-  }
+  /* shared table only — nothing runs until the server clock is live */
+  const online = social.table && social.table.status === 'on';
+  if (!online || !cr.net.active) { aQueued = false; return; }
   const unit = UNITS[cr.unitIdx];
-  const netOn = cr.net.active;
-  const canBet = netOn
-    ? (cr.net.phase === 'betting' || cr.net.phase === 'outcome')
-    : cr.solo.phase === 'betting';
+  const canBet = (cr.net.phase === 'betting' || cr.net.phase === 'outcome');
   /* taps: chip tray selects a denomination (X = take-down mode),
      tapping a felt spot lays or lifts chips */
   if (tapNow) {
@@ -4540,7 +4521,7 @@ function crUpdate() {
     else {
       const spot = crSpotAt(tapNow);
       if (spot) {
-        if (!canBet) flash(netOn ? 'DICE ARE OUT · BETS CLOSED' : 'ROLL WINDOW · BETS CLOSED');
+        if (!canBet) flash('DICE ARE OUT · BETS CLOSED');
         else if (cr.removeMode) {
           if (cr.bets[spot] <= 0) flash('NOTHING ON THAT SPOT');
           else if (spot === 'pass' && cr.point !== 0) flash('PASS RIDES UNTIL DECIDED');
@@ -4565,15 +4546,9 @@ function crUpdate() {
     aQueued = false;
     const item = CR_MENU[cr.menuIdx];
     if (item === 'ROLL') {
-      if (netOn) {
-        if (cr.net.phase === 'action' && cr.net.shooter === social.youId) social.table.send({ t: 'roll' });
-        else if (cr.net.phase === 'action') flash('WAITING ON THE SHOOTER');
-        else flash('DICE ROLL ON THE TABLE CLOCK');
-      } else {
-        if (cr.solo.phase !== 'action') flash('BETS OPEN · ROLL WINDOW NEXT');
-        else if (crTotalBets() === 0) flash('PLACE A BET FIRST');
-        else crStartRoll();
-      }
+      if (cr.net.phase === 'action' && cr.net.shooter === social.youId) social.table.send({ t: 'roll' });
+      else if (cr.net.phase === 'action') flash('WAITING ON THE SHOOTER');
+      else flash('DICE ROLL ON THE TABLE CLOCK');
     }
     else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
     else if (item === 'TIP') openTipModal();
@@ -4654,8 +4629,8 @@ function crRender() {
      dealer carry all the game information */
   uiPanelSmall();
   ctx.font = FONT; ctx.textBaseline = 'top';
-  const live = cr.net.active ? cr.net : cr.solo;
-  const secs = Math.max(0, Math.ceil((live.until - Date.now()) / 1000));
+  const tableLive = (social.table && social.table.status === 'on') && cr.net.active;
+  const secs = Math.max(0, Math.ceil((cr.net.until - Date.now()) / 1000));
   if (cr.mode === 'rolling' || cr.popupT > 0) {
     if (cr.mode !== 'rolling') cr.popupT--;
     drawTray(cr.unitIdx, true, cr.removeMode);
@@ -4666,7 +4641,9 @@ function crRender() {
   if (flashT > 0) {
     flashT--;
     uiText(flashMsg, '#e05a70', 203);
-  } else if (cr.mode === 'outcome' || (cr.net.active && cr.outcome.length)) {
+  } else if (!tableLive) {
+    uiText('WAITING FOR THE TABLE' + '.'.repeat(Math.floor(tick / 20) % 4), C.dim, 203);
+  } else if (cr.mode === 'outcome' || cr.outcome.length) {
     const win = cr.flash > 0 && Math.floor(tick / 6) % 2;
     const line = cr.outcome[Math.floor(tick / 100) % Math.max(1, cr.outcome.length)] || '';
     uiText(line, win ? C.gold : C.white, 203);
@@ -4676,8 +4653,8 @@ function crRender() {
     drawCarousel(CR_MENU, cr.menuIdx, 202);
   }
   drawTray(cr.unitIdx, true, cr.removeMode);
-  if (cr.mode === 'board' && (live.phase === 'betting' || live.phase === 'action')) {
-    drawTimerBox(live.phase === 'betting' ? 'BETS' : 'ROLL', secs, secs <= 3);
+  if (tableLive && cr.mode === 'board' && (cr.net.phase === 'betting' || cr.net.phase === 'action')) {
+    drawTimerBox(cr.net.phase === 'betting' ? 'BETS' : 'ROLL', secs, secs <= 3);
   }
   drawNetDot();
 }
@@ -4820,8 +4797,8 @@ const rouRoom = makeCanvas(W, H, g => {
 const rou = {
   mode:'board', bets:{}, unitIdx:0, menuIdx:0, removeMode:false,
   result:-1, spinT:0, outcome:[], outT:0, flash:0, popupT:0,
-  net:{ active:false, phase:'', until:0 },   // shared table clock (server-driven)
-  solo:{ phase:'betting', until:0 }, history:[]
+  net:{ active:false, phase:'', until:0 },   // shared table clock (server-driven; no solo)
+  history:[]
 };
 function rouBetKeys() {
   const b = {};
@@ -4831,12 +4808,6 @@ function rouBetKeys() {
 }
 function rouTotalBets() { return Object.values(rou.bets).reduce((a, b) => a + b, 0); }
 function rouJournal() { journal(rouTotalBets() > 0 ? { g:'rou', bets:rou.bets } : null); }
-function rouSoloPhase(p) {
-  rou.solo.phase = p;
-  rou.solo.until = Date.now() + (p === 'betting' ? ROU_BET_MS : ROU_ACTION_MS);
-  if (p === 'betting') dealerSay(BET_CALLS[Math.floor(Math.random() * BET_CALLS.length)], 300);
-  else dealerSay('No more bets — the wheel is set!', 300);
-}
 function enterRoulette() {
   floorReturn = { x: player.x, y: player.y };
   scene = 'roulette';
@@ -4845,7 +4816,6 @@ function enterRoulette() {
   rou.outcome = []; rou.outT = 0; rou.flash = 0; rou.popupT = 0;
   rou.net = { active:false, phase:'', until:0 };
   modal = null; popups.length = 0;
-  rouSoloPhase('betting');
   lastActMs = Date.now();
   tableConnect('roulette');
 }
@@ -4882,12 +4852,6 @@ function rouStartSpin(serverN) {
 function rouAdoptNet(g) {
   rou.mode = 'board'; rou.outcome = [];
   rou.net = { active: g.phase !== 'idle', phase: g.phase, until: Date.now() + (g.ms || 0) };
-}
-function rouGoSolo() {
-  rou.net = { active:false, phase:'', until:0 };
-  if (rou.mode !== 'spinning') rou.mode = 'board';
-  rouSoloPhase('betting');
-  flash('CONNECTION LOST · PLAY ON SOLO');
 }
 function rouNetPhase(m) {
   rou.net.active = true;
@@ -4938,8 +4902,7 @@ function rouResolve() {
   rou.mode = 'outcome';
 }
 function rouUpdate() {
-  /* failsafe: dropped connection mid-game → carry on solo */
-  if (rou.net.active && !(social.table && social.table.status === 'on')) rouGoSolo();
+  const online = social.table && social.table.status === 'on';
   if (rou.mode === 'spinning') {
     aQueued = bQueued = false;
     if (rou.spinT % (rou.spinT > 90 ? 7 : 14) === 0) sound.click();   // ball rattling, slowing
@@ -4948,28 +4911,19 @@ function rouUpdate() {
   }
   if (modalUpdate()) { lastActMs = Date.now(); return; }
   if (bQueued) { bQueued = false; lastActMs = Date.now(); openLeaveModal(); return; }
-  if (rou.mode === 'outcome') {
-    if (rou.flash > 0) rou.flash--;
-    /* shared table: the server posts the next betting window; solo self-advances */
-    if (rou.net.active) return;
-    if (--rou.outT <= 0 || aQueued) { aQueued = false; lastActMs = Date.now(); rou.mode = 'board'; rouSoloPhase('betting'); }
-    return;
-  }
+  if (rou.mode === 'outcome') { if (rou.flash > 0) rou.flash--; return; }   // the server posts the next betting window
   if (rou.flash > 0) rou.flash--;
-  if (!rou.outcome.length) maybeTableQuip('roulette');
+  /* idle kick frees the seat whether or not the shared clock is live */
   if (aQueued || tapUp || tapDown || tapLeft || tapRight || tapNow) lastActMs = Date.now();
   else if (Date.now() - lastActMs > IDLE_KICK_MS) {
     rouRefund(); pushChat('', 'Idle at roulette — seat freed', true);
     startTransition(() => leaveTable('roulette')); return;
   }
-  /* only the solo clock auto-advances; the shared wheel spins on server time */
-  if (!rou.net.active && Date.now() > rou.solo.until) {
-    if (rou.solo.phase === 'betting') rouSoloPhase('action');
-    else if (rouTotalBets() > 0) { rouStartSpin(); return; }
-    else rouSoloPhase('betting');
-  }
+  /* shared table only — nothing runs until the server clock is live */
+  if (!online || !rou.net.active) { aQueued = false; return; }
+  if (!rou.outcome.length) maybeTableQuip('roulette');
   const unit = UNITS[rou.unitIdx];
-  const canBet = rou.net.active ? rou.net.phase === 'betting' : rou.solo.phase === 'betting';
+  const canBet = rou.net.phase === 'betting';
   if (tapNow) {
     const hit = trayHit(tapNow, true);
     if (hit === TRAY.length) { rou.removeMode = !rou.removeMode; sound.tick(); }
@@ -4992,12 +4946,8 @@ function rouUpdate() {
   if (aQueued) {
     aQueued = false;
     const item = ROU_MENU[rou.menuIdx];
-    if (item === 'SPIN') {
-      if (rou.net.active) flash('THE WHEEL SPINS ON THE CLOCK');
-      else if (rou.solo.phase !== 'action') flash('BETS OPEN · SPIN NEXT');
-      else if (rouTotalBets() === 0) flash('PLACE A BET FIRST');
-      else rouStartSpin();
-    } else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
+    if (item === 'SPIN') flash('THE WHEEL SPINS ON THE CLOCK');
+    else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
     else if (item === 'TIP') openTipModal();
   }
 }
@@ -5093,9 +5043,12 @@ function rouRender() {
     return;
   }
   uiPanelSmall();
-  const rouLive = rou.net.active ? rou.net : rou.solo;
-  const secs = Math.max(0, Math.ceil((rouLive.until - Date.now()) / 1000));
+  const tableLive = (social.table && social.table.status === 'on') && rou.net.active;
+  const secs = Math.max(0, Math.ceil((rou.net.until - Date.now()) / 1000));
   if (flashT > 0) { flashT--; uiText(flashMsg, '#e05a70', 203); }
+  else if (!tableLive) {
+    uiText('WAITING FOR THE TABLE' + '.'.repeat(Math.floor(tick / 20) % 4), C.dim, 203);
+  }
   else if (rou.mode === 'outcome') {
     const win = rou.flash > 0 && Math.floor(tick / 6) % 2;
     const line = rou.outcome[Math.floor(tick / 100) % Math.max(1, rou.outcome.length)] || '';
@@ -5106,7 +5059,7 @@ function rouRender() {
     drawCarousel(ROU_MENU, rou.menuIdx, 202);
   }
   drawTray(rou.unitIdx, true, rou.removeMode);
-  if (rou.mode === 'board') drawTimerBox(rouLive.phase === 'betting' ? 'BETS' : 'SPIN', secs, secs <= 3);
+  if (tableLive && rou.mode === 'board') drawTimerBox(rou.net.phase === 'betting' ? 'BETS' : 'SPIN', secs, secs <= 3);
   drawNetDot();
 }
 
