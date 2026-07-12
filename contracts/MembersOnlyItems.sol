@@ -11,11 +11,13 @@ interface IMembersOnlyForItems {
 
 /**
  * @title MembersOnlyItems
- * @dev ERC-1155 item contract for Members Only casino.
+ * @dev ERC-1155 item + currency contract for Members Only casino.
  *      Owner defines new item types at any time.
  *      Items can give weekly chip bonuses, one-time chip claims, or unlock areas.
  *      Items lock to an NFT when utilized and can be unlocked for trading.
- *      Chips (token ID 0) are a built-in stackable ERC-1155 token, tradeable between wallets.
+ *      Two reserved currency tokens: regular chips (id 0, real money, 0.05 AVAX,
+ *      AVAX-backed) and tournament chips (id 1, free, prize-only). Both are
+ *      stackable and tradeable between wallets.
  */
 contract MembersOnlyItems is ERC1155, Ownable {
     using Strings for uint256;
@@ -73,14 +75,6 @@ contract MembersOnlyItems is ERC1155, Ownable {
     mapping(uint256 => mapping(address => bool)) public itemClaimable;  // itemId => wallet => can claim
     mapping(uint256 => mapping(address => bool)) public itemClaimed;    // itemId => wallet => has claimed
 
-    // ── Treasury (yield vault) ──
-    uint256 public constant CHIPS_PER_SHARE = 10_000;
-    uint256 public currentMonth;
-    mapping(uint256 => uint256) public monthlyDeposit;                                 // month => AVAX
-    mapping(uint256 => uint256) public monthlyTotalShares;                             // month => total shares
-    mapping(uint256 => mapping(uint256 => uint256)) public monthlyShares;              // month => tokenId => shares
-    mapping(uint256 => mapping(uint256 => bool)) public yieldClaimed;                  // tokenId => month => claimed
-
     // ── Events ──
     event ItemCreated(uint256 indexed itemId, string name, uint256 maxSupply, uint256 price, bool stackable, ItemType itemType, uint256 bonusAmount);
     event ItemMinted(uint256 indexed itemId, address indexed to, uint256 quantity);
@@ -92,9 +86,6 @@ contract MembersOnlyItems is ERC1155, Ownable {
     event WeeklyBonusClaimed(uint256 indexed tokenId, uint256 indexed itemId, uint256 week, uint256 amount);
     event OneTimeBonusClaimed(uint256 indexed tokenId, uint256 indexed itemId, uint256 amount);
     event ItemClaimableSet(uint256 indexed itemId, uint256 walletCount);
-    event SharesBurned(uint256 indexed tokenId, uint256 indexed month, uint256 numShares, uint256 chipsBurned);
-    event YieldDeposited(uint256 indexed month, uint256 amount, uint256 totalShares);
-    event YieldClaimed(uint256 indexed tokenId, uint256 indexed month, uint256 amount);
 
     modifier onlyAuthorized() {
         require(authorizedGame[msg.sender] || msg.sender == owner(), "Not authorized");
@@ -417,97 +408,6 @@ contract MembersOnlyItems is ERC1155, Ownable {
         _mint(msg.sender, TCHIPS_ID, bonus, "");   // free perk → tournament chips
 
         emit OneTimeBonusClaimed(tokenId, itemId, bonus);
-    }
-
-    // ─────────────────────────────────────────────
-    //  Treasury: burn chips for monthly yield shares
-    // ─────────────────────────────────────────────
-
-    function burnForShares(uint256 tokenId, uint256 numShares) external {
-        require(msg.sender == membersOnly.ownerOf(tokenId), "Not token owner");
-        require(numShares > 0, "Zero shares");
-        require(monthlyDeposit[currentMonth] == 0, "Month already finalized");
-
-        uint256 cost = numShares * CHIPS_PER_SHARE;
-        require(balanceOf(msg.sender, CHIPS_ID) >= cost, "Insufficient chips");
-        _burn(msg.sender, CHIPS_ID, cost);
-        chipSupply -= cost;                          // treasury burns real chips → free reserve
-
-        monthlyShares[currentMonth][tokenId] += numShares;
-        monthlyTotalShares[currentMonth] += numShares;
-
-        emit SharesBurned(tokenId, currentMonth, numShares, cost);
-    }
-
-    function depositYield() external payable onlyOwner {
-        require(msg.value > 0, "No AVAX sent");
-        require(monthlyTotalShares[currentMonth] > 0, "No shareholders");
-
-        monthlyDeposit[currentMonth] = msg.value;
-        emit YieldDeposited(currentMonth, msg.value, monthlyTotalShares[currentMonth]);
-        currentMonth++;
-    }
-
-    function claimYield(uint256 tokenId, uint256 month) external {
-        require(msg.sender == membersOnly.ownerOf(tokenId), "Not token owner");
-        require(month < currentMonth, "Month not finalized");
-        require(!yieldClaimed[tokenId][month], "Already claimed");
-        require(monthlyDeposit[month] > 0, "No deposit");
-
-        uint256 playerShares = monthlyShares[month][tokenId];
-        require(playerShares > 0, "No shares that month");
-
-        yieldClaimed[tokenId][month] = true;
-
-        uint256 payout = (monthlyDeposit[month] * playerShares) / monthlyTotalShares[month];
-        require(payout > 0, "Nothing to claim");
-
-        (bool ok, ) = msg.sender.call{value: payout}("");
-        require(ok, "Transfer failed");
-
-        emit YieldClaimed(tokenId, month, payout);
-    }
-
-    function batchClaimYield(uint256 tokenId, uint256[] calldata months) external {
-        require(msg.sender == membersOnly.ownerOf(tokenId), "Not token owner");
-
-        uint256 total;
-        for (uint256 i = 0; i < months.length; i++) {
-            uint256 m = months[i];
-            require(m < currentMonth, "Month not finalized");
-            if (yieldClaimed[tokenId][m]) continue;
-            if (monthlyDeposit[m] == 0) continue;
-
-            uint256 playerShares = monthlyShares[m][tokenId];
-            if (playerShares == 0) continue;
-
-            yieldClaimed[tokenId][m] = true;
-            uint256 payout = (monthlyDeposit[m] * playerShares) / monthlyTotalShares[m];
-            total += payout;
-
-            emit YieldClaimed(tokenId, m, payout);
-        }
-
-        require(total > 0, "Nothing to claim");
-        (bool ok, ) = msg.sender.call{value: total}("");
-        require(ok, "Transfer failed");
-    }
-
-    function getClaimable(uint256 tokenId, uint256 month) external view returns (uint256) {
-        if (month >= currentMonth) return 0;
-        if (yieldClaimed[tokenId][month]) return 0;
-        if (monthlyDeposit[month] == 0) return 0;
-        uint256 playerShares = monthlyShares[month][tokenId];
-        if (playerShares == 0) return 0;
-        return (monthlyDeposit[month] * playerShares) / monthlyTotalShares[month];
-    }
-
-    function getTreasuryShares(uint256 tokenId) external view returns (uint256) {
-        return monthlyShares[currentMonth][tokenId];
-    }
-
-    function getTreasuryTotalShares() external view returns (uint256) {
-        return monthlyTotalShares[currentMonth];
     }
 
     // ─────────────────────────────────────────────

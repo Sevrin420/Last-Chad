@@ -29,12 +29,15 @@ Three layers:
 │  Solidity 0.8.26 · OpenZeppelin v5 · Hardhat                          │
 │                                                                        │
 │  MembersOnly (ERC-721)  ── mints ──►  MembersOnlyItems (ERC-1155)     │
-│      NFT + rarity tiers + weekly chip drop      chips (id 0) + items  │
-│                                                 + treasury yield vault │
-│        ▲            ▲              ▲                    ▲              │
-│        │ ownerOf    │ burn/mint    │ burn/mint          │ burn        │
-│   Gamble        Tournament      Market            (players burn       │
-│   (wager chips) (compete)    (trade NFTs/items)    chips for shares)  │
+│      NFT + rarity tiers + weekly chip drop   regular chips (id 0) +   │
+│                                              tournament chips (id 1)  │
+│                                              + items                  │
+│        ▲            ▲              ▲                                   │
+│        │ ownerOf    │ burn/mint    │ burn (tourney chips)              │
+│   Gamble        Market         Tournament                             │
+│   (wager        (trade         (compete; rank-based AVAX prize pool,  │
+│    regular       NFTs/items)    top locked scores win the yield)      │
+│    chips)                                                             │
 │                                                                        │
 │  TraditionalGambling — standalone ETH-backed chip house (no NFT gate) │
 └──────────────────────────────────────────────────────────────────────┘
@@ -57,7 +60,7 @@ Three layers:
 │  LAYER 3 — FRONT-END (GitHub Pages, static)                          │
 │  games/giraffesanctuary.html — single-file canvas game (~6k lines)   │
 │  ethers.js v5 + Reown/AppKit wallet · procedural pixel-art giraffes   │
-│  mint.html / treasury.html / tournament.html / market pages          │
+│  mint.html / tournament.html / market pages                          │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -221,11 +224,10 @@ Views for the UI: `nextDropAt()`, `getWeeklyReward(id)`, `claimableChips(id)`,
 
 ---
 
-## 3. Contract 2 — `MembersOnlyItems.sol` (ERC-1155 chips + items + treasury)
+## 3. Contract 2 — `MembersOnlyItems.sol` (ERC-1155 chips + items)
 
-**Inherits:** `ERC1155`, `Ownable`. **Holds the money.** Three jobs in one
-contract: (a) chips, (b) arbitrary item types, (c) the monthly treasury yield
-vault.
+**Inherits:** `ERC1155`, `Ownable`. **Holds the money.** Two jobs in one
+contract: (a) the two chip currencies, (b) arbitrary item types.
 
 ### 3.1 The two currency tokens (reserved IDs 0 & 1)
 
@@ -258,8 +260,8 @@ withdraw()        onlyOwner                  // owner may take houseSurplus() on
 > reserve, so the ETH backing player chips can never be pulled out.
 >
 > **`chipSupply` is maintained everywhere token-0 is minted/burned:** buy,
-> redeem, mint, burn, and the treasury `burnForShares` (which decrements it as
-> it burns real chips for shares). Only these paths touch token 0.
+> redeem, mint (winnings), and burn (losses/spends). Only these paths touch
+> token 0.
 
 **Tournament chips (token 1) — free, no cash value.**
 
@@ -287,12 +289,11 @@ tournaments / redeemed for prizes off-chain.
 moves either chip (MembersOnly, Gamble, Tournament) must be authorized here via
 `setGameContract(addr,true)`. **This is the single most important wiring step.**
 
-> **Accounting note (treasury entanglement):** the same contract holds the chip
-> reserve, treasury yield deposits, and the house bankroll in one AVAX balance.
-> The invariant guards chip minting, but the owner must keep
-> `balance >= reserveRequired() + outstanding yield liabilities` so treasury
-> `claimYield` payouts never dip into chip backing. Fund generously via
-> `depositHouse` / `depositYield`.
+> **Accounting note:** the contract's AVAX balance backs the chip reserve plus
+> the house bankroll (`depositHouse`) plus any item-sale proceeds. The invariant
+> guards chip minting; `withdraw` only ever releases `houseSurplus()`, so player
+> chip backing is always protected. (There is no treasury/yield vault sharing
+> this balance any more — see §3.3.)
 
 ### 3.2 Items (`ItemType`: `WeeklyChipBonus`, `OneTimeChipClaim`, `AreaAccess`)
 
@@ -302,20 +303,14 @@ moves either chip (MembersOnly, Gamble, Tournament) must be authorized here via
 - **Utilize/unutilize:** lock an item to a specific NFT (`utilizeItem`) to
   activate its perk; unutilize to trade it.
 - Perk claims: `claimWeeklyItemBonus(tokenId, itemIds[])` (once per item per
-  NFT per `currentWeek`), `claimOneTimeBonus(tokenId, itemId)`.
+  NFT per `currentWeek`), `claimOneTimeBonus(tokenId, itemId)`. Both pay
+  **tournament chips**.
 
-### 3.3 Treasury yield vault (built-in, no separate contract)
-
-```
-CHIPS_PER_SHARE = 10_000
-burnForShares(tokenId, numShares)  // burns 10k chips/share into currentMonth
-depositYield()  payable onlyOwner  // finalizes month, records AVAX, month++
-claimYield(tokenId, month)         // pro-rata: deposit * shares / totalShares
-batchClaimYield(tokenId, months[])
-```
-
-Shares reset each month (keyed by `currentMonth`). Owner deposits AVAX to
-finalize a month; shareholders claim their pro-rata slice.
+> **No treasury/yield vault.** An earlier design had players burn 10k chips per
+> share for a monthly AVAX yield; it was **removed**. Yield is now paid purely
+> through the rank-based tournament prize pool (§5) — the top locked scores win
+> the week's AVAX. **Nothing burns AVAX anywhere in the system**, and no
+> real-money chips are destroyed for yield.
 
 ---
 
@@ -569,8 +564,8 @@ Single-file HTML5 canvas game (~6,000 lines), no build step.
   total win/loss for that round.
 
 Other pages: `mint.html` (mint + name + weekly claim), `tournament.html`,
-`treasury.html`, market pages. **Every HTML page must carry the CSP meta tag**
-mandated in `CLAUDE.md`.
+market pages. **Every HTML page must carry the CSP meta tag** mandated in
+`CLAUDE.md`.
 
 ---
 
@@ -588,8 +583,7 @@ mandated in `CLAUDE.md`.
 9. REDEEM    Items.redeemChips()                        → regular chips → 0.05 AVAX each
 10. TOURNEY  Tournament.enterTournament()/lockScore()   → burns tournament chips
              → owner fundPrizePool + setPrizeWeights + settleTournament → top locks win the yield
-11. TREASURY Items.burnForShares() → claimYield()        → monthly AVAX yield
-12. TRADE    Market.list()/buy() and free ERC-1155 chip transfers
+11. TRADE    Market.list()/buy() and free ERC-1155 chip transfers
 ```
 
 ---
@@ -646,8 +640,9 @@ first, confirm green, then push the client.
    `bj.net` shared-table client mirroring the DO protocol in §9.2. CSP meta tag.
 6. `.github/workflows/deploy.yml` — `workflow_dispatch` with the §12 targets +
    the listed secrets.
-7. Wire, set tiers (90/9/1), fund the Tournament/Treasury/house as needed, and
-   verify with `target: validate`.
+7. Wire, set tiers (90/9/1), fund the Items house bankroll (`depositHouse`) and
+   Tournament prize pools (`fundPrizePool`) as needed, and verify with
+   `target: validate`.
 
 ---
 
@@ -657,5 +652,6 @@ rarity amount, unset tier → Common); no partner-NFT chip bonus; the
 two-currency economy (regular chips = 0.05 AVAX real money, token 0; tournament
 chips = free/prize-only, token 1); owner tournament-chip airdrops + item perks;
 10 AVAX mint price; rank-based tournament yield/prize settlement
-(fundPrizePool / setMinLockToQualify / setPrizeWeights / settleTournament); and
-the shared server-authoritative tables.*
+(fundPrizePool / setMinLockToQualify / setPrizeWeights / settleTournament) as
+the ONLY yield mechanism — the old chip-burn treasury/share vault was removed,
+and nothing burns AVAX anywhere; and the shared server-authoritative tables.*

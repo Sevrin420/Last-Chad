@@ -80,7 +80,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 | Contract | Purpose |
 |----------|---------|
 | `MembersOnly.sol` | ERC-721 NFT (333 max, 10 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
-| `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.05 AVAX-backed) + tournament chips (token 1, free) + items + treasury yield vault |
+| `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.05 AVAX-backed) + tournament chips (token 1, free) + items |
 | `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
 | `Market.sol` | Player-to-player NFT/item trading |
 | `Tournament.sol` | Tournament system: enter (burns tournament chips), lock score, rebuy, leaderboard |
@@ -104,14 +104,15 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 ## Player Lifecycle
 
 ```
-1. MINT         mint.html   → MembersOnly.mint()              → ERC-721 token
+1. MINT         mint.html   → MembersOnly.mint() (10 AVAX)    → ERC-721 + rarity welcome (tourney chips)
 2. SETUP        mint.html   → MembersOnly.setName()           → name (12 char max)
-3. WEEKLY CLAIM mint.html   → MembersOnly.claimWeeklyChips()  → tier + level chip reward
-4. GAMBLE       gamble.html → Gamble.commitWager()            → buy-in chips for craps
-5. CRAPS        craps.html  → WebSocket to Durable Object     → multiplayer craps
-6. CASHOUT      craps.html  → Gamble.claimWinnings()          → oracle-signed payout
-7. TOURNAMENT   tournament.html → Tournament.enterTournament() → compete for prizes
-8. TREASURY     treasury.html → Items.burnForShares()         → burn 10k chips per yield share
+3. WEEKLY CLAIM mint.html   → MembersOnly.claimWeeklyChips()  → 50/80/200 tournament chips
+4. BUY CHIPS    mint.html   → Items.buyChips() (0.05 AVAX)    → regular chips to gamble with
+5. GAMBLE       gamble.html → Gamble.commitWager()            → buy-in regular chips
+6. CRAPS        craps.html  → WebSocket to Durable Object     → multiplayer craps
+7. CASHOUT      craps.html  → Gamble.claimWinnings()          → oracle-signed payout
+8. REDEEM       mint.html   → Items.redeemChips()             → regular chips → 0.05 AVAX each
+9. TOURNAMENT   tournament.html → enter/lockScore; owner settleTournament → top locks win the yield
 ```
 
 ---
@@ -139,13 +140,13 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 ---
 
-## Treasury (Yield Vault — built into MembersOnlyItems)
+## Yield / Prizes
 
-- Each month: players burn **10,000 chips per share** via `items.burnForShares(tokenId, numShares)` — shares reset monthly
-- Burn 20,000 = 2 shares that month, etc.
-- Owner deposits AVAX via `items.depositYield()` — finalizes the month, advances to next
-- Shareholders claim proportional yield: `items.claimYield(tokenId, month)` or `items.batchClaimYield(tokenId, months[])`
-- No separate contract — treasury is part of MembersOnlyItems (chips are already there, so burning is internal)
+Yield is paid **only** through tournaments (rank-based prize pools — see the
+Tournament System section). The old chip-burn treasury/share vault was
+**removed**. **Nothing burns AVAX** anywhere in the system, and no real-money
+chips are destroyed for yield — "burn" only ever means destroying chip *tokens*
+(losses, tournament entry).
 
 ---
 
