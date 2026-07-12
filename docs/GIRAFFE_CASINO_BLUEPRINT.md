@@ -560,6 +560,12 @@ Single-file HTML5 canvas game (~6,000 lines), no build step.
   once booted (`#btn-mute.live`).
 - **Wallet:** ethers.js v5 + Reown/AppKit. All chip actions call the contracts
   in §2–§5; live tables talk to `ClubNileRoom` over WebSocket.
+- **Casino name (first entry):** on wallet connect, `ensureCasinoName()` reads
+  `isNameAssigned(tokenId)`. If named, it adopts `tokenName` as the player's
+  identity; if not, a one-shot modal writes the chosen name to the NFT via
+  `setName` (validated against `isNameTaken`). That name then drives chat, tips
+  and the roster, and the chat name field is locked — `setName` is one-shot on
+  the contract, so **names can never be changed**.
 - **Round result messaging:** after each round every player is shown their
   total win/loss for that round.
 

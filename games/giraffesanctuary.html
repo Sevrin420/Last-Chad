@@ -1434,6 +1434,9 @@ let myName = sanitizeName(localStorage.getItem('giraffe_name')) ||
 localStorage.setItem('giraffe_name', myName);
 let mySprite = parseInt(localStorage.getItem('giraffe_sprite') || String(Math.floor(Math.random() * 3)), 10) % 3;
 localStorage.setItem('giraffe_sprite', String(mySprite));
+/* once the NFT name is claimed on-chain it becomes the casino identity and can
+   never change (setName is one-shot on the contract). */
+let nameLocked = false;
 
 /* ============================ networking ============================ */
 /* ?ws=ws://localhost:PORT override for local testing */
@@ -1663,6 +1666,7 @@ document.getElementById('chat-form').addEventListener('submit', e => {
   }
 });
 chatNameEl.addEventListener('change', () => {
+  if (nameLocked) { chatNameEl.value = myName; return; }   // NFT name is permanent
   const n = sanitizeName(chatNameEl.value);
   if (!n || n === myName) { chatNameEl.value = myName; return; }
   myName = n;
@@ -5925,7 +5929,11 @@ const MINT_ABI = [
   'function mint(uint256 quantity) payable',
   'function setName(uint256 tokenId, string name)',
   'function balanceOf(address owner) view returns (uint256)',
-  'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)'
+  'function ownerOf(uint256 tokenId) view returns (address)',
+  'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
+  'function isNameAssigned(uint256 tokenId) view returns (bool)',
+  'function tokenName(uint256 tokenId) view returns (string)',
+  'function isNameTaken(string name) view returns (bool)'
 ];
 let mintSigner = null, mintAccount = null;
 function mintStatus(msg, ok) { const s = document.getElementById('mint-status'); s.textContent = msg; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; }
@@ -5954,6 +5962,7 @@ document.getElementById('mint-connect').addEventListener('click', async () => {
     document.getElementById('mint-connect').style.display = 'none';
     document.getElementById('mint-form').style.display = 'block';
     mintStatus('Connected: ' + mintAccount.slice(0,6) + '…' + mintAccount.slice(-4));
+    ensureCasinoName();   // if they already own an unnamed pass, claim a name now
   } catch (e) { mintStatus('Connect failed: ' + (e.message || e), false); }
 });
 document.getElementById('mint-go').addEventListener('click', async () => {
@@ -5972,9 +5981,11 @@ document.getElementById('mint-go').addEventListener('click', async () => {
       mintStatus('Minted! Naming your giraffe…');
       const tx2 = await c.setName(tokenId, name);
       await tx2.wait();
+      adoptCasinoName(name);
       mintStatus('Welcome, ' + name + '! Pass minted. Head north to the floor.');
     } else {
-      mintStatus('Pass minted! You can name it later. Head north to the floor.');
+      mintStatus('Pass minted! Claim your casino name…');
+      ensureCasinoName();   // prompt for the permanent name now
     }
   } catch (e) {
     const m = (e.data && e.data.message) || e.message || String(e);
@@ -6021,6 +6032,7 @@ document.getElementById('cage-connect').addEventListener('click', async () => {
     document.getElementById('cage-connect').style.display = 'none';
     document.getElementById('cage-actions').style.display = 'block';
     refreshCageBalances(); cageStatus('Connected.');
+    ensureCasinoName();   // first time here → name your NFT before you play
   } catch (e) { cageStatus('Connect failed: ' + (e.message || e), false); }
 });
 document.getElementById('cage-buyin').addEventListener('click', async () => {
@@ -6066,6 +6078,103 @@ document.getElementById('cage-cashout').addEventListener('click', async () => {
     cageStatus('Cashed out ' + amount + ' chips to your wallet.');
   } catch (e) { cageStatus('Cash-out failed: ' + ((e.data && e.data.message) || e.message || e), false); }
 });
+
+/* ── name your NFT (first entry): writes to the NFT, becomes your casino name ──
+   The check runs whenever a wallet connects. If the owned pass has no name yet
+   we prompt for one; setName() writes it on-chain (one-shot — no changing it),
+   and it drives chat, tips and the roster from then on. */
+function lockNameInput() {
+  if (!chatNameEl) return;
+  chatNameEl.value = myName;
+  chatNameEl.readOnly = true;
+  chatNameEl.disabled = true;
+  chatNameEl.title = 'Your name is set on your NFT and cannot be changed.';
+  chatNameEl.style.opacity = '0.7';
+}
+function adoptCasinoName(name) {
+  const n = sanitizeName(name);
+  if (!n) return;
+  myName = n;
+  nameLocked = true;
+  localStorage.setItem('giraffe_name', n);
+  lockNameInput();
+  /* reconnect the lobby so everyone sees the on-chain name */
+  try { if (social.lobby) social.lobby.close(); social.lobby = makeRoom('lobby', lobbyHandlers); } catch (e) {}
+  pushChat('', 'You are known as ' + n, true);
+}
+function nameStatus(m, ok) {
+  const s = document.getElementById('name-status');
+  if (s) { s.textContent = m || ''; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; }
+}
+function closeNameModal() { const p = document.getElementById('name-panel'); if (p) p.remove(); }
+function openNameModal() {
+  if (document.getElementById('name-panel') || nameLocked) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'name-panel';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;' +
+    'background:rgba(6,4,10,0.82);font-family:"Press Start 2P",monospace;';
+  wrap.innerHTML =
+    '<div style="background:#1a1216;border:3px solid #7a1a26;border-radius:10px;padding:20px;max-width:340px;width:88%;' +
+    'color:#ffe9a8;box-shadow:0 8px 40px rgba(0,0,0,0.6);">' +
+      '<div style="font-size:11px;line-height:1.6;margin-bottom:6px;color:#f0c268;">NAME YOUR GIRAFFE</div>' +
+      '<div style="font-size:8px;line-height:1.7;color:#d8c9a8;margin-bottom:12px;">This writes your name to your NFT and ' +
+        'becomes your casino name for chat &amp; tips. Choose carefully — <b>it can never be changed.</b></div>' +
+      '<input id="name-input" maxlength="12" placeholder="up to 12 characters" autocomplete="off" ' +
+        'style="width:100%;box-sizing:border-box;background:#0e0a0c;border:2px solid #7a1a26;border-radius:6px;' +
+        'color:#ffe9a8;font-family:inherit;font-size:10px;padding:9px;margin-bottom:10px;" />' +
+      '<div id="name-status" style="font-size:8px;line-height:1.6;min-height:14px;margin-bottom:10px;color:#9fd8b0;"></div>' +
+      '<button id="name-go" style="width:100%;background:#7a1a26;color:#ffe9a8;border:none;border-radius:6px;' +
+        'font-family:inherit;font-size:10px;padding:10px;cursor:pointer;">CLAIM NAME</button>' +
+    '</div>';
+  document.body.appendChild(wrap);
+  const input = wrap.querySelector('#name-input');
+  input.focus();
+  wrap.querySelector('#name-go').addEventListener('click', submitName);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitName(); } });
+}
+async function submitName() {
+  const input = document.getElementById('name-input');
+  const go = document.getElementById('name-go');
+  if (!input) return;
+  const name = sanitizeName(input.value);
+  if (!name) return nameStatus('Use 1–12 letters, numbers, - or #.', false);
+  if (!mintSigner || !mintAccount || !window.ethers) return nameStatus('Connect your wallet first.', false);
+  try {
+    if (go) go.disabled = true;
+    const c = new window.ethers.Contract(MINT_CFG.address, MINT_ABI, mintSigner);
+    nameStatus('Checking availability…');
+    if (await c.isNameTaken(name)) { if (go) go.disabled = false; return nameStatus('That name is taken — try another.', false); }
+    /* someone may have named it in another tab: adopt instead of failing */
+    if (await c.isNameAssigned(PLAYER_TOKEN)) { adoptCasinoName(await c.tokenName(PLAYER_TOKEN)); closeNameModal(); return; }
+    nameStatus('Confirm in your wallet to write it to your NFT…');
+    const tx = await c.setName(PLAYER_TOKEN, name);
+    nameStatus('Writing your name to the chain…');
+    await tx.wait();
+    adoptCasinoName(name);
+    closeNameModal();
+  } catch (e) {
+    if (go) go.disabled = false;
+    nameStatus('Could not set name: ' + ((e.data && e.data.message) || e.message || e), false);
+  }
+}
+/* run on every wallet connect: adopt the on-chain name, or prompt to claim one */
+async function ensureCasinoName() {
+  if (nameLocked || !mintAccount || !mintSigner || !window.ethers) return;
+  try {
+    const c = new window.ethers.Contract(MINT_CFG.address, MINT_ABI, mintSigner);
+    const bal = await c.balanceOf(mintAccount);
+    if (!bal || bal.isZero()) return;                       // no pass yet — nothing to name
+    /* target the owned pass (prefer the session token if this wallet owns it) */
+    let tok = PLAYER_TOKEN;
+    try {
+      const o = await c.ownerOf(tok);
+      if (o.toLowerCase() !== mintAccount.toLowerCase()) tok = (await c.tokenOfOwnerByIndex(mintAccount, 0)).toNumber();
+    } catch (e) { tok = (await c.tokenOfOwnerByIndex(mintAccount, 0)).toNumber(); }
+    PLAYER_TOKEN = tok;
+    if (await c.isNameAssigned(tok)) { adoptCasinoName(await c.tokenName(tok)); return; }
+    openNameModal();                                        // first time here — claim a name
+  } catch (e) { /* read failed; will retry on the next wallet connect */ }
+}
 
 function update() {
   tick++;
@@ -6172,6 +6281,7 @@ if (new URLSearchParams(location.search).has('debug')) {
   window.CN = {
     enterCraps, enterBlackjack, enterRoulette, enterTourney, leaveTourney, leaveTable, player, cr, bj, rou, social, popups, sound, SPRITES,
     traitsForToken, characterForToken, PLAYER_TOKEN,
+    ensureCasinoName, openNameModal, adoptCasinoName, get nameLocked() { return nameLocked; }, get myName() { return myName; },
     get chips() { return chips; }, setChips,
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
     skipTitle() { started = true; titleAlpha = 0; }
