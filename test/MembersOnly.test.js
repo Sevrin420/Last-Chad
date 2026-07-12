@@ -239,6 +239,27 @@ describe("MembersOnly", function () {
     it("should report weekly reward correctly", async function () {
       expect(await membersOnly.getWeeklyReward(1)).to.equal(25);
     });
+
+    it("batch-claims stacked weeks across all owned tokens in one tx", async function () {
+      await membersOnly.connect(user1).mint(1, { value: MINT_PRICE }); // token 2 (unset tier → Common = 20 + level5 = 25/wk)
+      await passWeeks(2);
+      const before = await items.balanceOf(user1.address, TCHIPS_ID);
+      await membersOnly.connect(user1).claimWeeklyChipsBatch([1, 2]);
+      const after = await items.balanceOf(user1.address, TCHIPS_ID);
+      expect(after - before).to.equal(100n); // (25 + 25) * 2 weeks
+      // both tokens are now resynced — a second batch has nothing to claim
+      await expect(
+        membersOnly.connect(user1).claimWeeklyChipsBatch([1, 2])
+      ).to.be.revertedWith("Nothing to claim");
+    });
+
+    it("batch claim rejects tokens the caller does not own", async function () {
+      await membersOnly.connect(user2).mint(1, { value: MINT_PRICE }); // token 2 owned by user2
+      await passWeeks(1);
+      await expect(
+        membersOnly.connect(user1).claimWeeklyChipsBatch([1, 2])
+      ).to.be.revertedWith("Not token owner");
+    });
   });
 
   // ─── Chips are tradeable ERC-1155 ───

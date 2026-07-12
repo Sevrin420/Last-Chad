@@ -132,6 +132,8 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 - **Mint welcome bonus** = `tierChipReward[effectiveTier(id)]`. Rarity is set post-mint, so unset tier defaults to **Common (50)**; owner upgrades chosen tokens to Rare/Legendary afterward. **No partner-NFT chip bonus** (removed).
 - Award directly: owner `items.airdropTournamentChips(to, amount)` / `batchAirdropTournamentChips(...)`
 - Award via items: `WeeklyChipBonus` item = +X tournament chips/week (an item that *increases chips received*); `OneTimeChipClaim` item = one-time grant
+- Claim weekly: `claimWeeklyChips(tokenId)` per pass, or `claimWeeklyChipsBatch(tokenIds[])` to sweep every owned pass in one tx (the game's "MY GIRAFFES" popup)
+- Multi-NFT identity: a wallet plays as one **active** pass at a time; your casino name is that pass's `tokenName`. Switch active in the MY GIRAFFES popup.
 - Spend: `Tournament.enterTournament` burns them via `items.burnTournamentChips`
 - Cannot be redeemed for AVAX; only usable to enter tournaments / redeem for prizes
 - Inside a tournament there's ALSO an internal `entry.tournamentChips` score counter (a `uint`, not a token) — keep distinct

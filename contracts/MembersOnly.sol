@@ -349,6 +349,28 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         emit WeeklyChipsClaimed(tokenId, currentWeek(), total);
     }
 
+    /// @notice Claim the weekly tournament-chip drop for many tokens at once —
+    ///         one signature mints the summed total across every listed token
+    ///         the caller owns. Tokens with nothing owed are skipped.
+    function claimWeeklyChipsBatch(uint256[] calldata tokenIds) external {
+        uint256 cw = currentWeek();
+        uint256 total;
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            require(ownerOf(tokenId) == msg.sender, "Not token owner");
+            uint256 last = lastClaimWeek[tokenId];
+            if (cw <= last) continue;                        // nothing owed for this one
+            uint256 reward = tierChipReward[effectiveTier(tokenId)] + levelBonusChips[getLevel(tokenId)];
+            if (reward == 0) continue;
+            uint256 amount = reward * (cw - last);
+            lastClaimWeek[tokenId] = cw;
+            total += amount;
+            emit WeeklyChipsClaimed(tokenId, cw, amount);
+        }
+        require(total > 0, "Nothing to claim");
+        items.mintTournamentChips(msg.sender, total);
+    }
+
     // whole unclaimed weeks waiting for this token (safe against a moved schedule)
     function claimableWeeks(uint256 tokenId) public view returns (uint256) {
         uint256 cw = currentWeek();

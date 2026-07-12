@@ -532,6 +532,7 @@ body {
         <label>WITHDRAW (buy in)<input id="cage-in" type="number" min="1" placeholder="chips to play with"></label>
         <button id="cage-buyin" type="button">WITHDRAW →</button>
         <button id="cage-cashout" type="button">← RETURN WHOLE STACK</button>
+        <button id="cage-herd" type="button">MY GIRAFFES · CLAIM WEEKLY</button>
       </div>
       <div id="cage-status"></div>
     </div>
@@ -5933,7 +5934,11 @@ const MINT_ABI = [
   'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
   'function isNameAssigned(uint256 tokenId) view returns (bool)',
   'function tokenName(uint256 tokenId) view returns (string)',
-  'function isNameTaken(string name) view returns (bool)'
+  'function isNameTaken(string name) view returns (bool)',
+  'function getWeeklyReward(uint256 tokenId) view returns (uint256)',
+  'function claimableChips(uint256 tokenId) view returns (uint256)',
+  'function tierName(uint256 tokenId) view returns (string)',
+  'function claimWeeklyChipsBatch(uint256[] tokenIds)'
 ];
 let mintSigner = null, mintAccount = null;
 function mintStatus(msg, ok) { const s = document.getElementById('mint-status'); s.textContent = msg; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; }
@@ -6078,6 +6083,7 @@ document.getElementById('cage-cashout').addEventListener('click', async () => {
     cageStatus('Cashed out ' + amount + ' chips to your wallet.');
   } catch (e) { cageStatus('Cash-out failed: ' + ((e.data && e.data.message) || e.message || e), false); }
 });
+document.getElementById('cage-herd').addEventListener('click', openHerdModal);
 
 /* ── name your NFT (first entry): writes to the NFT, becomes your casino name ──
    The check runs whenever a wallet connects. If the owned pass has no name yet
@@ -6107,8 +6113,10 @@ function nameStatus(m, ok) {
   if (s) { s.textContent = m || ''; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; }
 }
 function closeNameModal() { const p = document.getElementById('name-panel'); if (p) p.remove(); }
-function openNameModal() {
-  if (document.getElementById('name-panel') || nameLocked) return;
+let namingToken = null;   // which token the name modal is currently naming
+function openNameModal(tokenId) {
+  if (document.getElementById('name-panel')) return;
+  namingToken = tokenId || PLAYER_TOKEN;
   const wrap = document.createElement('div');
   wrap.id = 'name-panel';
   wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;' +
@@ -6139,19 +6147,25 @@ async function submitName() {
   const name = sanitizeName(input.value);
   if (!name) return nameStatus('Use 1–12 letters, numbers, - or #.', false);
   if (!mintSigner || !mintAccount || !window.ethers) return nameStatus('Connect your wallet first.', false);
+  const tok = namingToken || PLAYER_TOKEN;
   try {
     if (go) go.disabled = true;
     const c = new window.ethers.Contract(MINT_CFG.address, MINT_ABI, mintSigner);
     nameStatus('Checking availability…');
     if (await c.isNameTaken(name)) { if (go) go.disabled = false; return nameStatus('That name is taken — try another.', false); }
     /* someone may have named it in another tab: adopt instead of failing */
-    if (await c.isNameAssigned(PLAYER_TOKEN)) { adoptCasinoName(await c.tokenName(PLAYER_TOKEN)); closeNameModal(); return; }
+    if (await c.isNameAssigned(tok)) {
+      if (tok === PLAYER_TOKEN) adoptCasinoName(await c.tokenName(tok));
+      closeNameModal(); return;
+    }
     nameStatus('Confirm in your wallet to write it to your NFT…');
-    const tx = await c.setName(PLAYER_TOKEN, name);
+    const tx = await c.setName(tok, name);
     nameStatus('Writing your name to the chain…');
     await tx.wait();
-    adoptCasinoName(name);
+    if (tok === PLAYER_TOKEN) adoptCasinoName(name);       // it's your active pass → becomes your name
+    else pushChat('', 'Named giraffe #' + tok + ': ' + name, true);
     closeNameModal();
+    if (document.getElementById('herd-panel')) openHerdModal();   // refresh the list
   } catch (e) {
     if (go) go.disabled = false;
     nameStatus('Could not set name: ' + ((e.data && e.data.message) || e.message || e), false);
@@ -6172,8 +6186,117 @@ async function ensureCasinoName() {
     } catch (e) { tok = (await c.tokenOfOwnerByIndex(mintAccount, 0)).toNumber(); }
     PLAYER_TOKEN = tok;
     if (await c.isNameAssigned(tok)) { adoptCasinoName(await c.tokenName(tok)); return; }
-    openNameModal();                                        // first time here — claim a name
+    openNameModal(tok);                                     // first time here — claim a name
   } catch (e) { /* read failed; will retry on the next wallet connect */ }
+}
+
+/* ── MY GIRAFFES: multi-NFT identity + claim weekly tournament chips for all ──
+   Which name is used? Your ACTIVE giraffe's name. A wallet with several passes
+   plays as one at a time (default: the pass you entered with); switch with
+   PLAY AS. This popup also claims every pass's weekly tournament chips in a
+   single transaction (claimWeeklyChipsBatch). */
+async function loadHerd() {
+  const provider = mintSigner ||
+    (window.ethers && window.ethereum ? new window.ethers.providers.Web3Provider(window.ethereum) : null);
+  if (!provider || !mintAccount) return null;
+  const c = new window.ethers.Contract(MINT_CFG.address, MINT_ABI, provider);
+  const bal = (await c.balanceOf(mintAccount)).toNumber();
+  const list = [];
+  for (let i = 0; i < bal; i++) {
+    const id = (await c.tokenOfOwnerByIndex(mintAccount, i)).toNumber();
+    let name = '', weekly = 0, ready = 0, tier = '';
+    try { name = await c.tokenName(id); } catch (e) {}
+    try { weekly = (await c.getWeeklyReward(id)).toNumber(); } catch (e) {}
+    try { ready = (await c.claimableChips(id)).toNumber(); } catch (e) {}
+    try { tier = await c.tierName(id); } catch (e) {}
+    list.push({ id, name, weekly, ready, tier });
+  }
+  return list;
+}
+function closeHerdModal() { const p = document.getElementById('herd-panel'); if (p) p.remove(); }
+function herdStatus(m, ok) { const s = document.getElementById('herd-status'); if (s) { s.textContent = m || ''; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; } }
+async function openHerdModal() {
+  if (!mintAccount || !window.ethers) { cageStatus('Connect a wallet first.', false); return; }
+  closeHerdModal();
+  const wrap = document.createElement('div');
+  wrap.id = 'herd-panel';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;' +
+    'background:rgba(6,4,10,0.82);font-family:"Press Start 2P",monospace;';
+  wrap.innerHTML =
+    '<div style="background:#1a1216;border:3px solid #7a1a26;border-radius:10px;padding:18px;max-width:380px;width:92%;' +
+    'max-height:86vh;overflow:auto;color:#ffe9a8;box-shadow:0 8px 40px rgba(0,0,0,0.6);">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<span style="font-size:11px;color:#f0c268;">MY GIRAFFES</span>' +
+        '<button id="herd-close" style="background:#7a1a26;color:#ffe9a8;border:none;border-radius:5px;' +
+          'font-family:inherit;font-size:9px;padding:5px 8px;cursor:pointer;">X</button></div>' +
+      '<div style="font-size:8px;line-height:1.7;color:#d8c9a8;margin-bottom:10px;">Your casino name comes from your ' +
+        '<b>active</b> giraffe. Claim every giraffe\'s weekly tournament chips in one transaction.</div>' +
+      '<div id="herd-list" style="font-size:8px;line-height:1.6;">Loading your herd…</div>' +
+      '<div id="herd-total" style="font-size:9px;color:#9fd8b0;margin:10px 0 8px;"></div>' +
+      '<button id="herd-claim" style="width:100%;background:#7a1a26;color:#ffe9a8;border:none;border-radius:6px;' +
+        'font-family:inherit;font-size:10px;padding:10px;cursor:pointer;">CLAIM ALL WEEKLY CHIPS</button>' +
+      '<div id="herd-status" style="font-size:8px;line-height:1.6;min-height:14px;margin-top:8px;color:#9fd8b0;"></div>' +
+    '</div>';
+  document.body.appendChild(wrap);
+  wrap.querySelector('#herd-close').addEventListener('click', closeHerdModal);
+  const list = await loadHerd();
+  const listEl = document.getElementById('herd-list');
+  if (!listEl) return;
+  if (!list || !list.length) {
+    listEl.textContent = 'No giraffes in this wallet yet — mint one.';
+    const cb = document.getElementById('herd-claim'); if (cb) cb.style.display = 'none';
+    return;
+  }
+  let totalReady = 0, html = '';
+  for (const g of list) {
+    totalReady += g.ready;
+    const active = g.id === PLAYER_TOKEN;
+    const nm = g.name || '(unnamed)';
+    html += '<div style="border-top:1px solid #3a2a2e;padding:7px 0;">' +
+      '<div style="color:' + (active ? '#f0c268' : '#ffe9a8') + ';">#' + g.id + ' · ' + escapeHtml(nm) +
+        (active ? '  ◄ ACTIVE' : '') + '</div>' +
+      '<div style="color:#b7a98c;">' + escapeHtml(g.tier || 'Common') + ' · weekly ' + g.weekly + ' · ready ' + g.ready + '</div>' +
+      '<div style="margin-top:4px;">' +
+        (g.name
+          ? (active ? '' : '<button data-play="' + g.id + '" data-nm="' + escapeHtml(g.name) + '" ' +
+              'style="background:#22784e;color:#eafff0;border:none;border-radius:5px;font-family:inherit;font-size:8px;padding:5px 7px;cursor:pointer;">PLAY AS</button>')
+          : '<button data-name-id="' + g.id + '" ' +
+              'style="background:#7a1a26;color:#ffe9a8;border:none;border-radius:5px;font-family:inherit;font-size:8px;padding:5px 7px;cursor:pointer;">NAME IT</button>') +
+      '</div></div>';
+  }
+  listEl.innerHTML = html;
+  document.getElementById('herd-total').textContent = 'Ready to claim: ' + totalReady + ' tournament chips';
+  const claimBtn = document.getElementById('herd-claim');
+  claimBtn.disabled = totalReady === 0;
+  if (totalReady === 0) claimBtn.style.opacity = '0.6';
+  listEl.querySelectorAll('[data-play]').forEach(b =>
+    b.addEventListener('click', () => setActiveGiraffe(parseInt(b.getAttribute('data-play'), 10), b.getAttribute('data-nm'))));
+  listEl.querySelectorAll('[data-name-id]').forEach(b =>
+    b.addEventListener('click', () => openNameModal(parseInt(b.getAttribute('data-name-id'), 10))));
+  claimBtn.addEventListener('click', () => claimAllWeekly(list.map(g => g.id)));
+}
+async function claimAllWeekly(ids) {
+  if (!mintSigner) return herdStatus('Connect your wallet first.', false);
+  const btn = document.getElementById('herd-claim');
+  try {
+    if (btn) btn.disabled = true;
+    const c = new window.ethers.Contract(MINT_CFG.address, MINT_ABI, mintSigner);
+    herdStatus('Confirm in your wallet to claim all…');
+    const tx = await c.claimWeeklyChipsBatch(ids);
+    herdStatus('Claiming your weekly chips…');
+    await tx.wait();
+    herdStatus('Claimed! Weekly tournament chips are in your wallet.');
+    openHerdModal();   // refresh (ready → 0)
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    herdStatus('Claim failed: ' + ((e.data && e.data.message) || e.message || e), false);
+  }
+}
+function setActiveGiraffe(id, name) {
+  PLAYER_TOKEN = id;
+  try { SPRITES.player = characterForToken(id); } catch (e) {}
+  adoptCasinoName(name);        // your casino name is now this giraffe's name
+  closeHerdModal();
 }
 
 function update() {
@@ -6281,7 +6404,8 @@ if (new URLSearchParams(location.search).has('debug')) {
   window.CN = {
     enterCraps, enterBlackjack, enterRoulette, enterTourney, leaveTourney, leaveTable, player, cr, bj, rou, social, popups, sound, SPRITES,
     traitsForToken, characterForToken, PLAYER_TOKEN,
-    ensureCasinoName, openNameModal, adoptCasinoName, get nameLocked() { return nameLocked; }, get myName() { return myName; },
+    ensureCasinoName, openNameModal, adoptCasinoName, openHerdModal, loadHerd, setActiveGiraffe,
+    get nameLocked() { return nameLocked; }, get myName() { return myName; }, get playerToken() { return PLAYER_TOKEN; },
     get chips() { return chips; }, setChips,
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
     skipTitle() { started = true; titleAlpha = 0; }

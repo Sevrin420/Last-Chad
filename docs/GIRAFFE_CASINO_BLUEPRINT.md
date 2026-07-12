@@ -198,6 +198,8 @@ currentWeek()      = (block.timestamp - weekAnchor) / weekLength;
 claimableWeeks(id) = currentWeek() - lastClaimWeek[id]  (>=0);
 claimWeeklyChips(id): reward = tierChipReward[effectiveTier(id)] + levelBonusChips[level];
                       mints reward × claimableWeeks (tournament chips); sets lastClaimWeek.
+claimWeeklyChipsBatch(ids[]): claim every owned token's stacked weeks in ONE tx —
+                      sums the drops, mints the total once, skips zero-owed tokens.
 effectiveTier(id): tokenTier[id] == 0 ? Common : tokenTier[id]   // unset → Common
 ```
 
@@ -566,6 +568,13 @@ Single-file HTML5 canvas game (~6,000 lines), no build step.
   `setName` (validated against `isNameTaken`). That name then drives chat, tips
   and the roster, and the chat name field is locked — `setName` is one-shot on
   the contract, so **names can never be changed**.
+- **Multiple NFTs — which name?** Your identity is your **active** giraffe
+  (`PLAYER_TOKEN`, default: the pass you entered with). The **MY GIRAFFES**
+  popup (from the cage) lists every owned pass with its rarity, weekly
+  tournament-chip rate and ready-to-claim amount, lets you **PLAY AS** any
+  *named* pass (switches your name + sprite) or **NAME IT** an unnamed one, and
+  has **CLAIM ALL WEEKLY CHIPS** → `claimWeeklyChipsBatch(ownedIds)` to sweep
+  every pass's weekly tournament chips in a single transaction.
 - **Round result messaging:** after each round every player is shown their
   total win/loss for that round.
 
