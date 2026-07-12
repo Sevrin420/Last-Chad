@@ -971,30 +971,119 @@ function accPainter(t, ax) {
 /* GIRAFFE features — ossicones (little knobbed horns) and a few coat spots,
    stamped on every character so the whole sanctuary is giraffes. Drawn in
    logical head space before the outline pass. */
-const GIRAFFE_SPOT = '#a9713a', OSS_STALK = '#d9b06a', OSS_KNOB = '#6b4a24';
-function drawGiraffe(g, dir) {
-  const cx = dir === 'side' ? 5 : 9;
-  /* ossicones on top of the head */
-  const oss = (ox) => {
-    blk(g, ox, -0.4, 1.3, 3, OSS_STALK);
-    blk(g, ox - 0.3, -1.6, 1.9, 1.5, OSS_KNOB);
-    blk(g, ox, -1.4, 0.7, 0.7, '#8a6230');
+/* ============================ ACTUAL GIRAFFES ============================
+   A bespoke sprite builder that draws a real four-legged giraffe (long neck,
+   small ossiconed head, tail, coat spots) for every character. Returns the
+   same {down,up,left,right}=[frame0,frame1] shape drawEntity expects, so the
+   whole game runs unchanged — only the artwork is a giraffe now. Feet sit at
+   the bottom of the 20x28 logical canvas. */
+const GIR_TONES = [
+  ['#efd097', '#f8e2b1', '#cfa460'],
+  ['#e6c485', '#f2d9a4', '#c39a56'],
+  ['#dcb772', '#ecd196', '#bb9150'],
+  ['#f0d6a0', '#f9e6ba', '#d0aa64']
+];
+function makeGiraffe(t) {
+  let h = 2166136261;
+  for (const ch of JSON.stringify(t || {})) h = (Math.imul(h ^ ch.charCodeAt(0), 16777619)) >>> 0;
+  const [COAT, HI, SH] = GIR_TONES[h % GIR_TONES.length];
+  const SPOT = '#a9713a', HOOF = '#33240f', OSSK = '#4a3418', MUZ = HI,
+        NOSE = '#5a3c1e', EYE = '#241a10', MANE = '#8a5f2c', TAIL = '#33240f';
+  const P = (g, x, y, w, hh, col) => { g.fillStyle = col; g.fillRect(x, y, w, hh); };
+  const spots = (g, list) => { for (const s of list) P(g, s[0], s[1], s[2] || 1.6, s[3] || 1.6, SPOT); };
+  const mk = (fn) => {
+    const c = document.createElement('canvas');
+    c.width = 40; c.height = 56; c.lw = 20; c.lh = 28;
+    const g = c.getContext('2d');
+    g.setTransform(2, 0, 0, 2, 0, 0); g.imageSmoothingEnabled = false; g.translate(1, 1);
+    fn(g);
+    g.setTransform(1, 0, 0, 1, 0, 0); outlineHD(c);
+    return c;
   };
-  if (dir === 'side') { oss(cx - 2.6); }
-  else { oss(cx - 3.2); oss(cx + 1.9); }
-  /* a scatter of coat spots (kept clear of the eyes ~y7-9) */
-  const sp = (x, y, w, h) => blk(g, x, y, w, h, GIRAFFE_SPOT);
-  if (dir === 'side') {
-    sp(1.5, 4.5, 2, 1.8); sp(5.5, 11.5, 1.8, 1.8); sp(2, 12.5, 1.8, 1.8);
-  } else {
-    sp(2.5, 4.5, 2, 1.8); sp(13.5, 4.5, 2, 1.8);
-    sp(4, 12.5, 2, 1.8); sp(12, 12.5, 2, 1.8); sp(8.5, 12.8, 2, 1.6);
-  }
+  const mirror = (src) => {
+    const m = document.createElement('canvas');
+    m.width = 40; m.height = 56; m.lw = 20; m.lh = 28;
+    const mg = m.getContext('2d'); mg.imageSmoothingEnabled = false;
+    mg.translate(40, 0); mg.scale(-1, 1); mg.drawImage(src, 0, 0);
+    return m;
+  };
+  const oss = (g, ox) => { P(g, ox, 1, 1.2, 2, HI); P(g, ox - 0.4, 0.4, 2, 1.3, OSSK); };
+  /* front legs / hind hints, frame-staggered for a walk */
+  const legsFB = (g, f) => {
+    const near = COAT, far = SH;
+    P(g, 4.8, 21, 1.4, 5.4, far); P(g, 13.8, 21, 1.4, 5.4, far);   // hind legs peeking
+    P(g, 4.8, 25.8, 1.7, 1.3, HOOF); P(g, 13.8, 25.8, 1.7, 1.3, HOOF);
+    const lx = f ? 6.2 : 6.6, rx = f ? 11.8 : 11.4;
+    P(g, lx, 20.5, 1.9, 6.2, near); P(g, rx, 20.5, 1.9, 6.2, near);
+    P(g, lx - 0.2, 26 + (f ? 0.4 : 0), 2.3, 1.2, HOOF);
+    P(g, rx - 0.2, 26 + (f ? 0 : 0.4), 2.3, 1.2, HOOF);
+  };
+  const drawDown = (g, f) => {
+    oss(g, 8.1); oss(g, 10.7);
+    P(g, 5.9, 3.3, 1.7, 1.6, SH); P(g, 12.4, 3.3, 1.7, 1.6, SH);   // ears
+    P(g, 7, 2.6, 6, 4.2, COAT);                                     // head
+    P(g, 7, 2.6, 6, 0.9, HI);
+    P(g, 8.3, 4, 1.1, 1.2, EYE); P(g, 10.6, 4, 1.1, 1.2, EYE);      // eyes
+    P(g, 8.4, 5.4, 3.2, 1.6, MUZ);                                  // muzzle
+    P(g, 8.9, 5.9, 0.7, 0.7, NOSE); P(g, 10.4, 5.9, 0.7, 0.7, NOSE);
+    P(g, 8.3, 6.6, 3.4, 7.2, COAT);                                 // neck
+    P(g, 8.3, 6.6, 0.8, 7.2, HI); P(g, 11.1, 6.6, 0.9, 7.2, SH);
+    P(g, 5.5, 13, 9, 8.2, COAT);                                    // body
+    P(g, 6, 13, 8, 1, HI); P(g, 6, 20.2, 8, 1, SH);
+    legsFB(g, f);
+    spots(g, [[9, 8], [9.9, 10.8, 1.4, 1.4], [6.2, 14.6], [11.4, 15.2], [8.4, 17.8], [12, 18.6, 1.4, 1.4]]);
+  };
+  const drawUp = (g, f) => {
+    oss(g, 8.1); oss(g, 10.7);
+    P(g, 5.9, 3.3, 1.7, 1.6, SH); P(g, 12.4, 3.3, 1.7, 1.6, SH);
+    P(g, 7, 2.6, 6, 4.2, COAT); P(g, 7, 2.6, 6, 0.9, HI);
+    P(g, 9.3, 3.4, 1.4, 3.1, MANE);                                 // mane crown
+    P(g, 8.3, 6.6, 3.4, 7.2, COAT);
+    P(g, 9.4, 6.6, 1.2, 7.2, MANE);                                 // mane down the neck
+    P(g, 5.5, 13, 9, 8.2, COAT); P(g, 6, 13, 8, 1, HI); P(g, 6, 20.2, 8, 1, SH);
+    legsFB(g, f);
+    P(g, 9.4, 19, 1.2, 5, COAT); P(g, 9.1, 23.4, 1.8, 2.2, TAIL);   // tail
+    spots(g, [[6.4, 8], [11.6, 9], [6.5, 15], [11.4, 15.5], [8.6, 18]]);
+  };
+  const drawSide = (g, f) => {
+    /* head to the LEFT */
+    P(g, 3.3, 0.8, 1.2, 2.1, HI); P(g, 3, 0.3, 1.9, 1.2, OSSK);     // ossicone
+    P(g, 4.7, 1.2, 1, 1.7, HI); P(g, 4.5, 0.7, 1.6, 1.1, OSSK);     // second ossicone
+    P(g, 5.1, 2.6, 1.6, 1.5, SH);                                   // ear
+    P(g, 2, 2.6, 4, 3.6, COAT);                                     // head
+    P(g, 1.1, 4.1, 1.7, 2, MUZ);                                    // snout
+    P(g, 1.2, 4.7, 0.7, 0.7, NOSE);                                 // nostril
+    P(g, 3.5, 3.5, 1.1, 1.2, EYE);                                  // eye
+    for (let i = 0; i < 8; i++) {                                   // diagonal neck
+      const x = 4.6 + i * 0.5, y = 6 + i;
+      P(g, x, y, 3.3, 1.06, COAT);
+      P(g, x + 2.5, y, 0.9, 1.06, MANE);                            // mane on the back edge
+      P(g, x, y, 0.7, 1.06, HI);
+    }
+    P(g, 8, 12.5, 9, 7.6, COAT);                                    // body
+    P(g, 8.3, 12.5, 8.4, 1, HI); P(g, 8.3, 19.2, 8.4, 1, SH);
+    P(g, 16.4, 13.6, 1, 6, COAT); P(g, 16.1, 19, 1.6, 2.2, TAIL);   // tail at the back
+    /* four legs, near pair COAT, far pair SH, frame-staggered */
+    const fnx = f ? 8.7 : 9.2, ffx = f ? 11.4 : 10.9, bnx = f ? 15.4 : 14.9, bfx = f ? 16.2 : 16.6;
+    P(g, ffx, 19.8, 1.6, 6.9, SH); P(g, bfx, 19.8, 1.6, 6.9, SH);
+    P(g, ffx - 0.1, 26.2, 1.9, 1.1, HOOF); P(g, bfx - 0.1, 26.2, 1.9, 1.1, HOOF);
+    P(g, fnx, 19.8, 1.7, 7, COAT); P(g, bnx, 19.8, 1.7, 7, COAT);
+    P(g, fnx - 0.1, 26.4, 2, 1.1, HOOF); P(g, bnx - 0.1, 26.4, 2, 1.1, HOOF);
+    spots(g, [[5.4, 8.5], [6.6, 10.5], [9, 14], [12.1, 13.5], [14.2, 15], [10.6, 16.8]]);
+  };
+  const down  = [0, 1].map(f => mk(g => drawDown(g, f)));
+  const up    = [0, 1].map(f => mk(g => drawUp(g, f)));
+  const left  = [0, 1].map(f => mk(g => drawSide(g, f)));
+  const right = left.map(mirror);
+  return { down, up, left, right };
 }
 
-/* traits in, character out — the NFT metadata surface (333 of these) */
+/* traits in, character out — every inhabitant of the sanctuary is a real
+   giraffe now; the trait data only tints the coat shade. */
 function makeCharacterHD(t) {
-  /* every face is a giraffe: nudge the given skin toward a golden giraffe coat */
+  return makeGiraffe(t);
+}
+function makeCharacterHD_human(t) {
   const skin = ramp(mixc('#e8c88a', t.skin || '#e8c88a', 0.22)), hat = ramp(t.hat), coat = ramp(t.coat);
   const pants = ramp(t.pants), hair = ramp(t.hair), shoes = ramp(t.shoes);
   const shirt = ramp(t.shirt || '#f4ead2');
