@@ -157,6 +157,22 @@ describe("MembersOnly", function () {
       await membersOnly.setTierReward(1, 10);
       expect(await membersOnly.tierChipReward(1)).to.equal(10);
     });
+
+    it("defaults an unset tier to Common (50) for chip math", async function () {
+      expect(await membersOnly.effectiveTier(1)).to.equal(1);
+      expect(await membersOnly.getWeeklyReward(1)).to.equal(50);
+    });
+
+    it("weekly reward reflects rarity once the tier is set (Legendary = 200)", async function () {
+      await membersOnly.setTier(1, 3);
+      expect(await membersOnly.getWeeklyReward(1)).to.equal(200);
+    });
+
+    it("has default rarity rewards 50/80/200", async function () {
+      expect(await membersOnly.tierChipReward(1)).to.equal(50);
+      expect(await membersOnly.tierChipReward(2)).to.equal(80);
+      expect(await membersOnly.tierChipReward(3)).to.equal(200);
+    });
   });
 
   // ─── Level System ───
@@ -256,8 +272,8 @@ describe("MembersOnly", function () {
     });
   });
 
-  // ─── Partner Bonus ───
-  describe("Partner Bonus", function () {
+  // ─── Partner NFTs give NO chip bonus (removed) ───
+  describe("Partner NFTs (no chip bonus)", function () {
     let partnerNft;
 
     beforeEach(async function () {
@@ -267,13 +283,11 @@ describe("MembersOnly", function () {
       await membersOnly.registerPartner("MockPartner", await partnerNft.getAddress());
     });
 
-    it("should give bonus chips when minting with partner NFT", async function () {
-      await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      expect(await items.balanceOf(user1.address, TCHIPS_ID)).to.equal(BASE_CHIPS + 100n);
-    });
-
-    it("should not give bonus without partner NFT", async function () {
-      await membersOnly.connect(user2).mint(1, { value: MINT_PRICE });
+    it("gives the same welcome chips with or without a partner NFT", async function () {
+      await membersOnly.connect(user1).mint(1, { value: MINT_PRICE }); // holds partner NFT
+      await membersOnly.connect(user2).mint(1, { value: MINT_PRICE }); // no partner NFT
+      // both get the rarity welcome (unset tier → Common → 50), no partner bonus
+      expect(await items.balanceOf(user1.address, TCHIPS_ID)).to.equal(BASE_CHIPS);
       expect(await items.balanceOf(user2.address, TCHIPS_ID)).to.equal(BASE_CHIPS);
     });
   });

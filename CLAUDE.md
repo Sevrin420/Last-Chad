@@ -127,7 +127,10 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 - **Solvency invariant**: `balance >= chipSupply * 0.05 AVAX`. Free mints (winnings) require the house bankroll to be funded via `items.depositHouse()` or they revert `"House underfunded"`. Owner `withdraw()` can only take the surplus above the reserve.
 
 **Tournament chips** = ERC-1155 token **ID 1** — free, **no cash value**, prize-only
-- Get them: weekly rarity drop (50/80/200) + mint welcome bonus + item perks — all via `items.mintTournamentChips`
+- Get them: weekly rarity drop (50/80/200) + mint welcome bonus (= the token's rarity amount) + item perks
+- **Mint welcome bonus** = `tierChipReward[effectiveTier(id)]`. Rarity is set post-mint, so unset tier defaults to **Common (50)**; owner upgrades chosen tokens to Rare/Legendary afterward. **No partner-NFT chip bonus** (removed).
+- Award directly: owner `items.airdropTournamentChips(to, amount)` / `batchAirdropTournamentChips(...)`
+- Award via items: `WeeklyChipBonus` item = +X tournament chips/week (an item that *increases chips received*); `OneTimeChipClaim` item = one-time grant
 - Spend: `Tournament.enterTournament` burns them via `items.burnTournamentChips`
 - Cannot be redeemed for AVAX; only usable to enter tournaments / redeem for prizes
 - Inside a tournament there's ALSO an internal `entry.tournamentChips` score counter (a `uint`, not a token) — keep distinct
@@ -196,11 +199,17 @@ The DO is the **single source of truth** for all game state. One DO instance per
 
 ## Tournament System
 
-- Owner creates tournaments via `createTournament(name, startTime, endTime, chipCost, tokenGated, tournamentChips, rebuyAllowed)`
-- Players enter via `enterTournament(tournamentId, tokenId)` — deducts chipCost, awards tournamentChips
-- Players lock their score via `lockScore(tournamentId, tokenId, amount)`
+- Owner creates tournaments via `createTournament(name, startTime, endTime, chipCost, tournamentChips, rebuyAllowed)`
+- Players enter via `enterTournament(tournamentId, tokenId)` — burns `chipCost` **tournament chips** (token 1), awards internal `tournamentChips` score counter
+- Players lock their score via `lockScore(tournamentId, tokenId)`
 - If rebuyAllowed, players can re-enter; new score replaces old only if higher
 - Leaderboard paginated via `getLeaderboard(tournamentId, offset, limit)`
+
+**Rank-based yield/prize payout (owner-configurable):**
+- `fundPrizePool(tournamentId)` (payable) — top up the AVAX pool with the week's yield
+- `setMinLockToQualify(tournamentId, minLock)` — min chips a player must lock to win
+- `setPrizeWeights(tournamentId, weightsBps[])` — split by rank in bps (`[10000]` = winner-take-all; `[6000,3000,1000]` = 60/30/10); sum ≤ 10000
+- `settleTournament(tournamentId, rankedTokenIds[])` — owner passes entrants ordered highest-locked-first; contract verifies descending order + minLock, pays `pool * weight / 10000` to each qualifying token's owner. `settled` blocks double-pay; funded pools are shielded from `withdraw()`.
 
 ---
 

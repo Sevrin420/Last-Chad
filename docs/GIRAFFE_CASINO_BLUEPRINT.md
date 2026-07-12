@@ -152,13 +152,16 @@ tierName(uint256 tokenId) → "Common" | "Rare" | "Legendary" | ""
 | `MAX_SUPPLY` | 333 | hard cap |
 | `MINT_PRICE` | **10 ether** | 10 AVAX per mint |
 | `MAX_MINT_PER_WALLET` | 5 | anti-whale |
-| `BASE_CHIPS` | 50 | **tournament** chips minted per NFT at mint (welcome bonus) |
-| `PARTNER_BONUS_CHIPS` | 100 | extra **tournament** chips/mint if wallet holds a partner NFT |
 | `TIER_COMMON/RARE/LEGENDARY` | 1/2/3 | rarity |
 
-> The mint welcome bonus is paid in **tournament chips** (free), via
-> `items.mintTournamentChips`. No free real-money chips are ever minted — that
-> would break the regular-chip AVAX peg (§3).
+> **Welcome bonus = the token's rarity weekly amount** (50 / 80 / 200), paid
+> once at mint in **tournament chips** via `items.mintTournamentChips`. Because
+> rarity is assigned *after* mint (to match metadata), the grant uses
+> `effectiveTier` — an unset tier defaults to **Common (50)**, so a fresh mint
+> gets 50 and the owner upgrades chosen tokens to Rare/Legendary afterward
+> (which then earn 80 / 200 on every weekly claim). **No partner-NFT chip bonus**
+> — that has been removed. No free real-money chips are ever minted (that would
+> break the regular-chip AVAX peg, §3).
 
 ### 2.1 Levels (mint-order, pure function — distinct from tiers)
 
@@ -173,10 +176,11 @@ Level feeds only the optional `levelBonusChips[level]` add-on (default 0).
 
 ### 2.2 Minting paths
 
-All three burn `MINT_PRICE × quantity` AVAX, enforce supply + per-wallet caps,
-mint the ERC-721, set `lastClaimWeek[tokenId] = currentWeek()` (so the weekly
-drop starts accruing next week, no backfill), and mint
-`(BASE_CHIPS [+ PARTNER_BONUS_CHIPS]) × quantity` chips via `items.mintChips`:
+All three burn `MINT_PRICE × quantity` AVAX (10 AVAX each), enforce supply +
+per-wallet caps, mint the ERC-721, set `lastClaimWeek[tokenId] = currentWeek()`
+(so the weekly drop starts accruing next week, no backfill), and mint the
+per-token welcome bonus `Σ tierChipReward[effectiveTier(tokenId)]` in
+**tournament chips** via `items.mintTournamentChips`:
 
 - `mint(quantity)` — public.
 - `mintWithInvitation(quantity)` — also burns 1 invitation item (`invitationItemId`).
@@ -189,8 +193,9 @@ weekLength = 7 days;            // owner-tunable 1h–30d
 weekAnchor = <deploy time>;     // owner can align to e.g. Monday 00:00 UTC
 currentWeek()      = (block.timestamp - weekAnchor) / weekLength;
 claimableWeeks(id) = currentWeek() - lastClaimWeek[id]  (>=0);
-claimWeeklyChips(id): reward = tierChipReward[tier] + levelBonusChips[level];
-                      mints reward × claimableWeeks; sets lastClaimWeek = currentWeek.
+claimWeeklyChips(id): reward = tierChipReward[effectiveTier(id)] + levelBonusChips[level];
+                      mints reward × claimableWeeks (tournament chips); sets lastClaimWeek.
+effectiveTier(id): tokenTier[id] == 0 ? Common : tokenTier[id]   // unset → Common
 ```
 
 Views for the UI: `nextDropAt()`, `getWeeklyReward(id)`, `claimableChips(id)`,
@@ -203,9 +208,9 @@ Views for the UI: `nextDropAt()`, `getWeeklyReward(id)`, `claimableChips(id)`,
   a game. Set by authorized games or owner via `setActive`. `_update` reverts
   transfers of active tokens. This is what stops a player selling an NFT
   mid-hand.
-- **Partners:** owner registers partner ERC-721 contracts; holding any partner
-  NFT grants `PARTNER_BONUS_CHIPS` at mint. `hasPartnerNFT(wallet)` loops
-  registered partners.
+- **Partners:** owner can register partner ERC-721 contracts and query
+  `hasPartnerNFT(wallet)`. The registry is retained for future perks, but it
+  **no longer grants any chip bonus at mint** (that was removed).
 - **Game authorization:** `setGameContract(addr,bool)` → `authorizedGame`.
   Gates `onlyGameOrOwner` (used by `setActive`).
 - **Items link:** `setItems(addr)` tells the NFT where chips live;
@@ -259,13 +264,24 @@ withdraw()        onlyOwner                  // owner may take houseSurplus() on
 **Tournament chips (token 1) — free, no cash value.**
 
 ```solidity
-mintTournamentChips(to, amount)   onlyAuthorized   // weekly drop, welcome bonus, item perks
-burnTournamentChips(from, amount) onlyAuthorized   // tournament entry cost
+mintTournamentChips(to, amount)      onlyAuthorized  // weekly drop, welcome bonus
+burnTournamentChips(from, amount)    onlyAuthorized  // tournament entry cost
 getTournamentChips(wallet) → balanceOf(wallet,1)
+airdropTournamentChips(to, amount)   onlyOwner       // award chips directly
+batchAirdropTournamentChips(to[], amount[]) onlyOwner
 ```
 
 No AVAX reserve, no `redeem` path — they can only be spent entering
 tournaments / redeemed for prizes off-chain.
+
+**Two ways to award tournament chips (per the design brief):**
+1. **Directly** — owner `airdropTournamentChips` / `batchAirdropTournamentChips`.
+2. **Via items** — create an item and award it:
+   - `ItemType.WeeklyChipBonus` (bonusAmount = X): once utilized on an NFT,
+     `claimWeeklyItemBonus` grants X extra **tournament chips per week** — i.e.
+     an item that *increases the tournament chips received*.
+   - `ItemType.OneTimeChipClaim` (bonusAmount = X): `claimOneTimeBonus` grants X
+     tournament chips once. Both mint token 1.
 
 `onlyAuthorized` = `authorizedGame[msg.sender] || owner`. Every contract that
 moves either chip (MembersOnly, Gamble, Tournament) must be authorized here via
@@ -353,7 +369,27 @@ cash-outs) `!membersOnly.isActive(tokenId)`.
   player's leaderboard `score`. Rebuy (if allowed) lets a busted player
   re-enter; a new locked score only replaces the old if higher.
 - Leaderboard: `getLeaderboard(id, offset, limit)` (paginated).
-- Payouts: owner `distributePrize(winners[], amounts[])` in AVAX.
+
+**Rank-based yield / prize settlement (owner-configurable).** The player who
+locks the most chips takes the week's yield; the exact rules are tunable:
+
+```solidity
+fundPrizePool(id)                  payable   // top up the AVAX pool (e.g. the week's yield)
+setMinLockToQualify(id, minLock)   onlyOwner // min locked chips to be eligible for a prize
+setPrizeWeights(id, weightsBps[])  onlyOwner // payout split by rank, bps; sum ≤ 10000
+                                             //   [10000]            = winner-take-all
+                                             //   [6000,3000,1000]   = 1st/2nd/3rd = 60/30/10
+settleTournament(id, rankedTokenIds[]) onlyOwner nonReentrant
+```
+
+`settleTournament` takes the entrants ordered by locked score (highest first —
+the owner/oracle reads the leaderboard off-chain and passes the order). The
+contract **verifies the order is non-increasing**, skips any rank whose locked
+score is below `minLockToQualify`, and pays `pool × weightsBps[rank] / 10000`
+to each qualifying token's current owner. `settled[id]` blocks double payout;
+`totalPooled` shields funded pools from `withdraw()`. Winner-take-all
+(`[10000]`) is literally "lock the most → get the yield." The manual
+`distributePrize(winners[], amounts[])` path is still available.
 
 > **Two meanings of "tournament chips":** (1) the ERC-1155 **token 1** a player
 > spends as `chipCost` to enter (the free weekly-drop currency); (2) the
@@ -550,7 +586,8 @@ mandated in `CLAUDE.md`.
 7. PLAY      craps/roulette/blackjack via ClubNileRoom  → shared server outcomes
 8. CASHOUT   Worker signs → Gamble.claimWinnings()/cageCashOut() → regular chips minted back
 9. REDEEM    Items.redeemChips()                        → regular chips → 0.05 AVAX each
-10. TOURNEY  Tournament.enterTournament()/lockScore()   → burns tournament chips; AVAX prizes
+10. TOURNEY  Tournament.enterTournament()/lockScore()   → burns tournament chips
+             → owner fundPrizePool + setPrizeWeights + settleTournament → top locks win the yield
 11. TREASURY Items.burnForShares() → claimYield()        → monthly AVAX yield
 12. TRADE    Market.list()/buy() and free ERC-1155 chip transfers
 ```
@@ -615,7 +652,10 @@ first, confirm green, then push the client.
 ---
 
 *Last updated: 2026-07-12. Reflects: the 3-tier rarity model (Common 90 %/50,
-Rare 9 %/80, Legendary 1 %/200, paid in tournament chips); the two-currency
-economy (regular chips = 0.05 AVAX real money, token 0; tournament chips =
-free/prize-only, token 1); 10 AVAX mint price; and the shared
-server-authoritative tables.*
+Rare 9 %/80, Legendary 1 %/200, paid in tournament chips; welcome bonus =
+rarity amount, unset tier → Common); no partner-NFT chip bonus; the
+two-currency economy (regular chips = 0.05 AVAX real money, token 0; tournament
+chips = free/prize-only, token 1); owner tournament-chip airdrops + item perks;
+10 AVAX mint price; rank-based tournament yield/prize settlement
+(fundPrizePool / setMinLockToQualify / setPrizeWeights / settleTournament); and
+the shared server-authoritative tables.*

@@ -53,6 +53,16 @@ contract Tournament is Ownable, ReentrancyGuard {
     mapping(uint256 => uint256[]) private _leaderboardTokens;              // tournamentId => tokenId array (scored)
     mapping(uint256 => mapping(uint256 => bool)) private _onLeaderboard;   // tournamentId => tokenId => on board
 
+    // ── Yield / prize distribution (owner-configurable) ──
+    // Fund a per-tournament AVAX pool (e.g. with the week's yield). Configure
+    // the minimum chips a player must lock to be eligible, and the payout split
+    // by rank (1st / 2nd / 3rd …). Then settle: the top locked scores get paid.
+    mapping(uint256 => uint256)   public prizePool;          // tournamentId => AVAX pool
+    mapping(uint256 => uint256)   public minLockToQualify;   // tournamentId => min locked score to win
+    mapping(uint256 => uint256[]) private _prizeWeightsBps;  // tournamentId => bps per rank [1st,2nd,…]
+    mapping(uint256 => bool)      public settled;            // tournamentId => already paid out
+    uint256 public totalPooled;                              // sum of all prizePool (shielded from withdraw)
+
     // ── Events ──
     event TournamentCreated(uint256 indexed tournamentId, string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed);
     event TournamentCancelled(uint256 indexed tournamentId);
@@ -62,6 +72,11 @@ contract Tournament is Ownable, ReentrancyGuard {
     event PlayerBusted(uint256 indexed tournamentId, uint256 indexed tokenId);
     event TournamentChipsAwarded(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 amount);
     event TournamentChipsSpent(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 amount);
+    event PrizePoolFunded(uint256 indexed tournamentId, uint256 amount, uint256 pool);
+    event MinLockSet(uint256 indexed tournamentId, uint256 minLock);
+    event PrizeWeightsSet(uint256 indexed tournamentId, uint256[] weightsBps);
+    event PrizePaid(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 rank, uint256 amount);
+    event TournamentSettled(uint256 indexed tournamentId, uint256 pool, uint256 paid);
 
     constructor(address _membersOnly, address _items) Ownable(msg.sender) {
         membersOnly = IMembersOnlyForTournament(_membersOnly);
@@ -276,10 +291,91 @@ contract Tournament is Ownable, ReentrancyGuard {
         return tournamentId > 0 && tournamentId < nextTournamentId;
     }
 
-    /// @notice Accept AVAX deposits for prize pools
+    // ─────────────────────────────────────────────────────────
+    // Yield / Prize Distribution (rank-based, owner-configurable)
+    // ─────────────────────────────────────────────────────────
+
+    /// @notice Fund a tournament's AVAX prize pool (e.g. with the week's yield).
+    ///         Anyone can top it up; the AVAX is shielded from `withdraw`.
+    function fundPrizePool(uint256 tournamentId) external payable {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        require(msg.value > 0, "Nothing sent");
+        prizePool[tournamentId] += msg.value;
+        totalPooled += msg.value;
+        emit PrizePoolFunded(tournamentId, msg.value, prizePool[tournamentId]);
+    }
+
+    /// @notice Minimum chips a player must LOCK to be eligible for a prize.
+    function setMinLockToQualify(uint256 tournamentId, uint256 minLock) external onlyOwner {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        minLockToQualify[tournamentId] = minLock;
+        emit MinLockSet(tournamentId, minLock);
+    }
+
+    /// @notice Payout split by finishing rank, in basis points of the pool:
+    ///         weightsBps[0] = 1st place, [1] = 2nd, [2] = 3rd, … Sum ≤ 10000.
+    ///         e.g. [10000] = winner-take-all; [6000,3000,1000] = 60/30/10.
+    function setPrizeWeights(uint256 tournamentId, uint256[] calldata weightsBps) external onlyOwner {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        uint256 sum;
+        for (uint256 i = 0; i < weightsBps.length; i++) sum += weightsBps[i];
+        require(sum <= 10000, "Weights exceed 100%");
+        _prizeWeightsBps[tournamentId] = weightsBps;
+        emit PrizeWeightsSet(tournamentId, weightsBps);
+    }
+
+    function getPrizeWeights(uint256 tournamentId) external view returns (uint256[] memory) {
+        return _prizeWeightsBps[tournamentId];
+    }
+
+    /// @notice Settle: pay the prize pool to the highest locked scores.
+    ///         `rankedTokenIds` are the entrants ordered by locked score, highest
+    ///         first (owner/oracle reads the leaderboard off-chain and passes the
+    ///         order). The contract verifies the order is non-increasing and that
+    ///         each paid rank meets `minLockToQualify`, then pays
+    ///         `pool * weightsBps[rank] / 10000` to each token's current owner.
+    ///         Winner-take-all ([10000]) makes "lock the most → gets the yield".
+    function settleTournament(uint256 tournamentId, uint256[] calldata rankedTokenIds)
+        external onlyOwner nonReentrant
+    {
+        require(_tournamentExists(tournamentId), "Tournament does not exist");
+        require(!settled[tournamentId], "Already settled");
+        uint256 pool = prizePool[tournamentId];
+        require(pool > 0, "No prize pool");
+        uint256[] storage weights = _prizeWeightsBps[tournamentId];
+        require(weights.length > 0, "No prize weights set");
+
+        settled[tournamentId] = true;
+        prizePool[tournamentId] = 0;
+        totalPooled -= pool;
+
+        uint256 prevScore = type(uint256).max;
+        uint256 paid;
+        uint256 n = rankedTokenIds.length < weights.length ? rankedTokenIds.length : weights.length;
+        for (uint256 i = 0; i < n; i++) {
+            uint256 tokenId = rankedTokenIds[i];
+            uint256 score = entries[tournamentId][tokenId].score;
+            require(score > 0, "Rank not locked");
+            require(score <= prevScore, "Ranking not descending");
+            prevScore = score;
+
+            if (score < minLockToQualify[tournamentId]) continue; // below threshold → no prize
+            uint256 amount = (pool * weights[i]) / 10000;
+            if (amount == 0) continue;
+
+            paid += amount;
+            (bool ok, ) = payable(membersOnly.ownerOf(tokenId)).call{value: amount}("");
+            require(ok, "Prize transfer failed");
+            emit PrizePaid(tournamentId, tokenId, i, amount);
+        }
+
+        emit TournamentSettled(tournamentId, pool, paid);
+    }
+
+    /// @notice Accept plain AVAX (un-pooled surplus; use fundPrizePool to earmark)
     receive() external payable {}
 
-    /// @notice Distribute AVAX prize to specific winners (owner decides)
+    /// @notice Distribute AVAX prize to specific winners (owner decides, manual)
     function distributePrize(address[] calldata winners, uint256[] calldata amounts) external onlyOwner nonReentrant {
         require(winners.length == amounts.length, "Array length mismatch");
         for (uint256 i = 0; i < winners.length; i++) {
@@ -288,8 +384,11 @@ contract Tournament is Ownable, ReentrancyGuard {
         }
     }
 
+    /// @notice Withdraw surplus AVAX — never touches funded prize pools.
     function withdraw() external onlyOwner {
-        (bool success, ) = payable(owner()).call{value: address(this).balance}("");
+        uint256 amount = address(this).balance - totalPooled;
+        require(amount > 0, "Nothing to withdraw");
+        (bool success, ) = payable(owner()).call{value: amount}("");
         require(success, "Withdrawal failed");
     }
 }

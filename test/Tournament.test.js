@@ -163,7 +163,7 @@ describe("Tournament", function () {
     });
   });
 
-  // ─── Prize Distribution ───
+  // ─── Prize Distribution (manual) ───
   describe("Prize Distribution", function () {
     it("should distribute AVAX prize to winners", async function () {
       const prize = ethers.parseEther("1");
@@ -173,6 +173,70 @@ describe("Tournament", function () {
       await tournament.distributePrize([user1.address], [prize]);
       const balAfter = await ethers.provider.getBalance(user1.address);
       expect(balAfter - balBefore).to.equal(prize);
+    });
+  });
+
+  // ─── Rank-based yield/prize settlement ───
+  describe("Rank-based prize settlement", function () {
+    beforeEach(async function () {
+      const now = await time.latest();
+      await tournament.createTournament("Yield", now + 1, now + 7200, 0, 500, false);
+      await time.increase(2);
+      await tournament.connect(user1).enterTournament(1, 1);
+      await tournament.connect(user2).enterTournament(1, 2);
+      await tournament.awardTournamentChips(1, 1, 300); // user1 → 800 internal
+      await tournament.connect(user1).lockScore(1, 1); // score 800
+      await tournament.connect(user2).lockScore(1, 2); // score 500
+    });
+
+    it("pays the pool to top locked scores by weight", async function () {
+      await tournament.fundPrizePool(1, { value: ethers.parseEther("10") });
+      await tournament.setPrizeWeights(1, [7000, 3000]); // 70 / 30
+      const b1 = await ethers.provider.getBalance(user1.address);
+      const b2 = await ethers.provider.getBalance(user2.address);
+      await tournament.settleTournament(1, [1, 2]); // highest score first
+      expect((await ethers.provider.getBalance(user1.address)) - b1).to.equal(ethers.parseEther("7"));
+      expect((await ethers.provider.getBalance(user2.address)) - b2).to.equal(ethers.parseEther("3"));
+    });
+
+    it("winner-take-all sends the whole pool to the top lock", async function () {
+      await tournament.fundPrizePool(1, { value: ethers.parseEther("5") });
+      await tournament.setPrizeWeights(1, [10000]);
+      const b1 = await ethers.provider.getBalance(user1.address);
+      await tournament.settleTournament(1, [1, 2]);
+      expect((await ethers.provider.getBalance(user1.address)) - b1).to.equal(ethers.parseEther("5"));
+    });
+
+    it("skips ranks below minLockToQualify", async function () {
+      await tournament.fundPrizePool(1, { value: ethers.parseEther("10") });
+      await tournament.setPrizeWeights(1, [7000, 3000]);
+      await tournament.setMinLockToQualify(1, 600); // user2 (500) does not qualify
+      const b2 = await ethers.provider.getBalance(user2.address);
+      await tournament.settleTournament(1, [1, 2]);
+      expect((await ethers.provider.getBalance(user2.address)) - b2).to.equal(0n);
+    });
+
+    it("rejects a non-descending ranking", async function () {
+      await tournament.fundPrizePool(1, { value: ethers.parseEther("10") });
+      await tournament.setPrizeWeights(1, [7000, 3000]);
+      await expect(tournament.settleTournament(1, [2, 1])) // 500 then 800 = ascending
+        .to.be.revertedWith("Ranking not descending");
+    });
+
+    it("cannot settle twice", async function () {
+      await tournament.fundPrizePool(1, { value: ethers.parseEther("5") });
+      await tournament.setPrizeWeights(1, [10000]);
+      await tournament.settleTournament(1, [1, 2]);
+      await expect(tournament.settleTournament(1, [1, 2])).to.be.revertedWith("Already settled");
+    });
+
+    it("shields funded pools from withdraw", async function () {
+      await tournament.fundPrizePool(1, { value: ethers.parseEther("4") });
+      await expect(tournament.withdraw()).to.be.revertedWith("Nothing to withdraw");
+    });
+
+    it("rejects prize weights over 100%", async function () {
+      await expect(tournament.setPrizeWeights(1, [7000, 4000])).to.be.revertedWith("Weights exceed 100%");
     });
   });
 });

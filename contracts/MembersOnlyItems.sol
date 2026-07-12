@@ -300,6 +300,20 @@ contract MembersOnlyItems is ERC1155, Ownable {
         return balanceOf(wallet, TCHIPS_ID);
     }
 
+    /// @notice Owner: award tournament chips directly to a wallet.
+    function airdropTournamentChips(address to, uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount must be > 0");
+        _mint(to, TCHIPS_ID, amount, "");
+    }
+
+    /// @notice Owner: award tournament chips to many wallets in one tx.
+    function batchAirdropTournamentChips(address[] calldata recipients, uint256[] calldata amounts) external onlyOwner {
+        require(recipients.length == amounts.length, "Array length mismatch");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            if (amounts[i] > 0) _mint(recipients[i], TCHIPS_ID, amounts[i], "");
+        }
+    }
+
     // ─────────────────────────────────────────────
     //  Wallet-based claiming
     // ─────────────────────────────────────────────

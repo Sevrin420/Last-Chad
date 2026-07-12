@@ -20,9 +20,8 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 333;
     uint256 public constant MINT_PRICE = 10 ether;                // 10 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
-    // Welcome bonus, paid in TOURNAMENT chips (free, prize-only currency).
-    uint256 public constant BASE_CHIPS = 50;            // tournament chips per NFT at mint
-    uint256 public constant PARTNER_BONUS_CHIPS = 100;  // extra tournament chips if wallet holds a partner NFT
+    // Welcome bonus = the token's rarity weekly amount (50/80/200), paid once at
+    // mint in TOURNAMENT chips (free, prize-only currency). See effectiveTier().
 
     // ── Partner System ──
     struct Partner {
@@ -221,20 +220,15 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         require(totalMinted + quantity <= MAX_SUPPLY, "Exceeds max supply");
         require(mintedPerWallet[msg.sender] + quantity <= MAX_MINT_PER_WALLET, "Exceeds max per wallet");
 
-        uint256 chipsPerMint = BASE_CHIPS;
-
-        bool partnerBonus = hasPartnerNFT(msg.sender);
-        if (partnerBonus) {
-            chipsPerMint += PARTNER_BONUS_CHIPS;
-        }
-
         mintedPerWallet[msg.sender] += quantity;
+        uint256 welcomeChips;
         for (uint256 i = 0; i < quantity; i++) {
             totalMinted++;
             _safeMint(msg.sender, totalMinted);
             lastClaimWeek[totalMinted] = currentWeek();   // weekly drop starts accruing from next week
+            welcomeChips += tierChipReward[effectiveTier(totalMinted)]; // rarity welcome (50/80/200)
         }
-        items.mintTournamentChips(msg.sender, chipsPerMint * quantity);  // free welcome tournament chips
+        items.mintTournamentChips(msg.sender, welcomeChips);  // free welcome tournament chips
     }
 
     // ─────────────────────────────────────────────────────────
@@ -311,6 +305,15 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         return "";
     }
 
+    /// @notice Tier used for chip math. Rarity is assigned post-mint to match
+    ///         metadata, so an unset tier (0) defaults to Common — a freshly
+    ///         minted token earns/receives the Common amount until the owner
+    ///         upgrades it to Rare/Legendary.
+    function effectiveTier(uint256 tokenId) public view returns (uint8) {
+        uint8 tier = tokenTier[tokenId];
+        return tier == 0 ? TIER_COMMON : tier;
+    }
+
     // ─────────────────────────────────────────────────────────
     // Level System (mint-order based, pure function)
     // ─────────────────────────────────────────────────────────
@@ -336,7 +339,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         uint256 weeksOwed = claimableWeeks(tokenId);
         require(weeksOwed > 0, "Nothing to claim yet");
 
-        uint256 reward = tierChipReward[tokenTier[tokenId]] + levelBonusChips[getLevel(tokenId)];
+        uint256 reward = tierChipReward[effectiveTier(tokenId)] + levelBonusChips[getLevel(tokenId)];
         require(reward > 0, "No reward set");
 
         lastClaimWeek[tokenId] = currentWeek();          // resync (also safe if schedule moved)
@@ -355,7 +358,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
 
     // total chips this token can claim right now (all stacked weeks)
     function claimableChips(uint256 tokenId) external view returns (uint256) {
-        uint256 reward = tierChipReward[tokenTier[tokenId]] + levelBonusChips[getLevel(tokenId)];
+        uint256 reward = tierChipReward[effectiveTier(tokenId)] + levelBonusChips[getLevel(tokenId)];
         return reward * claimableWeeks(tokenId);
     }
 
@@ -384,8 +387,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // View Functions
     // ─────────────────────────────────────────────────────────
     function getWeeklyReward(uint256 tokenId) external view returns (uint256) {
-        uint8 tier = tokenTier[tokenId];
-        uint256 reward = tierChipReward[tier];
+        uint256 reward = tierChipReward[effectiveTier(tokenId)];
         if (tokenId >= 1 && tokenId <= MAX_SUPPLY) {
             reward += levelBonusChips[getLevel(tokenId)];
         }
