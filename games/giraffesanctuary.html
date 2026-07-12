@@ -164,7 +164,8 @@ body {
   cursor: pointer;
 }
 #btn-chat { left: 71%; top: 16.5%; }   /* stacked right under MUTE, inside the forest screen */
-#btn-mute { left: 71%; top: 10.5%; }
+#btn-mute { left: 71%; top: 10.5%; display: none; }   /* hidden while off / on the title card */
+#btn-mute.live { display: block; }                    /* shown once the game is running */
 #btn-chat.pressed, #btn-mute.pressed { background: rgba(255,235,170,0.35); }
 #btn-mute.muted {
   color: #7d6b45;
@@ -2066,7 +2067,8 @@ function powerOff() {
       sound.unlock();
       sound.unmute();                        // auto-unmute so the track starts
       updateMuteBtn();
-      sound.playTrack('../assets/membersonly/morningmood.mp3');   // fades in with the room
+      muteBtn.classList.add('live');         // the mute pill only appears now the game is on
+      sound.playTrack('../assets/membersonly/circleoflife.mp3');   // fades in with the room
       bootEl.classList.add('gone');          // black slowly fades into the room
     }, 750);
     setTimeout(() => { bootEl.style.display = 'none'; }, 750 + 2000);
@@ -2230,7 +2232,7 @@ function dialogSelect() {
 
 /* ============================ jukebox (band requests) ============================ */
 const SONGS = [
-  { title:'IN DA CLUB', by:'8-bit tribute', file:'../assets/membersonly/indaclub.mp3' }
+  { title:'CIRCLE OF LIFE', by:'the savanna', file:'../assets/membersonly/circleoflife.mp3' }
 ];
 const SONG_COST = 10;
 const songMenu = { open:false, idx:0 };
@@ -5435,7 +5437,7 @@ function enterCasino() {
   if (casinoEntered) return;
   casinoEntered = true;
   /* crossfade from the morning-mood entry theme to the casino theme */
-  sound.playTrack('../assets/membersonly/myheartwillgoon.mp3');
+  sound.playTrack('../assets/membersonly/circleoflife.mp3');
   startTransition(() => {
     scene = 'floor';
     player.x = 7.5*TS; player.y = (ROWS-2.5)*TS; player.dir = 'up'; player.frame = 0;
