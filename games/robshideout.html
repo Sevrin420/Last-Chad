@@ -1192,6 +1192,7 @@ const FOUNTAIN = { c0:6, c1:8, r0:14, r1:15 };  // centre-piece fountain on the 
 const PALMS = [[1,5],[13,5],[1,17],[13,17]];    // potted palms filling the long hall
 const SARC = { c:13, r:26 };                    // sarcophagus, bottom-right (rope stanchion in front)
 const CAGE = { c0:1, c1:3, r0:24, r1:25 };      // the cage — a low-walled teller rectangle (bottom-left)
+const TDOOR = { c0:1, c1:3, r0:22, r1:23 };     // tournament-hall portal, in the gap above the cage
 const DOOR = { c:7, r:ROWS-1 };                 // south entrance — players walk in and head north
 const RUG = { c0:5, c1:9, r0:4, r1:27 };        // long runner up the middle
 
@@ -1206,6 +1207,7 @@ for (let c = FOUNTAIN.c0; c <= FOUNTAIN.c1; c++) for (let r = FOUNTAIN.r0; r <= 
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
 [[SARC.c,SARC.r],[SARC.c,SARC.r+1]].forEach(([c,r]) => solid.add(key(c,r)));  // sarcophagus + stanchion, bottom-right
 for (let c = CAGE.c0; c <= CAGE.c1; c++) for (let r = CAGE.r0; r <= CAGE.r1; r++) solid.add(key(c,r));  // the cage enclosure is solid
+for (let c = TDOOR.c0; c <= TDOOR.c1; c++) for (let r = TDOOR.r0; r <= TDOOR.r1; r++) solid.add(key(c,r));  // tournament portal
 
 const talkMap = {};
 for (let c = BAR.c0; c <= BAR.c1; c++) { talkMap[key(c, BAR.row)] = 'bartender'; talkMap[key(c, BAR.row + 1)] = 'bartender'; }
@@ -1214,13 +1216,33 @@ for (const t of TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r 
 for (let c = STAGE.c0; c <= STAGE.c1; c++) { talkMap[key(c, STAGE.r1)] = 'band'; talkMap[key(c, STAGE.r1 + 1)] = 'band'; }
 /* step up to the cage window to buy in or cash out */
 for (let c = CAGE.c0; c <= CAGE.c1; c++) { talkMap[key(c, CAGE.r1)] = 'cage'; talkMap[key(c, CAGE.r1 + 1)] = 'cage'; }
+/* step up beside the tournament portal (above the cage) to enter the hall */
+for (let c = TDOOR.c0; c <= TDOOR.c1; c++) for (let r = TDOOR.r0; r <= TDOOR.r1; r++) talkMap[key(c,r)] = 'tourneydoor';
 talkMap[key(DOOR.c, DOOR.r)] = 'door';
 
 /* ============================ chips ============================ */
-let chips = parseInt(localStorage.getItem('clubnile_chips') || '500', 10);
+/* Two separate purses share one live `chips` variable: the casino floor
+   spends real chips ('clubnile_chips'); the tournament hall spends
+   tournament chips ('clubnile_tchips'). Entering/leaving the tournament
+   room swaps which purse `chips` points at, so every table's chip math
+   works unchanged on whichever currency the room uses. */
+const CHIP_STORE = 'clubnile_chips', TCHIP_STORE = 'clubnile_tchips';
+const TBEST_STORE = 'clubnile_tbest';        // best tournament run
+const TOURNEY_STACK = 1000;                  // stack handed out at the tournament cage
+let chipStore = CHIP_STORE;
+let chips = parseInt(localStorage.getItem(chipStore) || '500', 10);
 function setChips(v) {
   chips = Math.max(0, v);
-  localStorage.setItem('clubnile_chips', String(chips));
+  localStorage.setItem(chipStore, String(chips));
+}
+/* point the live purse at a store (loads its saved balance) */
+function useCurrency(store, dflt) {
+  chipStore = store;
+  chips = parseInt(localStorage.getItem(store) || String(dflt), 10);
+}
+function tourneyBest() { return parseInt(localStorage.getItem(TBEST_STORE) || '0', 10); }
+function recordTourneyBest() {
+  if (chipStore === TCHIP_STORE && chips > tourneyBest()) localStorage.setItem(TBEST_STORE, String(chips));
 }
 /* ── stake journal (anti-scum failsafe) ──────────────────────────────
    Every hand in flight is journaled with enough state to SETTLE it, not
@@ -1546,6 +1568,19 @@ const NPC_TALK = {
     lines: [["Care to tempt the wheel, outlaw? Lay your chips and let it spin."]],
     action: 'roulette',
     broke: ["No chips, no spin, friend.", "Fill your pouch at the cage and come back."]
+  },
+  thost: {
+    name: 'WILL · TOURNEY HOST',
+    lines: [
+      ["Welcome to the Tournament Hall, outlaw! Grab a stack at the cage and climb the leaderboard."],
+      ["Every chip you build here is your score. Bust out? Rebuy at the cage and try again."],
+      ["Top stacks take the purse on tournament night. Play sharp."]
+    ]
+  },
+  tcage: {
+    name: 'FRIAR · TOURNEY CAGE',
+    lines: [["Here for a tournament stack? Step up and I'll set you up to play."]],
+    action: 'tourneychips'
   },
   band: {
     name: 'THE MERRY MINSTRELS',
@@ -2043,12 +2078,27 @@ function dialogSelect() {
   if (dlg.action === 'exit') { try { settleCurrentStakes('Left'); } catch (e) {} window.location.reload(); return; }
   /* every table is played on chips you've withdrawn at the cage — no chips, no seat */
   if (dlg.action === 'craps' || dlg.action === 'blackjack' || dlg.action === 'roulette') {
-    if (chips <= 0) { addPopup('you', 'bubble', 'Buy chips at the cage first!', 200); return; }
+    if (chips <= 0) {
+      addPopup('you', 'bubble', scene === 'tourney' ? 'Get a stack at the tournament cage!' : 'Buy chips at the cage first!', 200);
+      return;
+    }
+    tableHome = scene === 'tourney' ? 'tourney' : 'floor';   // return here when you stand up
     startTransition(() => dlg.action === 'craps' ? enterCraps()
       : dlg.action === 'roulette' ? enterRoulette() : enterBlackjack());
     return;
   }
   if (dlg.action === 'songs') { songMenu.open = true; songMenu.idx = 0; }
+  /* the tournament cage hands out (or tops up) your tournament stack */
+  if (dlg.action === 'tourneychips') {
+    recordTourneyBest();
+    if (chips >= TOURNEY_STACK) {
+      addPopup('you', 'bubble', 'You still hold ' + chips + ' tournament chips.', 220);
+    } else {
+      setChips(TOURNEY_STACK);
+      addPopup('you', 'bubble', TOURNEY_STACK + ' tournament chips — good luck!', 220);
+      pushChat('', 'Claimed a tournament stack: ' + TOURNEY_STACK + ' chips. Best run: ' + tourneyBest(), true);
+    }
+  }
 }
 
 /* ============================ jukebox (band requests) ============================ */
@@ -2103,8 +2153,8 @@ function nearGuest() {
   return null;
 }
 /* collision + talk maps swap per scene (the antechamber has its own) */
-function activeSolid() { return scene === 'entry' ? entrySolid : solid; }
-function activeTalk()  { return scene === 'entry' ? entryTalk  : talkMap; }
+function activeSolid() { return scene === 'entry' ? entrySolid : scene === 'tourney' ? tourneySolid : solid; }
+function activeTalk()  { return scene === 'entry' ? entryTalk  : scene === 'tourney' ? tourneyTalk  : talkMap; }
 function interactTarget() {
   const t = activeTalk()[facingTile()];
   if (t) return { id: t, guest: null };
@@ -2474,6 +2524,36 @@ const cageFront = makeCanvas(CAGE_W, 12, g => {
   g.fillStyle = C.goldHi; g.fillRect(w/2 - 11, 0, 22, 1);
   g.font = '6px "Press Start 2P"'; g.textAlign = 'center';
   g.fillStyle = C.goldHi; g.fillText('CAGE', w/2, 0); g.textAlign = 'left';
+});
+/* the portal to the tournament hall — a timber arch with a leafy crown,
+   a warm doorway and a hanging TOURNEYS banner (stands above the cage) */
+const tourneyArch = makeCanvas(3*TS, 3*TS, g => {
+  const w = 3*TS, dx = 6, dw = w - 12;
+  /* dark interior with a warm glow spilling out */
+  g.fillStyle = '#0e1410'; g.fillRect(dx, 14, dw, 2*TS);
+  const glow = g.createLinearGradient(0, 14, 0, 14 + 2*TS);
+  glow.addColorStop(0, 'rgba(255,200,110,0.5)'); glow.addColorStop(1, 'rgba(255,200,110,0)');
+  g.fillStyle = glow; g.fillRect(dx, 14, dw, 2*TS);
+  /* timber posts + lintel */
+  g.fillStyle = C.woodDark; g.fillRect(dx - 5, 12, 6, 2.5*TS); g.fillRect(dx + dw - 1, 12, 6, 2.5*TS);
+  g.fillStyle = C.wood;     g.fillRect(dx - 4, 12, 2, 2.5*TS); g.fillRect(dx + dw, 12, 2, 2.5*TS);
+  g.fillStyle = C.woodDark; g.fillRect(dx - 5, 10, dw + 10, 8);
+  g.fillStyle = C.woodHi;   g.fillRect(dx - 5, 10, dw + 10, 1);
+  /* leafy crown over the arch */
+  const clump = (cx, cy, rad) => {
+    g.fillStyle = C.leafDark; g.beginPath(); g.arc(cx, cy, rad, 0, 7); g.fill();
+    g.fillStyle = C.leaf;     g.beginPath(); g.arc(cx - rad*0.3, cy - rad*0.3, rad*0.6, 0, 7); g.fill();
+    g.fillStyle = C.leafHi;   g.beginPath(); g.arc(cx - rad*0.4, cy - rad*0.45, rad*0.3, 0, 7); g.fill();
+  };
+  clump(10, 8, 9); clump(w/2, 5, 11); clump(w - 10, 8, 9);
+  /* hanging banner */
+  g.fillStyle = '#245c33'; g.fillRect(w/2 - 22, 14, 44, 11);
+  g.fillStyle = '#2f7a44'; g.fillRect(w/2 - 22, 14, 44, 1);
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(w/2 - 22, 23, 44, 2);
+  g.fillStyle = C.goldHi; g.font = '6px "Press Start 2P"';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('TOURNEYS', w/2, 20);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 });
 /* a leafy oak sapling in an oak barrel — greenwood potted plant */
 const palmCanvas = makeCanvas(22, 34, g => {
@@ -4701,6 +4781,7 @@ function rouRender() {
 /* ============================ scene helpers ============================ */
 let scene = 'entry';
 let floorReturn = null;        // where to drop the player back after they leave a table
+let tableHome = 'floor';       // the room a table was entered from ('floor' or 'tourney')
 const IDLE_KICK_MS = 180000;   // 3 min without input at a table → seat freed
 const BJ_DECIDE_MS = 15000;    // blackjack action clock → auto-stand
 let lastActMs = Date.now();
@@ -4711,9 +4792,11 @@ function startTransition(midFn) {
 function leaveTable(which) {
   tableDisconnect();
   popups.length = 0;         // stale table bubbles don't follow you out
-  scene = 'floor';
-  /* drop back where you sat down, so leaving any of the four tables lands right */
+  scene = tableHome;         // back to the room the table was entered from
+  recordTourneyBest();       // a tournament run's peak stack is your score
+  /* drop back where you sat down, so leaving any table lands right */
   if (floorReturn) { player.x = floorReturn.x; player.y = floorReturn.y; }
+  else if (scene === 'tourney') { player.x = 7.5*TS; player.y = 12.5*TS; }
   else { player.x = 7.5*TS; player.y = (ROWS-2.5)*TS; }
   player.dir = 'down'; player.frame = 0;
 }
@@ -4787,6 +4870,7 @@ function floorUpdate() {
         t.guest.dx = 0; t.guest.dy = 0;
       }
       if (t.id === 'cage') openCagePanel();
+      else if (t.id === 'tourneydoor') enterTourney();
       else openDialog(t.id);
     }
   }
@@ -5037,6 +5121,8 @@ function floorRender() {
   items.push({ y: cgTop + 2,          draw: g => g.drawImage(cageBack,  cgx, cgTop - 4, cageBack.lw,  cageBack.lh) });
   items.push({ y: cgTop + TS + 2,     draw: g => drawEntity(g, { sprite:'cashier', dir:'down', frame:0, x: (CAGE.c0+1.5)*TS, y: cgTop + TS + 4, staticNPC:true }, tick + 40) });
   items.push({ y: CAGE.r1*TS + 12,    draw: g => g.drawImage(cageFront, cgx, CAGE.r1*TS + 2, cageFront.lw, cageFront.lh) });
+  /* tournament-hall portal, in the gap above the cage */
+  items.push({ y: TDOOR.r1*TS + 8, draw: g => g.drawImage(tourneyArch, TDOOR.c0*TS - 4, TDOOR.r0*TS - 4, tourneyArch.lw, tourneyArch.lh) });
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
@@ -5266,6 +5352,177 @@ function entryRender() {
   vg.addColorStop(0,'rgba(255,245,200,0.06)'); vg.addColorStop(1,'rgba(10,26,12,0.34)');
   ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
   if (titleAlpha > 0) drawTitle(ctx);
+}
+
+/* ============================ tournament hall (side room) ============================
+   A dedicated single-screen room reached through the portal above the cage.
+   It runs on TOURNAMENT chips (a separate purse), handed out at its own cage.
+   The three tables here play exactly like the floor's, but on your tournament
+   stack — the peak stack you reach is your score. */
+const T_CAGE = { c0:1, c1:3, r0:4, r1:5 };      // tournament cage, top-left
+const T_TABLES = [
+  { game:'blackjack', c0:10, c1:13, r0:4,  r1:5  },  // top-right
+  { game:'craps',     c0:1,  c1:4,  r0:9,  r1:10 },  // bottom-left
+  { game:'roulette',  c0:10, c1:13, r0:9,  r1:10 }   // bottom-right
+];
+const T_HOST = { c:7, r:2 };                    // tournament host, top-centre
+const T_DOOR = { c0:6, c1:8, r:14 };            // south doorway back to the floor
+const tourneySolid = new Set();
+for (let c = 0; c < COLS; c++) { tourneySolid.add(key(c,0)); if (c < T_DOOR.c0 || c > T_DOOR.c1) tourneySolid.add(key(c,14)); }
+for (let r = 0; r < 15; r++) { tourneySolid.add(key(0,r)); tourneySolid.add(key(COLS-1,r)); }
+for (let c = T_CAGE.c0; c <= T_CAGE.c1; c++) for (let r = T_CAGE.r0; r <= T_CAGE.r1; r++) tourneySolid.add(key(c,r));
+for (const t of T_TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r <= t.r1; r++) tourneySolid.add(key(c,r));
+tourneySolid.add(key(T_HOST.c, T_HOST.r));      // host podium
+const tourneyTalk = {};
+for (const t of T_TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r <= t.r1; r++) tourneyTalk[key(c,r)] = t.game;
+for (let c = T_CAGE.c0; c <= T_CAGE.c1; c++) { tourneyTalk[key(c, T_CAGE.r1)] = 'tcage'; tourneyTalk[key(c, T_CAGE.r1 + 1)] = 'tcage'; }
+[[T_HOST.c,T_HOST.r],[T_HOST.c-1,T_HOST.r],[T_HOST.c+1,T_HOST.r],[T_HOST.c,T_HOST.r+1],[T_HOST.c-1,T_HOST.r+1],[T_HOST.c+1,T_HOST.r+1]].forEach(([c,r]) => tourneyTalk[key(c,r)] = 'thost');
+const tourneyBg = makeCanvas(W, H, g => {
+  /* grassy clearing, same greenwood as the antechamber */
+  for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
+    g.fillStyle = (c + r) % 2 ? '#4c7d3c' : '#437034';
+    g.fillRect(c*TS, r*TS, TS, TS);
+  }
+  for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x += 3) {
+    const hsh = h2(x, y);
+    if (hsh % 6 === 0) { g.fillStyle = 'rgba(150,200,110,0.16)'; g.fillRect(x, y, 2, 1); }
+    else if (hsh % 13 === 0) { g.fillStyle = 'rgba(18,44,18,0.20)'; g.fillRect(x, y, 1, 2); }
+  }
+  for (let i = 0; i < 60; i++) {
+    const x = (h2(i*7, 5) / 97) * W, y = (h2(5, i*11) / 97) * H;
+    g.fillStyle = '#5c9048'; g.fillRect(x, y, 1, 2); g.fillRect(x+1, y-1, 1, 3);
+  }
+  /* forest border ringing the room, with a gap for the south doorway */
+  const clump = (cx, cy, rad) => {
+    g.fillStyle = C.leafDark; g.beginPath(); g.arc(cx, cy, rad, 0, 7); g.fill();
+    g.fillStyle = C.leaf;     g.beginPath(); g.arc(cx - rad*0.28, cy - rad*0.28, rad*0.62, 0, 7); g.fill();
+    g.fillStyle = C.leafHi;   g.beginPath(); g.arc(cx - rad*0.4, cy - rad*0.45, rad*0.3, 0, 7); g.fill();
+  };
+  const dxl = T_DOOR.c0*TS, dwd = (T_DOOR.c1 - T_DOOR.c0 + 1)*TS;
+  for (let x = -6; x <= W + 6; x += 15) clump(x, 5 + (h2(x,1) % 5), 12 + (h2(x,2) % 5));   // top line
+  for (let y = 2*TS; y <= 15*TS; y += 15) {                                                 // sides
+    clump(4 + (h2(y,4) % 5), y, 12 + (h2(y,5) % 5));
+    clump(W - 4 - (h2(y,6) % 5), y, 12 + (h2(y,7) % 5));
+  }
+  for (let x = -6; x <= W + 6; x += 15) {                                                    // bottom, gap for door
+    if (x > dxl - 20 && x < dxl + dwd + 20) continue;
+    clump(x, H - 4 + (h2(x,8) % 4), 12 + (h2(x,9) % 5));
+  }
+  /* south doorway back to the floor */
+  g.fillStyle = '#0e1410'; g.fillRect(dxl, H - TS, dwd, TS);
+  const dg = g.createLinearGradient(0, H - TS, 0, H);
+  dg.addColorStop(0, 'rgba(255,200,110,0)'); dg.addColorStop(1, 'rgba(255,200,110,0.4)');
+  g.fillStyle = dg; g.fillRect(dxl, H - TS, dwd, TS);
+  g.fillStyle = C.woodDark; g.fillRect(dxl - 5, H - 1.4*TS, 5, 1.4*TS); g.fillRect(dxl + dwd, H - 1.4*TS, 5, 1.4*TS);
+  g.fillStyle = C.woodDark; g.fillRect(dxl - 5, H - 1.4*TS, dwd + 10, 4);
+  g.fillStyle = C.goldHi; g.font = '6px "Press Start 2P"'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('TO THE FLOOR', dxl + dwd/2, H - 1.4*TS - 6);
+  /* leaderboard board behind the host */
+  const bx = W/2 - 40, by = 6, bw = 80, bh = 24;
+  g.fillStyle = C.woodDark; g.fillRect(W/2 - 2, by + bh, 4, 10);         // post
+  g.fillStyle = C.woodDark; g.fillRect(bx - 3, by - 3, bw + 6, bh + 6);
+  g.fillStyle = '#245c33';  g.fillRect(bx, by, bw, bh);
+  g.fillStyle = 'rgba(255,248,214,0.16)'; g.fillRect(bx, by, bw, 2);
+  g.fillStyle = C.goldHi; g.font = '7px "Press Start 2P"';
+  g.fillText('TOURNAMENT', W/2, by + 8); g.fillText('HALL', W/2, by + 17);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+});
+function enterTourney() {
+  startTransition(() => {
+    scene = 'tourney';
+    useCurrency(TCHIP_STORE, 0);        // this room spends the tournament purse
+    modal = null; popups.length = 0;
+    player.x = 7.5*TS; player.y = 12.4*TS; player.dir = 'up'; player.frame = 0;
+    camY = 0;
+  });
+}
+function leaveTourney() {
+  recordTourneyBest();
+  startTransition(() => {
+    scene = 'floor';
+    useCurrency(CHIP_STORE, 500);       // back to real chips on the floor
+    popups.length = 0;
+    /* drop back onto the floor beside the portal, just above the cage */
+    player.x = 4.5*TS; player.y = 22.5*TS; player.dir = 'left'; player.frame = 0;
+    camY = Math.max(0, Math.min(WORLD_H - H, Math.round(player.y - H/2)));
+  });
+}
+function tourneyUpdate() {
+  if (popupOpen()) { aQueued = bQueued = false; return; }
+  if (dlg.open) {
+    const prevCh = Math.floor(dlg.chars);
+    dlg.chars += DLG_SPEED;
+    const nowCh = Math.floor(dlg.chars);
+    if (nowCh > prevCh && nowCh % 2 === 0 && nowCh <= dlg.pages[dlg.page].length) sound.blip();
+    if (aQueued) { aQueued = false; dialogSelect(); }
+    if (bQueued) { bQueued = false; dlg.open = false; }
+    return;
+  }
+  let dx = 0, dy = 0;
+  if (input.left) { dx = -1; player.dir = 'left'; }
+  else if (input.right) { dx = 1; player.dir = 'right'; }
+  if (input.up) { dy = -1; if (!dx) player.dir = 'up'; }
+  else if (input.down) { dy = 1; if (!dx) player.dir = 'down'; }
+  player.moving = !!(dx || dy);
+  if (player.moving) {
+    moveEntity(player, dx, dy, WALK_SPEED);
+    player.animT++;
+    if (player.animT % 13 === 0) { player.frame = 1 - player.frame; sound.step(); }
+  } else player.frame = 0;
+  /* walk south out through the doorway → back onto the floor */
+  if (player.y > 13.3*TS && player.x > (T_DOOR.c0 - 0.5)*TS && player.x < (T_DOOR.c1 + 1.5)*TS) { leaveTourney(); return; }
+  if (aQueued) {
+    aQueued = false;
+    const t = interactTarget();
+    if (t) {
+      if (t.id === 'tcage') openDialog('tcage');
+      else openDialog(t.id);
+    }
+  }
+  if (bQueued) bQueued = false;
+}
+function tourneyRender() {
+  ctx.drawImage(tourneyBg, 0, 0, W, H);
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, 'rgba(205,228,182,0.12)');
+  sky.addColorStop(0.5, 'rgba(120,160,110,0)');
+  sky.addColorStop(1, 'rgba(20,40,20,0.16)');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  const items = [];
+  /* tournament cage with its cashier */
+  const cgx = T_CAGE.c0*TS, cgTop = T_CAGE.r0*TS;
+  items.push({ y: cgTop + 2,       draw: g => g.drawImage(cageBack, cgx, cgTop - 4, cageBack.lw, cageBack.lh) });
+  items.push({ y: cgTop + TS + 2,  draw: g => drawEntity(g, { sprite:'cashier', dir:'down', frame:0, x:(T_CAGE.c0+1.5)*TS, y:cgTop + TS + 4, staticNPC:true }, tick + 40) });
+  items.push({ y: T_CAGE.r1*TS + 12, draw: g => g.drawImage(cageFront, cgx, T_CAGE.r1*TS + 2, cageFront.lw, cageFront.lh) });
+  /* the three tournament tables, each with a dealer */
+  for (const t of T_TABLES) {
+    const cv = t.game === 'craps' ? crapsCanvas : t.game === 'roulette' ? rouletteCanvas : bjCanvas;
+    const sp = t.game === 'craps' ? 'crapsDealer' : t.game === 'roulette' ? 'rouletteDealer' : 'bjDealer';
+    const tx = t.c0*TS, ty = t.r0*TS, midx = (t.c0 + (t.c1 - t.c0 + 1) / 2) * TS;
+    items.push({ y: t.r0*TS - 2, draw: g => drawEntity(g, { sprite: sp, dir:'down', frame:0, x: midx, y: ty - 1, staticNPC:true }, tick + tx) });
+    items.push({ y: (t.r1+1)*TS, draw: g => g.drawImage(cv, tx, ty, cv.lw, cv.lh) });
+  }
+  /* tournament host at the leaderboard */
+  items.push({ y: T_HOST.r*TS + TS, draw: g => drawEntity(g, { sprite:'docsHost', dir:'down', frame:0, x: T_HOST.c*TS + TS/2, y: T_HOST.r*TS + TS + 2, staticNPC:true }, tick + 12) });
+  items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
+  items.sort((a,b) => a.y - b.y);
+  for (const it of items) it.draw(ctx);
+  /* doorway hint */
+  ctx.fillStyle = C.gold; ctx.font = FONT; ctx.textAlign = 'center';
+  ctx.fillText('▼', (T_DOOR.c0 + T_DOOR.c1 + 1)/2 * TS, H - TS - 8 + (Math.floor(tick/24) % 2));
+  ctx.textAlign = 'left';
+  if (!dlg.open) {
+    const t = interactTarget();
+    if (t) { const b = Math.floor(tick/20)%2; ctx.fillStyle = C.gold; ctx.font = FONT; ctx.fillText('!', Math.round(player.x)-2, Math.round(player.y)-34-b); }
+  }
+  drawPopups(target => target === 'you' ? { x: player.x, y: player.y - 6 } : null);
+  const vg = ctx.createRadialGradient(W/2, H/2-10, 80, W/2, H/2, 205);
+  vg.addColorStop(0,'rgba(255,245,200,0.06)'); vg.addColorStop(1,'rgba(10,26,12,0.34)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
+  /* tournament readout: your best run so far, tucked under the chip counter */
+  ctx.font = FONT; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = C.gold; ctx.fillText('BEST ' + tourneyBest(), 6, 17);
+  if (dlg.open) drawDialog(ctx);
 }
 
 /* ── popups: mint + house rules + cage (DOM overlays) ── */
@@ -5543,6 +5800,7 @@ function update() {
   else if (scene === 'blackjack') bjUpdate();
   else if (scene === 'craps') crUpdate();
   else if (scene === 'roulette') rouUpdate();
+  else if (scene === 'tourney') tourneyUpdate();
 }
 function render() {
   if (scene === 'entry') entryRender();
@@ -5550,7 +5808,8 @@ function render() {
   else if (scene === 'blackjack') bjRender();
   else if (scene === 'craps') crRender();
   else if (scene === 'roulette') rouRender();
-  if (scene !== 'floor' && scene !== 'entry') {
+  else if (scene === 'tourney') tourneyRender();
+  if (scene !== 'floor' && scene !== 'entry' && scene !== 'tourney') {
     const vg = ctx.createRadialGradient(W/2, 110, 60, W/2, 110, 200);
     vg.addColorStop(0, 'rgba(255,190,90,0.04)');
     vg.addColorStop(1, 'rgba(8,5,14,0.35)');
@@ -5621,9 +5880,10 @@ try {
 /* test hook (only with ?debug=1 in the URL) */
 if (new URLSearchParams(location.search).has('debug')) {
   window.CN = {
-    enterCraps, enterBlackjack, enterRoulette, leaveTable, player, cr, bj, rou, social, popups, sound, SPRITES,
+    enterCraps, enterBlackjack, enterRoulette, enterTourney, leaveTourney, leaveTable, player, cr, bj, rou, social, popups, sound, SPRITES,
     traitsForToken, characterForToken, PLAYER_TOKEN,
     get chips() { return chips; }, setChips,
+    get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
     skipTitle() { started = true; titleAlpha = 0; }
   };
 }
