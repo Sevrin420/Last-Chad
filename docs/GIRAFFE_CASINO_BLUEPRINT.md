@@ -555,8 +555,14 @@ Single-file HTML5 canvas game (~6,000 lines), no build step.
   ossicones/accessories via `ACC_HEAD`). NPCs and the player are giraffes.
 - **Scenes:** `entry | floor | craps | blackjack | roulette | tourney`, with a
   camera `camY` for the tall floor. A west-wall portal under the cage leads to
-  the **tournament room** (its own tables + a cage that dispenses tournament
-  chips); currency swaps at the room boundary (`giraffe_chips` ↔ `giraffe_tchips`).
+  the **tournament room**; currency swaps at the room boundary
+  (`giraffe_chips` ↔ `giraffe_tchips`).
+- **Two cages** — each a DOM panel with CONNECT WALLET (→ naming) and MY GIRAFFES:
+  the **main-floor cage** (`#cage-panel`) buys in / cashes out **regular chips**
+  (real money, via `Gamble` cage); the **tournament cage** (`#tcage-panel`, in
+  the tournament room) shows your on-chain **tournament-chip** balance (token 1),
+  hands out a local stack for the tournament tables, and claims your weekly
+  tournament chips (MY GIRAFFES · CLAIM WEEKLY). Both let you name your NFT.
 - **Audio:** single track `assets/membersonly/circleoflife.mp3`, autoplay +
   auto-unmute on first gesture; mute button hidden on the title card, shown
   once booted (`#btn-mute.live`).
@@ -570,11 +576,12 @@ Single-file HTML5 canvas game (~6,000 lines), no build step.
   the contract, so **names can never be changed**.
 - **Multiple NFTs — which name?** Your identity is your **active** giraffe
   (`PLAYER_TOKEN`, default: the pass you entered with). The **MY GIRAFFES**
-  popup (from the cage) lists every owned pass with its rarity, weekly
-  tournament-chip rate and ready-to-claim amount, lets you **PLAY AS** any
-  *named* pass (switches your name + sprite) or **NAME IT** an unnamed one, and
-  has **CLAIM ALL WEEKLY CHIPS** → `claimWeeklyChipsBatch(ownedIds)` to sweep
-  every pass's weekly tournament chips in a single transaction.
+  popup (from either cage) lists every owned pass with its rarity, weekly
+  tournament-chip rate and ready-to-claim amount, and lets you **PLAY AS** any
+  *named* pass (switches your name + sprite) or **NAME IT** an unnamed one. From
+  the **tournament cage** it also shows **CLAIM ALL WEEKLY CHIPS** →
+  `claimWeeklyChipsBatch(ownedIds)` to sweep every pass's weekly tournament
+  chips in one transaction; the main cage's variant is identity-only.
 - **Round result messaging:** after each round every player is shown their
   total win/loss for that round.
 

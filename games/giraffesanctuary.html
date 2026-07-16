@@ -532,9 +532,25 @@ body {
         <label>WITHDRAW (buy in)<input id="cage-in" type="number" min="1" placeholder="chips to play with"></label>
         <button id="cage-buyin" type="button">WITHDRAW →</button>
         <button id="cage-cashout" type="button">← RETURN WHOLE STACK</button>
-        <button id="cage-herd" type="button">MY GIRAFFES · CLAIM WEEKLY</button>
+        <button id="cage-herd" type="button">MY GIRAFFES</button>
       </div>
       <div id="cage-status"></div>
+    </div>
+  </div>
+  <div id="tcage-panel" class="popup-panel">
+    <div class="popup-head"><span>TOURNAMENT CAGE</span><button class="popup-close" data-close="tcage-panel" type="button">X</button></div>
+    <div class="popup-body">
+      <p class="popup-lead">Claim your weekly tournament chips, name your giraffe, and grab a stack to play the tournament tables.</p>
+      <div id="tcage-balances">
+        <div>WALLET (tourney chips): <span id="tcage-wallet">—</span></div>
+        <div>YOUR STACK: <span id="tcage-play">0</span></div>
+      </div>
+      <button id="tcage-connect" type="button">CONNECT WALLET</button>
+      <div id="tcage-actions" style="display:none">
+        <button id="tcage-herd" type="button">MY GIRAFFES · CLAIM WEEKLY</button>
+        <button id="tcage-stack" type="button">GRAB A STACK →</button>
+      </div>
+      <div id="tcage-status"></div>
     </div>
   </div>
 </div>
@@ -5763,7 +5779,7 @@ function tourneyUpdate() {
     aQueued = false;
     const t = interactTarget();
     if (t) {
-      if (t.id === 'tcage') openDialog('tcage');
+      if (t.id === 'tcage') openTCagePanel();   // tournament cage: tourney chips + naming
       else openDialog(t.id);
     }
   }
@@ -5824,7 +5840,8 @@ function tourneyRender() {
 const mintPanel = document.getElementById('mint-panel');
 const docsPanel = document.getElementById('docs-panel');
 const cagePanel = document.getElementById('cage-panel');
-function popupOpen() { return mintPanel.classList.contains('open') || docsPanel.classList.contains('open') || cagePanel.classList.contains('open'); }
+const tcagePanel = document.getElementById('tcage-panel');
+function popupOpen() { return mintPanel.classList.contains('open') || docsPanel.classList.contains('open') || cagePanel.classList.contains('open') || tcagePanel.classList.contains('open'); }
 function closePopup(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.popup-close').forEach(b => b.addEventListener('click', () => closePopup(b.dataset.close)));
 /* the scrolls, kept short and sharp — spin the wheel to read each one */
@@ -6083,7 +6100,52 @@ document.getElementById('cage-cashout').addEventListener('click', async () => {
     cageStatus('Cashed out ' + amount + ' chips to your wallet.');
   } catch (e) { cageStatus('Cash-out failed: ' + ((e.data && e.data.message) || e.message || e), false); }
 });
-document.getElementById('cage-herd').addEventListener('click', openHerdModal);
+document.getElementById('cage-herd').addEventListener('click', () => openHerdModal({ claim: false }));
+
+/* ── the TOURNAMENT cage: tournament chips (weekly claim) + naming ──
+   Mirrors the main cage, but for tournament chips (token 1). Grab a local
+   stack to play the tournament tables, claim your weekly tournament chips to
+   your wallet (MY GIRAFFES), and name your giraffe on connect. */
+function tcageStatus(m, ok) { const s = document.getElementById('tcage-status'); if (s) { s.textContent = m || ''; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; } }
+async function refreshTCageBalances() {
+  document.getElementById('tcage-play').textContent = chips;   // your local tournament stack
+  if (mintAccount && window.ethers) {
+    try {
+      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
+      const items = new window.ethers.Contract(CAGE_CFG.items, ITEMS_MIN_ABI, provider);
+      const bal = await items.balanceOf(mintAccount, 1);       // tournament chips = token id 1
+      document.getElementById('tcage-wallet').textContent = bal.toString();
+    } catch (e) { document.getElementById('tcage-wallet').textContent = '?'; }
+  }
+}
+function openTCagePanel() {
+  tcagePanel.classList.add('open');
+  refreshTCageBalances();
+  if (mintAccount) { document.getElementById('tcage-connect').style.display = 'none'; document.getElementById('tcage-actions').style.display = 'block'; tcageStatus(''); }
+  else tcageStatus('Connect a wallet to claim weekly tournament chips and name your giraffe.');
+}
+document.getElementById('tcage-connect').addEventListener('click', async () => {
+  try {
+    if (!window.ethereum || !window.ethers) return tcageStatus('No wallet / library available.', false);
+    const accts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    mintAccount = accts[0];
+    try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa869' }] }); } catch (e) {}
+    mintSigner = new window.ethers.providers.Web3Provider(window.ethereum).getSigner();
+    document.getElementById('tcage-connect').style.display = 'none';
+    document.getElementById('tcage-actions').style.display = 'block';
+    refreshTCageBalances(); tcageStatus('Connected.');
+    ensureCasinoName();   // first time here → name your NFT
+  } catch (e) { tcageStatus('Connect failed: ' + (e.message || e), false); }
+});
+document.getElementById('tcage-herd').addEventListener('click', () => openHerdModal({ claim: true }));
+document.getElementById('tcage-stack').addEventListener('click', () => {
+  recordTourneyBest();
+  if (chips >= TOURNEY_STACK) { tcageStatus('You still hold ' + chips + ' tournament chips.'); return; }
+  setChips(TOURNEY_STACK);
+  pushChat('', 'Claimed a tournament stack: ' + TOURNEY_STACK + ' chips. Best run: ' + tourneyBest(), true);
+  refreshTCageBalances();
+  tcageStatus(TOURNEY_STACK + ' tournament chips — good luck!');
+});
 
 /* ── name your NFT (first entry): writes to the NFT, becomes your casino name ──
    The check runs whenever a wallet connects. If the owned pass has no name yet
@@ -6215,7 +6277,8 @@ async function loadHerd() {
 }
 function closeHerdModal() { const p = document.getElementById('herd-panel'); if (p) p.remove(); }
 function herdStatus(m, ok) { const s = document.getElementById('herd-status'); if (s) { s.textContent = m || ''; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; } }
-async function openHerdModal() {
+async function openHerdModal(opts) {
+  const showClaim = !opts || opts.claim !== false;   // main cage = identity only; tourney cage = + claim
   if (!mintAccount || !window.ethers) { cageStatus('Connect a wallet first.', false); return; }
   closeHerdModal();
   const wrap = document.createElement('div');
@@ -6265,15 +6328,22 @@ async function openHerdModal() {
       '</div></div>';
   }
   listEl.innerHTML = html;
-  document.getElementById('herd-total').textContent = 'Ready to claim: ' + totalReady + ' tournament chips';
+  const totalEl = document.getElementById('herd-total');
   const claimBtn = document.getElementById('herd-claim');
-  claimBtn.disabled = totalReady === 0;
-  if (totalReady === 0) claimBtn.style.opacity = '0.6';
+  if (showClaim) {
+    totalEl.textContent = 'Ready to claim: ' + totalReady + ' tournament chips';
+    claimBtn.disabled = totalReady === 0;
+    if (totalReady === 0) claimBtn.style.opacity = '0.6';
+    claimBtn.addEventListener('click', () => claimAllWeekly(list.map(g => g.id)));
+  } else {
+    /* main cage: identity + naming only — weekly claim lives at the tournament cage */
+    totalEl.textContent = 'Claim weekly chips at the Tournament Cage.';
+    claimBtn.style.display = 'none';
+  }
   listEl.querySelectorAll('[data-play]').forEach(b =>
     b.addEventListener('click', () => setActiveGiraffe(parseInt(b.getAttribute('data-play'), 10), b.getAttribute('data-nm'))));
   listEl.querySelectorAll('[data-name-id]').forEach(b =>
     b.addEventListener('click', () => openNameModal(parseInt(b.getAttribute('data-name-id'), 10))));
-  claimBtn.addEventListener('click', () => claimAllWeekly(list.map(g => g.id)));
 }
 async function claimAllWeekly(ids) {
   if (!mintSigner) return herdStatus('Connect your wallet first.', false);
@@ -6405,6 +6475,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     enterCraps, enterBlackjack, enterRoulette, enterTourney, leaveTourney, leaveTable, player, cr, bj, rou, social, popups, sound, SPRITES,
     traitsForToken, characterForToken, PLAYER_TOKEN,
     ensureCasinoName, openNameModal, adoptCasinoName, openHerdModal, loadHerd, setActiveGiraffe,
+    openCagePanel, openTCagePanel,
     get nameLocked() { return nameLocked; }, get myName() { return myName; }, get playerToken() { return PLAYER_TOKEN; },
     get chips() { return chips; }, setChips,
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
