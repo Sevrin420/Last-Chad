@@ -2235,48 +2235,95 @@ function powerOff() {
     g.setTransform(2, 0, 0, 2, 0, 0);
     const W = 240, H = 240;
     g.clearRect(0, 0, W, H);
-    /* greenwood dusk behind the card — sunset over the plains */
-    const bg = g.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#3a2410');
-    bg.addColorStop(0.45, '#7a3d18');
-    bg.addColorStop(0.62, '#c26a26');
-    bg.addColorStop(0.75, '#7c5a24');
-    bg.addColorStop(1, '#2a1c0a');
-    g.fillStyle = bg; g.fillRect(0, 0, W, H);
-    /* low sun on the horizon */
-    g.fillStyle = 'rgba(255,206,120,0.85)';
-    g.beginPath(); g.arc(W/2, 150, 26, 0, Math.PI*2); g.fill();
-    /* acacia silhouettes on the horizon */
-    g.fillStyle = '#1c1206';
-    const acacia = (ax) => { g.fillRect(ax-0.5, 150, 1.5, 16); g.fillRect(ax-9, 148, 18, 2.5); g.fillRect(ax-6, 145.5, 12, 2); };
-    acacia(46); acacia(196);
-    g.fillRect(0, 166, W, 14);
+    g.imageSmoothingEnabled = false;
+    /* ── sky: soft dawn glow filtering through the greenwood canopy ── */
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#12351f');
+    sky.addColorStop(0.35, '#1c4a26');
+    sky.addColorStop(0.62, '#3f6a2c');
+    sky.addColorStop(1, '#24421c');
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    /* shafts of morning light slanting through the trees */
+    g.fillStyle = 'rgba(240,224,150,0.10)';
+    for (let i = 0; i < 5; i++) { g.save(); g.translate(60 + i * 34, 0); g.rotate(0.20); g.fillRect(-5, -20, 9, 200); g.restore(); }
+
+    /* ── a whole forest of trees: rounded canopies layered back-to-front ── */
+    const tree = (tx, ty, r, dark, mid, hi, trunk) => {
+      g.fillStyle = '#2a1a0c'; g.fillRect(tx - 1.5, ty + r * 0.5, 3, r * 1.15);  // trunk
+      if (trunk) { g.fillStyle = trunk; g.fillRect(tx - 1.5, ty + r * 0.5, 1.2, r * 1.15); }
+      const blob = (bx, by, br, col) => { g.fillStyle = col; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill(); };
+      blob(tx, ty, r, dark);
+      blob(tx - r * 0.5, ty + r * 0.2, r * 0.66, dark);
+      blob(tx + r * 0.5, ty + r * 0.2, r * 0.66, dark);
+      blob(tx - r * 0.25, ty - r * 0.2, r * 0.6, mid);
+      blob(tx + r * 0.3, ty - r * 0.1, r * 0.5, mid);
+      blob(tx - r * 0.35, ty - r * 0.4, r * 0.32, hi);
+    };
+    /* far tree line (small, hazy, dark) */
+    for (let x = -8; x <= W + 8; x += 15) tree(x, 70 + (h2(x, 2) % 8), 12 + (h2(x, 3) % 4), '#1f3d1a', '#2c5122', '#3a6a2c');
+    /* mid trees */
+    for (let x = -6; x <= W + 6; x += 30) tree(x + (h2(x, 5) % 8), 96 + (h2(x, 6) % 10), 20 + (h2(x, 7) % 7), '#234a1c', '#33642a', '#4c8a3c', '#4a3016');
+    /* near trees framing the sides */
+    tree(24, 120, 30, '#1d4018', '#2c5822', '#437a33', '#3a2612');
+    tree(216, 118, 32, '#1d4018', '#2c5822', '#437a33', '#3a2612');
+
+    /* ── grassy foreground clearing ── */
+    g.fillStyle = '#2c5322'; g.fillRect(0, 176, W, 64);
+    g.fillStyle = '#35632a';
+    for (let i = 0; i < 120; i++) { const gx = h2(i * 7, 9) / 97 * W, gy = 178 + h2(9, i * 7) / 97 * 60; g.fillRect(gx, gy, 1, 2); }
+
+    /* ── wooden table stacked with gold coins ── */
+    const tX = W / 2, tTop = 176, tW = 108, tH = 12;
+    // table top
+    g.fillStyle = '#6a4423'; g.fillRect(tX - tW / 2, tTop, tW, tH);
+    g.fillStyle = '#835530'; g.fillRect(tX - tW / 2, tTop, tW, 3);           // lit front edge
+    g.fillStyle = '#4a2e15'; g.fillRect(tX - tW / 2, tTop + tH - 2, tW, 2);  // shadow lip
+    for (let px = -tW / 2 + 4; px < tW / 2; px += 12) { g.fillStyle = '#5a3a1d'; g.fillRect(tX + px, tTop, 1, tH); } // plank seams
+    // legs
+    g.fillStyle = '#4a2e15';
+    g.fillRect(tX - tW / 2 + 4, tTop + tH, 6, 40);
+    g.fillRect(tX + tW / 2 - 10, tTop + tH, 6, 40);
+    // coin stack helper
+    const coinStack = (cx, base, n, r) => {
+      for (let k = 0; k < n; k++) {
+        const cy = base - k * 3;
+        g.fillStyle = '#a9781f'; g.beginPath(); g.ellipse(cx, cy + 1, r, r * 0.42, 0, 0, 7); g.fill();      // coin shadow/side
+        g.fillStyle = '#e9b833'; g.beginPath(); g.ellipse(cx, cy, r, r * 0.42, 0, 0, 7); g.fill();          // coin face
+        g.fillStyle = '#ffe27a'; g.beginPath(); g.ellipse(cx - r * 0.28, cy - r * 0.12, r * 0.42, r * 0.2, 0, 0, 7); g.fill(); // highlight
+      }
+    };
+    // loose coins scattered on the table
+    for (let i = 0; i < 7; i++) { const lx = tX - 40 + h2(i * 5, 3) % 80; g.fillStyle = '#e9b833'; g.beginPath(); g.ellipse(lx, tTop + 2, 4, 1.8, 0, 0, 7); g.fill(); g.fillStyle = '#ffe27a'; g.beginPath(); g.ellipse(lx - 1, tTop + 1.5, 1.4, 0.7, 0, 0, 7); g.fill(); }
+    // stacks (tallest in the middle)
+    coinStack(tX - 34, tTop + 2, 5, 6);
+    coinStack(tX - 20, tTop + 2, 8, 6);
+    coinStack(tX - 4,  tTop + 2, 11, 7);
+    coinStack(tX + 14, tTop + 2, 7, 6);
+    coinStack(tX + 32, tTop + 2, 4, 5);
+    // a little spilled pile at the base of the table
+    g.fillStyle = '#c99326'; g.beginPath(); g.ellipse(tX - 30, tTop + tH + 30, 12, 4, 0, 0, 7); g.fill();
+    for (let i = 0; i < 8; i++) { const sx = tX - 40 + h2(i * 9, 7) % 24, sy = tTop + tH + 26 + h2(7, i * 9) % 8; g.fillStyle = '#e9b833'; g.beginPath(); g.ellipse(sx, sy, 3, 1.4, 0, 0, 7); g.fill(); }
+
+    /* ── title ── */
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    /* rays fanning up from the sun */
-    g.strokeStyle = 'rgba(255,206,120,0.28)'; g.lineWidth = 1;
-    for (let i = -4; i <= 4; i++) {
-      g.beginPath(); g.moveTo(W / 2, 104); g.lineTo(W / 2 + i * 26, 24); g.stroke();
-    }
-    g.font = '16px "Press Start 2P", monospace';
-    /* drop shadow */
-    g.fillStyle = '#3a2008';
-    g.fillText("GIRAFFE", W / 2 + 1, 90.5);
-    g.fillText('SANCTUARY', W / 2 + 1, 112.5);
-    /* giraffe-gold gradient fill */
-    const tGrad = g.createLinearGradient(0, 78, 0, 122);
-    tGrad.addColorStop(0, '#f6e6b4');
-    tGrad.addColorStop(0.5, '#e6bc60');
-    tGrad.addColorStop(1, '#a9713a');
-    g.fillStyle = tGrad;
-    g.fillText("GIRAFFE", W / 2, 89);
-    g.fillText('SANCTUARY', W / 2, 111);
-    g.fillStyle = '#caa04a';
-    g.fillRect(W / 2 - 44, 125, 88, 1);
-    g.fillStyle = '#f6e6b4';
-    g.fillRect(W / 2 - 2, 123, 4, 4);
+    // "TUCK'S"
+    g.font = '20px "Press Start 2P", monospace';
+    g.fillStyle = '#241205';
+    g.fillText("TUCK'S", W / 2 + 1.5, 34.5);
+    const g1 = g.createLinearGradient(0, 22, 0, 46); g1.addColorStop(0, '#fff0b8'); g1.addColorStop(0.5, '#eec24a'); g1.addColorStop(1, '#b07d24');
+    g.fillStyle = g1; g.fillText("TUCK'S", W / 2, 33);
+    // "TREASURE TROVE"
+    g.font = '12px "Press Start 2P", monospace';
+    g.fillStyle = '#241205';
+    g.fillText('TREASURE TROVE', W / 2 + 1, 55.5);
+    const g2 = g.createLinearGradient(0, 47, 0, 63); g2.addColorStop(0, '#fff0b8'); g2.addColorStop(0.5, '#eec24a'); g2.addColorStop(1, '#b07d24');
+    g.fillStyle = g2; g.fillText('TREASURE TROVE', W / 2, 54);
+    // underline flourish
+    g.fillStyle = '#caa04a'; g.fillRect(W / 2 - 56, 64, 112, 1);
+    g.fillStyle = '#fff0b8'; g.fillRect(W / 2 - 2, 62, 4, 4);
+    // tagline
     g.font = '8px "Press Start 2P", monospace';
-    g.fillStyle = '#f2ead2';
-    g.fillText("TUCK'S TREASURE TROVE", W / 2, 137);
+    g.fillStyle = '#e6d9a8'; g.fillText('THE GREENWOOD CASINO', W / 2, 74);
   }
   if (document.fonts && document.fonts.load) {
     Promise.all([
