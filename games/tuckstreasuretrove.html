@@ -613,7 +613,7 @@ ctx.imageSmoothingEnabled = false;
 /* GREENWOOD palette — dry golden grass, acacia canopy, warm earth, sunset gold.
    Keys unchanged so all references keep working; only the tones change. */
 const C = {
-  floorA:'#c69a5e', floorB:'#b88a4d', floorC:'#a2743c', floorDot:'#875e30',
+  floorA:'#4e8340', floorB:'#457637', floorC:'#3b672d', floorDot:'#2f5626',
   wall:'#6f4a2b', wallLight:'#8c6039', wallDark:'#4d3220', wallLine:'#382415',
   wallGold:'#d8c25e', wallGoldDark:'#977f34',
   sideWall:'#3f6b3a', sideWallLight:'#52854a', sideWallDark:'#2b4c2a',
@@ -2390,7 +2390,7 @@ bg.lw = W; bg.lh = WORLD_H;
   /* ── grassy forest clearing floor ── */
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      g.fillStyle = (c + r) % 2 ? '#c2a44e' : '#b09642';
+      g.fillStyle = (c + r) % 2 ? '#4f8640' : '#457738';
       g.fillRect(c*TS, r*TS, TS, TS);
     }
   }
@@ -5533,7 +5533,7 @@ const entryNpcs = [
 const entryBg = makeCanvas(W, H, g => {
   /* ── a grassy forest clearing ── */
   for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
-    g.fillStyle = (c + r) % 2 ? '#c2a44e' : '#b09642';
+    g.fillStyle = (c + r) % 2 ? '#4f8640' : '#457738';
     g.fillRect(c*TS, r*TS, TS, TS);
   }
   /* dappled grass grain + darker patches */
@@ -5711,7 +5711,7 @@ for (let c = T_CAGE.c0; c <= T_CAGE.c1; c++) { tourneyTalk[key(c, T_CAGE.r1)] = 
 const tourneyBg = makeCanvas(W, H, g => {
   /* grassy clearing, same greenwood as the antechamber */
   for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
-    g.fillStyle = (c + r) % 2 ? '#c2a44e' : '#b09642';
+    g.fillStyle = (c + r) % 2 ? '#4f8640' : '#457738';
     g.fillRect(c*TS, r*TS, TS, TS);
   }
   for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x += 3) {
