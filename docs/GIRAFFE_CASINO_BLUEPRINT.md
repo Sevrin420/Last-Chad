@@ -549,7 +549,10 @@ Single-file HTML5 canvas game (~6,000 lines), no build step.
 
 - **Console shell:** a Gameboy-style frame PNG (832×1248, transparent screen
   cutout) with a power slider and an on/off toggle; overlays positioned as
-  `%` of the frame; CSS `container-type` + `cqw` units.
+  `%` of the frame; CSS `container-type` + `cqw` units. The **docs and mint
+  popups render inside the screen cutout** and are driven by the on-screen pad
+  via `popupNav()` (Up/Down move, A activates, B closes; mint Left/Right sets
+  quantity, docs A pages the parchment).
 - **Sprites:** procedural pixel-art via `makeCanvas(w,h,painter)` at 2× backing.
   `makeGiraffe(t)` builds giraffe characters (coat variety via `GIR_TONES`,
   ossicones/accessories via `ACC_HEAD`). NPCs and the player are giraffes.

@@ -279,6 +279,12 @@ body {
   box-shadow: 0 0 6cqw rgba(0,0,0,0.6);
 }
 .popup-panel.open { display: flex; }
+/* docs + mint sit fully INSIDE the game screen (the console's screen cutout is
+   left 12.38% / top 12.26% / 75% × 47.36%) and are driven by the Gameboy pad. */
+#docs-panel, #mint-panel { left: 13%; top: 13%; width: 73%; height: 45%; }
+/* highlight for the control-pad's current selection */
+.gbsel { outline: 0.7cqw solid #f5d76e !important; outline-offset: 0.2cqw;
+         box-shadow: 0 0 2.4cqw rgba(245,215,110,0.6) !important; }
 .popup-head {
   display: flex; align-items: center;
   padding: 1.8cqw 2.4cqw;
@@ -5842,7 +5848,7 @@ const docsPanel = document.getElementById('docs-panel');
 const cagePanel = document.getElementById('cage-panel');
 const tcagePanel = document.getElementById('tcage-panel');
 function popupOpen() { return mintPanel.classList.contains('open') || docsPanel.classList.contains('open') || cagePanel.classList.contains('open') || tcagePanel.classList.contains('open'); }
-function closePopup(id) { document.getElementById(id).classList.remove('open'); }
+function closePopup(id) { const p = document.getElementById(id); p.classList.remove('open'); p.querySelectorAll('.gbsel').forEach(el => el.classList.remove('gbsel')); }
 document.querySelectorAll('.popup-close').forEach(b => b.addEventListener('click', () => closePopup(b.dataset.close)));
 /* the scrolls, kept short and sharp — spin the wheel to read each one */
 const DOCS = [
@@ -5925,12 +5931,8 @@ docsPanel.addEventListener('wheel', e => {
 }, { passive: false });
 document.getElementById('dw-up').addEventListener('click', () => docsGoTo(docsSel - 1, true));
 document.getElementById('dw-down').addEventListener('click', () => docsGoTo(docsSel + 1, true));
-/* arrow keys drive the wheel while the scrolls are open (touch just drags it) */
-addEventListener('keydown', e => {
-  if (!docsPanel.classList.contains('open')) return;
-  if (e.key === 'ArrowUp')   { e.preventDefault(); docsGoTo(docsSel - 1, true); }
-  if (e.key === 'ArrowDown') { e.preventDefault(); docsGoTo(docsSel + 1, true); }
-});
+/* arrow-key / pad navigation is handled centrally by popupNav() so it doesn't
+   double-fire with the game's own input; touch just drags the wheel. */
 function openDocsPanel() {
   if (!dwList.children.length) docsBuildWheel();
   docsSel = 0;
@@ -5966,6 +5968,7 @@ function updateMintCost() {
 }
 function openMintPanel() {
   mintPanel.classList.add('open');
+  mintSel = 0;
   updateMintCost();
   if (!mintAccount) mintStatus('Connect your wallet to mint your pass.');
 }
@@ -6369,6 +6372,55 @@ function setActiveGiraffe(id, name) {
   closeHerdModal();
 }
 
+/* ── Gameboy-pad navigation for the docs + mint popups ──
+   The pad drives whichever popup is open. Docs: Up/Down spin the scroll wheel,
+   Left/Right & A page the parchment, B closes. Mint: Up/Down move between
+   fields, Left/Right set the quantity, A activates (focus input / click
+   button), B closes. */
+let mintSel = 0;
+function blurActive() { const a = document.activeElement; if (a && a.tagName === 'INPUT') a.blur(); }
+function mintFocusables() {
+  const els = [];
+  if (document.getElementById('mint-connect').style.display !== 'none') els.push(document.getElementById('mint-connect'));
+  if (document.getElementById('mint-form').style.display !== 'none')
+    els.push(document.getElementById('mint-name'), document.getElementById('mint-qty'), document.getElementById('mint-go'));
+  els.push(mintPanel.querySelector('.popup-close'));
+  return els.filter(Boolean);
+}
+function mintNav() {
+  const els = mintFocusables();
+  if (!els.length) return;
+  if (mintSel >= els.length) mintSel = els.length - 1;
+  if (tapUp)   { blurActive(); mintSel = (mintSel + els.length - 1) % els.length; }
+  if (tapDown) { blurActive(); mintSel = (mintSel + 1) % els.length; }
+  const cur = els[mintSel];
+  if (cur && cur.id === 'mint-qty' && (tapLeft || tapRight)) {
+    cur.value = Math.max(1, Math.min(5, parseInt(cur.value || '1', 10) + (tapRight ? 1 : -1)));
+    updateMintCost();
+  }
+  if (aQueued) { aQueued = false; if (cur.tagName === 'INPUT') cur.focus(); else cur.click(); }
+  if (bQueued) { bQueued = false; blurActive(); closePopup('mint-panel'); return; }
+  els.forEach((el, k) => el.classList.toggle('gbsel', k === mintSel));
+}
+function docsNav() {
+  if (tapUp)   docsGoTo(docsSel - 1, true);
+  if (tapDown) docsGoTo(docsSel + 1, true);
+  const sc = document.getElementById('docs-scroll');
+  if (sc && tapRight) sc.scrollBy({ top: sc.clientHeight * 0.5, behavior: 'smooth' });
+  if (sc && tapLeft)  sc.scrollBy({ top: -sc.clientHeight * 0.5, behavior: 'smooth' });
+  if (sc && aQueued) {   // A pages down the parchment, wrapping to the top at the end
+    aQueued = false;
+    if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2) sc.scrollTo({ top: 0, behavior: 'smooth' });
+    else sc.scrollBy({ top: sc.clientHeight * 0.8, behavior: 'smooth' });
+  }
+  if (bQueued) { bQueued = false; closePopup('docs-panel'); }
+}
+function popupNav() {
+  if (docsPanel.classList.contains('open')) return docsNav();
+  if (mintPanel.classList.contains('open')) return mintNav();
+  if (bQueued) { bQueued = false; [cagePanel, tcagePanel].forEach(p => p.classList.remove('open')); }
+}
+
 function update() {
   tick++;
   readTaps();
@@ -6386,7 +6438,7 @@ function update() {
   }
   if (!started) { aQueued = bQueued = false; return; }
   if (chatOpen()) { aQueued = bQueued = false; return; }   // chat panel has focus
-  if (popupOpen()) { aQueued = bQueued = false; return; }  // mint/docs popup has focus
+  if (popupOpen()) { popupNav(); aQueued = bQueued = false; return; }  // pad drives the popup
   if (scene === 'entry') entryUpdate();
   else if (scene === 'floor') floorUpdate();
   else if (scene === 'blackjack') bjUpdate();
@@ -6475,7 +6527,8 @@ if (new URLSearchParams(location.search).has('debug')) {
     enterCraps, enterBlackjack, enterRoulette, enterTourney, leaveTourney, leaveTable, player, cr, bj, rou, social, popups, sound, SPRITES,
     traitsForToken, characterForToken, PLAYER_TOKEN,
     ensureCasinoName, openNameModal, adoptCasinoName, openHerdModal, loadHerd, setActiveGiraffe,
-    openCagePanel, openTCagePanel,
+    openCagePanel, openTCagePanel, openDocsPanel, openMintPanel,
+    get mintSel() { return mintSel; }, get docsSel() { return docsSel; },
     get nameLocked() { return nameLocked; }, get myName() { return myName; }, get playerToken() { return PLAYER_TOKEN; },
     get chips() { return chips; }, setChips,
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
