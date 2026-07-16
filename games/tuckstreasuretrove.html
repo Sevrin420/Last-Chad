@@ -944,7 +944,7 @@ function buildFrameHD(head, body, legs, pal, mirror, acc, dir) {
   paintRowsHD(g, head, pal, 0, 0);      // 32 rows x 36 cells → 16lp of head
   paintRowsHD(g, body, pal, 16, 2);     // 12 rows x 32 cells → 6lp of body
   paintRowsHD(g, legs, pal, 22, 2);     // 8 rows x 32 cells → 4lp of legs
-  if (acc) acc(g, dir, pal);            // 1920s headwear / jewels, before outline
+  if (acc) acc(g, dir, pal);            // cap / feather / favour, before outline
   g.setTransform(1, 0, 0, 1, 0, 0);
   outlineHD(c);
   if (!mirror) return c;
@@ -956,7 +956,7 @@ function buildFrameHD(head, body, legs, pal, mirror, acc, dir) {
   mg.drawImage(c, 0, 0);
   return m;
 }
-/* ---- 1920s accessories, painted in logical head space over the frame.
+/* ---- head/face accessories, painted in logical head space over the frame.
    Head region: x 0..18 (centre 9), y 0..16; eyes ~y7-9; neck ~y15-16.
    Side view: face centres near x4. Kept within y >= -1 to avoid clipping. */
 function blk(g, x, y, w, h, col) { if (!col) return; g.fillStyle = col; g.fillRect(x, y, w, h); }
@@ -991,52 +991,39 @@ const ACC_HEAD = {
     for (let i = 0; i < 6; i++) blk(g, cx - 1 + (i % 2), 4 - i, 1.6 - i * 0.12, 1, i < 4 ? a.feather : a.featherHi);
     blk(g, cx - 0.2, -1.4, 0.9, 6, a.featherHi);
   },
-  bycocket(g, dir, a) {   // Robin Hood archer's cap: soft crown, upturned brim, feather
+  bycocket(g, dir, a) {   // Robin Hood cap — pointed "beak" in profile, covering cap head-on
     const H = a.hat || '#2f6a38', HH = a.hatHi || '#3f8a48', HD = a.hatDark || '#1d4826';
     const FE = a.feather || '#d8c090', FH = a.featherHi || '#f2e6b8';
     if (dir === 'side') {
-      blk(g, -1, -1.6, 11, 4.6, H); blk(g, -1, -1.6, 11, 1, HH);      // crown
-      blk(g, -1.6, 2.8, 8.4, 1.5, HD);                                 // upturned brim over the brow
-      blk(g, 7.4, -2.8, 2.9, 3.2, H); blk(g, 7.4, -2.8, 2.9, 0.9, HH); // upturned back peak
-      blk(g, 8.0, -4.4, 1, 5.6, FE); blk(g, 8.3, -4.2, 0.6, 4, FH);    // feather
+      // profile: cap hugging the crown with a long tapered point flopping out the back
+      blk(g, 0.4, -1.0, 8.2, 4.2, H);                                  // crown over the head
+      blk(g, 0.4, -1.0, 8.2, 1.0, HH);                                 // top sheen
+      blk(g, 0.2, 2.8, 6.6, 1.3, HD);                                  // brim over the brow (front)
+      const pts = [[8.2,2.6,-0.6],[9.9,2.2,-0.5],[11.4,1.8,-0.2],[12.8,1.4,0.2],[14.0,1.0,0.6],[15.0,0.6,1.0],[15.7,0.4,1.4]];
+      for (const [x,w,y] of pts) blk(g, x, y, w, 0.95, H);             // long backward-pointing tail
+      for (const [x,w,y] of pts) blk(g, x + w - 0.6, y, 0.6, 0.95, HH); // trailing-edge sheen
+      blk(g, 1.2, -1.8, 1.0, 5.2, FE); blk(g, 1.6, -1.4, 0.6, 4.2, FH); // feather at the front
       return;
     }
-    blk(g, 2, -1.6, 14, 5, H); blk(g, 2, -1.6, 14, 1, HH);            // crown across the head
-    blk(g, 6.9, -3.2, 3.6, 3, H); blk(g, 7.2, -3.2, 2.4, 0.9, HH);    // upturned front peak
-    blk(g, 1.4, 3, 15.2, 1.5, HD);                                     // rolled brim
-    if (dir !== 'up') { blk(g, 13.4, -4.4, 1.1, 5.6, FE); blk(g, 14.3, -4.6, 0.9, 3.6, FE); blk(g, 13.7, -4.2, 0.6, 4, FH); }
-    else { blk(g, 13.4, -4.4, 1.1, 5.6, FE); blk(g, 13.7, -4.2, 0.6, 4, FH); }
+    // front / back: cap covering the crown with an upturned brim (the point only shows in profile)
+    blk(g, 2, -1.0, 14, 4.4, H);                // crown block
+    blk(g, 2, -1.0, 14, 1.0, HH);               // top sheen
+    blk(g, 1.4, 3.0, 15.2, 1.4, HD);            // rolled brim
+    blk(g, 2.0, 2.4, 2.4, 1.1, HD);             // upturned brim corners
+    blk(g, 13.6, 2.4, 2.4, 1.1, HD);
+    if (dir !== 'up') {
+      blk(g, 13.0, -1.6, 1.1, 5.6, FE); blk(g, 14.1, -1.8, 0.9, 4.2, FE); blk(g, 13.5, -1.2, 0.6, 4.6, FH);
+    } else {
+      blk(g, 13.0, -1.6, 1.1, 5.6, FE); blk(g, 13.5, -1.2, 0.6, 4.6, FH);
+    }
   }
 };
 const ACC_FACE = {
   none() {},
-  monocle(g, dir, a) {
-    const ex = dir === 'side' ? 5 : 11.5, ey = 8;
-    g.strokeStyle = a.metal; g.lineWidth = 0.5; g.strokeRect(ex - 1, ey - 1, 2.4, 2.4);
-    blk(g, ex - 1, ey + 1.6, 0.5, 3, a.metal);
-  },
-  pearls(g, dir, a) {
-    const y = 15.2, x0 = dir === 'side' ? 2 : 4, x1 = dir === 'side' ? 7 : 14;
-    for (let x = x0; x <= x1; x += 1.1) blk(g, x, y + Math.sin(x) * 0.5, 0.9, 0.9, '#f4ecd8');
-  },
-  bowtie(g, dir, a) {
-    const cx = dir === 'side' ? 4 : 9;
-    blk(g, cx - 2.2, 15, 2, 1.8, a.tie2);
-    blk(g, cx + 0.4, 15, 2, 1.8, a.tie2);
-    blk(g, cx - 0.4, 15.4, 0.9, 1, mixc(a.tie2, '#000', 0.35));
-  },
-  rose(g, dir, a) {
+  rose(g, dir, a) {   // a lady's favour / flower token pinned to the chest
     const x = dir === 'side' ? 3 : 6.5, y = 18.5;
     blk(g, x, y, 1.6, 1.6, a.jewel);
     blk(g, x + 0.4, y + 0.4, 0.7, 0.7, a.jewelHi);
-  },
-  mask(g, dir, a) {   // domino masquerade mask
-    if (dir === 'up') return;
-    const cx = dir === 'side' ? 4.5 : 9;
-    blk(g, cx - (dir === 'side' ? 3 : 5), 6.4, dir === 'side' ? 6 : 10, 2.8, a.metal);
-    blk(g, cx - (dir === 'side' ? 3 : 5), 6.4, dir === 'side' ? 6 : 10, 0.6, a.metalHi);
-    blk(g, cx - 2, 7, 1.4, 1.4, '#0d0a12');
-    if (dir !== 'side') blk(g, cx + 0.8, 7, 1.4, 1.4, '#0d0a12');
   }
 };
 function accPainter(t, ax) {
@@ -1196,7 +1183,7 @@ function makeCharacterHD_human(t) {
   out.right = [0,1].map(f => buildFrameHD(hd.side, bd.side,  lg.side[f],  pal, true,  acc, 'side'));
   return out;
 }
-/* ================= 333 unique 1920s characters (NFT collection) =================
+/* ================= unique Sherwood-era characters (NFT collection) =================
    A character is pure data: traitsForToken(id) is deterministic, so token #N
    always renders the same guest. Rendered fronts ship as a zip; when a wallet
    owns a token, the game loads that token's traits for the player sprite. */
@@ -1210,36 +1197,33 @@ function mulberry32(a) {
 }
 const CN_TRAITS = {
   skin: ['#f6cfa4','#f0c49a','#e9b98c','#e0a878','#d3a87e','#c68a5e','#a9714a','#8a5a38','#6f4429'],
-  hair: ['#2a1c12','#14100d','#3a2718','#5a3a1e','#7a4a24','#b07a34','#d9b45a','#e8dcc0','#8a2a1e','#6b6b74'],
-  /* 1920s jewel tones for gowns & tuxedos */
-  garment: ['#1f5f4a','#123c6e','#7a1a26','#4a2564','#123a3a','#5a3b12','#2a2536','#0f0c14',
-            '#7d1f3d','#b0862c','#2f6f6f','#8a3a1c','#c9a13b','#5c1a2c','#324a6e','#6b2560'],
-  metal: ['#d9c07a','#c9a13b','#b8b8c4','#c98a4a','#e8dcc0','#8a6a2a'],
-  jewel: ['#c0392b','#2f7f96','#3a8a5a','#6b46a8','#c98a1a','#b03a5a','#2f55a0','#d4d4dc'],
-  hatM:  ['#0f0c14','#5c1a2c','#123c6e','#1f5f4a','#2a2536','#7a1a26','#4a2564','#c9a13b'],
-  /* 10 hair/hat silhouettes per gender (crown-composed heads) */
-  /* hair vs hats kept separate so hats can be gated to ~30% of the crowd */
+  hair: ['#2a1c12','#14100d','#3a2718','#5a3a1e','#7a4a24','#b07a34','#d9b45a','#e8dcc0','#8a2a1e','#4a4a44'],
+  /* earthy Sherwood dye tones — forest greens, russets, madder red, woad blue, ochre, browns */
+  garment: ['#2f5f34','#3f6b2c','#5a3b12','#6e4a24','#7a1a26','#9c3b1e','#274a6e','#334a3a',
+            '#8a6a2a','#b0862c','#4a3a22','#2a2a20','#5c1a2c','#3d5a2a','#6b5320','#48607a'],
+  metal: ['#c9a13b','#d9c07a','#b0b0ba','#c98a4a','#8a6a2a','#a9713a'],
+  jewel: ['#7a1a26','#2f6a4a','#274a6e','#8a6a2a','#b0862c','#5c3a1e','#6b2a2a','#3a5a3a'],
+  hatM:  ['#2f5f34','#5c1a2c','#274a6e','#4a3a22','#2a2a20','#7a1a26','#3d5a2a','#8a6a2a'],
+  /* hair silhouettes per gender; no period hats — 30% wear a pointed bycocket over the hair */
   hairM: ['bald','slick','pompadour','curly','wavy'],
-  hatMh: ['fez','topper','bowler','fedora','boater','newsboy'],
   hairF: ['bob','bobwave','sidebob','longhair','bang','updo'],
-  hatFh: ['cloche','turban','beret','wrapband'],
-  feather:['#e9dfce','#c0392b','#2f7f96','#3a8a5a','#6b46a8','#d9c07a','#b03a5a'],
+  feather:['#e9dfce','#c0392b','#3a8a5a','#d9c07a','#7a4a24','#f4ecd8','#2a2a20'],
   headAccF: ['band','feather','tiara','plume','band','feather'],
   headAccM: ['none','none','feather','band','none'],
-  faceAccM: ['none','monocle','bowtie','none','rose','mask','none','bowtie'],
-  faceAccF: ['none','pearls','pearls','rose','mask','none']
+  faceAccM: ['none','none','none','rose','none','none'],
+  faceAccF: ['none','none','rose','none','none','none']
 };
 const FIRST_M = ['Will','John','Much','Alan','Gilbert','Edric','Robin','Gamwell','Arthur','Roger','Hugh','Wat','Piers','Osric','Dunn','Cedric'];
 const FIRST_F = ['Marian','Alice','Isolde','Rowena','Edith','Maud','Clarice','Aveline','Nell','Joan','Gunnild','Elaine','Rosamund','Beatrix','Sibyl','Winifred'];
 const NICK = ['the Sure','Quickbow','the Bold','the Kid','Longshot','Lucky','the Hooded','Nimblefinger','the Fox','Sterling','Nightjar','the Green','Goldheart','the Merry','Vixen','Sly'];
 const LEGENDARY = {
-  1:   { name:'The Golden Stag',  metal:'#e8c24a', garment:'#c9a13b', jewel:'#fff2b8', headAcc:'plume', faceAcc:'monocle', feather:'#e8c24a' },
-  7:   { name:'The Night Ranger', metal:'#c9a13b', garment:'#0f0c14', jewel:'#c0392b', headAcc:'feather', faceAcc:'mask', feather:'#c0392b' },
-  33:  { name:'Silver Moonlight', metal:'#d4d4dc', garment:'#324a6e', jewel:'#cfe4ff', headAcc:'tiara', faceAcc:'pearls', feather:'#e8dcc0' },
-  77:  { name:'The Emerald Archer',metal:'#d9c07a', garment:'#1f5f4a', jewel:'#3a8a5a', headAcc:'plume', faceAcc:'rose', feather:'#3a8a5a' },
-  100: { name:'Baron of Chips',   metal:'#e8c24a', garment:'#123c6e', jewel:'#c9a13b', headAcc:'tiara', faceAcc:'mask', feather:'#d9c07a' },
-  222: { name:'The Ruby Maiden',  metal:'#d4d4dc', garment:'#7a1a26', jewel:'#c0392b', headAcc:'plume', faceAcc:'pearls', feather:'#c0392b' },
-  333: { name:"King o' the Kopje",  metal:'#e8c24a', garment:'#1f5f4a', jewel:'#e8c24a', headAcc:'feather', faceAcc:'monocle', feather:'#e8c24a' }
+  1:   { name:'The Golden Stag',  metal:'#e8c24a', garment:'#6b5320', jewel:'#fff2b8', headAcc:'plume', faceAcc:'none', feather:'#e8c24a' },
+  7:   { name:'The Night Ranger', metal:'#c9a13b', garment:'#2a2a20', jewel:'#7a1a26', headAcc:'feather', faceAcc:'none', feather:'#c0392b' },
+  33:  { name:'Silver Moonlight', metal:'#b0b0ba', garment:'#274a6e', jewel:'#cfe4ff', headAcc:'tiara', faceAcc:'none', feather:'#e8dcc0' },
+  77:  { name:'The Emerald Archer',metal:'#d9c07a', garment:'#2f5f34', jewel:'#3a8a5a', headAcc:'plume', faceAcc:'rose', feather:'#3a8a5a' },
+  100: { name:'Baron of Chips',   metal:'#e8c24a', garment:'#274a6e', jewel:'#c9a13b', headAcc:'tiara', faceAcc:'none', feather:'#d9c07a' },
+  222: { name:'The Ruby Maiden',  metal:'#b0b0ba', garment:'#7a1a26', jewel:'#c0392b', headAcc:'plume', faceAcc:'none', feather:'#c0392b' },
+  333: { name:"King o' the Greenwood", metal:'#e8c24a', garment:'#2f5f34', jewel:'#e8c24a', headAcc:'feather', faceAcc:'none', feather:'#e8c24a' }
 };
 function traitsForToken(id) {
   const rnd = mulberry32(id * 2654435761 >>> 0);
@@ -1254,30 +1238,21 @@ function traitsForToken(id) {
      men look). Bycocket wins over any other hat: force a bare hair silhouette so
      the cap sits on the head, then flag headAcc='bycocket'. */
   const bycocket = !LEGENDARY[id] && rnd() < 0.30;
-  /* of the rest, only ~30% wear a period hat; legendaries show bare-head regalia */
-  const wearsHat = !bycocket && !LEGENDARY[id] && rnd() < 0.345;
-  const head = bycocket
-    ? (female ? pick(T.hairF) : pick(T.hairM))
-    : female
-      ? (wearsHat ? pick(T.hatFh) : pick(T.hairF))
-      : (wearsHat ? pick(T.hatMh) : pick(T.hairM));
-  /* hat silhouettes ARE the headwear — no conflicting browband accessory */
-  const HATS = { fez:1, topper:1, bowler:1, fedora:1, boater:1, newsboy:1, cloche:1, turban:1, beret:1, wrapband:1 };
+  /* no 1920s hats — everyone shows hair; 30% add a pointed bycocket over it */
+  const head = female ? pick(T.hairF) : pick(T.hairM);
   let headAcc, faceAcc, feather = pick(T.feather);
   if (female) {
-    headAcc = HATS[head] ? 'none'
-            : tier === 'common' ? (rnd() < 0.5 ? 'band' : 'none') : pick(T.headAccF);
+    headAcc = tier === 'common' ? (rnd() < 0.5 ? 'band' : 'none') : pick(T.headAccF);
     faceAcc = pick(T.faceAccF);
   } else {
-    headAcc = HATS[head] ? 'none'
-            : tier === 'common' ? 'none' : pick(T.headAccM);
+    headAcc = tier === 'common' ? 'none' : pick(T.headAccM);
     faceAcc = pick(T.faceAccM);
   }
   /* greenwood cap palette — varied foresty greens/browns per character */
-  const BYCOL = ['#2f6a38','#356e2c','#1f5a3a','#4a5f24','#5a3f22','#3d6b3a'];
+  const BYCOL = ['#2f6a38','#356e2c','#1f5a3a','#4a5f24','#5a3f22','#3d6b3a','#6e4a24','#274a2a'];
   const bycocketCol = pick(BYCOL);
   if (bycocket) { headAcc = 'bycocket'; }
-  if (tier === 'epic' || tier === 'legendary') { garment = pick(['#c9a13b','#0f0c14','#7a1a26','#1f5f4a','#324a6e','#4a2564','#d4d4dc']); metal = pick(['#e8c24a','#d4d4dc','#c98a4a']); }
+  if (tier === 'epic' || tier === 'legendary') { garment = pick(['#2f5f34','#7a1a26','#274a6e','#5c1a2c','#6b5320','#334a3a','#4a3a22']); metal = pick(['#e8c24a','#c9a13b','#a9713a']); }
   const leg = LEGENDARY[id];
   let finalTier = tier;
   if (leg) { garment = leg.garment; metal = leg.metal; jewel = leg.jewel; headAcc = leg.headAcc; faceAcc = leg.faceAcc; feather = leg.feather; finalTier = 'legendary'; }
