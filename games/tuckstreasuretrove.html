@@ -960,6 +960,22 @@ const ACC_HEAD = {
     const cx = dir === 'side' ? 6 : 9;
     for (let i = 0; i < 6; i++) blk(g, cx - 1 + (i % 2), 4 - i, 1.6 - i * 0.12, 1, i < 4 ? a.feather : a.featherHi);
     blk(g, cx - 0.2, -1.4, 0.9, 6, a.featherHi);
+  },
+  bycocket(g, dir, a) {   // Robin Hood archer's cap: soft crown, upturned brim, feather
+    const H = a.hat || '#2f6a38', HH = a.hatHi || '#3f8a48', HD = a.hatDark || '#1d4826';
+    const FE = a.feather || '#d8c090', FH = a.featherHi || '#f2e6b8';
+    if (dir === 'side') {
+      blk(g, -1, -1.6, 11, 4.6, H); blk(g, -1, -1.6, 11, 1, HH);      // crown
+      blk(g, -1.6, 2.8, 8.4, 1.5, HD);                                 // upturned brim over the brow
+      blk(g, 7.4, -2.8, 2.9, 3.2, H); blk(g, 7.4, -2.8, 2.9, 0.9, HH); // upturned back peak
+      blk(g, 8.0, -4.4, 1, 5.6, FE); blk(g, 8.3, -4.2, 0.6, 4, FH);    // feather
+      return;
+    }
+    blk(g, 2, -1.6, 14, 5, H); blk(g, 2, -1.6, 14, 1, HH);            // crown across the head
+    blk(g, 6.9, -3.2, 3.6, 3, H); blk(g, 7.2, -3.2, 2.4, 0.9, HH);    // upturned front peak
+    blk(g, 1.4, 3, 15.2, 1.5, HD);                                     // rolled brim
+    if (dir !== 'up') { blk(g, 13.4, -4.4, 1.1, 5.6, FE); blk(g, 14.3, -4.6, 0.9, 3.6, FE); blk(g, 13.7, -4.2, 0.6, 4, FH); }
+    else { blk(g, 13.4, -4.4, 1.1, 5.6, FE); blk(g, 13.7, -4.2, 0.6, 4, FH); }
   }
 };
 const ACC_FACE = {
@@ -1115,10 +1131,10 @@ function makeGiraffe(t) {
   return { down, up, left, right };
 }
 
-/* traits in, character out — every inhabitant of the sanctuary is a real
-   giraffe now; the trait data only tints the coat shade. */
+/* traits in, character out — Tuck's folk are Rob's Hideout humans (same look
+   & cute eyes); ~30% wear a bycocket. Animals arrive species-by-species later. */
 function makeCharacterHD(t) {
-  return makeGiraffe(t);
+  return makeCharacterHD_human(t);
 }
 function makeCharacterHD_human(t) {
   const skin = ramp(mixc('#e8c88a', t.skin || '#e8c88a', 0.22)), hat = ramp(t.hat), coat = ramp(t.coat);
@@ -1136,16 +1152,17 @@ function makeCharacterHD_human(t) {
   };
   const metal = ramp(t.metal || '#d9c07a');
   const jewel = ramp(t.jewel || '#b02a3c');
+  const bycol = t.bycocketCol ? ramp(t.bycocketCol) : ramp('#2f6a38');
   const ax = {
     metal: metal.base, metalHi: metal.hi, dark: '#1c1620', band: t.jewel || '#7a1a26',
     jewel: jewel.base, jewelHi: jewel.hi, tie2: t.tie || '#1a1216',
     feather: (t.feather && ramp(t.feather).base) || '#e9dfce',
-    featherHi: (t.feather && ramp(t.feather).hi) || '#fff8ea'
+    featherHi: (t.feather && ramp(t.feather).hi) || '#fff8ea',
+    hat: bycol.base, hatHi: bycol.hi, hatDark: mixc(bycol.sh, '#0d1a0e', 0.35)
   };
   const baseAcc = (t.headAcc && t.headAcc !== 'none') || (t.faceAcc && t.faceAcc !== 'none')
     ? accPainter(t, ax) : null;
-  /* always stamp giraffe ossicones + spots on top of any 1920s headwear */
-  const acc = (g, dir) => { if (baseAcc) baseAcc(g, dir); drawGiraffe(g, dir); };
+  const acc = baseAcc;
   const legStyle = t.legs || (t.body === 'gown' ? 'gown' : ['dress','fringe','beaded','wrap'].includes(t.body) ? 'dress' : 'suit');
   const hd = HD_HEADS[t.head || 'fez'], bd = HD_BODIES[t.body || 'suit'], lg = HD_LEGS[legStyle] || HD_LEGS.suit;
   const out = {};
@@ -1209,11 +1226,17 @@ function traitsForToken(id) {
   const tier = roll < 0.015 ? 'legendary' : roll < 0.09 ? 'epic' : roll < 0.32 ? 'rare' : 'common';
   const skin = pick(T.skin), hair = pick(T.hair);
   let garment = pick(T.garment), metal = pick(T.metal), jewel = pick(T.jewel);
-  /* only ~30% of characters wear a hat; legendaries always show bare-head regalia */
-  const wearsHat = !LEGENDARY[id] && rnd() < 0.345;
-  const head = female
-    ? (wearsHat ? pick(T.hatFh) : pick(T.hairF))
-    : (wearsHat ? pick(T.hatMh) : pick(T.hairM));
+  /* 30% of the greenwood wear a Robin-Hood bycocket over their hair (the merry
+     men look). Bycocket wins over any other hat: force a bare hair silhouette so
+     the cap sits on the head, then flag headAcc='bycocket'. */
+  const bycocket = !LEGENDARY[id] && rnd() < 0.30;
+  /* of the rest, only ~30% wear a period hat; legendaries show bare-head regalia */
+  const wearsHat = !bycocket && !LEGENDARY[id] && rnd() < 0.345;
+  const head = bycocket
+    ? (female ? pick(T.hairF) : pick(T.hairM))
+    : female
+      ? (wearsHat ? pick(T.hatFh) : pick(T.hairF))
+      : (wearsHat ? pick(T.hatMh) : pick(T.hairM));
   /* hat silhouettes ARE the headwear — no conflicting browband accessory */
   const HATS = { fez:1, topper:1, bowler:1, fedora:1, boater:1, newsboy:1, cloche:1, turban:1, beret:1, wrapband:1 };
   let headAcc, faceAcc, feather = pick(T.feather);
@@ -1226,6 +1249,10 @@ function traitsForToken(id) {
             : tier === 'common' ? 'none' : pick(T.headAccM);
     faceAcc = pick(T.faceAccM);
   }
+  /* greenwood cap palette — varied foresty greens/browns per character */
+  const BYCOL = ['#2f6a38','#356e2c','#1f5a3a','#4a5f24','#5a3f22','#3d6b3a'];
+  const bycocketCol = pick(BYCOL);
+  if (bycocket) { headAcc = 'bycocket'; }
   if (tier === 'epic' || tier === 'legendary') { garment = pick(['#c9a13b','#0f0c14','#7a1a26','#1f5f4a','#324a6e','#4a2564','#d4d4dc']); metal = pick(['#e8c24a','#d4d4dc','#c98a4a']); }
   const leg = LEGENDARY[id];
   let finalTier = tier;
@@ -1242,6 +1269,8 @@ function traitsForToken(id) {
         shoes: '#120d10', tie: jewel, shirt:'#f4ead2', headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_M) + ' “' + pick(NICK) + '”' };
   t.id = id;
+  t.bycocket = bycocket;
+  t.bycocketCol = bycocketCol;
   /* backdrop scene (0-15) from a separate hash so the rest of the traits are
      unchanged; maps to one cell of the 4x4 Egyptian scene sheet */
   t.bg = Math.floor(mulberry32((id * 2654435761 ^ 0x9e3779b9) >>> 0)() * 16);
