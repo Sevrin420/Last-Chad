@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 <style>
 /* ============================================================
-   GIRAFFE SANCTUARY — mobile-first shell (a savanna re-skin of the
+   TUCK'S TREASURE TROVE — mobile-first shell (a greenwood re-skin of the
    Club Nile console). The console frame (robs-console.png, 832x1248)
    scales to the viewport WIDTH first; every overlay (screen window, d-pad,
    A/B buttons, labels, CHAT button, chat panel) is positioned in
@@ -326,7 +326,7 @@ body {
 }
 #mint-go, #mint-connect { align-self: flex-start; background: #7a1a26; color: #ffe9a8; }
 #mint-status { color: #9fd8b0; min-height: 3cqw; }
-/* ── SCROLLS OF THE SAVANNA: a carved-wood picker wheel over an aged
+/* ── SCROLLS OF THE GREENWOOD: a carved-wood picker wheel over an aged
    parchment reading pane. Spin the wheel (scroll / drag / arrows /
    chevrons) to select a scroll; the parchment turns to it. ── */
 .docs-panel .popup-head { color: #f0e2a6; }
@@ -503,7 +503,7 @@ body {
   </div>
   <div id="chat-panel">
     <div id="chat-head">
-      <span>SAVANNA CHAT</span>
+      <span>GREENWOOD CHAT</span>
       <input id="chat-name" maxlength="12" autocomplete="off" spellcheck="false">
       <button id="chat-close" type="button">X</button>
     </div>
@@ -516,7 +516,7 @@ body {
   <div id="mint-panel" class="popup-panel">
     <div class="popup-head"><span>MINT YOUR PASS</span><button class="popup-close" data-close="mint-panel" type="button">X</button></div>
     <div class="popup-body">
-      <p class="popup-lead">1111 Giraffe Sanctuary grazers. 0.1 ETH each · max 5 per wallet. Every holder rides free into the weekly tournament — plus chips and a seat at the tables.</p>
+      <p class="popup-lead">1111 Tuck's Treasure Trove outlaws. 0.1 ETH each · max 5 per wallet. Every holder rides free into the weekly tournament — plus chips and a seat at the tables.</p>
       <button id="mint-connect" type="button">CONNECT WALLET</button>
       <div id="mint-form" style="display:none">
         <label>NAME YOUR GIRAFFE (12 max)<input id="mint-name" maxlength="12" autocomplete="off" spellcheck="false" placeholder="e.g. TWIGA"></label>
@@ -528,7 +528,7 @@ body {
     </div>
   </div>
   <div id="docs-panel" class="popup-panel docs-panel">
-    <div class="popup-head"><span>SCROLLS OF THE SAVANNA</span><button class="popup-close" data-close="docs-panel" type="button">X</button></div>
+    <div class="popup-head"><span>SCROLLS OF THE GREENWOOD</span><button class="popup-close" data-close="docs-panel" type="button">X</button></div>
     <div class="docs-wrap">
       <div class="docs-wheel">
         <button class="dw-chev" id="dw-up" type="button" aria-label="up">▲</button>
@@ -577,12 +577,12 @@ body {
 
 <script>
 'use strict';
-/* GIRAFFE SANCTUARY — flips false until the player powers the console on and
+/* TUCK'S TREASURE TROVE — flips false until the player powers the console on and
    presses A off the title card; gates music + the live game underneath. */
 let booted = false;
 /* ==========================================================================
-   GIRAFFE SANCTUARY — a Sherwood Forest outlaws' gambling den (top-down,
-   LTTP-style). A savanna re-theme of the Club Nile engine.
+   TUCK'S TREASURE TROVE — a Sherwood Forest outlaws' gambling den (top-down,
+   LTTP-style). A greenwood re-theme of the Club Nile engine.
    Scenes: 'floor' · 'blackjack' · 'craps'.
 
    MULTIPLAYER: real players only at the tables. A lightweight WebSocket
@@ -607,17 +607,17 @@ ctx.imageSmoothingEnabled = false;
 /* ---------------------------- palette ---------------------------- */
 /* SNES-grade palette: every material gets a 3-4 tone ramp
    (highlight / base / shadow) instead of a single flat NES colour */
-/* GIRAFFE SANCTUARY palette — a warm tavern hidden in the savanna: oak-plank
+/* TUCK'S TREASURE TROVE palette — a warm tavern hidden in the greenwood: oak-plank
    floor, timber-and-ivy walls, a mossy runner, brass lantern gold. Keys are
    the Club Nile ones so every draw routine is untouched; only hues change. */
-/* SAVANNA palette — dry golden grass, acacia canopy, warm earth, sunset gold.
+/* GREENWOOD palette — dry golden grass, acacia canopy, warm earth, sunset gold.
    Keys unchanged so all references keep working; only the tones change. */
 const C = {
-  floorA:'#d9b06a', floorB:'#caa057', floorC:'#b08842', floorDot:'#916b32',
-  wall:'#7a5228', wallLight:'#9a6c34', wallDark:'#553818', wallLine:'#3a2612',
-  wallGold:'#e0c85e', wallGoldDark:'#a7873a',
-  sideWall:'#9a8636', sideWallLight:'#b8a24a', sideWallDark:'#736028',
-  rug:'#b89a44', rugDark:'#977d34', rugLight:'#d2b85a', rugGold:'#e0c85e',
+  floorA:'#c69a5e', floorB:'#b88a4d', floorC:'#a2743c', floorDot:'#875e30',
+  wall:'#6f4a2b', wallLight:'#8c6039', wallDark:'#4d3220', wallLine:'#382415',
+  wallGold:'#d8c25e', wallGoldDark:'#977f34',
+  sideWall:'#3f6b3a', sideWallLight:'#52854a', sideWallDark:'#2b4c2a',
+  rug:'#3f7a38', rugDark:'#2b5a29', rugLight:'#5aa04c', rugGold:'#d8c25e',
   wood:'#8f5531', woodLight:'#ae6d41', woodDark:'#5e3820', woodHi:'#cc8955',
   feltGreen:'#2f8a56', feltGreenHi:'#45aa6e', feltGreenDark:'#226844',
   feltBlue:'#2f7a64', feltBlueHi:'#43a085', feltBlueDark:'#215647',
@@ -625,10 +625,10 @@ const C = {
   white:'#f9f5ea', black:'#17121a',
   red:'#b0472b', dim:'#8d8398',
   flame1:'#ffb347', flame2:'#ffd97a', flame3:'#ff8c42',
-  leaf:'#7a9a3a', leafHi:'#9ab84e', leafDark:'#556e26',
+  leaf:'#4bb367', leafHi:'#66cc78', leafDark:'#31804a',
   pot:'#7a4a28', potHi:'#9a6238', potDark:'#553218',
   shadow:'rgba(20,10,5,0.28)',
-  uiBg:'rgba(30,24,12,0.95)'
+  uiBg:'rgba(14,22,15,0.95)'
 };
 const FONT = '8px "Press Start 2P", monospace';
 /* deterministic 2D hash for dithering/texture */
@@ -1719,7 +1719,7 @@ const NPC_TALK = {
   bartender: {
     name: 'TAMU · WATERHOLE',
     lines: [
-      ["Welcome to the Giraffe Sanctuary, friend. Tallest tables on the whole savanna."],
+      ["Welcome to Tuck's Treasure Trove, friend. Best-hidden den in all the greenwood."],
       ["Thirsty? We pour acacia nectar and marula juice.", "...But you can only wager chips here."],
       ["Hold your chips for tournament night. Fattest purses go to the top stacks."],
       ["Word is even the old bull couldn't reach a seat at these tables."]
@@ -1729,7 +1729,7 @@ const NPC_TALK = {
     name: 'KOPJE · BONES',
     lines: [["Feeling lucky? The bones are warm under the midday sun."]],
     action: 'craps',
-    broke: ["No chips, no dice, friend.", "Tamu pours courage at the waterhole. Come back with a stack."]
+    broke: ["No chips, no dice, friend.", "Tamu pours courage at the hideaway. Come back with a stack."]
   },
   blackjack: {
     name: 'JELANI · CARDS',
@@ -1739,14 +1739,14 @@ const NPC_TALK = {
   },
   roulette: {
     name: 'ZURI · THE WHEEL',
-    lines: [["Care to tempt the wheel, grazer? Lay your chips and let it spin."]],
+    lines: [["Care to tempt the wheel, outlaw? Lay your chips and let it spin."]],
     action: 'roulette',
     broke: ["No chips, no spin, friend.", "Fill your pouch at the cage and come back."]
   },
   thost: {
     name: 'TWIGA · TOURNEY HOST',
     lines: [
-      ["Welcome to the Tournament Hall, grazer! Grab a stack at the cage and climb the leaderboard."],
+      ["Welcome to the Tournament Hall, outlaw! Grab a stack at the cage and climb the leaderboard."],
       ["Every chip you build here is your score. Bust out? Rebuy at the cage and try again."],
       ["Top stacks take the purse on tournament night. Graze sharp."]
     ]
@@ -1762,8 +1762,8 @@ const NPC_TALK = {
     action: 'songs'
   },
   door: {
-    name: "GIRAFFE SANCTUARY",
-    lines: [["Wander back out onto the savanna?"]],
+    name: "TUCK'S TREASURE TROVE",
+    lines: [["Wander back out into the greenwood?"]],
     action: 'exit'
   },
   guestF: {
@@ -1776,7 +1776,7 @@ const NPC_TALK = {
   guestM: {
     name: 'JABARI · REGULAR',
     lines: [
-      ["Cosy little waterhole, aye? Best-kept secret on the plains."],
+      ["Cosy little hideaway, aye? Best-kept secret on the plains."],
       ["Lost my whole stack at the bones. Worth every leaf."]
     ]
   }
@@ -2052,8 +2052,8 @@ muteBtn.addEventListener('pointerdown', e => {
 updateMuteBtn();
 
 /* ── power / boot: the console starts dark. Flip the wooden ON/OFF switch
-   and the GIRAFFE SANCTUARY title card drops onto the screen to the arcade
-   jingle; press A to step into the savanna. Flipping OFF once you're in
+   and the TUCK'S TREASURE TROVE title card drops onto the screen to the arcade
+   jingle; press A to step into the greenwood. Flipping OFF once you're in
    settles any live stakes and drops the console back to its black OFF
    screen (a reload of this page), skin and all. ── */
 function powerOff() {
@@ -2170,7 +2170,7 @@ function powerOff() {
     if (!booted && ['Enter', ' ', 'e', 'E', 'z', 'Z'].includes(e.key)) confirm();
   });
 
-  /* paint the GIRAFFE SANCTUARY title card onto the boot canvas */
+  /* paint the TUCK'S TREASURE TROVE title card onto the boot canvas */
   function paintBootCard() {
     const cv = document.getElementById('boot-cvs');
     if (!cv) return;
@@ -2178,7 +2178,7 @@ function powerOff() {
     g.setTransform(2, 0, 0, 2, 0, 0);
     const W = 240, H = 240;
     g.clearRect(0, 0, W, H);
-    /* savanna dusk behind the card — sunset over the plains */
+    /* greenwood dusk behind the card — sunset over the plains */
     const bg = g.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#3a2410');
     bg.addColorStop(0.45, '#7a3d18');
@@ -2219,7 +2219,7 @@ function powerOff() {
     g.fillRect(W / 2 - 2, 123, 4, 4);
     g.font = '8px "Press Start 2P", monospace';
     g.fillStyle = '#f2ead2';
-    g.fillText('THE WATERING HOLE', W / 2, 137);
+    g.fillText("TUCK'S TREASURE TROVE", W / 2, 137);
   }
   if (document.fonts && document.fonts.load) {
     Promise.all([
@@ -2430,7 +2430,7 @@ bg.lw = W; bg.lh = WORLD_H;
   /* soft shade the trees cast onto the grass */
   g.fillStyle = 'rgba(12,30,12,0.20)';
   g.fillRect(0, 32, W, 4);
-  /* savanna pennants strung between the trees */
+  /* greenwood pennants strung between the trees */
   const banner = (bx) => {
     g.fillStyle = 'rgba(20,40,20,0.3)'; g.fillRect(bx + 1, 4, 12, 20);
     g.fillStyle = '#6a4a2c'; g.fillRect(bx - 1, 2, 14, 1);       // hanging rod
@@ -2769,7 +2769,7 @@ const tourneyArch = makeCanvas(3*TS, 3*TS, g => {
   g.fillText('TOURNEYS', w/2, 20);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 });
-/* a leafy oak sapling in an oak barrel — savanna potted plant */
+/* a leafy oak sapling in an oak barrel — greenwood potted plant */
 const palmCanvas = makeCanvas(22, 34, g => {
   g.fillStyle = C.shadow;
   g.beginPath(); g.ellipse(11, 31.5, 9, 2.5, 0, 0, Math.PI * 2); g.fill();
@@ -2864,7 +2864,7 @@ function drawInstrument(g, kind, x, y, seed) {
   }
 }
 /* the loot cache — an overflowing treasure chest of stolen gold on a stone
-   plinth, a savanna pennant flying above, roped off behind a stanchion */
+   plinth, a greenwood pennant flying above, roped off behind a stanchion */
 const sarcCanvas = makeCanvas(28, 58, g => {
   g.fillStyle = C.shadow;
   g.beginPath(); g.ellipse(14, 54, 12, 3, 0, 0, Math.PI * 2); g.fill();
@@ -2876,7 +2876,7 @@ const sarcCanvas = makeCanvas(28, 58, g => {
   g.fillStyle = '#4d3220'; g.fillRect(13.5, 3, 1.5, 44);
   g.fillStyle = '#6a4a2c'; g.fillRect(13.5, 3, 0.6, 44);
   g.fillStyle = C.gold; g.beginPath(); g.arc(14.2, 2.5, 1.8, 0, Math.PI * 2); g.fill();
-  /* savanna pennant with a white arrow */
+  /* greenwood pennant with a white arrow */
   g.fillStyle = C.rugDark; g.beginPath(); g.moveTo(15, 4); g.lineTo(26, 7); g.lineTo(15, 12); g.closePath(); g.fill();
   g.fillStyle = C.rug; g.beginPath(); g.moveTo(15, 5); g.lineTo(24, 7.3); g.lineTo(15, 11); g.closePath(); g.fill();
   g.strokeStyle = C.white; g.lineWidth = 0.8;
@@ -3143,41 +3143,41 @@ function crCall(d1, d2, prevPoint, newPoint) {
   }
   return call;
 }
-/* savanna table patter, dealt out at random between hands */
+/* greenwood table patter, dealt out at random between hands */
 const QUIPS = {
   bartender: [
-    "Poachers? Never found this waterhole.",
+    "Poachers? Never found this hideaway.",
     "This nectar's tapped from Tamu's own acacia. The good stuff.",
     "Pull up a patch of shade — the night is young.",
-    "A toast! To the tallest necks on the plains.",
-    "Cosiest waterhole on the whole savanna, this."
+    "A toast! To the merry outlaws of the greenwood.",
+    "Cosiest hideaway on the whole greenwood, this."
   ],
   craps: [
     "These bones roll honest as the sunrise, friend.",
-    "Bet with your head, not over it, grazer.",
+    "Bet with your head, not over it, outlaw.",
     "Fortune favours the tall.",
     "I once watched an old bull seven-out. True story.",
     "Keep 'em off the rail, traveller.",
     "The dice got no memory, but I sure do."
   ],
   blackjack: [
-    "Twenty-one — a grazer's lucky number.",
+    "Twenty-one — a outlaw's lucky number.",
     "The house always wins... eventually.",
-    "Now that's a hand worth grazing for!",
+    "Now that's a hand worth a king's ransom!",
     "I deal 'em straight as the horizon.",
     "Insurance? I wouldn't insure a hyena.",
     "Now we're basking in the sun."
   ],
   roulette: [
     "Round and round — where she stops, only the wind knows.",
-    "Red or black, grazer? The wheel plays no favourites.",
+    "Red or black, outlaw? The wheel plays no favourites.",
     "One little ball, a whole night's fortune.",
     "Lay it on a number and hold your breath.",
     "The wheel took a whole herd's leaves last week.",
-    "Zero's the house's watering hole — mind it."
+    "Zero's the house's trove — mind it."
   ],
   guestF: [
-    "This waterhole is the merriest on the plains!",
+    "This hideaway is the merriest on the plains!",
     "Off to the tall grass at dawn!",
     "The Acacia Trio don't stop 'til sunrise, you know.",
     "Says you!"
@@ -3707,7 +3707,7 @@ const bjRoom = makeCanvas(W, H, g => {
   /* felt watermark */
   g.font = FONT; g.textBaseline = 'top'; g.textAlign = 'center';
   g.fillStyle = 'rgba(24,42,84,0.9)';
-  g.fillText("GIRAFFE SANCTUARY", 120, 90);
+  g.fillText("TUCK'S TREASURE TROVE", 120, 90);
   g.textAlign = 'left';
   /* corner scarabs on the pad */
   g.fillStyle = C.rugGold;
@@ -4251,7 +4251,7 @@ const crRoom = makeCanvas(W, H, g => {
   /* felt watermark */
   g.font = FONT; g.textBaseline = 'top'; g.textAlign = 'center';
   g.fillStyle = 'rgba(18,48,33,0.85)';
-  g.fillText("GIRAFFE SANCTUARY", 120, 138);
+  g.fillText("TUCK'S TREASURE TROVE", 120, 138);
   g.textAlign = 'left';
   /* dealer chip rack docked at the top pad */
   g.fillStyle = C.woodDark; g.fillRect(86, 43, 68, 9);
@@ -4839,7 +4839,7 @@ const rouRoom = makeCanvas(W, H, g => {
   g.strokeStyle = '#caa14a'; g.lineWidth = 1; g.beginPath(); g.arc(ROU_WHEEL_POS.cx, ROU_WHEEL_POS.cy, 19, 0, Math.PI*2); g.stroke();
   /* watermark, tucked lower-left away from the wheel */
   g.font = FONT; g.textAlign = 'center'; g.textBaseline = 'top';
-  g.fillStyle = 'rgba(18,48,33,0.8)'; g.fillText("GIRAFFE SANCTUARY", 90, 176);
+  g.fillStyle = 'rgba(18,48,33,0.8)'; g.fillText("TUCK'S TREASURE TROVE", 90, 176);
   g.textAlign = 'left'; g.textBaseline = 'top';
 });
 const rou = {
@@ -5386,7 +5386,7 @@ function drawTitle(g) {
   g.fillRect(W/2 - 2, 122, 4, 4);
   g.font = FONT;
   g.fillStyle = C.white;
-  g.fillText('THE WATERING HOLE', W/2, 136);
+  g.fillText("TUCK'S TREASURE TROVE", W/2, 136);
   if (Math.floor(tick / 30) % 2) {
     g.fillStyle = C.white;
     g.fillText('PRESS A', W/2, 190);
@@ -5709,7 +5709,7 @@ for (const t of T_TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; 
 for (let c = T_CAGE.c0; c <= T_CAGE.c1; c++) { tourneyTalk[key(c, T_CAGE.r1)] = 'tcage'; tourneyTalk[key(c, T_CAGE.r1 + 1)] = 'tcage'; }
 [[T_HOST.c,T_HOST.r],[T_HOST.c-1,T_HOST.r],[T_HOST.c+1,T_HOST.r],[T_HOST.c,T_HOST.r+1],[T_HOST.c-1,T_HOST.r+1],[T_HOST.c+1,T_HOST.r+1]].forEach(([c,r]) => tourneyTalk[key(c,r)] = 'thost');
 const tourneyBg = makeCanvas(W, H, g => {
-  /* grassy clearing, same savanna as the antechamber */
+  /* grassy clearing, same greenwood as the antechamber */
   for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
     g.fillStyle = (c + r) % 2 ? '#c2a44e' : '#b09642';
     g.fillRect(c*TS, r*TS, TS, TS);
