@@ -549,10 +549,14 @@ Single-file HTML5 canvas game (~6,000 lines), no build step.
 
 - **Console shell:** a Gameboy-style frame PNG (832×1248, transparent screen
   cutout) with a power slider and an on/off toggle; overlays positioned as
-  `%` of the frame; CSS `container-type` + `cqw` units. The **docs and mint
-  popups render inside the screen cutout** and are driven by the on-screen pad
-  via `popupNav()` (Up/Down move, A activates, B closes; mint Left/Right sets
-  quantity, docs A pages the parchment).
+  `%` of the frame; CSS `container-type` + `cqw` units. **Every overlay renders
+  inside the screen cutout** (shared rect 13%/13% · 73%×45%) to keep the
+  handheld vibe — the mint/docs/cage/tournament-cage popups, the chat panel,
+  and the JS-injected name/herd modals (class `.gb-screen-modal`, appended to
+  `#console`). Docs and mint are pad-driven via `popupNav()` (Up/Down move, A
+  activates, B closes; mint Left/Right sets quantity, docs A pages the
+  parchment); B also closes the cages and modals, and the game pauses behind
+  any open overlay.
 - **Sprites:** procedural pixel-art via `makeCanvas(w,h,painter)` at 2× backing.
   `makeGiraffe(t)` builds giraffe characters (coat variety via `GIR_TONES`,
   ossicones/accessories via `ACC_HEAD`). NPCs and the player are giraffes.

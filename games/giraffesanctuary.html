@@ -243,32 +243,34 @@ body {
   background: repeating-linear-gradient(90deg,
               rgba(90,64,20,0.65) 0 0.4cqw, transparent 0.4cqw 1.3cqw);
 }
-/* ---- Casino-wide chat panel: covers the CONTROL area (d-pad and
-        buttons), never the game screen above ---- */
+/* Every panel/overlay lives INSIDE the game screen (the console's screen
+   cutout is left 12.38% / top 12.26% / 75% × 47.36%) to keep the handheld
+   vibe — nothing floats over the wood or the controls. The shared screen
+   rect is 13% / 13% / 73% × 45%. */
 #chat-panel {
   position: absolute;
-  z-index: 4;
-  left: 2.5%;
-  top: 65%;
-  width: 95%;
-  height: 33%;
+  z-index: 6;
+  left: 13%;
+  top: 13%;
+  width: 73%;
+  height: 45%;
   display: none;
   flex-direction: column;
-  background: rgba(16,11,26,0.97);
+  background: rgba(16,11,26,0.98);
   border: 0.5cqw solid #b98d3e;
   border-radius: 1.6cqw;
   color: #f7f3e8;
   font-size: 2.8cqw;
 }
 #chat-panel.open { display: flex; }
-/* mint / docs popups — styled like the chat panel but taller & centered */
+/* mint / docs / cage / tournament-cage popups — all inside the screen */
 .popup-panel {
   position: absolute;
   z-index: 6;
-  left: 4%;
-  top: 12%;
-  width: 92%;
-  height: 74%;
+  left: 13%;
+  top: 13%;
+  width: 73%;
+  height: 45%;
   display: none;
   flex-direction: column;
   background: rgba(16,11,26,0.98);
@@ -279,9 +281,20 @@ body {
   box-shadow: 0 0 6cqw rgba(0,0,0,0.6);
 }
 .popup-panel.open { display: flex; }
-/* docs + mint sit fully INSIDE the game screen (the console's screen cutout is
-   left 12.38% / top 12.26% / 75% × 47.36%) and are driven by the Gameboy pad. */
-#docs-panel, #mint-panel { left: 13%; top: 13%; width: 73%; height: 45%; }
+/* JS-injected modals (name / herd) also fit the screen — appended to #console */
+.gb-screen-modal {
+  position: absolute; left: 13%; top: 13%; width: 73%; height: 45%;
+  z-index: 9; display: flex; align-items: center; justify-content: center;
+  background: rgba(6,4,10,0.9); border-radius: 1.6cqw; overflow: hidden;
+  font-family: 'Press Start 2P', monospace;
+}
+.gb-screen-modal .gb-card {
+  width: 100%; height: 100%; box-sizing: border-box; overflow-y: auto;
+  padding: 3cqw; color: #ffe9a8;
+}
+/* highlight for the control-pad's current selection */
+.gbsel { outline: 0.7cqw solid #f5d76e !important; outline-offset: 0.2cqw;
+         box-shadow: 0 0 2.4cqw rgba(245,215,110,0.6) !important; }
 /* highlight for the control-pad's current selection */
 .gbsel { outline: 0.7cqw solid #f5d76e !important; outline-offset: 0.2cqw;
          box-shadow: 0 0 2.4cqw rgba(245,215,110,0.6) !important; }
@@ -1811,7 +1824,12 @@ function typing() {
 }
 addEventListener('keydown', e => {
   if (typing()) {
-    if (e.key === 'Escape') { e.target.blur(); toggleChat(false); }
+    if (e.key === 'Escape') {
+      e.target.blur();
+      if (document.getElementById('name-panel')) closeNameModal();
+      else if (document.getElementById('herd-panel')) closeHerdModal();
+      else toggleChat(false);
+    }
     return;
   }
   const k = e.key;
@@ -5847,7 +5865,7 @@ const mintPanel = document.getElementById('mint-panel');
 const docsPanel = document.getElementById('docs-panel');
 const cagePanel = document.getElementById('cage-panel');
 const tcagePanel = document.getElementById('tcage-panel');
-function popupOpen() { return mintPanel.classList.contains('open') || docsPanel.classList.contains('open') || cagePanel.classList.contains('open') || tcagePanel.classList.contains('open'); }
+function popupOpen() { return mintPanel.classList.contains('open') || docsPanel.classList.contains('open') || cagePanel.classList.contains('open') || tcagePanel.classList.contains('open') || !!document.getElementById('name-panel') || !!document.getElementById('herd-panel'); }
 function closePopup(id) { const p = document.getElementById(id); p.classList.remove('open'); p.querySelectorAll('.gbsel').forEach(el => el.classList.remove('gbsel')); }
 document.querySelectorAll('.popup-close').forEach(b => b.addEventListener('click', () => closePopup(b.dataset.close)));
 /* the scrolls, kept short and sharp — spin the wheel to read each one */
@@ -6184,22 +6202,20 @@ function openNameModal(tokenId) {
   namingToken = tokenId || PLAYER_TOKEN;
   const wrap = document.createElement('div');
   wrap.id = 'name-panel';
-  wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;' +
-    'background:rgba(6,4,10,0.82);font-family:"Press Start 2P",monospace;';
+  wrap.className = 'gb-screen-modal';
   wrap.innerHTML =
-    '<div style="background:#1a1216;border:3px solid #7a1a26;border-radius:10px;padding:20px;max-width:340px;width:88%;' +
-    'color:#ffe9a8;box-shadow:0 8px 40px rgba(0,0,0,0.6);">' +
-      '<div style="font-size:11px;line-height:1.6;margin-bottom:6px;color:#f0c268;">NAME YOUR GIRAFFE</div>' +
-      '<div style="font-size:8px;line-height:1.7;color:#d8c9a8;margin-bottom:12px;">This writes your name to your NFT and ' +
+    '<div class="gb-card">' +
+      '<div style="font-size:3.6cqw;line-height:1.6;margin-bottom:1.6cqw;color:#f0c268;">NAME YOUR GIRAFFE</div>' +
+      '<div style="font-size:2.6cqw;line-height:1.7;color:#d8c9a8;margin-bottom:3cqw;">This writes your name to your NFT and ' +
         'becomes your casino name for chat &amp; tips. Choose carefully — <b>it can never be changed.</b></div>' +
       '<input id="name-input" maxlength="12" placeholder="up to 12 characters" autocomplete="off" ' +
-        'style="width:100%;box-sizing:border-box;background:#0e0a0c;border:2px solid #7a1a26;border-radius:6px;' +
-        'color:#ffe9a8;font-family:inherit;font-size:10px;padding:9px;margin-bottom:10px;" />' +
-      '<div id="name-status" style="font-size:8px;line-height:1.6;min-height:14px;margin-bottom:10px;color:#9fd8b0;"></div>' +
-      '<button id="name-go" style="width:100%;background:#7a1a26;color:#ffe9a8;border:none;border-radius:6px;' +
-        'font-family:inherit;font-size:10px;padding:10px;cursor:pointer;">CLAIM NAME</button>' +
+        'style="width:100%;box-sizing:border-box;background:#0e0a0c;border:0.4cqw solid #7a1a26;border-radius:1cqw;' +
+        'color:#ffe9a8;font-family:inherit;font-size:3cqw;padding:2.2cqw;margin-bottom:2.4cqw;" />' +
+      '<div id="name-status" style="font-size:2.6cqw;line-height:1.6;min-height:3.4cqw;margin-bottom:2.4cqw;color:#9fd8b0;"></div>' +
+      '<button id="name-go" style="width:100%;background:#7a1a26;color:#ffe9a8;border:none;border-radius:1.2cqw;' +
+        'font-family:inherit;font-size:3cqw;padding:2.6cqw;cursor:pointer;">CLAIM NAME</button>' +
     '</div>';
-  document.body.appendChild(wrap);
+  (document.getElementById('console') || document.body).appendChild(wrap);
   const input = wrap.querySelector('#name-input');
   input.focus();
   wrap.querySelector('#name-go').addEventListener('click', submitName);
@@ -6286,24 +6302,22 @@ async function openHerdModal(opts) {
   closeHerdModal();
   const wrap = document.createElement('div');
   wrap.id = 'herd-panel';
-  wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;' +
-    'background:rgba(6,4,10,0.82);font-family:"Press Start 2P",monospace;';
+  wrap.className = 'gb-screen-modal';
   wrap.innerHTML =
-    '<div style="background:#1a1216;border:3px solid #7a1a26;border-radius:10px;padding:18px;max-width:380px;width:92%;' +
-    'max-height:86vh;overflow:auto;color:#ffe9a8;box-shadow:0 8px 40px rgba(0,0,0,0.6);">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-        '<span style="font-size:11px;color:#f0c268;">MY GIRAFFES</span>' +
-        '<button id="herd-close" style="background:#7a1a26;color:#ffe9a8;border:none;border-radius:5px;' +
-          'font-family:inherit;font-size:9px;padding:5px 8px;cursor:pointer;">X</button></div>' +
-      '<div style="font-size:8px;line-height:1.7;color:#d8c9a8;margin-bottom:10px;">Your casino name comes from your ' +
+    '<div class="gb-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2cqw;">' +
+        '<span style="font-size:3.6cqw;color:#f0c268;">MY GIRAFFES</span>' +
+        '<button id="herd-close" style="background:#7a1a26;color:#ffe9a8;border:none;border-radius:1cqw;' +
+          'font-family:inherit;font-size:2.8cqw;padding:1.4cqw 2.4cqw;cursor:pointer;">X</button></div>' +
+      '<div style="font-size:2.5cqw;line-height:1.7;color:#d8c9a8;margin-bottom:3cqw;">Your casino name comes from your ' +
         '<b>active</b> giraffe. Claim every giraffe\'s weekly tournament chips in one transaction.</div>' +
-      '<div id="herd-list" style="font-size:8px;line-height:1.6;">Loading your herd…</div>' +
-      '<div id="herd-total" style="font-size:9px;color:#9fd8b0;margin:10px 0 8px;"></div>' +
-      '<button id="herd-claim" style="width:100%;background:#7a1a26;color:#ffe9a8;border:none;border-radius:6px;' +
-        'font-family:inherit;font-size:10px;padding:10px;cursor:pointer;">CLAIM ALL WEEKLY CHIPS</button>' +
-      '<div id="herd-status" style="font-size:8px;line-height:1.6;min-height:14px;margin-top:8px;color:#9fd8b0;"></div>' +
+      '<div id="herd-list" style="font-size:2.5cqw;line-height:1.6;">Loading your herd…</div>' +
+      '<div id="herd-total" style="font-size:2.8cqw;color:#9fd8b0;margin:3cqw 0 2.4cqw;"></div>' +
+      '<button id="herd-claim" style="width:100%;background:#7a1a26;color:#ffe9a8;border:none;border-radius:1.2cqw;' +
+        'font-family:inherit;font-size:3cqw;padding:2.6cqw;cursor:pointer;">CLAIM ALL WEEKLY CHIPS</button>' +
+      '<div id="herd-status" style="font-size:2.5cqw;line-height:1.6;min-height:3.4cqw;margin-top:2.4cqw;color:#9fd8b0;"></div>' +
     '</div>';
-  document.body.appendChild(wrap);
+  (document.getElementById('console') || document.body).appendChild(wrap);
   wrap.querySelector('#herd-close').addEventListener('click', closeHerdModal);
   const list = await loadHerd();
   const listEl = document.getElementById('herd-list');
@@ -6318,16 +6332,16 @@ async function openHerdModal(opts) {
     totalReady += g.ready;
     const active = g.id === PLAYER_TOKEN;
     const nm = g.name || '(unnamed)';
-    html += '<div style="border-top:1px solid #3a2a2e;padding:7px 0;">' +
+    html += '<div style="border-top:0.25cqw solid #3a2a2e;padding:2cqw 0;">' +
       '<div style="color:' + (active ? '#f0c268' : '#ffe9a8') + ';">#' + g.id + ' · ' + escapeHtml(nm) +
         (active ? '  ◄ ACTIVE' : '') + '</div>' +
       '<div style="color:#b7a98c;">' + escapeHtml(g.tier || 'Common') + ' · weekly ' + g.weekly + ' · ready ' + g.ready + '</div>' +
-      '<div style="margin-top:4px;">' +
+      '<div style="margin-top:1.2cqw;">' +
         (g.name
           ? (active ? '' : '<button data-play="' + g.id + '" data-nm="' + escapeHtml(g.name) + '" ' +
-              'style="background:#22784e;color:#eafff0;border:none;border-radius:5px;font-family:inherit;font-size:8px;padding:5px 7px;cursor:pointer;">PLAY AS</button>')
+              'style="background:#22784e;color:#eafff0;border:none;border-radius:1cqw;font-family:inherit;font-size:2.5cqw;padding:1.4cqw 2cqw;cursor:pointer;">PLAY AS</button>')
           : '<button data-name-id="' + g.id + '" ' +
-              'style="background:#7a1a26;color:#ffe9a8;border:none;border-radius:5px;font-family:inherit;font-size:8px;padding:5px 7px;cursor:pointer;">NAME IT</button>') +
+              'style="background:#7a1a26;color:#ffe9a8;border:none;border-radius:1cqw;font-family:inherit;font-size:2.5cqw;padding:1.4cqw 2cqw;cursor:pointer;">NAME IT</button>') +
       '</div></div>';
   }
   listEl.innerHTML = html;
@@ -6416,6 +6430,8 @@ function docsNav() {
   if (bQueued) { bQueued = false; closePopup('docs-panel'); }
 }
 function popupNav() {
+  if (document.getElementById('herd-panel')) { if (bQueued) { bQueued = false; closeHerdModal(); } return; }
+  if (document.getElementById('name-panel')) { if (bQueued) { bQueued = false; closeNameModal(); } return; }
   if (docsPanel.classList.contains('open')) return docsNav();
   if (mintPanel.classList.contains('open')) return mintNav();
   if (bQueued) { bQueued = false; [cagePanel, tcagePanel].forEach(p => p.classList.remove('open')); }
