@@ -1030,13 +1030,6 @@ const ACC_FACE = {
     blk(g, x, y, 1.6, 1.6, a.jewel);
     blk(g, x + 0.4, y + 0.4, 0.7, 0.7, a.jewelHi);
   },
-  cig(g, dir, a) {
-    if (dir === 'up') return;
-    const mx = dir === 'side' ? 2.5 : 12, my = 12, dx = dir === 'side' ? -1 : 1;
-    blk(g, dir === 'side' ? mx - 3.5 : mx, my, 4, 0.5, '#2a1d12');
-    blk(g, mx + dx * 4, my - 0.3, 1, 1, '#f4ecd8');
-    blk(g, mx + dx * 5, my - 0.6, 0.7, 0.7, '#ff8c42');
-  },
   mask(g, dir, a) {   // domino masquerade mask
     if (dir === 'up') return;
     const cx = dir === 'side' ? 4.5 : 9;
@@ -1233,7 +1226,7 @@ const CN_TRAITS = {
   feather:['#e9dfce','#c0392b','#2f7f96','#3a8a5a','#6b46a8','#d9c07a','#b03a5a'],
   headAccF: ['band','feather','tiara','plume','band','feather'],
   headAccM: ['none','none','feather','band','none'],
-  faceAccM: ['none','monocle','bowtie','cig','rose','mask','none','bowtie'],
+  faceAccM: ['none','monocle','bowtie','none','rose','mask','none','bowtie'],
   faceAccF: ['none','pearls','pearls','rose','mask','none']
 };
 const FIRST_M = ['Will','John','Much','Alan','Gilbert','Edric','Robin','Gamwell','Arthur','Roger','Hugh','Wat','Piers','Osric','Dunn','Cedric'];
