@@ -1536,7 +1536,7 @@ const TABLES = [
   { game:'roulette',  c0:1,  c1:4,  r0:20, r1:21 },
   { game:'blackjack', c0:10, c1:13, r0:20, r1:21 }
 ];
-const FOUNTAIN = { c0:6, c1:8, r0:14, r1:15 };  // centre-piece fountain on the runner
+const POND = { c0:6, c1:8, r0:13, r1:16 };      // centre-piece pond; the path skirts it on either side
 const PALMS = [[1,5],[13,5],[1,17],[13,17]];    // potted palms filling the long hall
 const SARC = { c:13, r:26 };                    // sarcophagus, bottom-right (rope stanchion in front)
 const CAGE = { c0:1, c1:3, r0:24, r1:25 };      // the cage — a low-walled teller rectangle (bottom-left)
@@ -1551,7 +1551,7 @@ for (let r = 0; r < ROWS; r++) { solid.add(key(0,r)); solid.add(key(COLS-1,r)); 
 for (let c = BAR.c0; c <= BAR.c1; c++) solid.add(key(c, BAR.row));
 for (const t of TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r <= t.r1; r++) solid.add(key(c,r));
 for (let c = STAGE.c0; c <= STAGE.c1; c++) for (let r = STAGE.r0; r <= STAGE.r1; r++) solid.add(key(c,r));
-for (let c = FOUNTAIN.c0; c <= FOUNTAIN.c1; c++) for (let r = FOUNTAIN.r0; r <= FOUNTAIN.r1; r++) solid.add(key(c,r));
+for (let c = POND.c0; c <= POND.c1; c++) for (let r = POND.r0; r <= POND.r1; r++) solid.add(key(c,r));
 PALMS.forEach(([c,r]) => solid.add(key(c,r)));
 [[SARC.c,SARC.r],[SARC.c,SARC.r+1]].forEach(([c,r]) => solid.add(key(c,r)));  // sarcophagus + stanchion, bottom-right
 for (let c = CAGE.c0; c <= CAGE.c1; c++) for (let r = CAGE.r0; r <= CAGE.r1; r++) solid.add(key(c,r));  // the cage enclosure is solid
@@ -2666,6 +2666,27 @@ bg.lw = W; bg.lh = WORLD_H;
     g.fillStyle = (h2(i, 7) % 3) ? 'rgba(226,214,186,0.45)' : 'rgba(60,40,20,0.4)';
     g.fillRect(x, y, 1, 1);
   }
+  /* ── pond on the runner; the path narrows and skirts it on either side ── */
+  (function pond() {
+    const pcx = 7.5*TS;                                   // centre of the runner
+    const pt = POND.r0*TS, pb = (POND.r1+1)*TS;
+    const pcy = (pt + pb)/2, prx = 22, pry = (pb - pt)/2 - 2;
+    /* muddy bank ring */
+    g.fillStyle = '#5c4526'; g.beginPath(); g.ellipse(pcx, pcy, prx+3, pry+3, 0, 0, 7); g.fill();
+    g.fillStyle = '#3f6a2c'; g.beginPath(); g.ellipse(pcx, pcy, prx+1, pry+1, 0, 0, 7); g.fill();   // grassy fringe
+    /* layered water */
+    g.fillStyle = '#20415f'; g.beginPath(); g.ellipse(pcx, pcy, prx, pry, 0, 0, 7); g.fill();
+    g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(pcx, pcy-1, prx-3, pry-3, 0, 0, 7); g.fill();
+    g.fillStyle = '#3f8fb6'; g.beginPath(); g.ellipse(pcx, pcy-2, prx-7, pry-6, 0, 0, 7); g.fill();
+    /* sky glint + ripple lines */
+    g.fillStyle = 'rgba(200,232,242,0.45)';
+    g.fillRect(pcx-10, pcy-10, 7, 1); g.fillRect(pcx+2, pcy-4, 6, 1);
+    g.fillRect(pcx-6, pcy+3, 5, 1);   g.fillRect(pcx+1, pcy+9, 6, 1);
+    /* two lily pads */
+    g.fillStyle = '#2f6b34'; g.beginPath(); g.ellipse(pcx-8, pcy+4, 4, 2.4, 0, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(pcx+7, pcy-6, 3.5, 2, 0, 0, 7); g.fill();
+    g.fillStyle = '#e6a0c0'; g.fillRect(pcx-8, pcy+3, 1, 1);   // a lily bloom
+  })();
   /* leaf clump used for the whole forest border around the clearing */
   const clump = (cx, cy, rad) => {
     g.fillStyle = C.leafDark; g.beginPath(); g.arc(cx, cy, rad, 0, 7); g.fill();
@@ -2918,35 +2939,20 @@ const rouletteCanvas = makeCanvas(4*TS, 2*TS + 4, g => {
   g.drawImage(rouWheelSmall, w - 40, h/2 - 18, 36, 36);
   drawWheelHub(g, w - 22, h/2, 15, 0.6);
 });
-/* tiered stone fountain — centre-piece on the long runner */
-const fountainCanvas = makeCanvas(48, 46, g => {
-  const cx = 24;
-  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(cx, 42, 22, 5, 0, 0, Math.PI*2); g.fill();
-  /* lower basin */
-  g.fillStyle = '#6e5330'; g.beginPath(); g.ellipse(cx, 36, 22, 8, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#9a7c48'; g.beginPath(); g.ellipse(cx, 34, 22, 7.5, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = C.goldHi;  g.beginPath(); g.ellipse(cx, 33.4, 22, 7.2, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#5e4a2a'; g.beginPath(); g.ellipse(cx, 34.4, 18.5, 6, 0, 0, Math.PI*2); g.fill();
-  /* water pool */
-  g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(cx, 34, 17.5, 5.5, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#3f8fb6'; g.beginPath(); g.ellipse(cx, 33.4, 15, 4.4, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#8fd4e6'; g.fillRect(cx-9, 33, 5, 0.6); g.fillRect(cx+3, 34, 5, 0.6); g.fillRect(cx-3, 35, 4, 0.6);
-  /* pedestal */
-  g.fillStyle = '#6e5330'; g.fillRect(cx-4, 20, 8, 14);
-  g.fillStyle = '#8f6e3c'; g.fillRect(cx-4, 20, 3, 14);
-  /* falling water streams to the pool */
-  g.fillStyle = 'rgba(160,220,240,0.7)'; g.fillRect(cx-9, 22, 1, 11); g.fillRect(cx+8, 22, 1, 11);
-  /* upper bowl */
-  g.fillStyle = '#9a7c48'; g.beginPath(); g.ellipse(cx, 20, 11, 4, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = C.goldHi;  g.beginPath(); g.ellipse(cx, 19.4, 11, 3.6, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(cx, 19, 8, 2.5, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = '#8fd4e6'; g.beginPath(); g.ellipse(cx, 18.5, 4, 1.2, 0, 0, Math.PI*2); g.fill();
-  /* central jet + lotus finial */
-  g.fillStyle = '#b7e6f2'; g.fillRect(cx-1, 8, 2, 11);
-  g.fillStyle = '#e8f7fb'; g.fillRect(cx-1, 8, 1, 11);
-  g.fillStyle = C.gold;    g.beginPath(); g.ellipse(cx, 7, 2.5, 3.5, 0, 0, Math.PI*2); g.fill();
-  g.fillStyle = C.goldHi;  g.fillRect(cx-0.6, 5, 1, 3);
-});
+/* cattail reeds tufting the front bank of the pond (drawn straight to the floor) */
+function drawReeds(g, cx, baseY) {
+  const clump = (bx, n, tall) => {
+    for (let i = 0; i < n; i++) {
+      const rx = bx + (i - (n-1)/2) * 3;
+      const h = tall + (i % 2) * 3;
+      g.fillStyle = '#3f6a2c'; g.fillRect(rx, baseY - h, 1, h);          // blade
+      g.fillStyle = '#5a8a3a'; g.fillRect(rx, baseY - h, 1, Math.min(4, h));
+      if (i % 2 === 0) { g.fillStyle = '#5a3d1c'; g.fillRect(rx - 0.5, baseY - h - 3, 2, 4); }  // cattail head
+    }
+  };
+  clump(cx - 20, 3, 10);
+  clump(cx + 17, 3, 12);
+}
 /* the cage — a gilded teller window with bars and a CAGE sign */
 /* The cage is a free-standing rectangle of LOW gilded walls with the cashier
    standing inside it. Two pieces so the clerk renders BETWEEN them:
@@ -5700,9 +5706,9 @@ function floorRender() {
     drawEntity(g, { sprite: m.sprite, dir: 'down', frame: 0, x: m.x, y: m.y, staticNPC: true }, tick + m.seed * 20);
     drawInstrument(g, m.inst, m.x, m.y + 2, m.seed);
   } }));
-  /* fountain centre-piece on the runner */
-  const fw = (FOUNTAIN.c1 - FOUNTAIN.c0 + 1) * TS, fcx = FOUNTAIN.c0*TS + fw/2;
-  items.push({ y: (FOUNTAIN.r1+1)*TS, draw: g => g.drawImage(fountainCanvas, fcx - fountainCanvas.lw/2, FOUNTAIN.r0*TS - 6, fountainCanvas.lw, fountainCanvas.lh) });
+  /* reeds & cattails tufting the front bank of the pond (foreground, y-sorted) */
+  const pcx = 7.5*TS, pfront = (POND.r1+1)*TS;
+  items.push({ y: pfront - 2, draw: g => drawReeds(g, pcx, pfront) });
   /* potted palms filling the hall */
   PALMS.forEach(([c,r]) => items.push({ y: r*TS + 14, draw: g => g.drawImage(palmCanvas, c*TS - 3, r*TS - 18, palmCanvas.lw, palmCanvas.lh) }));
   /* sarcophagus in the bottom-right corner with the rope stanchion in front of it */
