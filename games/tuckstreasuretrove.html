@@ -696,10 +696,11 @@ function satAdjust(hex, f) {
   const o = c.map(v => Math.max(0, Math.min(255, Math.round(L + (v - L) * f))));
   return '#' + o.map(v => v.toString(16).padStart(2, '0')).join('');
 }
-/* tiny deterministic per-token dye-lot jitter: small value + warm/cool skew */
-function jitterCol(hex, seed) {
+/* tiny deterministic per-token dye-lot jitter: small value + warm/cool skew (mag scales it) */
+function jitterCol(hex, seed, mag) {
+  mag = mag == null ? 1 : mag;
   const r = mulberry32(seed >>> 0), c = hex2rgb(hex);
-  const v = 0.90 + r() * 0.20, s = (r() - 0.5) * 18, cl = x => Math.max(0, Math.min(255, Math.round(x)));
+  const v = 1 + (r() - 0.5) * 0.20 * mag, s = (r() - 0.5) * 18 * mag, cl = x => Math.max(0, Math.min(255, Math.round(x)));
   const o = [cl(c[0] * v + s), cl(c[1] * v), cl(c[2] * v - s)];
   return '#' + o.map(v => v.toString(16).padStart(2, '0')).join('');
 }
@@ -946,7 +947,15 @@ function outlineHD(c) {
       out.data[i] = src.data[i]; out.data[i + 1] = src.data[i + 1];
       out.data[i + 2] = src.data[i + 2]; out.data[i + 3] = 255;
     } else if (A(x - 1, y) || A(x + 1, y) || A(x, y - 1) || A(x, y + 1)) {
-      out.data[i] = 38; out.data[i + 1] = 22; out.data[i + 2] = 26; out.data[i + 3] = 255;
+      /* colored outline: a darkened tint of the fill it borders (richer than flat black) */
+      let nr = 0, ng = 0, nb = 0, nc = 0;
+      const add = (xx, yy) => { if (xx < 0 || yy < 0 || xx >= w || yy >= h) return; const j = (yy * w + xx) * 4; if (src.data[j + 3] > 0) { nr += src.data[j]; ng += src.data[j + 1]; nb += src.data[j + 2]; nc++; } };
+      add(x - 1, y); add(x + 1, y); add(x, y - 1); add(x, y + 1);
+      if (nc) { nr /= nc; ng /= nc; nb /= nc; }
+      out.data[i] = Math.round(nr * 0.30 + 30 * 0.70);
+      out.data[i + 1] = Math.round(ng * 0.30 + 18 * 0.70);
+      out.data[i + 2] = Math.round(nb * 0.30 + 22 * 0.70);
+      out.data[i + 3] = 255;
     }
   }
   g.putImageData(out, 0, 0);
@@ -1172,15 +1181,17 @@ function makeCharacterHD_human(t) {
   const pants = rampWool(t.pants), hair = ramp(t.hair), shoes = ramp(t.shoes);
   const shirt = rampSoft(t.shirt || '#f4ead2');
   const leather = rampLeather(t.leather || '#5a3a1d');
+  const metalR = ramp(t.metal || '#d9c07a');
   const pal = {
     '2': hat.hi, H: hat.base, h: hat.sh,
     '1': skin.hi, S: skin.base, s: skin.sh,
     K: hair.base, k: hair.sh,
-    '3': coat.hi, J: coat.base, j: coat.sh, L: mixc(coat.sh, '#1a1220', 0.4),
+    '3': coat.hi, J: coat.base, j: coat.sh,
+    L: mixc(t.trim || coat.sh, '#1a1220', 0.28),      // #11 contrast trim (lapels / tabard edge)
     C: shirt.base, R: t.tie || '#b02a3c',
     T: leather.base, Y: leather.hi,                   // per-character leather belt / jerkin
-    G: '#ffd766', g: '#c9a13b',
-    E: '#1a1216', W: '#fff6e6', M: '#8e4a42',
+    G: metalR.hi, g: metalR.base,                     // #3 buttons / buckles match the token's metal
+    E: t.iris || '#1a1216', W: '#fff6e6', M: t.mouth || '#8e4a42',
     B: pants.base, b: pants.sh, F: shoes.base, f: shoes.sh
   };
   const metal = ramp(t.metal || '#d9c07a');
@@ -1254,7 +1265,7 @@ function traitsForToken(id) {
   const T = CN_TRAITS;
   const roll = rnd();
   const tier = roll < 0.015 ? 'legendary' : roll < 0.09 ? 'epic' : roll < 0.32 ? 'rare' : 'common';
-  const skin = pick(T.skin), hair = pick(T.hair);
+  let skin = pick(T.skin), hair = pick(T.hair);
   let garment = pick(T.garment), metal = pick(T.metal), jewel = pick(T.jewel);
   /* 30% of the greenwood wear a Robin-Hood bycocket over their hair (the merry
      men look). Bycocket wins over any other hat: force a bare hair silhouette so
@@ -1290,6 +1301,16 @@ function traitsForToken(id) {
   const LINEN = ['#f4ead2','#e8dcc0','#d9c8a0','#cfd0c0','#c8b89a','#dfe0e2','#e6d8b0','#efe4c4'];
   const LEATHER = ['#5a3a1d','#3d2712','#6e4a24','#7a1a26','#2a2020','#8a6a3a','#4a3020','#63421f'];
   const shirtCol = cpick(LINEN), leatherCol = cpick(LEATHER);
+  /* #8 subtle skin undertone + #9 hair tint jitter (gentle, seeded independently) */
+  skin = jitterCol(skin, (id * 2246822519) >>> 0, 0.35);
+  hair = jitterCol(hair, (id * 3266489917) >>> 0, 0.5);
+  /* #10 iris tint — a dark eye colour instead of flat near-black */
+  const irisCol = leg ? '#1a1216' : cpick(['#241a12','#1a2436','#22321f','#3a2a14','#2a1a22','#161016']);
+  /* #11 independent contrast trim (lapels / tabard edge / collar facing) */
+  const TRIM = ['#d9c07a','#e6d8b0','#7a1a26','#2f5f34','#274a6e','#3d2712','#8a6a2a','#b0862c'];
+  const trimCol = leg ? metal : cpick(TRIM);
+  /* #8 lip/blush tone variation */
+  const mouthCol = cpick(['#8e4a42','#9a5048','#7e3e3a','#a85a4e','#864440']);
   const trim = tier === 'common' ? mixc(garment, '#f4ead2', 0.25) : metal;
   const bodyF = pick(['dress','gown','fringe','beaded','wrap']);
   const bodyM = pick(['suit','tux','vest','pinstripe','openshirt']);
@@ -1297,10 +1318,10 @@ function traitsForToken(id) {
   const t = female
     ? { head, body: bodyF, skin, hair, hat: garment, coat: garment, pants: garment,
         shoes: metal, tie: jewel, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
-        shirt: shirtCol, leather: leatherCol,
+        shirt: shirtCol, leather: leatherCol, iris: irisCol, trim: trimCol, mouth: mouthCol,
         name: leg ? leg.name : pick(FIRST_F) + ' “' + pick(NICK) + '”' }
     : { head, body: bodyM, legs: legsM, skin, hair, hat: pick(T.hatM), coat: garment, pants: mixc(garment, '#0d0a12', 0.4),
-        shoes: '#120d10', tie: jewel, shirt: shirtCol, leather: leatherCol, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
+        shoes: '#120d10', tie: jewel, shirt: shirtCol, leather: leatherCol, iris: irisCol, trim: trimCol, mouth: mouthCol, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_M) + ' “' + pick(NICK) + '”' };
   t.id = id;
   t.bycocket = bycocket;
