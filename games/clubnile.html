@@ -477,75 +477,6 @@ body {
   display: none;
 }
 @media (pointer: fine) { #kbd-hint { display: block; } }
-
-/* ============================================================
-   FULL-BLEED MODE — the handheld boot ceremony now lives on the
-   homepage (index.html). Here the game screen fills the whole
-   window: the cartridge frame + on-console controls are hidden
-   and replaced by floating touch controls (which reuse the same
-   #dpad / #btn-a / #btn-b handlers). #console is sized in JS
-   (fullBleed/fit) so its screen cutout is centered and as large
-   as the viewport allows, keeping every cqw overlay in ratio.
-   ============================================================ */
-body.big { overflow: hidden; }
-body.big #console { aspect-ratio: auto; }                 /* JS sets explicit w/h */
-body.big #console img.frame,
-body.big #bezel,
-body.big #bezel-in,
-body.big #power { display: none !important; }
-body.big #kbd-hint { display: none !important; }
-/* floating touch pad + face buttons */
-body.big #dpad, body.big #btn-a, body.big #btn-b {
-  position: fixed; z-index: 20; touch-action: none;
-  width: auto; height: auto;                              /* drop the % geometry */
-}
-body.big #dpad {
-  left: 3.5vmin; bottom: 3.5vmin; width: 30vmin; height: 30vmin;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%,
-              rgba(34,22,44,0.44) 0%, rgba(34,22,44,0.30) 62%, rgba(34,22,44,0.12) 100%);
-  border: 0.5vmin solid rgba(240,212,136,0.38);
-  box-shadow: inset 0 0 3vmin rgba(0,0,0,0.45);
-}
-body.big #dpad::before, body.big #dpad::after {
-  content: ''; position: absolute; background: rgba(240,212,136,0.30); border-radius: 1vmin;
-}
-body.big #dpad::before { left: 50%; top: 17%; width: 4vmin; height: 66%; transform: translateX(-50%); }
-body.big #dpad::after  { top: 50%; left: 17%; height: 4vmin; width: 66%; transform: translateY(-50%); }
-body.big #dpad.pressed {
-  background: radial-gradient(circle at 50% 50%, rgba(64,44,86,0.52), rgba(34,22,44,0.28));
-}
-body.big #btn-a, body.big #btn-b {
-  border-radius: 50%; color: #17120a; font-family: 'Press Start 2P', monospace;
-  display: flex; align-items: center; justify-content: center;
-  text-shadow: 0 0.3vmin 0 rgba(255,255,255,0.35);
-}
-body.big #btn-a {
-  right: 5vmin; bottom: 13vmin; width: 17vmin; height: 17vmin; font-size: 6vmin;
-  background: radial-gradient(circle at 40% 34%, #ffe9a8, #c99a3c);
-  border: 0.7vmin solid rgba(90,64,20,0.85);
-  box-shadow: 0 0.9vmin 1.5vmin rgba(0,0,0,0.5);
-}
-body.big #btn-b {
-  right: 23vmin; bottom: 6vmin; width: 13.5vmin; height: 13.5vmin; font-size: 4.6vmin;
-  background: radial-gradient(circle at 40% 34%, #f3c9c0, #b46052);
-  border: 0.7vmin solid rgba(80,30,20,0.85);
-  box-shadow: 0 0.9vmin 1.5vmin rgba(0,0,0,0.5);
-}
-body.big #btn-a::after { content: 'A'; }
-body.big #btn-b::after { content: 'B'; }
-body.big #btn-a.pressed, body.big #btn-b.pressed { filter: brightness(1.28); }
-/* CHAT / MUTE pills float in the top-right corner */
-body.big #btn-chat {
-  position: fixed; left: auto; right: 3vmin; top: 3vmin; width: auto;
-  padding: 1.6vmin 2.6vmin; font-size: 3vmin; letter-spacing: 0.3vmin;
-  border-radius: 3vmin; border-width: 0.4vmin; z-index: 20;
-}
-body.big #btn-mute {
-  position: fixed; left: auto; right: 3vmin; top: 10vmin; width: auto;
-  padding: 1.6vmin 2.6vmin; font-size: 3vmin; letter-spacing: 0.3vmin;
-  border-radius: 3vmin; border-width: 0.4vmin; z-index: 20;
-}
 </style>
 </head>
 <body>
@@ -2547,6 +2478,13 @@ function powerOff() {
   } else {
     paintBootCard();
   }
+
+  /* Arriving from the homepage door, the console is already ON — sync the
+     switch's real state so it reads ON and a single flip powers back off.
+     The module-level auto-enter (bottom of file) fades the black up into the
+     room; the title card never re-drops here (the ceremony lives on the
+     homepage), but walking south still calls bootUp() to show it in-game. */
+  on = true; setKnob(1); el.classList.add('on');
 })();
 
 /* ============================ dialogue box ============================ */
@@ -6953,42 +6891,17 @@ try {
 } catch (e) { /* no session — guest play with local chips */ }
 
 /* ==========================================================================
-   FULL-BLEED PRESENTATION + AUTO-ENTER
-   The homepage (index.html) runs the console boot ceremony — turn the
-   Gameboy on, the title card drops, PRESS A opens the rainy door, and the
-   door fades straight here. So on this page we skip the second title card,
-   fade up from black into the club, and let the game fill the whole window.
-   #console keeps its internal layout (every overlay is a % of it, sized in
-   cqw), so we simply size the console so its screen cutout fills the viewport
-   and clip the rest — all proportions stay intact.
+   AUTO-ENTER — the Gameboy skin ALWAYS shows. The homepage (index.html) runs
+   the boot ceremony (turn the console on → title card → PRESS A → rainy door),
+   and the door fades straight here. So on this page we power the console on
+   automatically and fade up from black into the club — no second title card —
+   while the handheld skin, D-pad, and buttons stay on screen the whole time.
    ========================================================================== */
-(function fullBleed() {
-  document.body.classList.add('big');
-  const con = document.getElementById('console');
-  /* screen cutout inside the 832x1248 cartridge (matches #screen geometry) */
-  const SL = 0.1234, ST = 0.084, SW = 0.751, SH = 0.514, RATIO = 1248 / 832;
-  function fit() {
-    const vw = innerWidth, vh = innerHeight;
-    const shPerW = SH * RATIO;                     // screen height per console width
-    const W = Math.min(vw / SW, vh / shPerW);      // contain the screen in the viewport
-    const H = W * RATIO;
-    con.style.width = W + 'px';
-    con.style.height = H + 'px';
-    con.style.position = 'fixed';
-    con.style.left = (vw / 2 - (SL + SW / 2) * W) + 'px';
-    con.style.top  = (vh / 2 - (ST + SH / 2) * H) + 'px';
-  }
-  fit();
-  addEventListener('resize', fit);
-  addEventListener('orientationchange', () => setTimeout(fit, 60));
-
-  /* auto-enter: no second title card — just fade up from black into the room */
+(function autoEnter() {
   booted = true; started = true; titleAlpha = 0;
   const bootEl = document.getElementById('boot');
-  const bootCard = document.getElementById('boot-card');
   const pressEl = document.getElementById('boot-press');
-  if (pressEl) pressEl.classList.remove('on');
-  if (bootCard) bootCard.style.display = 'none';   // the ceremony already happened at the door
+  if (pressEl) pressEl.classList.remove('on');     // the switch (set ON in initBoot) already reads live
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (!bootEl) return;
     bootEl.classList.add('gone');                  // 1.7s fade from black into the club
