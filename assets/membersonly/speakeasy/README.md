@@ -43,8 +43,26 @@ draws them (nearest-neighbor, downscaled) for the player and NPCs. Roles map to
 the obvious cast member — bartender → `m03_bartender`, pianist → `m06_pianist`,
 dealers/guests → the rest. Portraits in `nft/` back the collection cards.
 
-## Caveat
+## `game/` — derived in-engine sprites
 
-`m07_bootlegger`'s W/E (side) views are a placeholder (his back view) — the
-generator's image quota ran out mid-production. Regenerate with
-`speakeasy_generator.py` when quota refreshes (see `USAGE_GUIDE.md` §8).
+`game/` holds tiny, downscaled sheets the game actually loads (2 walk frames ×
+rows S,N,W, feet-aligned, ~54px tall, nearest-neighbor). Generated from
+`spritesheets/` by trimming each direction independently and padding to a uniform
+cell — `clubnile.html` slices them into `{down,up,left,right}` and mirrors `W→E`.
+
+**Only 10 characters have clean 4-direction art in this source pack** and are the
+ones used for walking NPCs/player:
+
+`f02_singer · f06_waitress · f08_madame · f09_reporter · f10_showgirl ·
+m01_mobboss · m02_bouncer · m05_trumpet · m06_pianist · m09_gambler`
+
+## Caveat — malformed views
+
+The other 10 characters (`f01,f03,f04,f05,f07,m03,m04,m07,m08,m10`) have
+**malformed back and/or side cells** in the source spritesheets — the image
+generator produced garbage for those directions (e.g. `m08_detective`'s back is a
+stack of hat blobs; `m07_bootlegger`'s sides are a documented placeholder). Their
+**front-facing NFT portraits are fine** (use them for cards), but they're excluded
+from the in-world cast until regenerated. Re-run `speakeasy_generator.py` when the
+image quota refreshes (see `USAGE_GUIDE.md` §8) to fix the bad directions, then
+add them back to `SPEAK_KEYS` in `games/clubnile.html`.

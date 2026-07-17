@@ -1531,6 +1531,59 @@ const SPRITES = {
 };
 const REMOTE_SPRITES = ['remote0','remote1','remote2'];
 
+/* ── Speakeasy Pixels: swap the procedural cast for the pixel-art pack ──────────
+   Small sheets (2 walk frames × rows S,N,W) live in assets/…/speakeasy/game/.
+   Loaded async; each becomes a {down,up,left,right} set drawEntity can draw
+   (right = mirrored W). They overwrite the procedural SPRITES once loaded, so the
+   game shows the procedural fallback for a frame or two, then the pixel-art cast. */
+const SPEAK_BASE = '../assets/membersonly/speakeasy/game/';
+/* Only the characters with clean 4-direction sprites in the source pack. The rest
+   have malformed back/side views (AI-gen artifacts) and are used for portraits only. */
+const SPEAK_KEYS = ['f02_singer','f06_waitress','f08_madame','f09_reporter','f10_showgirl',
+  'm01_mobboss','m02_bouncer','m05_trumpet','m06_pianist','m09_gambler'];
+const SPEAK = {};
+const SPEAK_DRAW_H = 54;                       // on-screen sprite height (px)
+function buildSpeakSprite(img) {
+  const cw = img.width / 2, ch = img.height / 3;   // 2 frames wide; rows S,N,W
+  const scale = SPEAK_DRAW_H / ch, dw = Math.max(1, Math.round(cw * scale)), dh = Math.round(ch * scale);
+  const cell = (col, row, mirror) => {
+    const c = document.createElement('canvas'); c.width = dw; c.height = dh;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    if (mirror) { g.translate(dw, 0); g.scale(-1, 1); }
+    g.drawImage(img, col * cw, row * ch, cw, ch, 0, 0, dw, dh);
+    c.lw = dw; c.lh = dh; return c;
+  };
+  return { down:  [cell(0,0,false), cell(1,0,false)],
+           up:    [cell(0,1,false), cell(1,1,false)],
+           left:  [cell(0,2,false), cell(1,2,false)],
+           right: [cell(0,2,true),  cell(1,2,true)] };
+}
+/* deterministic per-token pick from the clean cast */
+function speakForToken(id) {
+  return SPEAK_KEYS[(id * 2654435761 >>> 0) % SPEAK_KEYS.length];
+}
+const SPEAK_ROLE = {
+  bartender:'m02_bouncer', crapsDealer:'m01_mobboss', bjDealer:'m09_gambler',
+  rouletteDealer:'f08_madame', guestF:'f10_showgirl', guestM:'m05_trumpet',
+  remote0:'m01_mobboss', remote1:'f09_reporter', remote2:'m06_pianist',
+  bandSinger:'f02_singer', bandCello:'m05_trumpet', bandDrum:'m06_pianist',
+  mintClerk:'f06_waitress', docsHost:'m09_gambler', cashier:'f08_madame'
+};
+function applySpeakeasySprites() {
+  for (const role in SPEAK_ROLE) { const s = SPEAK[SPEAK_ROLE[role]]; if (s) SPRITES[role] = s; }
+  const ps = SPEAK[speakForToken(PLAYER_TOKEN)]; if (ps) SPRITES.player = ps;
+}
+(function loadSpeakeasy() {
+  let n = SPEAK_KEYS.length;
+  const done = () => { if (--n === 0) applySpeakeasySprites(); };
+  SPEAK_KEYS.forEach(k => {
+    const img = new Image();
+    img.onload = () => { try { SPEAK[k] = buildSpeakSprite(img); } catch (e) {} done(); };
+    img.onerror = done;
+    img.src = SPEAK_BASE + k + '.png?v=2';
+  });
+})();
+
 /* ============================ map (floor) ============================ */
 const STAGE = { c0:1, c1:4, r0:2, r1:3 };     // rectangular raised stage, back-left
 const BAR = { c0:6, c1:10, row:2 };           // bar at the back, beside the stage
@@ -6726,7 +6779,7 @@ async function claimAllWeekly(ids) {
 }
 function setActiveGiraffe(id, name) {
   PLAYER_TOKEN = id;
-  try { SPRITES.player = characterForToken(id); } catch (e) {}
+  try { SPRITES.player = SPEAK[speakForToken(id)] || characterForToken(id); } catch (e) {}
   try { player.legendary = true; /* TEMP: forced on for testing (was: traitsForToken(id).tier === 'legendary') */ } catch (e) {}
   adoptCasinoName(name);        // your casino name is now this giraffe's name
   closeHerdModal();
