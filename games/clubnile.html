@@ -614,22 +614,22 @@ ctx.imageSmoothingEnabled = false;
 /* CLUB NILE palette — dry golden grass, acacia canopy, warm earth, sunset gold.
    Keys unchanged so all references keep working; only the tones change. */
 const C = {
-  floorA:'#4e8340', floorB:'#457637', floorC:'#3b672d', floorDot:'#2f5626',
-  wall:'#6f4a2b', wallLight:'#8c6039', wallDark:'#4d3220', wallLine:'#382415',
-  wallGold:'#d8c25e', wallGoldDark:'#977f34',
-  sideWall:'#3f6b3a', sideWallLight:'#52854a', sideWallDark:'#2b4c2a',
+  floorA:'#f4e2b0', floorB:'#e8d194', floorC:'#d9bd7e', floorDot:'#c4a263',
+  wall:'#d2a259', wallLight:'#eac272', wallDark:'#a87e3f', wallLine:'#8a6733',
+  wallGold:'#f8d572', wallGoldDark:'#bd9040',
+  sideWall:'#8f6e3c', sideWallLight:'#a58248', sideWallDark:'#6e5330',
   rug:'#b02642', rugDark:'#8c1631', rugLight:'#d24358', rugGold:'#f2c76a',
   wood:'#8f5531', woodLight:'#ae6d41', woodDark:'#5e3820', woodHi:'#cc8955',
   feltGreen:'#2f8a56', feltGreenHi:'#45aa6e', feltGreenDark:'#226844',
-  feltBlue:'#2f7a64', feltBlueHi:'#43a085', feltBlueDark:'#215647',
+  feltBlue:'#2f55a0', feltBlueHi:'#4272c2', feltBlueDark:'#24437e',
   gold:'#ffdf7a', goldHi:'#fff2b8', goldDark:'#cfa63e',
   white:'#f9f5ea', black:'#17121a',
-  red:'#b0472b', dim:'#8d8398',
+  red:'#c0392b', dim:'#8d8398',
   flame1:'#ffb347', flame2:'#ffd97a', flame3:'#ff8c42',
   leaf:'#4bb367', leafHi:'#66cc78', leafDark:'#31804a',
-  pot:'#7a4a28', potHi:'#9a6238', potDark:'#553218',
+  pot:'#bb6238', potHi:'#dd8048', potDark:'#8e4628',
   shadow:'rgba(20,10,5,0.28)',
-  uiBg:'rgba(14,22,15,0.95)'
+  uiBg:'rgba(18,13,31,0.94)'
 };
 const FONT = '8px "Press Start 2P", monospace';
 /* deterministic 2D hash for dithering/texture */
@@ -2645,68 +2645,113 @@ bg.lw = W; bg.lh = WORLD_H;
   const g = bg.getContext('2d');
   g.setTransform(2, 0, 0, 2, 0, 0);
   g.imageSmoothingEnabled = false;
-  /* ── grassy forest clearing floor ── */
-  paintGrassFloor(g, W, WORLD_H);
-  /* dappled grass grain + darker clover patches */
-  for (let y = 0; y < WORLD_H; y += 3) for (let x = 0; x < W; x += 3) {
-    const hsh = h2(x, y);
-    if (hsh % 6 === 0) { g.fillStyle = 'rgba(150,200,110,0.15)'; g.fillRect(x, y, 2, 1); }
-    else if (hsh % 13 === 0) { g.fillStyle = 'rgba(18,44,18,0.18)'; g.fillRect(x, y, 1, 2); }
+  /* ── sandstone floor: 3-tone checker + dithered grain + inlays ── */
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const t = (c + r) % 2 ? C.floorA : C.floorB;
+      g.fillStyle = t;
+      g.fillRect(c*TS, r*TS, TS, TS);
+      /* per-tile bevel: light top edge, dark bottom edge */
+      g.fillStyle = 'rgba(255,246,220,0.35)';
+      g.fillRect(c*TS, r*TS, TS, 1);
+      g.fillStyle = 'rgba(140,110,70,0.25)';
+      g.fillRect(c*TS, r*TS + TS - 1, TS, 1);
+      /* fine grain dither (half-pixel flecks) */
+      for (let k = 0; k < 9; k++) {
+        const hx = h2(c * 9 + k, r), px = hx % TS, py = h2(r * 9 + k, c) % TS;
+        g.fillStyle = hx % 3 === 0 ? 'rgba(255,246,214,0.5)' : (hx % 2 ? C.floorC : C.floorDot);
+        g.fillRect(c*TS + px + (hx % 2) * 0.5, r*TS + py, 0.5, 0.5);
+      }
+      /* occasional scarab inlay tile */
+      if (h2(c, r) % 19 === 3 && r > 2 && r < ROWS-2) {
+        const ix = c*TS + 5, iy = r*TS + 5;
+        g.fillStyle = C.floorDot;
+        g.fillRect(ix + 2, iy, 2, 1); g.fillRect(ix + 1, iy + 1, 4, 2);
+        g.fillRect(ix, iy + 2, 1, 1); g.fillRect(ix + 5, iy + 2, 1, 1);
+        g.fillRect(ix + 2, iy + 3, 2, 2);
+        g.fillStyle = 'rgba(255,246,220,0.5)';
+        g.fillRect(ix + 2, iy + 1, 1, 1);
+      }
+    }
   }
-  /* scattered grass blade tufts across the clearing */
-  for (let i = 0; i < 240; i++) {
-    const x = (h2(i*7, 3) / 97) * W, y = (h2(3, i*11) / 97) * WORLD_H;
-    g.fillStyle = '#d6bb60'; g.fillRect(x, y, 1, 2); g.fillRect(x+1, y-1, 1, 3); g.fillRect(x+2, y, 1, 2);
-  }
-  /* ── worn dirt path running the length of the clearing ── */
+  /* ── rug: tone-ramped weave, double gold border, fringe, medallion ── */
   const rx = RUG.c0*TS, ry = RUG.r0*TS, rw = (RUG.c1-RUG.c0+1)*TS, rh = (RUG.r1-RUG.r0+1)*TS;
   for (let y = 0; y < rh; y++) {
-    g.fillStyle = ((ry + y) % 8 < 4) ? '#8a6a3e' : '#7c5c34';
+    const band = y < 3 ? C.rugLight : (y > rh - 4 ? C.rugDark : C.rug);
+    g.fillStyle = band;
     g.fillRect(rx, ry + y, rw, 1);
   }
-  /* darker trodden edges + scattered pebbles */
-  g.fillStyle = 'rgba(40,25,12,0.30)'; g.fillRect(rx, ry, 1.5, rh); g.fillRect(rx + rw - 1.5, ry, 1.5, rh);
-  for (let i = 0; i < 150; i++) {
-    const x = rx + 2 + (h2(i*5, 9) % (rw - 4)), y = ry + (h2(9, i*5) % rh);
-    g.fillStyle = (h2(i, 7) % 3) ? 'rgba(226,214,186,0.45)' : 'rgba(60,40,20,0.4)';
-    g.fillRect(x, y, 1, 1);
+  /* weave dither */
+  for (let y = 2; y < rh - 2; y += 2) for (let x = (y % 4) ? 2 : 4; x < rw - 2; x += 4) {
+    g.fillStyle = (h2(x, y) % 2) ? C.rugDark : C.rugLight;
+    g.fillRect(rx + x, ry + y, 0.5, 1);
+    g.fillStyle = 'rgba(255,220,180,0.12)';
+    g.fillRect(rx + x + 0.5, ry + y, 0.5, 0.5);
   }
-  /* ── pond on the runner; the path narrows and skirts it on either side ── */
-  (function pond() {
-    const pcx = 7.5*TS;                                   // centre of the runner
-    const pt = POND.r0*TS, pb = (POND.r1+1)*TS;
-    const pcy = (pt + pb)/2, prx = 22, pry = (pb - pt)/2 - 2;
-    /* muddy bank ring */
-    g.fillStyle = '#5c4526'; g.beginPath(); g.ellipse(pcx, pcy, prx+3, pry+3, 0, 0, 7); g.fill();
-    g.fillStyle = '#3f6a2c'; g.beginPath(); g.ellipse(pcx, pcy, prx+1, pry+1, 0, 0, 7); g.fill();   // grassy fringe
-    /* layered water */
-    g.fillStyle = '#20415f'; g.beginPath(); g.ellipse(pcx, pcy, prx, pry, 0, 0, 7); g.fill();
-    g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(pcx, pcy-1, prx-3, pry-3, 0, 0, 7); g.fill();
-    g.fillStyle = '#3f8fb6'; g.beginPath(); g.ellipse(pcx, pcy-2, prx-7, pry-6, 0, 0, 7); g.fill();
-    /* sky glint + ripple lines */
-    g.fillStyle = 'rgba(200,232,242,0.45)';
-    g.fillRect(pcx-10, pcy-10, 7, 1); g.fillRect(pcx+2, pcy-4, 6, 1);
-    g.fillRect(pcx-6, pcy+3, 5, 1);   g.fillRect(pcx+1, pcy+9, 6, 1);
-    /* two lily pads */
-    g.fillStyle = '#2f6b34'; g.beginPath(); g.ellipse(pcx-8, pcy+4, 4, 2.4, 0, 0, 7); g.fill();
-    g.beginPath(); g.ellipse(pcx+7, pcy-6, 3.5, 2, 0, 0, 7); g.fill();
-    g.fillStyle = '#e6a0c0'; g.fillRect(pcx-8, pcy+3, 1, 1);   // a lily bloom
-  })();
-  /* leaf clump used for the whole forest border around the clearing */
-  const clump = (cx, cy, rad) => {
-    g.fillStyle = C.leafDark; g.beginPath(); g.arc(cx, cy, rad, 0, 7); g.fill();
-    g.fillStyle = C.leaf;     g.beginPath(); g.arc(cx - rad*0.28, cy - rad*0.28, rad*0.62, 0, 7); g.fill();
-    g.fillStyle = C.leafHi;   g.beginPath(); g.arc(cx - rad*0.4, cy - rad*0.45, rad*0.3, 0, 7); g.fill();
+  g.strokeStyle = C.rugGold; g.lineWidth = 1;
+  g.strokeRect(rx + 1.5, ry + 1.5, rw - 3, rh - 3);
+  g.strokeStyle = 'rgba(135,24,43,0.9)';
+  g.strokeRect(rx + 3.5, ry + 3.5, rw - 7, rh - 7);
+  /* fringe ticks top & bottom */
+  g.fillStyle = C.rugGold;
+  for (let x = 2; x < rw - 2; x += 4) {
+    g.fillRect(rx + x, ry - 1, 1, 1);
+    g.fillRect(rx + x + 1, ry + rh, 1, 1);
+  }
+  /* corner ankh accents + centre medallion */
+  const med = (cx, cy, big) => {
+    g.fillStyle = C.rugGold;
+    g.fillRect(cx - 1, cy - (big ? 6 : 3), 2, big ? 12 : 6);
+    g.fillRect(cx - (big ? 6 : 3), cy - 1, big ? 12 : 6, 2);
+    g.fillStyle = C.rugLight;
+    g.fillRect(cx - 1, cy - 1, 2, 2);
+    if (big) {
+      g.strokeStyle = C.rugGold;
+      g.beginPath(); g.arc(cx, cy, 9, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(232,188,99,0.45)';
+      g.beginPath(); g.arc(cx, cy, 13, 0, Math.PI * 2); g.stroke();
+    }
   };
-  /* ── back tree line: two dense rows of foliage behind the bandstand ── */
-  for (let x = -6; x <= W + 6; x += 13) clump(x, 7 + (h2(x,1) % 7), 13 + (h2(x,2) % 6));
-  for (let x = -6; x <= W + 6; x += 15) clump(x + 7, 20 + (h2(x,3) % 6), 11 + (h2(x,4) % 5));
-  /* soft shade the trees cast onto the grass */
-  g.fillStyle = 'rgba(12,30,12,0.20)';
-  g.fillRect(0, 32, W, 4);
-  /* speakeasy pennants strung between the trees */
+  for (let my = ry + 3*TS; my < ry + rh - 2*TS; my += 6*TS) {
+    med(rx + rw/2, my, true);
+    med(rx + 8, my, false); med(rx + rw - 8, my, false);
+  }
+  /* ── north wall: bevelled sandstone blocks + embossed glyph frieze ── */
+  g.fillStyle = C.wall; g.fillRect(0, 0, W, 2*TS);
+  for (let row = 0; row < 4; row++) {
+    const by = row * 8, off = (row % 2) ? 8 : 0;
+    for (let x = -8; x < W; x += 16) {
+      g.fillStyle = C.wallLight;                      // block top highlight
+      g.fillRect(x + off, by, 16, 1);
+      g.fillStyle = C.wallDark;                       // block base shadow
+      g.fillRect(x + off, by + 7, 16, 1);
+      g.fillStyle = C.wallLine;                       // mortar
+      g.fillRect(x + off + 15, by, 1, 8);
+    }
+  }
+  /* embossed glyphs: dark press + gold face */
+  const glyph = (gx, kind, col) => {
+    g.fillStyle = col;
+    if (kind === 0) { g.fillRect(gx+2,2,1,2); g.fillRect(gx+1,3,3,1); g.fillRect(gx+2,4,1,3); g.fillRect(gx,5,5,1); }
+    else if (kind === 1) { g.fillRect(gx,4,5,1); g.fillRect(gx+1,3,3,1); g.fillRect(gx+2,5,1,1); g.fillRect(gx+4,5,1,2); }
+    else { g.fillRect(gx+1,3,2,1); g.fillRect(gx,4,4,1); g.fillRect(gx+2,5,1,2); g.fillRect(gx+1,7,3,1); }
+  };
+  for (let x = 6; x < W - 8; x += 24) {
+    const kind = Math.floor(x / 24) % 3;
+    glyph(x + 1, kind, 'rgba(90,64,30,0.8)');
+    glyph(x, kind, C.wallGold);
+  }
+  /* gilded cornice with bevel */
+  g.fillStyle = C.wallDark;     g.fillRect(0, 27, W, 1);
+  g.fillStyle = C.goldHi;       g.fillRect(0, 28, W, 1);
+  g.fillStyle = C.wallGold;     g.fillRect(0, 29, W, 2);
+  g.fillStyle = C.wallGoldDark; g.fillRect(0, 31, W, 1);
+  /* wall shadow cast onto the floor */
+  g.fillStyle = 'rgba(60,40,20,0.22)';
+  g.fillRect(0, 32, W, 3);
+  /* pennant banners hung high on the back wall */
   const banner = (bx) => {
-    g.fillStyle = 'rgba(20,40,20,0.3)'; g.fillRect(bx + 1, 4, 12, 20);
+    g.fillStyle = 'rgba(60,40,20,0.35)'; g.fillRect(bx + 1, 4, 12, 20);
     g.fillStyle = '#6a4a2c'; g.fillRect(bx - 1, 2, 14, 1);       // hanging rod
     g.fillStyle = C.rugDark; g.fillRect(bx, 3, 12, 17);
     g.fillStyle = C.rug; g.fillRect(bx + 1, 3, 10, 16);
@@ -2716,19 +2761,18 @@ bg.lw = W; bg.lh = WORLD_H;
     g.beginPath(); g.moveTo(bx, 19); g.lineTo(bx + 6, 26); g.lineTo(bx + 12, 19); g.closePath(); g.fill();
     g.fillStyle = C.rugGold;
     g.fillRect(bx, 3, 12, 1); g.fillRect(bx, 18, 12, 0.5);
-    /* white arrow emblem */
-    g.fillStyle = C.white;
-    g.fillRect(bx + 5.5, 8, 1, 7);                              // shaft
-    g.fillRect(bx + 5, 7, 2, 1); g.fillRect(bx + 4.5, 9, 3, 1); // head
-    g.fillRect(bx + 4.5, 13, 3, 1);                             // fletching
+    /* gold ankh emblem */
+    g.fillRect(bx + 5.5, 7, 1, 2); g.fillRect(bx + 4.5, 9, 3, 1);
+    g.fillRect(bx + 5.5, 10, 1, 4); g.fillRect(bx + 3.5, 12, 5, 1);
+    g.fillStyle = C.goldHi; g.fillRect(bx + 5.5, 7, 0.5, 1);
   };
   banner(38); banner(190);
-  /* ── outdoor bar back-board: rough planks + a shelf of bottles/kegs ── */
+  /* ── back-bar shelf: mirror glass + lit bottles ── */
   const shx = BAR.c0*TS, shw = (BAR.c1-BAR.c0+1)*TS;
   g.fillStyle = '#2c1c10'; g.fillRect(shx, 9, shw, 19);
-  g.fillStyle = '#4d3220'; g.fillRect(shx + 1, 10, shw - 2, 8);   // wooden back-board
-  g.fillStyle = 'rgba(90,60,30,0.5)';
-  for (let x = shx + 3; x < shx + shw - 4; x += 7) g.fillRect(x, 10, 1, 8);   // plank seams
+  g.fillStyle = '#41307a'; g.fillRect(shx + 1, 10, shw - 2, 8);   // mirror
+  g.fillStyle = 'rgba(180,170,255,0.25)';
+  for (let x = shx + 3; x < shx + shw - 4; x += 7) g.fillRect(x, 10, 2, 8);
   g.fillStyle = C.woodLight; g.fillRect(shx, 18, shw, 1);
   g.fillStyle = C.woodDark; g.fillRect(shx, 19, shw, 1);
   const bottleCols = ['#57b273','#e0a648','#6b8fd4','#c05a5a','#57b273','#e0a648'];
@@ -2742,29 +2786,34 @@ bg.lw = W; bg.lh = WORLD_H;
     g.fillRect(bx + 4, 20, 2, 6); g.fillRect(bx + 4, 19, 1, 1);
     g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(bx + 4, 20, 1, 3);
   }
-  /* ── side + bottom tree lines enclosing the clearing (gap for the exit) ── */
+  /* ── side + south walls: bevelled dark stone ── */
+  const sideBlock = (x, y) => {
+    g.fillStyle = C.sideWall; g.fillRect(x, y, TS, 8);
+    g.fillStyle = C.sideWallLight; g.fillRect(x, y, TS, 1);
+    g.fillStyle = C.sideWallDark; g.fillRect(x, y + 7, TS, 1);
+  };
+  for (let y = 2*TS; y < WORLD_H; y += 8) { sideBlock(0, y); sideBlock((COLS-1)*TS, y); }
+  for (let x = 0; x < W; x += TS) sideBlock(x, (ROWS-1)*TS), sideBlock(x, (ROWS-1)*TS + 8);
+  g.fillStyle = C.goldHi;       g.fillRect(0, (ROWS-1)*TS, W, 1);
+  g.fillStyle = C.wallGoldDark; g.fillRect(0, (ROWS-1)*TS + 1, W, 1);
+  /* interior shadow from side walls */
+  g.fillStyle = 'rgba(60,40,20,0.15)';
+  g.fillRect(TS, 2*TS, 2, WORLD_H - 3*TS);
+  g.fillRect((COLS-1)*TS - 2, 2*TS, 2, WORLD_H - 3*TS);
+  /* ── door: gold arch + warm glow spilling out ── */
   const dx = DOOR.c*TS;
-  for (let y = 2*TS; y <= WORLD_H; y += 14) {
-    clump(5 + (h2(y,4) % 6), y, 13 + (h2(y,5) % 6));
-    clump(W - 5 - (h2(y,6) % 6), y, 13 + (h2(y,7) % 6));
-  }
-  for (let x = -6; x <= W + 6; x += 13) {
-    if (x > dx - 18 && x < dx + TS + 18) continue;
-    clump(x, WORLD_H - 5 + (h2(x,8) % 5), 13 + (h2(x,9) % 5));
-  }
-  /* soft tree-shade down the clearing edges */
-  g.fillStyle = 'rgba(12,30,12,0.16)';
-  g.fillRect(TS, 2*TS, 3, WORLD_H - 3*TS);
-  g.fillRect((COLS-1)*TS - 3, 2*TS, 3, WORLD_H - 3*TS);
-  /* ── south exit: a timber gate back out into the forest ── */
-  g.fillStyle = '#0e1410'; g.fillRect(dx + 1, (ROWS-1)*TS, TS - 2, TS);
-  g.fillStyle = C.woodDark; g.fillRect(dx - 3, (ROWS-1)*TS - 6, 4, TS + 6); g.fillRect(dx + TS - 1, (ROWS-1)*TS - 6, 4, TS + 6);
-  g.fillStyle = C.wood;     g.fillRect(dx - 2, (ROWS-1)*TS - 6, 2, TS + 6); g.fillRect(dx + TS, (ROWS-1)*TS - 6, 2, TS + 6);
-  g.fillStyle = C.woodDark; g.fillRect(dx - 3, (ROWS-1)*TS - 6, TS + 8, 4);
-  g.fillStyle = C.woodHi;   g.fillRect(dx - 3, (ROWS-1)*TS - 6, TS + 8, 1);
-  /* worn dirt threshold at the gate */
-  g.fillStyle = '#7c5c34'; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 6);
-  g.fillStyle = '#8a6a3e'; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 1);
+  g.fillStyle = '#120c14'; g.fillRect(dx + 2, (ROWS-1)*TS, TS - 4, TS);
+  const doorGlow = g.createLinearGradient(0, (ROWS-1)*TS, 0, (ROWS-1)*TS + 10);
+  doorGlow.addColorStop(0, 'rgba(255,190,90,0.35)');
+  doorGlow.addColorStop(1, 'rgba(255,190,90,0)');
+  g.fillStyle = doorGlow; g.fillRect(dx + 2, (ROWS-1)*TS, TS - 4, 10);
+  g.fillStyle = C.goldHi; g.fillRect(dx + 1, (ROWS-1)*TS, TS - 2, 1);
+  g.fillStyle = C.wallGold; g.fillRect(dx + 1, (ROWS-1)*TS, 1, TS); g.fillRect(dx + TS - 2, (ROWS-1)*TS, 1, TS);
+  g.fillStyle = C.wallGoldDark; g.fillRect(dx + 2, (ROWS-1)*TS + 1, 1, TS - 1); g.fillRect(dx + TS - 3, (ROWS-1)*TS + 1, 1, TS - 1);
+  /* welcome mat */
+  g.fillStyle = C.rug; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 6);
+  g.fillStyle = C.rugLight; g.fillRect(dx + 2, (ROWS-2)*TS + 10, TS - 4, 1);
+  g.fillStyle = C.rugGold; g.fillRect(dx + 3, (ROWS-2)*TS + 12, TS - 6, 1);
   /* ── west-wall gate (under the cage) → the tournament hall,
         built to match the south exit but turned to face east ── */
   const gy = TDOOR.r0*TS, gh = (TDOOR.r1 - TDOOR.r0 + 1)*TS;
@@ -3028,37 +3077,84 @@ const tourneyArch = makeCanvas(3*TS, 3*TS, g => {
   g.fillText('TOURNEYS', w/2, 20);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 });
-/* a leafy oak sapling in an oak barrel — speakeasy potted plant */
+/* tiered stone fountain — the centre-piece on the runner */
+const fountainCanvas = makeCanvas(48, 46, g => {
+  const cx = 24;
+  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(cx, 42, 22, 5, 0, 0, Math.PI*2); g.fill();
+  /* lower basin */
+  g.fillStyle = '#6e5330'; g.beginPath(); g.ellipse(cx, 36, 22, 8, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#9a7c48'; g.beginPath(); g.ellipse(cx, 34, 22, 7.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = C.goldHi;  g.beginPath(); g.ellipse(cx, 33.4, 22, 7.2, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#5e4a2a'; g.beginPath(); g.ellipse(cx, 34.4, 18.5, 6, 0, 0, Math.PI*2); g.fill();
+  /* water pool */
+  g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(cx, 34, 17.5, 5.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#3f8fb6'; g.beginPath(); g.ellipse(cx, 33.4, 15, 4.4, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#8fd4e6'; g.fillRect(cx-9, 33, 5, 0.6); g.fillRect(cx+3, 34, 5, 0.6); g.fillRect(cx-3, 35, 4, 0.6);
+  /* pedestal */
+  g.fillStyle = '#6e5330'; g.fillRect(cx-4, 20, 8, 14);
+  g.fillStyle = '#8f6e3c'; g.fillRect(cx-4, 20, 3, 14);
+  /* falling water streams to the pool */
+  g.fillStyle = 'rgba(160,220,240,0.7)'; g.fillRect(cx-9, 22, 1, 11); g.fillRect(cx+8, 22, 1, 11);
+  /* upper bowl */
+  g.fillStyle = '#9a7c48'; g.beginPath(); g.ellipse(cx, 20, 11, 4, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = C.goldHi;  g.beginPath(); g.ellipse(cx, 19.4, 11, 3.6, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#2f6f96'; g.beginPath(); g.ellipse(cx, 19, 8, 2.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#8fd4e6'; g.beginPath(); g.ellipse(cx, 18.5, 4, 1.2, 0, 0, Math.PI*2); g.fill();
+  /* central jet + lotus finial */
+  g.fillStyle = '#b7e6f2'; g.fillRect(cx-1, 8, 2, 11);
+  g.fillStyle = '#e8f7fb'; g.fillRect(cx-1, 8, 1, 11);
+  g.fillStyle = C.gold;    g.beginPath(); g.ellipse(cx, 7, 2.5, 3.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = C.goldHi;  g.fillRect(cx-0.6, 5, 1, 3);
+});
+/* potted date palm in a terracotta pot — Club Nile decor */
 const palmCanvas = makeCanvas(22, 34, g => {
   g.fillStyle = C.shadow;
   g.beginPath(); g.ellipse(11, 31.5, 9, 2.5, 0, 0, Math.PI * 2); g.fill();
-  /* oak barrel planter: staves + iron hoops */
+  /* glazed urn: belly, lip, gold bands, painted lotus */
   g.fillStyle = C.potDark; g.fillRect(5, 23, 12, 9);
   g.fillStyle = C.pot; g.fillRect(6, 23, 10, 8);
-  g.fillStyle = C.potHi; g.fillRect(6.5, 23.5, 2.5, 6);
-  g.fillStyle = 'rgba(40,25,12,0.5)';                          // stave seams
-  g.fillRect(9, 23, 0.6, 8); g.fillRect(12, 23, 0.6, 8);
-  g.fillStyle = '#3a3128'; g.fillRect(5.5, 25, 11, 1); g.fillRect(5.5, 29.5, 11, 1);   // hoops
-  g.fillStyle = '#5a4f42'; g.fillRect(5.5, 25, 11, 0.4); g.fillRect(5.5, 29.5, 11, 0.4);
-  g.fillStyle = C.potDark; g.fillRect(4.5, 22, 13, 1.5);       // rim
+  g.fillStyle = C.potHi; g.fillRect(6.5, 23.5, 3, 6);
+  g.fillStyle = C.potDark; g.fillRect(4.5, 22, 13, 1.5);      // lip
   g.fillStyle = C.potHi; g.fillRect(4.5, 22, 13, 0.5);
-  /* trunk */
-  g.fillStyle = '#5e3f24'; g.fillRect(9.5, 15, 3, 8);
-  g.fillStyle = '#7a5432'; g.fillRect(9.5, 15, 1.2, 8);
-  g.fillStyle = 'rgba(40,25,12,0.5)'; g.fillRect(9.5, 18, 3, 0.5); g.fillRect(9.5, 20.5, 3, 0.5);
-  /* bushy oak crown — layered leaf clumps */
+  g.fillStyle = C.goldHi; g.fillRect(5, 24.5, 12, 0.5);
+  g.fillStyle = C.goldDark; g.fillRect(5, 25, 12, 1);
+  g.fillStyle = '#2f55a0'; g.fillRect(9.5, 27, 3, 2);          // lapis lotus mark
+  g.fillStyle = '#4272c2'; g.fillRect(10.5, 26.5, 1, 1);
+  g.fillStyle = C.potDark; g.fillRect(6, 30.5, 10, 1.5);      // foot shade
+  /* segmented trunk with lean */
+  g.fillStyle = '#6a4a2c';
+  g.fillRect(10, 17, 3, 6); g.fillRect(10.5, 12, 3, 6);
+  g.fillStyle = '#8a6236';
+  g.fillRect(10, 17, 1.5, 6); g.fillRect(10.5, 12, 1.5, 6);
+  g.fillStyle = 'rgba(40,25,12,0.5)';
+  g.fillRect(10, 19, 3, 0.5); g.fillRect(10.5, 15, 3, 0.5); g.fillRect(10, 21.5, 3, 0.5);
+  /* crown: three layers of arcing fronds + hanging tips + dates */
   g.fillStyle = C.leafDark;
-  g.beginPath(); g.ellipse(11, 9, 10, 8, 0, 0, Math.PI * 2); g.fill();
+  g.fillRect(1, 8, 8, 2.5); g.fillRect(13, 8, 8, 2.5);
+  g.fillRect(0, 10.5, 5, 2); g.fillRect(17, 10.5, 5, 2);
+  g.fillRect(1, 12.5, 2, 3); g.fillRect(19, 12.5, 2, 3);       // drooping tips
+  g.fillRect(8, 9, 6, 4);
   g.fillStyle = C.leaf;
-  g.beginPath(); g.ellipse(8, 8, 6, 5.5, 0, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.ellipse(14, 9, 6, 5.5, 0, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.ellipse(11, 5, 6, 5, 0, 0, Math.PI * 2); g.fill();
+  g.fillRect(7, 3.5, 8, 3); g.fillRect(4, 5.5, 14, 2.5);
+  g.fillRect(2, 7.5, 7, 1.5); g.fillRect(13, 7.5, 7, 1.5);
+  g.fillRect(9, 6, 4, 6);
   g.fillStyle = C.leafHi;
-  g.beginPath(); g.ellipse(8, 5.5, 3, 2.5, 0, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.ellipse(13, 7, 2.5, 2, 0, 0, Math.PI * 2); g.fill();
-  /* a few red berries */
-  g.fillStyle = '#c94a2a'; g.fillRect(7, 11, 1.5, 1.5); g.fillRect(15, 10, 1.5, 1.5);
-  g.fillStyle = '#e87a4a'; g.fillRect(7, 11, 0.6, 0.6); g.fillRect(15, 10, 0.6, 0.6);
+  g.fillRect(9, 2.5, 4, 1.5); g.fillRect(6, 4.5, 4, 1); g.fillRect(12.5, 4.5, 4, 1);
+  g.fillRect(3, 7, 3, 0.5); g.fillRect(16, 7, 3, 0.5);
+  g.fillRect(10, 6, 1.5, 4);
+  /* date cluster */
+  g.fillStyle = '#d98a3a';
+  g.fillRect(8, 11, 2, 2); g.fillRect(9, 12.5, 2, 2);
+  g.fillStyle = '#f0aa55'; g.fillRect(8.5, 11.5, 1, 1);
+  /* extra fronds + coconuts for the big statement palm */
+  g.fillStyle = C.leafHi;
+  g.fillRect(0, 6, 4, 1); g.fillRect(18, 6, 4, 1);
+  g.fillRect(5, 2, 3, 1); g.fillRect(14, 2, 3, 1);
+  g.fillStyle = C.leaf;
+  g.fillRect(1, 9, 3, 1); g.fillRect(18, 9, 3, 1);
+  g.fillStyle = '#7a4a24';
+  g.fillRect(7, 10, 1.5, 1.5); g.fillRect(13.5, 10, 1.5, 1.5);
+  g.fillStyle = '#a06a34'; g.fillRect(7, 10, 0.6, 0.6); g.fillRect(13.5, 10, 0.6, 0.6);
 });
 /* a raised WOODEN bandstand across the back-left where the Nile Three play —
    plank platform on a timber riser, brass nosing, a leafy garland strung
@@ -3128,44 +3224,37 @@ const sarcCanvas = makeCanvas(28, 58, g => {
   g.fillStyle = C.shadow;
   g.beginPath(); g.ellipse(14, 54, 12, 3, 0, 0, Math.PI * 2); g.fill();
   /* stone plinth */
-  g.fillStyle = '#5f5340'; g.fillRect(4, 45, 20, 8);
-  g.fillStyle = '#7a6c52'; g.fillRect(4, 45, 20, 2);
-  g.fillStyle = '#4a3f30'; g.fillRect(4, 51, 20, 2);
-  /* banner pole rising behind */
-  g.fillStyle = '#4d3220'; g.fillRect(13.5, 3, 1.5, 44);
-  g.fillStyle = '#6a4a2c'; g.fillRect(13.5, 3, 0.6, 44);
-  g.fillStyle = C.gold; g.beginPath(); g.arc(14.2, 2.5, 1.8, 0, Math.PI * 2); g.fill();
-  /* speakeasy pennant with a white arrow */
-  g.fillStyle = C.rugDark; g.beginPath(); g.moveTo(15, 4); g.lineTo(26, 7); g.lineTo(15, 12); g.closePath(); g.fill();
-  g.fillStyle = C.rug; g.beginPath(); g.moveTo(15, 5); g.lineTo(24, 7.3); g.lineTo(15, 11); g.closePath(); g.fill();
-  g.strokeStyle = C.white; g.lineWidth = 0.8;
-  g.beginPath(); g.moveTo(16, 8); g.lineTo(22, 8); g.stroke();
-  g.beginPath(); g.moveTo(20, 6.5); g.lineTo(22.2, 8); g.lineTo(20, 9.5); g.stroke();
-  /* mounded gold hoard behind the chest */
-  g.fillStyle = C.goldDark;
-  g.beginPath(); g.ellipse(14, 30, 11, 6, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = C.gold;
-  [[7,28],[10,26],[13,24],[16,26],[19,28],[9,30],[14,29],[18,31]].forEach(([x,y]) => g.fillRect(x, y, 2.5, 2.5));
-  g.fillStyle = C.goldHi;
-  [[10,26],[16,26],[14,29]].forEach(([x,y]) => g.fillRect(x, y, 1, 1));
-  /* wooden treasure chest */
-  g.fillStyle = '#4d3220'; g.fillRect(4, 34, 20, 12);
-  g.fillStyle = '#6f4a2b'; g.fillRect(5, 35, 18, 10);
-  g.fillStyle = '#8c6039'; g.fillRect(5, 35, 18, 2);
-  g.fillStyle = '#2e2820'; g.fillRect(8, 34, 2, 12); g.fillRect(18, 34, 2, 12);     // iron straps
-  g.fillStyle = '#4a4136'; g.fillRect(8, 34, 0.6, 12); g.fillRect(18, 34, 0.6, 12);
-  /* open curved lid */
-  g.fillStyle = '#4d3220';
-  g.beginPath(); g.moveTo(4, 34); g.quadraticCurveTo(4, 24, 14, 24); g.quadraticCurveTo(24, 24, 24, 34); g.closePath(); g.fill();
-  g.fillStyle = '#5e3f24';
-  g.beginPath(); g.moveTo(5.5, 33); g.quadraticCurveTo(6, 26, 14, 26); g.quadraticCurveTo(22, 26, 22.5, 33); g.closePath(); g.fill();
-  g.fillStyle = '#2e2820'; g.fillRect(13, 24, 2, 10);          // lid strap
-  g.fillStyle = C.gold; g.fillRect(12.5, 36, 3, 3);            // lock plate
-  g.fillStyle = C.goldHi; g.fillRect(12.5, 36, 3, 1);
-  /* coins spilling over the front lip */
-  g.fillStyle = C.gold;
-  [[6,44],[9,45],[12,44],[16,45],[19,44],[8,46],[15,46]].forEach(([x,y]) => g.fillRect(x, y, 2, 2));
-  g.fillStyle = C.goldHi; g.fillRect(9, 45, 0.8, 0.8); g.fillRect(16, 45, 0.8, 0.8);
+  g.fillStyle = '#6e5330'; g.fillRect(5, 45, 18, 8);
+  g.fillStyle = '#8f6e3c'; g.fillRect(5, 45, 18, 2);
+  /* gilded case, rounded head */
+  g.fillStyle = '#a8802f';
+  g.beginPath(); g.moveTo(6, 46); g.lineTo(6, 8);
+  g.quadraticCurveTo(6, 1, 14, 1); g.quadraticCurveTo(22, 1, 22, 8);
+  g.lineTo(22, 46); g.closePath(); g.fill();
+  g.fillStyle = '#e0b04c';
+  g.beginPath(); g.moveTo(7, 45); g.lineTo(7, 8);
+  g.quadraticCurveTo(7, 2, 14, 2); g.quadraticCurveTo(21, 2, 21, 8);
+  g.lineTo(21, 45); g.closePath(); g.fill();
+  g.fillStyle = '#f2cf6e'; g.fillRect(7.5, 4, 2, 40);           // left sheen
+  /* lapis nemes hood + gold stripes */
+  g.fillStyle = '#2f55a0'; g.fillRect(7.5, 3.5, 13, 12);
+  g.fillStyle = '#f2cf6e';
+  for (let y = 4.5; y < 15; y += 3) g.fillRect(7.5, y, 13, 1);
+  /* golden face */
+  g.fillStyle = '#e8c06a'; g.fillRect(10.5, 6, 7, 8);
+  g.fillStyle = '#c79a45'; g.fillRect(15.5, 6, 2, 8);
+  g.fillStyle = '#1a1216';
+  g.fillRect(11.5, 8.5, 1.5, 1); g.fillRect(15, 8.5, 1.5, 1);   // kohl eyes
+  g.fillRect(13.5, 14, 1, 2);                                   // false beard
+  /* crossed arms with crook + flail */
+  g.fillStyle = '#8a6529';
+  g.fillRect(9, 18, 10, 2); g.fillRect(9, 21, 10, 2);
+  g.fillStyle = '#2f55a0'; g.fillRect(8.5, 17.5, 2, 6.5); g.fillRect(17.5, 17.5, 2, 6.5);
+  /* body bands: lapis + gold chevrons */
+  for (let y = 27; y < 43; y += 4) {
+    g.fillStyle = '#2f55a0'; g.fillRect(8.5, y, 11, 1.5);
+    g.fillStyle = '#c79a45'; g.fillRect(8.5, y + 1.5, 11, 0.5);
+  }
 });
 /* standalone rope stanchion — stands to the RIGHT of the sarcophagus */
 const stanchionCanvas = makeCanvas(22, 58, g => {
@@ -5711,9 +5800,9 @@ function floorRender() {
     drawEntity(g, { sprite: m.sprite, dir: 'down', frame: 0, x: m.x, y: m.y, staticNPC: true }, tick + m.seed * 20);
     drawInstrument(g, m.inst, m.x, m.y + 2, m.seed);
   } }));
-  /* reeds & cattails tufting the front bank of the pond (foreground, y-sorted) */
-  const pcx = 7.5*TS, pfront = (POND.r1+1)*TS;
-  items.push({ y: pfront - 2, draw: g => drawReeds(g, pcx, pfront) });
+  /* stone fountain centre-piece on the runner (foreground, y-sorted) */
+  const fcx = 7.5*TS;
+  items.push({ y: (POND.r1+1)*TS, draw: g => g.drawImage(fountainCanvas, fcx - fountainCanvas.lw/2, POND.r0*TS - 6, fountainCanvas.lw, fountainCanvas.lh) });
   /* potted palms filling the hall */
   PALMS.forEach(([c,r]) => items.push({ y: r*TS + 14, draw: g => g.drawImage(palmCanvas, c*TS - 3, r*TS - 18, palmCanvas.lw, palmCanvas.lh) }));
   /* sarcophagus in the bottom-right corner with the rope stanchion in front of it */
