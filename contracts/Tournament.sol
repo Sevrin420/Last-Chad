@@ -16,9 +16,9 @@ interface IMembersOnlyItemsForTournament {
 ///
 /// Tournament flow:
 ///   1. Owner creates tournament with params (cost, duration, rebuy, etc.)
-///   2. Players enter (chip cost deducted, tournament chips awarded)
-///   3. Players play games and accumulate/lose tournament chips
-///   4. Players lock their tournament chip balance as their score
+///   2. Players enter (chip cost deducted, tournament tokens awarded)
+///   3. Players play games and accumulate/lose tournament tokens
+///   4. Players lock their tournament token balance as their score
 ///   5. Tournament ends — leaderboard is final
 ///
 /// Entry is once per NFT unless rebuy is allowed.
@@ -40,7 +40,7 @@ contract Tournament is Ownable, ReentrancyGuard {
     }
 
     struct TournamentEntry {
-        uint256 tournamentChips;   // current tournament chip balance
+        uint256 tournamentChips;   // current tournament token balance
         uint256 score;             // locked score (0 = not yet locked)
         bool    entered;
         uint256 entryCount;        // times entered (for rebuy tracking)
@@ -97,7 +97,7 @@ contract Tournament is Ownable, ReentrancyGuard {
     ) external onlyOwner returns (uint256 tournamentId) {
         require(bytes(name).length > 0, "Name required");
         require(endTime > startTime, "End must be after start");
-        require(tournamentChips > 0, "Must award tournament chips");
+        require(tournamentChips > 0, "Must award tournament tokens");
 
         tournamentId = nextTournamentId++;
         tournaments[tournamentId] = TournamentConfig({
@@ -121,7 +121,7 @@ contract Tournament is Ownable, ReentrancyGuard {
         emit TournamentCancelled(tournamentId);
     }
 
-    /// @notice Award tournament chips to a player (for game results)
+    /// @notice Award tournament tokens to a player (for game results)
     function awardTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount) external onlyOwner {
         require(_tournamentExists(tournamentId), "Tournament does not exist");
         TournamentEntry storage entry = entries[tournamentId][tokenId];
@@ -132,12 +132,12 @@ contract Tournament is Ownable, ReentrancyGuard {
         emit TournamentChipsAwarded(tournamentId, tokenId, amount);
     }
 
-    /// @notice Spend tournament chips from a player (for game results)
+    /// @notice Spend tournament tokens from a player (for game results)
     function spendTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount) external onlyOwner {
         require(_tournamentExists(tournamentId), "Tournament does not exist");
         TournamentEntry storage entry = entries[tournamentId][tokenId];
         require(entry.entered, "Not entered");
-        require(entry.tournamentChips >= amount, "Insufficient tournament chips");
+        require(entry.tournamentChips >= amount, "Insufficient tournament tokens");
 
         entry.tournamentChips -= amount;
 
@@ -179,7 +179,7 @@ contract Tournament is Ownable, ReentrancyGuard {
             config.entryCount++;
         }
 
-        // Deduct entry cost if any (burns TOURNAMENT chips — token ID 1)
+        // Deduct entry cost if any (burns TOURNAMENT tokens — token ID 1)
         if (config.chipCost > 0) {
             items.burnTournamentChips(msg.sender, config.chipCost);
         }

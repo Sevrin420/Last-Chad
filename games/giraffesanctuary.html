@@ -559,7 +559,7 @@ body {
   <div id="tcage-panel" class="popup-panel">
     <div class="popup-head"><span>TOURNAMENT CAGE</span><button class="popup-close" data-close="tcage-panel" type="button">X</button></div>
     <div class="popup-body">
-      <p class="popup-lead">Claim your weekly tournament chips, name your giraffe, and grab a stack to play the tournament tables.</p>
+      <p class="popup-lead">Claim your weekly tournament tokens, name your giraffe, and grab a stack to play the tournament tables.</p>
       <div id="tcage-balances">
         <div>WALLET (tourney chips): <span id="tcage-wallet">—</span></div>
         <div>YOUR STACK: <span id="tcage-play">0</span></div>
@@ -1376,7 +1376,7 @@ talkMap[key(DOOR.c, DOOR.r)] = 'door';
 /* ============================ chips ============================ */
 /* Two separate purses share one live `chips` variable: the casino floor
    spends real chips ('giraffe_chips'); the tournament hall spends
-   tournament chips ('giraffe_tchips'). Entering/leaving the tournament
+   tournament tokens ('giraffe_tchips'). Entering/leaving the tournament
    room swaps which purse `chips` points at, so every table's chip math
    works unchanged on whichever currency the room uses. */
 const CHIP_STORE = 'giraffe_chips', TCHIP_STORE = 'giraffe_tchips';
@@ -2283,10 +2283,10 @@ function dialogSelect() {
   if (dlg.action === 'tourneychips') {
     recordTourneyBest();
     if (chips >= TOURNEY_STACK) {
-      addPopup('you', 'bubble', 'You still hold ' + chips + ' tournament chips.', 220);
+      addPopup('you', 'bubble', 'You still hold ' + chips + ' tournament tokens.', 220);
     } else {
       setChips(TOURNEY_STACK);
-      addPopup('you', 'bubble', TOURNEY_STACK + ' tournament chips — good luck!', 220);
+      addPopup('you', 'bubble', TOURNEY_STACK + ' tournament tokens — good luck!', 220);
       pushChat('', 'Claimed a tournament stack: ' + TOURNEY_STACK + ' chips. Best run: ' + tourneyBest(), true);
     }
   }
@@ -5684,7 +5684,7 @@ function entryRender() {
 
 /* ============================ tournament hall (side room) ============================
    A dedicated single-screen room reached through the portal above the cage.
-   It runs on TOURNAMENT chips (a separate purse), handed out at its own cage.
+   It runs on TOURNAMENT tokens (a separate purse), handed out at its own cage.
    The three tables here play exactly like the floor's, but on your tournament
    stack — the peak stack you reach is your score. */
 const T_CAGE = { c0:1, c1:3, r0:4, r1:5 };      // tournament cage, top-left
@@ -6123,9 +6123,9 @@ document.getElementById('cage-cashout').addEventListener('click', async () => {
 });
 document.getElementById('cage-herd').addEventListener('click', () => openHerdModal({ claim: false }));
 
-/* ── the TOURNAMENT cage: tournament chips (weekly claim) + naming ──
-   Mirrors the main cage, but for tournament chips (token 1). Grab a local
-   stack to play the tournament tables, claim your weekly tournament chips to
+/* ── the TOURNAMENT cage: tournament tokens (weekly claim) + naming ──
+   Mirrors the main cage, but for tournament tokens (token 1). Grab a local
+   stack to play the tournament tables, claim your weekly tournament tokens to
    your wallet (MY GIRAFFES), and name your giraffe on connect. */
 function tcageStatus(m, ok) { const s = document.getElementById('tcage-status'); if (s) { s.textContent = m || ''; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; } }
 async function refreshTCageBalances() {
@@ -6134,7 +6134,7 @@ async function refreshTCageBalances() {
     try {
       const provider = new window.ethers.providers.Web3Provider(window.ethereum);
       const items = new window.ethers.Contract(CAGE_CFG.items, ITEMS_MIN_ABI, provider);
-      const bal = await items.balanceOf(mintAccount, 1);       // tournament chips = token id 1
+      const bal = await items.balanceOf(mintAccount, 1);       // tournament tokens = token id 1
       document.getElementById('tcage-wallet').textContent = bal.toString();
     } catch (e) { document.getElementById('tcage-wallet').textContent = '?'; }
   }
@@ -6143,7 +6143,7 @@ function openTCagePanel() {
   tcagePanel.classList.add('open');
   refreshTCageBalances();
   if (mintAccount) { document.getElementById('tcage-connect').style.display = 'none'; document.getElementById('tcage-actions').style.display = 'block'; tcageStatus(''); }
-  else tcageStatus('Connect a wallet to claim weekly tournament chips and name your giraffe.');
+  else tcageStatus('Connect a wallet to claim weekly tournament tokens and name your giraffe.');
 }
 document.getElementById('tcage-connect').addEventListener('click', async () => {
   try {
@@ -6161,11 +6161,11 @@ document.getElementById('tcage-connect').addEventListener('click', async () => {
 document.getElementById('tcage-herd').addEventListener('click', () => openHerdModal({ claim: true }));
 document.getElementById('tcage-stack').addEventListener('click', () => {
   recordTourneyBest();
-  if (chips >= TOURNEY_STACK) { tcageStatus('You still hold ' + chips + ' tournament chips.'); return; }
+  if (chips >= TOURNEY_STACK) { tcageStatus('You still hold ' + chips + ' tournament tokens.'); return; }
   setChips(TOURNEY_STACK);
   pushChat('', 'Claimed a tournament stack: ' + TOURNEY_STACK + ' chips. Best run: ' + tourneyBest(), true);
   refreshTCageBalances();
-  tcageStatus(TOURNEY_STACK + ' tournament chips — good luck!');
+  tcageStatus(TOURNEY_STACK + ' tournament tokens — good luck!');
 });
 
 /* ── name your NFT (first entry): writes to the NFT, becomes your casino name ──
@@ -6271,10 +6271,10 @@ async function ensureCasinoName() {
   } catch (e) { /* read failed; will retry on the next wallet connect */ }
 }
 
-/* ── MY GIRAFFES: multi-NFT identity + claim weekly tournament chips for all ──
+/* ── MY GIRAFFES: multi-NFT identity + claim weekly tournament tokens for all ──
    Which name is used? Your ACTIVE giraffe's name. A wallet with several passes
    plays as one at a time (default: the pass you entered with); switch with
-   PLAY AS. This popup also claims every pass's weekly tournament chips in a
+   PLAY AS. This popup also claims every pass's weekly tournament tokens in a
    single transaction (claimWeeklyChipsBatch). */
 async function loadHerd() {
   const provider = mintSigner ||
@@ -6310,7 +6310,7 @@ async function openHerdModal(opts) {
         '<button id="herd-close" style="background:#7a1a26;color:#ffe9a8;border:none;border-radius:1cqw;' +
           'font-family:inherit;font-size:2.8cqw;padding:1.4cqw 2.4cqw;cursor:pointer;">X</button></div>' +
       '<div style="font-size:2.5cqw;line-height:1.7;color:#d8c9a8;margin-bottom:3cqw;">Your casino name comes from your ' +
-        '<b>active</b> giraffe. Claim every giraffe\'s weekly tournament chips in one transaction.</div>' +
+        '<b>active</b> giraffe. Claim every giraffe\'s weekly tournament tokens in one transaction.</div>' +
       '<div id="herd-list" style="font-size:2.5cqw;line-height:1.6;">Loading your herd…</div>' +
       '<div id="herd-total" style="font-size:2.8cqw;color:#9fd8b0;margin:3cqw 0 2.4cqw;"></div>' +
       '<button id="herd-claim" style="width:100%;background:#7a1a26;color:#ffe9a8;border:none;border-radius:1.2cqw;' +
@@ -6348,7 +6348,7 @@ async function openHerdModal(opts) {
   const totalEl = document.getElementById('herd-total');
   const claimBtn = document.getElementById('herd-claim');
   if (showClaim) {
-    totalEl.textContent = 'Ready to claim: ' + totalReady + ' tournament chips';
+    totalEl.textContent = 'Ready to claim: ' + totalReady + ' tournament tokens';
     claimBtn.disabled = totalReady === 0;
     if (totalReady === 0) claimBtn.style.opacity = '0.6';
     claimBtn.addEventListener('click', () => claimAllWeekly(list.map(g => g.id)));
@@ -6372,7 +6372,7 @@ async function claimAllWeekly(ids) {
     const tx = await c.claimWeeklyChipsBatch(ids);
     herdStatus('Claiming your weekly chips…');
     await tx.wait();
-    herdStatus('Claimed! Weekly tournament chips are in your wallet.');
+    herdStatus('Claimed! Weekly tournament tokens are in your wallet.');
     openHerdModal();   // refresh (ready → 0)
   } catch (e) {
     if (btn) btn.disabled = false;

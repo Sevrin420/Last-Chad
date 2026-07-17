@@ -1222,7 +1222,7 @@ talkMap[key(DOOR.c, DOOR.r)] = 'door';
 /* ============================ chips ============================ */
 /* Two separate purses share one live `chips` variable: the casino floor
    spends real chips ('clubnile_chips'); the tournament hall spends
-   tournament chips ('clubnile_tchips'). Entering/leaving the tournament
+   tournament tokens ('clubnile_tchips'). Entering/leaving the tournament
    room swaps which purse `chips` points at, so every table's chip math
    works unchanged on whichever currency the room uses. */
 const CHIP_STORE = 'clubnile_chips', TCHIP_STORE = 'clubnile_tchips';
@@ -2091,10 +2091,10 @@ function dialogSelect() {
   if (dlg.action === 'tourneychips') {
     recordTourneyBest();
     if (chips >= TOURNEY_STACK) {
-      addPopup('you', 'bubble', 'You still hold ' + chips + ' tournament chips.', 220);
+      addPopup('you', 'bubble', 'You still hold ' + chips + ' tournament tokens.', 220);
     } else {
       setChips(TOURNEY_STACK);
-      addPopup('you', 'bubble', TOURNEY_STACK + ' tournament chips — good luck!', 220);
+      addPopup('you', 'bubble', TOURNEY_STACK + ' tournament tokens — good luck!', 220);
       pushChat('', 'Claimed a tournament stack: ' + TOURNEY_STACK + ' chips. Best run: ' + tourneyBest(), true);
     }
   }
@@ -5373,7 +5373,7 @@ function entryRender() {
 
 /* ============================ tournament hall (side room) ============================
    A dedicated single-screen room reached through the portal above the cage.
-   It runs on TOURNAMENT chips (a separate purse), handed out at its own cage.
+   It runs on TOURNAMENT tokens (a separate purse), handed out at its own cage.
    The three tables here play exactly like the floor's, but on your tournament
    stack — the peak stack you reach is your score. */
 const T_CAGE = { c0:1, c1:3, r0:4, r1:5 };      // tournament cage, top-left

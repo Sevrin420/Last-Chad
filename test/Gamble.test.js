@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const PRICE = ethers.parseEther("0.02");
+const PRICE = ethers.parseEther("5");
 const BASE_URI = "https://membersonly.xyz/metadata/";
 const CHIPS_ID = 0n;
 
@@ -35,7 +35,7 @@ describe("Gamble", function () {
     // Fund the house so free chip mints (test grant + winnings) stay backed.
     await items.depositHouse({ value: ethers.parseEther("100") });
 
-    // Mint a token (welcome bonus is 50 TOURNAMENT chips, token 1)
+    // Mint a token (welcome bonus is 50 TOURNAMENT tokens, token 1)
     await membersOnly.connect(player).mint(1, { value: PRICE });
     // Grant regular (real-money) chips for wagering in tests
     await items.mintChips(player.address, 100);

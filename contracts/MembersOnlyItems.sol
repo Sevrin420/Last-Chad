@@ -15,8 +15,8 @@ interface IMembersOnlyForItems {
  *      Owner defines new item types at any time.
  *      Items can give weekly chip bonuses, one-time chip claims, or unlock areas.
  *      Items lock to an NFT when utilized and can be unlocked for trading.
- *      Two reserved currency tokens: regular chips (id 0, real money, 0.0001 AVAX,
- *      AVAX-backed) and tournament chips (id 1, free, prize-only). Both are
+ *      Two reserved currency tokens: regular chips (id 0, real money, 0.01 AVAX,
+ *      AVAX-backed) and tournament tokens (id 1, free, prize-only). Both are
  *      stackable and tradeable between wallets.
  */
 contract MembersOnlyItems is ERC1155, Ownable {
@@ -28,14 +28,14 @@ contract MembersOnlyItems is ERC1155, Ownable {
     ///         both directions, and fully AVAX-backed (see solvency invariant).
     uint256 public constant CHIPS_ID = 0;
 
-    /// @notice Token ID 1 = TOURNAMENT CHIPS — free, earned currency.
+    /// @notice Token ID 1 = TOURNAMENT TOKENS — free, earned currency.
     ///         The weekly rarity drop and mint bonus are paid in these. They
     ///         have NO cash value and cannot be redeemed for AVAX; their only
     ///         use is entering tournaments / redeeming for prizes.
     uint256 public constant TCHIPS_ID = 1;
 
-    /// @notice 1 regular chip == 0.0001 AVAX, both buy and redeem.
-    uint256 public constant CHIP_PRICE = 0.0001 ether;
+    /// @notice 1 regular chip == 0.01 AVAX, both buy and redeem.
+    uint256 public constant CHIP_PRICE = 0.01 ether;
 
     /// @notice Total regular chips (id 0) in circulation — drives the reserve.
     uint256 public chipSupply;
@@ -55,7 +55,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
 
     IMembersOnlyForItems public membersOnly;
 
-    uint256 public nextItemId = 2;   // ids 0 (chips) & 1 (tournament chips) are reserved; items start at 2
+    uint256 public nextItemId = 2;   // ids 0 (chips) & 1 (tournament tokens) are reserved; items start at 2
 
     mapping(uint256 => ItemDef) private _items;
     mapping(address => bool) public authorizedGame;
@@ -190,11 +190,11 @@ contract MembersOnlyItems is ERC1155, Ownable {
     }
 
     // ─────────────────────────────────────────────
-    //  Regular chip operations (token ID 0) — real money, 0.0001 AVAX each
+    //  Regular chip operations (token ID 0) — real money, 0.01 AVAX each
     // ─────────────────────────────────────────────
     //
     // Solvency invariant: address(this).balance >= chipSupply * CHIP_PRICE.
-    // Every regular chip in circulation is redeemable for 0.0001 AVAX, so the
+    // Every regular chip in circulation is redeemable for 0.01 AVAX, so the
     // contract must always hold enough AVAX to buy them all back.
     //  • buyChips()      — player adds exactly amount*CHIP_PRICE AVAX (self-backing)
     //  • mintChips()     — free mint (game winnings): needs the house bankroll to
@@ -217,11 +217,11 @@ contract MembersOnlyItems is ERC1155, Ownable {
         return address(this).balance > reserve ? address(this).balance - reserve : 0;
     }
 
-    /// @notice Buy regular chips at 0.0001 AVAX each. Remainder below one whole
+    /// @notice Buy regular chips at 0.01 AVAX each. Remainder below one whole
     ///         chip is refunded so the reserve matches supply exactly.
     function buyChips() external payable {
         uint256 chips = msg.value / CHIP_PRICE;
-        require(chips > 0, "Send at least 0.0001 AVAX");
+        require(chips > 0, "Send at least 0.01 AVAX");
         uint256 cost = chips * CHIP_PRICE;
 
         chipSupply += chips;
@@ -235,7 +235,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
         }
     }
 
-    /// @notice Redeem regular chips for AVAX at 0.0001 each. Always available.
+    /// @notice Redeem regular chips for AVAX at 0.01 each. Always available.
     function redeemChips(uint256 amount) external {
         require(amount > 0, "Amount must be > 0");
         require(balanceOf(msg.sender, CHIPS_ID) >= amount, "Insufficient chips");
@@ -273,7 +273,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
     }
 
     // ─────────────────────────────────────────────
-    //  Tournament chip operations (token ID 1) — free, prize-only, no cash value
+    //  Tournament token operations (token ID 1) — free, prize-only, no cash value
     // ─────────────────────────────────────────────
 
     function mintTournamentChips(address to, uint256 amount) external onlyAuthorized {
@@ -283,7 +283,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
 
     function burnTournamentChips(address from, uint256 amount) external onlyAuthorized {
         require(amount > 0, "Amount must be > 0");
-        require(balanceOf(from, TCHIPS_ID) >= amount, "Insufficient tournament chips");
+        require(balanceOf(from, TCHIPS_ID) >= amount, "Insufficient tournament tokens");
         _burn(from, TCHIPS_ID, amount);
     }
 
@@ -291,13 +291,13 @@ contract MembersOnlyItems is ERC1155, Ownable {
         return balanceOf(wallet, TCHIPS_ID);
     }
 
-    /// @notice Owner: award tournament chips directly to a wallet.
+    /// @notice Owner: award tournament tokens directly to a wallet.
     function airdropTournamentChips(address to, uint256 amount) external onlyOwner {
         require(amount > 0, "Amount must be > 0");
         _mint(to, TCHIPS_ID, amount, "");
     }
 
-    /// @notice Owner: award tournament chips to many wallets in one tx.
+    /// @notice Owner: award tournament tokens to many wallets in one tx.
     function batchAirdropTournamentChips(address[] calldata recipients, uint256[] calldata amounts) external onlyOwner {
         require(recipients.length == amounts.length, "Array length mismatch");
         for (uint256 i = 0; i < recipients.length; i++) {
@@ -388,7 +388,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
             require(bonus > 0, "No bonus amount");
 
             weeklyBonusClaimed[tokenId][itemId][currentWeek] = true;
-            _mint(msg.sender, TCHIPS_ID, bonus, "");   // free perk → tournament chips
+            _mint(msg.sender, TCHIPS_ID, bonus, "");   // free perk → tournament tokens
 
             emit WeeklyBonusClaimed(tokenId, itemId, currentWeek, bonus);
         }
@@ -405,7 +405,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
         require(bonus > 0, "No bonus amount");
 
         oneTimeClaimed[tokenId][itemId] = true;
-        _mint(msg.sender, TCHIPS_ID, bonus, "");   // free perk → tournament chips
+        _mint(msg.sender, TCHIPS_ID, bonus, "");   // free perk → tournament tokens
 
         emit OneTimeBonusClaimed(tokenId, itemId, bonus);
     }

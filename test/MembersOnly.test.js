@@ -4,10 +4,10 @@ const { ethers } = require("hardhat");
 describe("MembersOnly", function () {
   let membersOnly, items;
   let owner, user1, user2, gameContract;
-  const MINT_PRICE = ethers.parseEther("0.02");
+  const MINT_PRICE = ethers.parseEther("5");
   const BASE_CHIPS = 50n;
-  const CHIPS_ID = 0n;   // regular chips (real money, 0.0001 AVAX)
-  const TCHIPS_ID = 1n;  // tournament chips (free; welcome + weekly drop pay these)
+  const CHIPS_ID = 0n;   // regular chips (real money, 0.01 AVAX)
+  const TCHIPS_ID = 1n;  // tournament tokens (free; welcome + weekly drop pay these)
 
   beforeEach(async function () {
     [owner, user1, user2, gameContract] = await ethers.getSigners();
@@ -216,7 +216,7 @@ describe("MembersOnly", function () {
       const before = await items.balanceOf(user1.address, TCHIPS_ID);
       await membersOnly.connect(user1).claimWeeklyChips(1);
       const after = await items.balanceOf(user1.address, TCHIPS_ID);
-      expect(after - before).to.equal(25n); // 20 tier + 5 level, paid in tournament chips
+      expect(after - before).to.equal(25n); // 20 tier + 5 level, paid in tournament tokens
     });
 
     it("stacks unclaimed weeks into a single claim", async function () {
@@ -266,7 +266,7 @@ describe("MembersOnly", function () {
   describe("Chip Trading", function () {
     it("should allow transferring chips between wallets", async function () {
       await membersOnly.connect(user1).mint(1, { value: MINT_PRICE });
-      // user1 has BASE_CHIPS tournament chips from the welcome bonus
+      // user1 has BASE_CHIPS tournament tokens from the welcome bonus
       await items.connect(user1).safeTransferFrom(user1.address, user2.address, TCHIPS_ID, 20n, "0x");
       expect(await items.balanceOf(user1.address, TCHIPS_ID)).to.equal(BASE_CHIPS - 20n);
       expect(await items.balanceOf(user2.address, TCHIPS_ID)).to.equal(20n);

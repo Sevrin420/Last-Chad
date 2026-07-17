@@ -18,10 +18,10 @@ interface IMembersOnlyItems {
 
 contract MembersOnly is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 2222;
-    uint256 public constant MINT_PRICE = 0.02 ether;              // 0.02 AVAX
+    uint256 public constant MINT_PRICE = 5 ether;                 // 5 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
     // Welcome bonus = the token's rarity weekly amount (20/40/100), paid once at
-    // mint in TOURNAMENT chips (free, prize-only currency). See effectiveTier().
+    // mint in TOURNAMENT tokens (free, prize-only currency). See effectiveTier().
 
     // ── Partner System ──
     struct Partner {
@@ -44,9 +44,9 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     //   RARE      (tier 2) — 10%  —  40 chips / week
     //   LEGENDARY (tier 3) —  5%  — 100 chips / week
     //
-    // The weekly drop is paid in TOURNAMENT chips (MembersOnlyItems token 1) —
+    // The weekly drop is paid in TOURNAMENT tokens (MembersOnlyItems token 1) —
     // free, no cash value, used only to enter tournaments / redeem for prizes.
-    // (Regular chips, token 0, are the real-money table currency worth 0.0001 AVAX.)
+    // (Regular chips, token 0, are the real-money table currency worth 0.01 AVAX.)
     uint8 public constant TIER_COMMON    = 1;
     uint8 public constant TIER_RARE      = 2;
     uint8 public constant TIER_LEGENDARY = 3;
@@ -228,7 +228,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
             lastClaimWeek[totalMinted] = currentWeek();   // weekly drop starts accruing from next week
             welcomeChips += tierChipReward[effectiveTier(totalMinted)]; // rarity welcome (20/40/100)
         }
-        items.mintTournamentChips(msg.sender, welcomeChips);  // free welcome tournament chips
+        items.mintTournamentChips(msg.sender, welcomeChips);  // free welcome tournament tokens
     }
 
     // ─────────────────────────────────────────────────────────
@@ -344,7 +344,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
 
         lastClaimWeek[tokenId] = currentWeek();          // resync (also safe if schedule moved)
         uint256 total = reward * weeksOwed;
-        items.mintTournamentChips(msg.sender, total);    // weekly drop is TOURNAMENT chips (prize-only)
+        items.mintTournamentChips(msg.sender, total);    // weekly drop is TOURNAMENT tokens (prize-only)
 
         emit WeeklyChipsClaimed(tokenId, currentWeek(), total);
     }

@@ -5,9 +5,9 @@ const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 describe("Tournament", function () {
   let membersOnly, items, tournament;
   let owner, user1, user2;
-  const MINT_PRICE = ethers.parseEther("0.02");
+  const MINT_PRICE = ethers.parseEther("5");
   const CHIPS_ID = 0n;   // regular chips (real money)
-  const TCHIPS_ID = 1n;  // tournament chips — the entry currency (minted 50 at mint)
+  const TCHIPS_ID = 1n;  // tournament tokens — the entry currency (minted 50 at mint)
 
   beforeEach(async function () {
     [owner, user1, user2] = await ethers.getSigners();
@@ -61,14 +61,14 @@ describe("Tournament", function () {
       await time.increase(2);
     });
 
-    it("should burn tournament chips (token 1) on entry", async function () {
+    it("should burn tournament tokens (token 1) on entry", async function () {
       const before = await items.balanceOf(user1.address, TCHIPS_ID); // 50 from welcome bonus
       await tournament.connect(user1).enterTournament(1, 1);
       const after = await items.balanceOf(user1.address, TCHIPS_ID);
       expect(before - after).to.equal(10n);
     });
 
-    it("should enter and receive tournament chips (internal)", async function () {
+    it("should enter and receive tournament tokens (internal)", async function () {
       await tournament.connect(user1).enterTournament(1, 1);
       const entry = await tournament.getEntry(1, 1);
       expect(entry.entered).to.be.true;
@@ -83,7 +83,7 @@ describe("Tournament", function () {
       const before = await items.balanceOf(user1.address, TCHIPS_ID);
       await tournament.connect(user1).enterTournament(2, 1);
       const after = await items.balanceOf(user1.address, TCHIPS_ID);
-      expect(after).to.equal(before); // no tournament chips burned on free entry
+      expect(after).to.equal(before); // no tournament tokens burned on free entry
     });
 
     it("should reject double entry without rebuy", async function () {
@@ -143,9 +143,9 @@ describe("Tournament", function () {
     });
   });
 
-  // ─── Tournament Chips are internal (not ERC-1155) ───
-  describe("Tournament chips are calculations only", function () {
-    it("tournament chips do not affect ERC-1155 chip balance", async function () {
+  // ─── Tournament tokens are internal (not ERC-1155) ───
+  describe("Tournament tokens are calculations only", function () {
+    it("tournament tokens do not affect ERC-1155 chip balance", async function () {
       const now = await time.latest();
       await tournament.createTournament("Test", now + 1, now + 7200, 0, 500, false);
       await time.increase(2);
@@ -154,10 +154,10 @@ describe("Tournament", function () {
       await tournament.connect(user1).enterTournament(1, 1);
       const after = await items.balanceOf(user1.address, CHIPS_ID);
 
-      // Free entry = no chip change; tournament chips are internal
+      // Free entry = no chip change; tournament tokens are internal
       expect(after).to.equal(before);
 
-      // But the player has 500 tournament chips internally
+      // But the player has 500 tournament tokens internally
       const entry = await tournament.getEntry(1, 1);
       expect(entry.tournamentChips).to.equal(500);
     });
