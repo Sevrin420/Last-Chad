@@ -20,7 +20,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 333;
     uint256 public constant MINT_PRICE = 10 ether;                // 10 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
-    // Welcome bonus = the token's rarity weekly amount (50/80/200), paid once at
+    // Welcome bonus = the token's rarity weekly amount (20/40/100), paid once at
     // mint in TOURNAMENT chips (free, prize-only currency). See effectiveTier().
 
     // ── Partner System ──
@@ -39,10 +39,10 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ── Tier / Rarity System (owner-set per token, matches metadata trait) ──
     //
     // Three rarities, assigned to match each token's immutable metadata trait.
-    // Intended distribution across MAX_SUPPLY (333):
-    //   COMMON    (tier 1) — 90%  ≈ 300 tokens —  50 chips / week
-    //   RARE      (tier 2) —  9%  ≈  30 tokens —  80 chips / week
-    //   LEGENDARY (tier 3) —  1%  ≈   3 tokens — 200 chips / week
+    // Intended distribution across the collection:
+    //   COMMON    (tier 1) — 85%  —  20 chips / week
+    //   RARE      (tier 2) — 10%  —  40 chips / week
+    //   LEGENDARY (tier 3) —  5%  — 100 chips / week
     //
     // The weekly drop is paid in TOURNAMENT chips (MembersOnlyItems token 1) —
     // free, no cash value, used only to enter tournaments / redeem for prizes.
@@ -118,9 +118,9 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         weekAnchor = block.timestamp;
 
         // Default weekly chip drop per rarity (owner-tunable via setTierReward).
-        tierChipReward[TIER_COMMON]    = 50;
-        tierChipReward[TIER_RARE]      = 80;
-        tierChipReward[TIER_LEGENDARY] = 200;
+        tierChipReward[TIER_COMMON]    = 20;
+        tierChipReward[TIER_RARE]      = 40;
+        tierChipReward[TIER_LEGENDARY] = 100;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ contract MembersOnly is ERC721Enumerable, Ownable {
             totalMinted++;
             _safeMint(msg.sender, totalMinted);
             lastClaimWeek[totalMinted] = currentWeek();   // weekly drop starts accruing from next week
-            welcomeChips += tierChipReward[effectiveTier(totalMinted)]; // rarity welcome (50/80/200)
+            welcomeChips += tierChipReward[effectiveTier(totalMinted)]; // rarity welcome (20/40/100)
         }
         items.mintTournamentChips(msg.sender, welcomeChips);  // free welcome tournament chips
     }

@@ -95,9 +95,9 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 - `CHIP_PRICE`: 0.05 AVAX per regular chip (buy & redeem, AVAX-backed)
 - Level by mint order: #1-83=L1, #84-166=L2, #167-249=L3, #250-333=L4
 - **Rarity tiers** (owner-set to match metadata, target split across 333):
-  - Tier 1 **Common** — 90% (~300) — **50** tournament chips/week
-  - Tier 2 **Rare** — 9% (~30) — **80** tournament chips/week
-  - Tier 3 **Legendary** — 1% (~3) — **200** tournament chips/week
+  - Tier 1 **Common** — 85% — **20** tournament chips/week
+  - Tier 2 **Rare** — 10% — **40** tournament chips/week
+  - Tier 3 **Legendary** — 5% — **100** tournament chips/week
 
 ---
 
@@ -106,7 +106,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 ```
 1. MINT         mint.html   → MembersOnly.mint() (10 AVAX)    → ERC-721 + rarity welcome (tourney chips)
 2. SETUP        mint.html   → MembersOnly.setName()           → name (12 char max)
-3. WEEKLY CLAIM mint.html   → MembersOnly.claimWeeklyChips()  → 50/80/200 tournament chips
+3. WEEKLY CLAIM mint.html   → MembersOnly.claimWeeklyChips()  → 20/40/100 tournament chips
 4. BUY CHIPS    mint.html   → Items.buyChips() (0.05 AVAX)    → regular chips to gamble with
 5. GAMBLE       gamble.html → Gamble.commitWager()            → buy-in regular chips
 6. CRAPS        craps.html  → WebSocket to Durable Object     → multiplayer craps
@@ -128,8 +128,8 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 - **Solvency invariant**: `balance >= chipSupply * 0.05 AVAX`. Free mints (winnings) require the house bankroll to be funded via `items.depositHouse()` or they revert `"House underfunded"`. Owner `withdraw()` can only take the surplus above the reserve.
 
 **Tournament chips** = ERC-1155 token **ID 1** — free, **no cash value**, prize-only
-- Get them: weekly rarity drop (50/80/200) + mint welcome bonus (= the token's rarity amount) + item perks
-- **Mint welcome bonus** = `tierChipReward[effectiveTier(id)]`. Rarity is set post-mint, so unset tier defaults to **Common (50)**; owner upgrades chosen tokens to Rare/Legendary afterward. **No partner-NFT chip bonus** (removed).
+- Get them: weekly rarity drop (20/40/100) + mint welcome bonus (= the token's rarity amount) + item perks
+- **Mint welcome bonus** = `tierChipReward[effectiveTier(id)]`. Rarity is set post-mint, so unset tier defaults to **Common (20)**; owner upgrades chosen tokens to Rare/Legendary afterward. **No partner-NFT chip bonus** (removed).
 - Award directly: owner `items.airdropTournamentChips(to, amount)` / `batchAirdropTournamentChips(...)`
 - Award via items: `WeeklyChipBonus` item = +X tournament chips/week (an item that *increases chips received*); `OneTimeChipClaim` item = one-time grant
 - Claim weekly: `claimWeeklyChips(tokenId)` per pass, or `claimWeeklyChipsBatch(tokenIds[])` to sweep every owned pass in one tx (the game's "MY GIRAFFES" popup)

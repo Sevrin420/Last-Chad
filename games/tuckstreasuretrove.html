@@ -990,34 +990,27 @@ function buildFrameHD(head, body, legs, pal, mirror, acc, dir) {
 function blk(g, x, y, w, h, col) { if (!col) return; g.fillStyle = col; g.fillRect(x, y, w, h); }
 const ACC_HEAD = {
   none() {},
-  band(g, dir, a) {
-    const cx = dir === 'side' ? 4 : 9, x0 = dir === 'side' ? 1 : 1.5, w = dir === 'side' ? 12 : 15;
-    blk(g, x0, 3.6, w, 1.5, a.metal);
-    blk(g, x0, 3.6, w, 0.5, a.metalHi);
-    blk(g, cx - 1, 3.1, 2, 2, a.jewel);
-    blk(g, cx - 0.4, 3.3, 0.8, 0.8, '#ffffff');
+  band() {},   /* retired: the old gold flapper headband — no longer used */
+  feather(g, dir, a) {   /* a single feather tucked into the hair (no headband) */
+    const bx = dir === 'side' ? 8.5 : 13;
+    blk(g, bx, -1, 1.1, 5.4, a.feather);
+    blk(g, bx + 0.9, -1.4, 0.9, 4.0, a.feather);
+    blk(g, bx + 0.3, -0.6, 0.6, 4.4, a.featherHi);
   },
-  feather(g, dir, a) {
-    ACC_HEAD.band(g, dir, a);
-    const cx = dir === 'side' ? 6 : 8;
-    blk(g, cx - 0.6, -1, 0.8, 3.5, a.feather);
-    blk(g, cx + 1, -1, 0.8, 3.5, a.feather);
-    blk(g, cx, -1.2, 1.4, 5.5, a.feather);
-    blk(g, cx + 0.4, -1, 0.7, 5, a.featherHi);
+  tiara(g, dir, a) {   /* slim gold circlet + crown points (legendary regalia only) */
+    const cx = dir === 'side' ? 4 : 9, x0 = dir === 'side' ? 1.5 : 3, w = dir === 'side' ? 9 : 12;
+    blk(g, x0, 3.5, w, 0.8, a.metal);
+    blk(g, x0, 3.5, w, 0.3, a.metalHi);
+    blk(g, cx - 2, 2.2, 0.8, 1.5, a.metal);
+    blk(g, cx, 1.5, 0.8, 2.2, a.metal);
+    blk(g, cx + 1.4, 2.2, 0.8, 1.5, a.metal);
+    blk(g, cx - 0.2, 1.1, 1, 1, a.jewel);
   },
-  tiara(g, dir, a) {
-    ACC_HEAD.band(g, dir, a);
-    const cx = dir === 'side' ? 4 : 9;
-    blk(g, cx - 2, 1.8, 0.9, 1.8, a.metal);
-    blk(g, cx, 1.0, 0.9, 2.6, a.metal);
-    blk(g, cx + 1.4, 1.8, 0.9, 1.8, a.metal);
-    blk(g, cx - 0.2, 0.6, 1, 1, a.jewel);
-  },
-  plume(g, dir, a) {   // tall single ostrich plume
-    ACC_HEAD.band(g, dir, a);
+  plume(g, dir, a) {   /* a feather plume rising from the hair, held by a small clip (no band) */
     const cx = dir === 'side' ? 6 : 9;
     for (let i = 0; i < 6; i++) blk(g, cx - 1 + (i % 2), 4 - i, 1.6 - i * 0.12, 1, i < 4 ? a.feather : a.featherHi);
     blk(g, cx - 0.2, -1.4, 0.9, 6, a.featherHi);
+    blk(g, cx - 1.1, 3.4, 2.4, 0.8, a.jewel);
   },
   bycocket(g, dir, a) {   // Robin Hood cap — pointed "beak" in profile, covering cap head-on
     const H = a.hat || '#2f6a38', HH = a.hatHi || '#3f8a48', HD = a.hatDark || '#1d4826';
@@ -1057,10 +1050,26 @@ const ACC_FACE = {
     blk(g, x + 0.4, y + 0.4, 0.7, 0.7, a.jewelHi);
   }
 };
+/* full-body cloak, drawn over the body/legs in sprite space (before the outline) */
+function drawCloak(g, dir, cl) {
+  const B = cl.base, H = cl.hi, S = cl.sh;
+  if (dir === 'side') {
+    blk(g, 7.5, 14.4, 6.8, 2.6, B); blk(g, 7.5, 14.4, 6.8, 0.8, H);   // shoulder / upper back
+    blk(g, 9.0, 16.6, 5.6, 10, B);                                     // back drape to the feet
+    blk(g, 9.0, 16.6, 1, 10, H); blk(g, 13.6, 16.6, 1, 10, S);
+    blk(g, 6.6, 15.0, 2.0, 2.0, H);                                    // clasp at the throat
+    return;
+  }
+  blk(g, 3.5, 14.3, 12, 2.7, B); blk(g, 3.5, 14.3, 12, 0.8, H);        // shoulder mantle / collar
+  blk(g, 3.3, 16.6, 4.8, 10, B); blk(g, 3.3, 16.6, 1, 10, H);          // left panel to the feet
+  blk(g, 10.9, 16.6, 4.8, 10, B); blk(g, 14.7, 16.6, 1, 10, S);        // right panel to the feet
+  if (dir === 'up') blk(g, 7.7, 16.6, 3.4, 10, B);                     // back fully covered
+  blk(g, 8.4, 14.8, 2.2, 2.2, H);                                      // clasp / brooch
+}
 function accPainter(t, ax) {
   const hf = ACC_HEAD[t.headAcc] || ACC_HEAD.none;
   const ff = ACC_FACE[t.faceAcc] || ACC_FACE.none;
-  return (g, dir) => { ff(g, dir, ax); hf(g, dir, ax); };
+  return (g, dir) => { if (ax.cloak) drawCloak(g, dir, ax.cloak); ff(g, dir, ax); hf(g, dir, ax); };
 }
 /* GIRAFFE features — ossicones (little knobbed horns) and a few coat spots,
    stamped on every character so the whole sanctuary is giraffes. Drawn in
@@ -1203,11 +1212,11 @@ function makeCharacterHD_human(t) {
     jewel: jewel.base, jewelHi: jewel.hi, tie2: t.tie || '#1a1216',
     feather: (t.feather && ramp(t.feather).base) || '#e9dfce',
     featherHi: (t.feather && ramp(t.feather).hi) || '#fff8ea',
-    hat: bycol.base, hatHi: bycol.hi, hatDark: mixc(bycol.sh, '#0d1a0e', 0.35)
+    hat: bycol.base, hatHi: bycol.hi, hatDark: mixc(bycol.sh, '#0d1a0e', 0.35),
+    cloak: t.cloak ? ramp(t.cloak) : null
   };
-  const baseAcc = (t.headAcc && t.headAcc !== 'none') || (t.faceAcc && t.faceAcc !== 'none')
+  const acc = (t.cloak || (t.headAcc && t.headAcc !== 'none') || (t.faceAcc && t.faceAcc !== 'none'))
     ? accPainter(t, ax) : null;
-  const acc = baseAcc;
   const legStyle = t.legs || (t.body === 'gown' ? 'gown' : ['dress','fringe','beaded','wrap'].includes(t.body) ? 'dress' : 'suit');
   const hd = HD_HEADS[t.head || 'fez'], bd = HD_BODIES[t.body || 'suit'], lg = HD_LEGS[legStyle] || HD_LEGS.suit;
   const out = {};
@@ -1242,8 +1251,8 @@ const CN_TRAITS = {
   hairM: ['bald','slick','pompadour','curly','wavy'],
   hairF: ['bob','bobwave','sidebob','longhair','bang','updo'],
   feather:['#e9dfce','#c0392b','#3a8a5a','#d9c07a','#7a4a24','#f4ecd8','#2a2a20'],
-  headAccF: ['band','feather','tiara','plume','band','feather'],
-  headAccM: ['none','none','feather','band','none'],
+  headAccF: ['none','feather','none','feather','none','none'],
+  headAccM: ['none','none','feather','none','none'],
   faceAccM: ['none','none','none','rose','none','none'],
   faceAccF: ['none','none','rose','none','none','none']
 };
@@ -1256,7 +1265,7 @@ const LEGENDARY = {
   33:  { name:'Silver Moonlight', metal:'#b0b0ba', garment:'#274a6e', jewel:'#cfe4ff', headAcc:'tiara', faceAcc:'none', feather:'#e8dcc0' },
   77:  { name:'The Emerald Archer',metal:'#d9c07a', garment:'#2f5f34', jewel:'#3a8a5a', headAcc:'plume', faceAcc:'rose', feather:'#3a8a5a' },
   100: { name:'Baron of Chips',   metal:'#e8c24a', garment:'#274a6e', jewel:'#c9a13b', headAcc:'tiara', faceAcc:'none', feather:'#d9c07a' },
-  222: { name:'The Ruby Maiden',  metal:'#b0b0ba', garment:'#7a1a26', jewel:'#c0392b', headAcc:'plume', faceAcc:'none', feather:'#c0392b' },
+  222: { name:'The Ruby Maiden',  metal:'#b0b0ba', garment:'#334a3a', jewel:'#c0392b', headAcc:'plume', faceAcc:'none', feather:'#e8dcc0' },
   333: { name:"King o' the Greenwood", metal:'#e8c24a', garment:'#2f5f34', jewel:'#e8c24a', headAcc:'feather', faceAcc:'none', feather:'#e8c24a' }
 };
 function traitsForToken(id) {
@@ -1265,9 +1274,11 @@ function traitsForToken(id) {
   const female = rnd() < 0.5;
   const T = CN_TRAITS;
   const roll = rnd();
-  const tier = roll < 0.05 ? 'legendary' : roll < 0.12 ? 'epic' : roll < 0.35 ? 'rare' : 'common';
+  const tier = roll < 0.05 ? 'legendary' : roll < 0.15 ? 'rare' : 'common';   // 5% / 10% / 85%
   let skin = pick(T.skin), hair = pick(T.hair);
-  let garment = pick(T.garment), metal = pick(T.metal), jewel = pick(T.jewel);
+  const REDS = { '#7a1a26':1, '#9c3b1e':1, '#5c1a2c':1 };   // no red dresses on women
+  let garment = pick(female ? T.garment.filter(c => !REDS[c]) : T.garment);
+  let metal = pick(T.metal), jewel = pick(T.jewel);
   /* 30% of the greenwood wear a Robin-Hood bycocket over their hair (the merry
      men look). Bycocket wins over any other hat: force a bare hair silhouette so
      the cap sits on the head, then flag headAcc='bycocket'. */
@@ -1276,7 +1287,7 @@ function traitsForToken(id) {
   const head = female ? pick(T.hairF) : pick(T.hairM);
   let headAcc, faceAcc, feather = pick(T.feather);
   if (female) {
-    headAcc = tier === 'common' ? (rnd() < 0.5 ? 'band' : 'none') : pick(T.headAccF);
+    headAcc = tier === 'common' ? 'none' : pick(T.headAccF);
     faceAcc = pick(T.faceAccF);
   } else {
     headAcc = tier === 'common' ? 'none' : pick(T.headAccM);
@@ -1286,7 +1297,7 @@ function traitsForToken(id) {
   const BYCOL = ['#2f6a38','#356e2c','#1f5a3a','#4a5f24','#5a3f22','#3d6b3a','#6e4a24','#274a2a'];
   const bycocketCol = pick(BYCOL);
   if (bycocket) { headAcc = 'bycocket'; }
-  if (tier === 'epic' || tier === 'legendary') { garment = pick(['#2f5f34','#7a1a26','#274a6e','#5c1a2c','#6b5320','#334a3a','#4a3a22']); metal = pick(['#e8c24a','#c9a13b','#a9713a']); }
+  if (tier === 'legendary') { garment = pick(female ? ['#2f5f34','#274a6e','#6b5320','#334a3a','#4a3a22','#8a6a2a','#48607a'] : ['#2f5f34','#7a1a26','#274a6e','#6b5320','#334a3a','#4a3a22','#8a6a2a']); metal = pick(['#e8c24a','#c9a13b','#a9713a']); }
   const leg = LEGENDARY[id];
   let finalTier = tier;
   if (leg) { garment = leg.garment; metal = leg.metal; jewel = leg.jewel; headAcc = leg.headAcc; faceAcc = leg.faceAcc; feather = leg.feather; finalTier = 'legendary'; }
@@ -1294,7 +1305,7 @@ function traitsForToken(id) {
   const cr = mulberry32((id * 0x9e3779b1 ^ 0x5bd1e995) >>> 0);
   const cpick = arr => arr[Math.floor(cr() * arr.length)];
   /* #7 rarity-graded saturation: muted commons → rich legendaries */
-  const SAT = { common: 0.82, rare: 0.96, epic: 1.12, legendary: 1.2 };
+  const SAT = { common: 0.82, rare: 1.0, legendary: 1.2 };
   garment = satAdjust(garment, SAT[finalTier] || 1);
   /* #4 dye-lot jitter so no two garments are pixel-identical (curated legendaries kept exact) */
   if (!leg) garment = jitterCol(garment, (id * 40503 + 7) >>> 0);
@@ -1327,6 +1338,11 @@ function traitsForToken(id) {
   t.id = id;
   t.bycocket = bycocket;
   t.bycocketCol = bycocketCol;
+  /* ~30% wear a full-body cloak (independent hash so base traits are unchanged) */
+  const CLOAKS = ['#2a3f2a','#3a2a1c','#3a3a40','#22303f','#4a2e1c','#2a2a20','#3f4a2a','#5a3a1d'];
+  t.cloak = (!leg && mulberry32((id * 0x9e3779b1 ^ 0x00c10a) >>> 0)() < 0.30)
+    ? CLOAKS[Math.floor(mulberry32((id * 0x9e3779b1 ^ 0x00d10b) >>> 0)() * CLOAKS.length)]
+    : null;
   /* greenwood backdrop, chosen by rarity: legendary → Mushroom Grove, rare/epic →
      Campfire Night or Treasure Cave, everyone else → one of the six common scenes */
   t.bg = bgForToken(id, finalTier);
@@ -1417,7 +1433,7 @@ const RARE_BG   = ['CAMPFIRE NIGHT','TREASURE CAVE'];
 function bgForToken(id, tier) {
   if (tier === 'legendary') return 'MUSHROOM GROVE';
   const r = mulberry32((id * 0x9e3779b1 ^ 0x00b5a17f) >>> 0)();
-  if (tier === 'rare' || tier === 'epic') return RARE_BG[Math.floor(r * RARE_BG.length)];
+  if (tier === 'rare') return RARE_BG[Math.floor(r * RARE_BG.length)];
   return COMMON_BG[Math.floor(r * COMMON_BG.length)];
 }
 /* deterministic guests seeded from any token (used for the floor crowd too) */
@@ -1462,52 +1478,49 @@ try {
 
 const SPRITES = {
   player:      characterForToken(PLAYER_TOKEN),
-  bartender:   makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#d84a34',
-                                 hair:'#14100d', coat:'#fdfaf1', pants:'#1a1216',
-                                 shoes:'#120d10', tie:'#b02a3c' }),
-  bartender:   makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#d84a34',
-                                 hair:'#14100d', coat:'#fdfaf1', pants:'#1a1216',
-                                 shoes:'#120d10', tie:'#b02a3c' }),
-  crapsDealer: makeCharacterHD({ head:'newsboy', body:'suit',  skin:'#e9b98c', hat:'#2f7a3a',
-                                 hair:'#14100d', coat:'#6b4a2a', pants:'#1a1216',
-                                 shoes:'#120d10', tie:'#f0c268' }),
-  bjDealer:    makeCharacterHD({ head:'newsboy', body:'suit',  skin:'#d3a87e', hat:'#5e3f24',
-                                 hair:'#14100d', coat:'#22784e', pants:'#1a1216',
-                                 shoes:'#120d10', tie:'#f0c268' }),
-  rouletteDealer: makeCharacterHD({ head:'bob', body:'dress', skin:'#f0c49a', hat:'#7a1a26',
-                                 hair:'#20140f', coat:'#7a1a26', pants:'#7a1a26',
-                                 shoes:'#d9c07a', tie:'#f0c268' }),
-  guestF:      makeCharacterHD({ head:'bob',   body:'dress', skin:'#f6cfa4', hat:'#e86a80',
-                                 hair:'#1c1316', coat:'#c02c42', pants:'#c02c42',
-                                 shoes:'#ffd766' }),
-  guestM:      makeCharacterHD({ head:'fez',   body:'suit',  skin:'#efc298', hat:'#1c1316',
-                                 hair:'#100c0e', coat:'#262a36', pants:'#1c1316',
-                                 shoes:'#120d10', tie:'#8c2438' }),
+  bartender:   makeCharacterHD({ head:'slick', body:'openshirt', skin:'#e9b98c', hat:'#6b4a2a',
+                                 hair:'#3a2718', coat:'#5a3b12', pants:'#4a3a22',
+                                 shoes:'#3a2612', tie:'#8a6a2a', shirt:'#e8dcc0', leather:'#5a3a1d' }),
+  crapsDealer: makeCharacterHD({ head:'wavy', body:'suit',  skin:'#e9b98c', hat:'#2f7a3a',
+                                 hair:'#3a2718', coat:'#334a3a', pants:'#2a2a20',
+                                 shoes:'#3a2612', tie:'#d9c07a', shirt:'#e8dcc0', leather:'#5a3a1d' }),
+  bjDealer:    makeCharacterHD({ head:'curly', body:'suit',  skin:'#d3a87e', hat:'#5e3f24',
+                                 hair:'#2a1c12', coat:'#274a6e', pants:'#2a2a20',
+                                 shoes:'#3a2612', tie:'#d9c07a', shirt:'#e8dcc0', leather:'#5a3a1d' }),
+  rouletteDealer: makeCharacterHD({ head:'bob', body:'dress', skin:'#f0c49a', hat:'#334a3a',
+                                 hair:'#20140f', coat:'#334a3a', pants:'#334a3a',
+                                 shoes:'#8a6a3a', tie:'#d9c07a', shirt:'#e6d8b0', leather:'#5a3a1d' }),
+  guestF:      makeCharacterHD({ head:'bob',   body:'dress', skin:'#f6cfa4', hat:'#3f6b2c',
+                                 hair:'#3a2718', coat:'#3f6b2c', pants:'#3f6b2c',
+                                 shoes:'#8a6a3a', shirt:'#e8dcc0', leather:'#5a3a1d' }),
+  guestM:      makeCharacterHD({ head:'slick', body:'suit',  skin:'#efc298', hat:'#4a3a22',
+                                 hair:'#2a1c12', coat:'#4a3a22', pants:'#2a2a20',
+                                 shoes:'#3a2612', tie:'#8a6a2a', shirt:'#e8dcc0', leather:'#5a3a1d' }),
   /* remote player variants (picked by their sprite index 0-2) */
-  remote0:     makeCharacterHD({ head:'fez',   body:'suit',  skin:'#efc298', hat:'#1c1316',
+  remote0:     makeCharacterHD({ head:'slick',   body:'suit',  skin:'#efc298', hat:'#1c1316',
                                  hair:'#100c0e', coat:'#262a36', pants:'#1c1316',
                                  shoes:'#120d10', tie:'#8c2438' }),
-  remote1:     makeCharacterHD({ head:'bob',   body:'dress', skin:'#f6cfa4', hat:'#e86a80',
-                                 hair:'#1c1316', coat:'#c02c42', pants:'#c02c42',
+  remote1:     makeCharacterHD({ head:'bob',   body:'dress', skin:'#f6cfa4', hat:'#3f6b2c',
+                                 hair:'#3a2718', coat:'#3f6b2c', pants:'#3f6b2c',
                                  shoes:'#ffd766' }),
-  remote2:     makeCharacterHD({ head:'fez',   body:'suit',  skin:'#e9b98c', hat:'#2f8fa8',
+  remote2:     makeCharacterHD({ head:'slick',   body:'suit',  skin:'#e9b98c', hat:'#2f8fa8',
                                  hair:'#20657a', coat:'#3d6a78', pants:'#20313a',
                                  shoes:'#120d10', tie:'#f0c268' }),
   /* the Nile Three — a full-size band, same style as everyone else */
   bandSinger:  makeCharacterHD({ head:'bob', body:'dress', skin:'#f0c49a', hair:'#14100d',
-                                 hat:'#7a1a26', coat:'#7a1a26', pants:'#7a1a26', shoes:'#d9c07a',
-                                 tie:'#c0392b', headAcc:'feather', faceAcc:'none',
+                                 hat:'#334a3a', coat:'#334a3a', pants:'#334a3a', shoes:'#8a6a3a',
+                                 tie:'#d9c07a', headAcc:'feather', faceAcc:'none',
                                  metal:'#d9c07a', jewel:'#c0392b', feather:'#c0392b' }),
-  bandCello:   makeCharacterHD({ head:'fez', body:'suit', skin:'#c68a5e', hair:'#14100d',
+  bandCello:   makeCharacterHD({ head:'slick', body:'suit', skin:'#c68a5e', hair:'#14100d',
                                  hat:'#0f0c14', coat:'#123c6e', pants:'#0d0a12', shoes:'#120d10', tie:'#d9c07a' }),
-  bandDrum:    makeCharacterHD({ head:'fez', body:'suit', skin:'#e9b98c', hair:'#14100d',
+  bandDrum:    makeCharacterHD({ head:'slick', body:'suit', skin:'#e9b98c', hair:'#14100d',
                                  hat:'#1f5f4a', coat:'#1f5f4a', pants:'#0d0a12', shoes:'#120d10', tie:'#c9a13b' }),
   /* antechamber staff */
-  mintClerk:   makeCharacterHD({ head:'fez',   body:'vest', skin:'#e0a878', hat:'#c9a13b',
+  mintClerk:   makeCharacterHD({ head:'slick',   body:'vest', skin:'#e0a878', hat:'#c9a13b',
                                  hair:'#2a1c12', coat:'#1f5f4a', pants:'#1a1216', shoes:'#120d10', tie:'#c9a13b', shirt:'#f4ead2' }),
-  docsHost:    makeCharacterHD({ head:'newsboy', body:'suit', skin:'#d3a87e', hat:'#3a6b3a',
+  docsHost:    makeCharacterHD({ head:'wavy', body:'suit', skin:'#d3a87e', hat:'#3a6b3a',
                                  hair:'#14100d', coat:'#3a5a34', pants:'#1a1216', shoes:'#120d10', tie:'#d4d4dc', shirt:'#f4ead2' }),
-  cashier:     makeCharacterHD({ head:'fez',   body:'vest', skin:'#c68a5e', hat:'#5c1a2c',
+  cashier:     makeCharacterHD({ head:'slick',   body:'vest', skin:'#c68a5e', hat:'#5c1a2c',
                                  hair:'#14100d', coat:'#2a2536', pants:'#1a1216', shoes:'#120d10', tie:'#c9a13b', shirt:'#f4ead2' })
 };
 const REMOTE_SPRITES = ['remote0','remote1','remote2'];
@@ -1974,6 +1987,7 @@ function nextLine(id) {
 
 /* ============================ entities ============================ */
 const player = { x: 7.5*TS, y: 12*TS, dir: 'up', frame: 0, animT: 0, moving: false };  // starts in the antechamber
+player.legendary = true;   // TEMP: forced on so the legendary glow is always visible while testing
 let camY = 0;   // vertical camera offset into the taller world (set each floor frame)
 const npcs = [
   { id:'bartender',  sprite:'bartender',  x: 8*TS,   y: 2*TS + 1,  dir:'down' }
@@ -3158,6 +3172,15 @@ function spriteFor(ent) {
 function drawEntity(g, ent, bobT) {
   const img = spriteFor(ent);
   const bob = ent.staticNPC ? (Math.floor(bobT / 40) % 2) : 0;
+  if (ent.legendary) {   // golden aura around legendary characters
+    const cx = Math.round(ent.x), cy = Math.round(ent.y - img.lh / 2 + bob);
+    const pulse = 0.62 + 0.12 * Math.sin(bobT / 12 + ent.x);
+    const gl = g.createRadialGradient(cx, cy, 2, cx, cy, 21);
+    gl.addColorStop(0, 'rgba(255,240,170,' + pulse.toFixed(3) + ')');
+    gl.addColorStop(0.45, 'rgba(255,214,90,0.30)');
+    gl.addColorStop(1, 'rgba(255,206,80,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(cx, cy, 21, 0, Math.PI * 2); g.fill();
+  }
   g.fillStyle = C.shadow;
   g.beginPath();
   g.ellipse(Math.round(ent.x), Math.round(ent.y) + 2, 6, 2.5, 0, 0, Math.PI * 2);
@@ -6602,6 +6625,7 @@ async function claimAllWeekly(ids) {
 function setActiveGiraffe(id, name) {
   PLAYER_TOKEN = id;
   try { SPRITES.player = characterForToken(id); } catch (e) {}
+  try { player.legendary = true; /* TEMP: forced on for testing (was: traitsForToken(id).tier === 'legendary') */ } catch (e) {}
   adoptCasinoName(name);        // your casino name is now this giraffe's name
   closeHerdModal();
 }
