@@ -685,6 +685,24 @@ function mixc(a, b, t) {
 function ramp(base) {
   return { hi: mixc(base, '#fff3cf', 0.4), base, sh: mixc(base, '#2c1e3e', 0.48) };
 }
+/* material-specific ramps (adds per-character depth: different cloths catch light
+   differently). linen = soft high-key; leather = glossy with a deep core shadow. */
+function rampSoft(base)    { return { hi: mixc(base, '#fff6e2', 0.5),  base, sh: mixc(base, '#3a3050', 0.30) }; }
+function rampLeather(base) { return { hi: mixc(base, '#ffe9c0', 0.52), base, sh: mixc(base, '#1a0e12', 0.55) }; }
+function rampWool(base)    { return { hi: mixc(base, '#fff3cf', 0.34), base, sh: mixc(base, '#241a38', 0.56) }; }
+/* saturation dial around a colour's own luma — <1 mutes, >1 enriches (rarity tint) */
+function satAdjust(hex, f) {
+  const c = hex2rgb(hex), L = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+  const o = c.map(v => Math.max(0, Math.min(255, Math.round(L + (v - L) * f))));
+  return '#' + o.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+/* tiny deterministic per-token dye-lot jitter: small value + warm/cool skew */
+function jitterCol(hex, seed) {
+  const r = mulberry32(seed >>> 0), c = hex2rgb(hex);
+  const v = 0.90 + r() * 0.20, s = (r() - 0.5) * 18, cl = x => Math.max(0, Math.min(255, Math.round(x)));
+  const o = [cl(c[0] * v + s), cl(c[1] * v), cl(c[2] * v - s)];
+  return '#' + o.map(v => v.toString(16).padStart(2, '0')).join('');
+}
 /* symmetric halves: author 16 or 18 cells, mirror to 32 / 36 */
 const sym = r => r + [...r].reverse().join('');
 const symRows = rs => rs.map(sym);
@@ -1150,16 +1168,17 @@ function makeCharacterHD(t) {
   return makeCharacterHD_human(t);
 }
 function makeCharacterHD_human(t) {
-  const skin = ramp(mixc('#e8c88a', t.skin || '#e8c88a', 0.22)), hat = ramp(t.hat), coat = ramp(t.coat);
-  const pants = ramp(t.pants), hair = ramp(t.hair), shoes = ramp(t.shoes);
-  const shirt = ramp(t.shirt || '#f4ead2');
+  const skin = ramp(mixc('#e8c88a', t.skin || '#e8c88a', 0.22)), hat = rampWool(t.hat), coat = rampWool(t.coat);
+  const pants = rampWool(t.pants), hair = ramp(t.hair), shoes = ramp(t.shoes);
+  const shirt = rampSoft(t.shirt || '#f4ead2');
+  const leather = rampLeather(t.leather || '#5a3a1d');
   const pal = {
     '2': hat.hi, H: hat.base, h: hat.sh,
     '1': skin.hi, S: skin.base, s: skin.sh,
     K: hair.base, k: hair.sh,
     '3': coat.hi, J: coat.base, j: coat.sh, L: mixc(coat.sh, '#1a1220', 0.4),
     C: shirt.base, R: t.tie || '#b02a3c',
-    T: '#5a3a1d', Y: '#7a5230',                       // leather belt / jerkin (Sherwood)
+    T: leather.base, Y: leather.hi,                   // per-character leather belt / jerkin
     G: '#ffd766', g: '#c9a13b',
     E: '#1a1216', W: '#fff6e6', M: '#8e4a42',
     B: pants.base, b: pants.sh, F: shoes.base, f: shoes.sh
@@ -1259,6 +1278,18 @@ function traitsForToken(id) {
   const leg = LEGENDARY[id];
   let finalTier = tier;
   if (leg) { garment = leg.garment; metal = leg.metal; jewel = leg.jewel; headAcc = leg.headAcc; faceAcc = leg.faceAcc; feather = leg.feather; finalTier = 'legendary'; }
+  /* richer colour, seeded independently so base traits (skin/hair/body/etc.) are unchanged */
+  const cr = mulberry32((id * 0x9e3779b1 ^ 0x5bd1e995) >>> 0);
+  const cpick = arr => arr[Math.floor(cr() * arr.length)];
+  /* #7 rarity-graded saturation: muted commons → rich legendaries */
+  const SAT = { common: 0.82, rare: 0.96, epic: 1.12, legendary: 1.2 };
+  garment = satAdjust(garment, SAT[finalTier] || 1);
+  /* #4 dye-lot jitter so no two garments are pixel-identical (curated legendaries kept exact) */
+  if (!leg) garment = jitterCol(garment, (id * 40503 + 7) >>> 0);
+  /* #1 linen (undershirt/collar) and #2 leather (belt) now vary per character */
+  const LINEN = ['#f4ead2','#e8dcc0','#d9c8a0','#cfd0c0','#c8b89a','#dfe0e2','#e6d8b0','#efe4c4'];
+  const LEATHER = ['#5a3a1d','#3d2712','#6e4a24','#7a1a26','#2a2020','#8a6a3a','#4a3020','#63421f'];
+  const shirtCol = cpick(LINEN), leatherCol = cpick(LEATHER);
   const trim = tier === 'common' ? mixc(garment, '#f4ead2', 0.25) : metal;
   const bodyF = pick(['dress','gown','fringe','beaded','wrap']);
   const bodyM = pick(['suit','tux','vest','pinstripe','openshirt']);
@@ -1266,9 +1297,10 @@ function traitsForToken(id) {
   const t = female
     ? { head, body: bodyF, skin, hair, hat: garment, coat: garment, pants: garment,
         shoes: metal, tie: jewel, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
+        shirt: shirtCol, leather: leatherCol,
         name: leg ? leg.name : pick(FIRST_F) + ' “' + pick(NICK) + '”' }
     : { head, body: bodyM, legs: legsM, skin, hair, hat: pick(T.hatM), coat: garment, pants: mixc(garment, '#0d0a12', 0.4),
-        shoes: '#120d10', tie: jewel, shirt:'#f4ead2', headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
+        shoes: '#120d10', tie: jewel, shirt: shirtCol, leather: leatherCol, headAcc, faceAcc, metal, jewel, feather, tier: finalTier,
         name: leg ? leg.name : pick(FIRST_M) + ' “' + pick(NICK) + '”' };
   t.id = id;
   t.bycocket = bycocket;
