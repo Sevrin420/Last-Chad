@@ -995,16 +995,17 @@ const ACC_HEAD = {
     const H = a.hat || '#2f6a38', HH = a.hatHi || '#3f8a48', HD = a.hatDark || '#1d4826';
     const FE = a.feather || '#d8c090', FH = a.featherHi || '#f2e6b8';
     if (dir === 'side') {
-      // profile: cap hugging the crown with a pointed beak jutting forward over the brow
-      blk(g, 0.8, -1.0, 8.0, 4.2, H);                                  // crown over the head
-      blk(g, 0.8, -1.0, 8.0, 1.0, HH);                                 // top sheen
-      blk(g, 3.0, 2.8, 5.6, 1.3, HD);                                  // rolled brim toward the back
+      // profile: cap covering the whole top of the head, with a beak jutting forward
+      blk(g, 0.6, -1.0, 14.2, 3.8, H);                                 // crown front-to-back
+      blk(g, 0.6, -1.0, 14.2, 1.0, HH);                                // top sheen
+      blk(g, 12.6, -0.2, 2.6, 3.0, H);                                 // round the back of the crown
+      blk(g, 0.6, 2.6, 14.0, 1.2, HD);                                 // rolled brim along the lower edge
       // forward-pointing beak — columns of decreasing height narrowing to the tip
       const cols = [[1.6,0.4,3.4],[0.6,0.8,2.8],[-0.3,1.2,2.1],[-1.0,1.6,1.3]];
       for (const [x,y,h] of cols) blk(g, x, y, 1.2, h, H);
       for (const [x,y,h] of cols) blk(g, x, y, 1.2, 0.6, HH);          // top-edge sheen on the beak
-      blk(g, 7.4, -1.6, 1.0, 5.0, FE); blk(g, 8.2, -1.8, 0.9, 3.6, FE); // feather at the back
-      blk(g, 7.8, -1.2, 0.6, 4.0, FH);
+      blk(g, 13.4, -1.6, 1.0, 5.0, FE); blk(g, 14.2, -1.8, 0.9, 3.6, FE); // feather at the back
+      blk(g, 13.8, -1.2, 0.6, 4.0, FH);
       return;
     }
     // front / back: cap covering the crown with an upturned brim (the point only shows in profile)
