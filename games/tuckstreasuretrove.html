@@ -2331,6 +2331,17 @@ function powerOff() {
     setTimeout(() => { bootEl.style.display = 'none'; }, 750 + 2000);
   }
 
+  /* return to the title card WITHOUT powering off (walk south out of the antechamber) */
+  window.__exitToTitle = function () {
+    if (!booted) return;
+    booted = false;
+    try { settleCurrentStakes('Left'); } catch (e) {}
+    scene = 'entry';
+    player.x = 7.5 * TS; player.y = 12 * TS; player.dir = 'up'; player.frame = 0;
+    casinoEntered = false;
+    bootUp();                                // re-drop the title card; PRESS A steps back in
+  };
+
   function commit() {
     on = !on;
     setKnob(on ? 1 : 0);
@@ -2508,7 +2519,7 @@ function dialogSelect() {
   if (dlg.chars < full) { dlg.chars = full; return; }
   if (dlg.page < dlg.pages.length - 1) { dlg.page++; dlg.chars = 0; return; }
   dlg.open = false;
-  if (dlg.action === 'exit') { try { settleCurrentStakes('Left'); } catch (e) {} window.location.reload(); return; }
+  if (dlg.action === 'exit') { leaveCasino(); return; }
   /* every table is played on chips you've withdrawn at the cage — no chips, no seat */
   if (dlg.action === 'craps' || dlg.action === 'blackjack' || dlg.action === 'roulette') {
     if (chips <= 0) {
@@ -5439,6 +5450,9 @@ function floorUpdate() {
     if (player.animT % 13 === 0) { player.frame = 1 - player.frame; sound.step(); }
   } else { player.frame = 0; }
 
+  /* walk south through the door → back out to the antechamber */
+  if (player.y > (ROWS-1.4)*TS && player.x > (DOOR.c-0.4)*TS && player.x < (DOOR.c+1.4)*TS) { leaveCasino(); return; }
+
   if (aQueued) {
     aQueued = false;
     const t = interactTarget();
@@ -5765,7 +5779,7 @@ const ENTRY_DESK    = { c0:2, c1:4,  r:5 };     // mint clerk's counter (left)
 const ENTRY_LECTERN = { c0:10, c1:12, r:5 };    // docs host's lectern (right)
 const ENTRY_DOOR    = { c0:6, c1:8 };           // north arch to the casino
 const entrySolid = new Set();
-for (let c = 0; c < COLS; c++) { entrySolid.add(key(c,0)); if (c < ENTRY_DOOR.c0 || c > ENTRY_DOOR.c1) entrySolid.add(key(c,1)); entrySolid.add(key(c,14)); }
+for (let c = 0; c < COLS; c++) { entrySolid.add(key(c,0)); if (c < ENTRY_DOOR.c0 || c > ENTRY_DOOR.c1) { entrySolid.add(key(c,1)); entrySolid.add(key(c,14)); } }   // south gap at the arch → exit to title
 for (let r = 0; r < 15; r++) { entrySolid.add(key(0,r)); entrySolid.add(key(COLS-1,r)); }
 for (let c = ENTRY_DESK.c0;    c <= ENTRY_DESK.c1;    c++) entrySolid.add(key(c, ENTRY_DESK.r));
 for (let c = ENTRY_LECTERN.c0; c <= ENTRY_LECTERN.c1; c++) entrySolid.add(key(c, ENTRY_LECTERN.r));
@@ -5816,7 +5830,10 @@ const entryBg = makeCanvas(W, H, g => {
     clump(4 + (h2(y,4) % 5), y, 12 + (h2(y,5) % 5));
     clump(W - 4 - (h2(y,6) % 5), y, 12 + (h2(y,7) % 5));
   }
-  for (let x = -6; x <= W + 6; x += 15) clump(x, H - 4 + (h2(x,8) % 4), 12 + (h2(x,9) % 5));  // bottom
+  for (let x = -6; x <= W + 6; x += 15) {          // bottom line, gap for the way out
+    if (x > ax - 20 && x < ax + aw + 20) continue;
+    clump(x, H - 4 + (h2(x,8) % 4), 12 + (h2(x,9) % 5));
+  }
   /* ── timber gate through the trees to the den ── */
   g.fillStyle = '#0e1410'; g.fillRect(ax, 0, aw, 2*TS);
   const glow = g.createLinearGradient(0, 0, 0, 2*TS);
@@ -5826,6 +5843,15 @@ const entryBg = makeCanvas(W, H, g => {
   g.fillStyle = C.wood;     g.fillRect(ax - 4, 0, 2, 2.6*TS); g.fillRect(ax + aw + 1, 0, 2, 2.6*TS);
   g.fillStyle = C.woodDark; g.fillRect(ax - 5, 2*TS, aw + 10, 5);
   g.fillStyle = C.woodHi;   g.fillRect(ax - 5, 2*TS, aw + 10, 1);
+  /* ── south way out of the clearing (→ back to the title card) ── */
+  g.fillStyle = '#0e1410'; g.fillRect(ax, H - 2*TS, aw, 2*TS);
+  const glowS = g.createLinearGradient(0, H - 2*TS, 0, H);
+  glowS.addColorStop(0, 'rgba(255,190,90,0)'); glowS.addColorStop(1, 'rgba(255,190,90,0.42)');
+  g.fillStyle = glowS; g.fillRect(ax, H - 2*TS, aw, 2*TS);
+  g.fillStyle = C.woodDark; g.fillRect(ax - 5, H - 2.6*TS, 5, 2.6*TS); g.fillRect(ax + aw, H - 2.6*TS, 5, 2.6*TS);
+  g.fillStyle = C.wood;     g.fillRect(ax - 4, H - 2.6*TS, 2, 2.6*TS); g.fillRect(ax + aw + 1, H - 2.6*TS, 2, 2.6*TS);
+  g.fillStyle = C.woodDark; g.fillRect(ax - 5, H - 2*TS - 5, aw + 10, 5);
+  g.fillStyle = C.woodHi;   g.fillRect(ax - 5, H - 2*TS - 5, aw + 10, 1);
   /* ── signboards on posts BEHIND each stall (raised above the NPCs' heads
         so the staff never covers the sign) ── */
   const sign = (cx, label, col) => {
@@ -5872,6 +5898,17 @@ function enterCasino() {
     casinoEntered = false;
   });
 }
+/* leaving the casino (south door) drops you back into the antechamber */
+function leaveCasino() {
+  if (casinoEntered) return;
+  casinoEntered = true;
+  try { settleCurrentStakes('Left'); } catch (e) {}
+  startTransition(() => {
+    scene = 'entry';
+    player.x = 7.5*TS; player.y = 2.6*TS; player.dir = 'down'; player.frame = 0;   // arrive under the north arch
+    casinoEntered = false;
+  });
+}
 function entryUpdate() {
   if (popupOpen()) { aQueued = bQueued = false; return; }
   let dx = 0, dy = 0;
@@ -5889,6 +5926,11 @@ function entryUpdate() {
   if (player.y < 2.4*TS && player.x > (ENTRY_DOOR.c0-0.5)*TS && player.x < (ENTRY_DOOR.c1+1.5)*TS) {
     if (canEnterCasino()) enterCasino();
     else flash('MEMBERS ONLY · MINT A PASS');
+  }
+  /* walk south out of the clearing → back to the title card (no power-off) */
+  if (player.y > 13.5*TS && player.x > (ENTRY_DOOR.c0-0.5)*TS && player.x < (ENTRY_DOOR.c1+1.5)*TS) {
+    window.__exitToTitle();
+    return;
   }
   if (aQueued) {
     aQueued = false;
