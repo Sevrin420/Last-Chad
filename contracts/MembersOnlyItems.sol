@@ -15,7 +15,7 @@ interface IMembersOnlyForItems {
  *      Owner defines new item types at any time.
  *      Items can give weekly chip bonuses, one-time chip claims, or unlock areas.
  *      Items lock to an NFT when utilized and can be unlocked for trading.
- *      Two reserved currency tokens: regular chips (id 0, real money, 0.05 AVAX,
+ *      Two reserved currency tokens: regular chips (id 0, real money, 0.0001 AVAX,
  *      AVAX-backed) and tournament chips (id 1, free, prize-only). Both are
  *      stackable and tradeable between wallets.
  */
@@ -34,8 +34,8 @@ contract MembersOnlyItems is ERC1155, Ownable {
     ///         use is entering tournaments / redeeming for prizes.
     uint256 public constant TCHIPS_ID = 1;
 
-    /// @notice 1 regular chip == 0.05 AVAX, both buy and redeem.
-    uint256 public constant CHIP_PRICE = 0.05 ether;
+    /// @notice 1 regular chip == 0.0001 AVAX, both buy and redeem.
+    uint256 public constant CHIP_PRICE = 0.0001 ether;
 
     /// @notice Total regular chips (id 0) in circulation — drives the reserve.
     uint256 public chipSupply;
@@ -190,11 +190,11 @@ contract MembersOnlyItems is ERC1155, Ownable {
     }
 
     // ─────────────────────────────────────────────
-    //  Regular chip operations (token ID 0) — real money, 0.05 AVAX each
+    //  Regular chip operations (token ID 0) — real money, 0.0001 AVAX each
     // ─────────────────────────────────────────────
     //
     // Solvency invariant: address(this).balance >= chipSupply * CHIP_PRICE.
-    // Every regular chip in circulation is redeemable for 0.05 AVAX, so the
+    // Every regular chip in circulation is redeemable for 0.0001 AVAX, so the
     // contract must always hold enough AVAX to buy them all back.
     //  • buyChips()      — player adds exactly amount*CHIP_PRICE AVAX (self-backing)
     //  • mintChips()     — free mint (game winnings): needs the house bankroll to
@@ -217,11 +217,11 @@ contract MembersOnlyItems is ERC1155, Ownable {
         return address(this).balance > reserve ? address(this).balance - reserve : 0;
     }
 
-    /// @notice Buy regular chips at 0.05 AVAX each. Remainder below one whole
+    /// @notice Buy regular chips at 0.0001 AVAX each. Remainder below one whole
     ///         chip is refunded so the reserve matches supply exactly.
     function buyChips() external payable {
         uint256 chips = msg.value / CHIP_PRICE;
-        require(chips > 0, "Send at least 0.05 AVAX");
+        require(chips > 0, "Send at least 0.0001 AVAX");
         uint256 cost = chips * CHIP_PRICE;
 
         chipSupply += chips;
@@ -235,7 +235,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
         }
     }
 
-    /// @notice Redeem regular chips for AVAX at 0.05 each. Always available.
+    /// @notice Redeem regular chips for AVAX at 0.0001 each. Always available.
     function redeemChips(uint256 amount) external {
         require(amount > 0, "Amount must be > 0");
         require(balanceOf(msg.sender, CHIPS_ID) >= amount, "Insufficient chips");

@@ -641,7 +641,7 @@ function h2(x, y) { return (((x * 73856093) ^ (y * 19349663)) >>> 0) % 97; }
    TRAIT-DRIVEN: a character is just { skin, hat, hair, coat, pants, ... }
    base colours, and ramp() derives the warm-highlight / cool-shadow 3-tone
    ramp for each material the way LTTP palettes do. This is the foundation
-   for the 333 NFT characters: each NFT's metadata traits (head style, outfit,
+   for the 2222 NFT characters: each NFT's metadata traits (head style, outfit,
    colour set) map straight onto makeCharacterHD() — unique characters come
    from data, not hand-drawn sprites. */
 function hex2rgb(h) {
@@ -1198,7 +1198,7 @@ const LEGENDARY = {
   77:  { name:'The Emerald Archer',metal:'#d9c07a', garment:'#1f5f4a', jewel:'#3a8a5a', headAcc:'plume', faceAcc:'rose', feather:'#3a8a5a' },
   100: { name:'Baron of Chips',   metal:'#e8c24a', garment:'#123c6e', jewel:'#c9a13b', headAcc:'tiara', faceAcc:'mask', feather:'#d9c07a' },
   222: { name:'The Ruby Maiden',  metal:'#d4d4dc', garment:'#7a1a26', jewel:'#c0392b', headAcc:'plume', faceAcc:'pearls', feather:'#c0392b' },
-  333: { name:"King o' the Kopje",  metal:'#e8c24a', garment:'#1f5f4a', jewel:'#e8c24a', headAcc:'feather', faceAcc:'monocle', feather:'#e8c24a' }
+  2222: { name:"King o' the Kopje",  metal:'#e8c24a', garment:'#1f5f4a', jewel:'#e8c24a', headAcc:'feather', faceAcc:'monocle', feather:'#e8c24a' }
 };
 function traitsForToken(id) {
   const rnd = mulberry32(id * 2654435761 >>> 0);
@@ -1267,7 +1267,7 @@ function buildFrontCanvas(id, scale) {
 }
 /* always-on API for the image generator and the future NFT gate */
 window.ClubNile = {
-  COUNT: 333,
+  COUNT: 2222,
   traits: traitsForToken,
   frontDataURL(id, scale) { return buildFrontCanvas(id, scale).toDataURL('image/png'); }
 };
@@ -1276,7 +1276,7 @@ window.ClubNile = {
 let PLAYER_TOKEN = 1;
 try {
   const s = JSON.parse(sessionStorage.getItem('giraffe_session') || 'null');
-  if (s && s.tokenId) PLAYER_TOKEN = Math.max(1, Math.min(333, parseInt(s.tokenId, 10) || 1));
+  if (s && s.tokenId) PLAYER_TOKEN = Math.max(1, Math.min(2222, parseInt(s.tokenId, 10) || 1));
 } catch (e) { /* guest play */ }
 
 const SPRITES = {

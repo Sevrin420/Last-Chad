@@ -60,7 +60,7 @@ All project assets (images, GIFs, audio, etc.) live in **`assets/membersonly/`**
 
 ## Project Overview
 
-**Members Only** is an NFT-gated casino on Avalanche. 333 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
+**Members Only** is an NFT-gated casino on Avalanche. 2222 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
 
 ### Elevator Pitch
 
@@ -79,8 +79,8 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 | Contract | Purpose |
 |----------|---------|
-| `MembersOnly.sol` | ERC-721 NFT (333 max, 10 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
-| `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.05 AVAX-backed) + tournament chips (token 1, free) + items |
+| `MembersOnly.sol` | ERC-721 NFT (2222 max, 0.02 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
+| `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.0001 AVAX-backed) + tournament chips (token 1, free) + items |
 | `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
 | `Market.sol` | Player-to-player NFT/item trading |
 | `Tournament.sol` | Tournament system: enter (burns tournament chips), lock score, rebuy, leaderboard |
@@ -89,12 +89,12 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 **Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, and Tournament (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
 
 **Key constants:**
-- `MAX_SUPPLY`: 333
-- `MINT_PRICE`: 10 AVAX
+- `MAX_SUPPLY`: 2222
+- `MINT_PRICE`: 0.02 AVAX
 - `MAX_MINT_PER_WALLET`: 5
-- `CHIP_PRICE`: 0.05 AVAX per regular chip (buy & redeem, AVAX-backed)
-- Level by mint order: #1-83=L1, #84-166=L2, #167-249=L3, #250-333=L4
-- **Rarity tiers** (owner-set to match metadata, target split across 333):
+- `CHIP_PRICE`: 0.0001 AVAX per regular chip (buy & redeem, AVAX-backed)
+- Level by mint order: #1-555=L1, #556-1111=L2, #1112-1666=L3, #1667-2222=L4
+- **Rarity tiers** (owner-set to match metadata, target split across 2222):
   - Tier 1 **Common** — 85% — **20** tournament chips/week
   - Tier 2 **Rare** — 10% — **40** tournament chips/week
   - Tier 3 **Legendary** — 5% — **100** tournament chips/week
@@ -104,14 +104,14 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 ## Player Lifecycle
 
 ```
-1. MINT         mint.html   → MembersOnly.mint() (10 AVAX)    → ERC-721 + rarity welcome (tourney chips)
+1. MINT         mint.html   → MembersOnly.mint() (0.02 AVAX)    → ERC-721 + rarity welcome (tourney chips)
 2. SETUP        mint.html   → MembersOnly.setName()           → name (12 char max)
 3. WEEKLY CLAIM mint.html   → MembersOnly.claimWeeklyChips()  → 20/40/100 tournament chips
-4. BUY CHIPS    mint.html   → Items.buyChips() (0.05 AVAX)    → regular chips to gamble with
+4. BUY CHIPS    mint.html   → Items.buyChips() (0.0001 AVAX)    → regular chips to gamble with
 5. GAMBLE       gamble.html → Gamble.commitWager()            → buy-in regular chips
 6. CRAPS        craps.html  → WebSocket to Durable Object     → multiplayer craps
 7. CASHOUT      craps.html  → Gamble.claimWinnings()          → oracle-signed payout
-8. REDEEM       mint.html   → Items.redeemChips()             → regular chips → 0.05 AVAX each
+8. REDEEM       mint.html   → Items.redeemChips()             → regular chips → 0.0001 AVAX each
 9. TOURNAMENT   tournament.html → enter/lockScore; owner settleTournament → top locks win the yield
 ```
 
@@ -121,11 +121,11 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 **Rule of thumb: anything free is a tournament chip; anything worth real AVAX is a regular chip.**
 
-**Regular chips** = ERC-1155 token **ID 0** — real money, **0.05 AVAX each**, AVAX-backed
-- Get them: `items.buyChips()` (0.05 AVAX each) or win at the main-floor tables
-- Redeem: `items.redeemChips(amount)` → 0.05 AVAX each, always open
+**Regular chips** = ERC-1155 token **ID 0** — real money, **0.0001 AVAX each**, AVAX-backed
+- Get them: `items.buyChips()` (0.0001 AVAX each) or win at the main-floor tables
+- Redeem: `items.redeemChips(amount)` → 0.0001 AVAX each, always open
 - Spend/award: Gamble calls `items.burnChips` / `items.mintChips` (winnings)
-- **Solvency invariant**: `balance >= chipSupply * 0.05 AVAX`. Free mints (winnings) require the house bankroll to be funded via `items.depositHouse()` or they revert `"House underfunded"`. Owner `withdraw()` can only take the surplus above the reserve.
+- **Solvency invariant**: `balance >= chipSupply * 0.0001 AVAX`. Free mints (winnings) require the house bankroll to be funded via `items.depositHouse()` or they revert `"House underfunded"`. Owner `withdraw()` can only take the surplus above the reserve.
 
 **Tournament chips** = ERC-1155 token **ID 1** — free, **no cash value**, prize-only
 - Get them: weekly rarity drop (20/40/100) + mint welcome bonus (= the token's rarity amount) + item perks

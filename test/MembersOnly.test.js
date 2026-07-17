@@ -4,9 +4,9 @@ const { ethers } = require("hardhat");
 describe("MembersOnly", function () {
   let membersOnly, items;
   let owner, user1, user2, gameContract;
-  const MINT_PRICE = ethers.parseEther("10");
+  const MINT_PRICE = ethers.parseEther("0.02");
   const BASE_CHIPS = 50n;
-  const CHIPS_ID = 0n;   // regular chips (real money, 0.05 AVAX)
+  const CHIPS_ID = 0n;   // regular chips (real money, 0.0001 AVAX)
   const TCHIPS_ID = 1n;  // tournament chips (free; welcome + weekly drop pay these)
 
   beforeEach(async function () {
@@ -179,13 +179,13 @@ describe("MembersOnly", function () {
   describe("Level System", function () {
     it("should return correct levels by token ID range", async function () {
       expect(await membersOnly.getLevel(1)).to.equal(1);
-      expect(await membersOnly.getLevel(83)).to.equal(1);
-      expect(await membersOnly.getLevel(84)).to.equal(2);
-      expect(await membersOnly.getLevel(166)).to.equal(2);
-      expect(await membersOnly.getLevel(167)).to.equal(3);
-      expect(await membersOnly.getLevel(249)).to.equal(3);
-      expect(await membersOnly.getLevel(250)).to.equal(4);
-      expect(await membersOnly.getLevel(333)).to.equal(4);
+      expect(await membersOnly.getLevel(555)).to.equal(1);
+      expect(await membersOnly.getLevel(556)).to.equal(2);
+      expect(await membersOnly.getLevel(1111)).to.equal(2);
+      expect(await membersOnly.getLevel(1112)).to.equal(3);
+      expect(await membersOnly.getLevel(1666)).to.equal(3);
+      expect(await membersOnly.getLevel(1667)).to.equal(4);
+      expect(await membersOnly.getLevel(2222)).to.equal(4);
     });
   });
 

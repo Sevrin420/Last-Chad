@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const PRICE = ethers.parseEther("10");
+const PRICE = ethers.parseEther("0.02");
 const BASE_URI = "https://membersonly.xyz/metadata/";
 const CHIPS_ID = 0n;
 

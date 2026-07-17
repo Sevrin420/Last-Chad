@@ -5,7 +5,7 @@ const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 describe("Tournament", function () {
   let membersOnly, items, tournament;
   let owner, user1, user2;
-  const MINT_PRICE = ethers.parseEther("10");
+  const MINT_PRICE = ethers.parseEther("0.02");
   const CHIPS_ID = 0n;   // regular chips (real money)
   const TCHIPS_ID = 1n;  // tournament chips — the entry currency (minted 50 at mint)
 

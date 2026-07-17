@@ -57,8 +57,8 @@ win/lose them at the tables. Prizes are paid exclusively through tournaments.
 
 | Property | Value |
 |---|---|
-| Max supply | **333** |
-| Mint price | **10 AVAX** |
+| Max supply | **2222** |
+| Mint price | **0.02 AVAX** |
 | Max mint per wallet | **5** |
 | Name | Set once via `setName` (12 char max, must be unique) |
 
@@ -84,10 +84,10 @@ Level is a pure function of the token ID (the order it was minted) and adds a
 
 | Level | Token IDs |
 |---|---|
-| L1 | #1 – #83 |
-| L2 | #84 – #166 |
-| L3 | #167 – #249 |
-| L4 | #250 – #333 |
+| L1 | #1 – #555 |
+| L2 | #556 – #1111 |
+| L3 | #1112 – #1666 |
+| L4 | #1667 – #2222 |
 
 ### Multi-pass identity
 
@@ -115,11 +115,11 @@ reserved as currencies; all other IDs (starting at 2) are ordinary items.
 
 ### Regular chips — token ID `0` (real money)
 
-- **Value:** pegged at **0.05 AVAX** each, fully AVAX-backed.
-- **Get them:** `buyChips()` (send AVAX, receive `msg.value / 0.05 AVAX` chips; remainder refunded) — or win them at the main-floor tables.
-- **Redeem:** `redeemChips(amount)` → `amount * 0.05 AVAX` back to your wallet, always open.
+- **Value:** pegged at **0.0001 AVAX** each, fully AVAX-backed.
+- **Get them:** `buyChips()` (send AVAX, receive `msg.value / 0.0001 AVAX` chips; remainder refunded) — or win them at the main-floor tables.
+- **Redeem:** `redeemChips(amount)` → `amount * 0.0001 AVAX` back to your wallet, always open.
 - **Spend/award:** authorized game contracts call `burnChips` (losses/buy-ins) and `mintChips` (winnings).
-- **Solvency invariant:** `contract balance >= chipSupply * 0.05 AVAX` at all times. Minting winnings requires the house bankroll to be funded (`depositHouse()`), otherwise the mint reverts `"House underfunded"`.
+- **Solvency invariant:** `contract balance >= chipSupply * 0.0001 AVAX` at all times. Minting winnings requires the house bankroll to be funded (`depositHouse()`), otherwise the mint reverts `"House underfunded"`.
 
 ### Tournament chips — token ID `1` (free, prize-only)
 
@@ -199,8 +199,8 @@ Six contracts in [`/contracts`](contracts):
 
 | Contract | Purpose |
 |---|---|
-| **`MembersOnly.sol`** | ERC-721 membership pass — 333 max, 10 AVAX mint, 3 rarity tiers, 4 levels, weekly tournament-chip drop, naming, Merkle whitelist, transfer-lock while active. |
-| **`MembersOnlyItems.sol`** | ERC-1155 — regular chips (id 0, 0.05 AVAX-backed) + tournament chips (id 1, free) + arbitrary items. Holds the AVAX reserve + house bankroll. |
+| **`MembersOnly.sol`** | ERC-721 membership pass — 2222 max, 0.02 AVAX mint, 3 rarity tiers, 4 levels, weekly tournament-chip drop, naming, Merkle whitelist, transfer-lock while active. |
+| **`MembersOnlyItems.sol`** | ERC-1155 — regular chips (id 0, 0.0001 AVAX-backed) + tournament chips (id 1, free) + arbitrary items. Holds the AVAX reserve + house bankroll. |
 | **`Gamble.sol`** | Regular-chip wagering: `commitWager`/`claimWinnings` (craps) and `resolveGame` (oracle-settled blackjack/poker); cage buy-in; wager limits + max-payout guard. |
 | **`Tournament.sol`** | Tournament system: entry (burns tournament chips), score locking, rebuy, leaderboard, rank-weighted AVAX prize pools. |
 | **`Market.sol`** | Player-to-player NFT/item trading with a protocol fee. |
@@ -212,13 +212,13 @@ Six contracts in [`/contracts`](contracts):
 
 ```
                  ┌──────────────────┐
-   mint 10 AVAX  │   MembersOnly    │  ERC-721 pass, tiers, levels, weekly claim
+   mint 0.02 AVAX│   MembersOnly    │  ERC-721 pass, tiers, levels, weekly claim
  ───────────────▶│    (ERC-721)     │───────────┐ mints TOURNAMENT chips on claim
                  └────────┬─────────┘           │
                           │ setItems()          ▼
                           │            ┌───────────────────────┐
                           │            │  MembersOnlyItems      │
-     buyChips 0.05 AVAX   │            │   (ERC-1155)           │
+     buyChips 0.0001 AVAX│            │   (ERC-1155)           │
  ─────────────────────────┼───────────▶│  id 0: regular chips   │
                           │            │  id 1: tournament chips│
                           │            │  id 2+: items          │
@@ -245,7 +245,7 @@ Six contracts in [`/contracts`](contracts):
 
 ## Money & Solvency Model
 
-- **Regular chips are 1:1 AVAX-backed.** The Items contract must always hold at least `chipSupply * 0.05 AVAX` (`reserveRequired()`).
+- **Regular chips are 1:1 AVAX-backed.** The Items contract must always hold at least `chipSupply * 0.0001 AVAX` (`reserveRequired()`).
 - **House bankroll** = anything above the reserve (`houseSurplus()`). Winnings are minted from it; owner `withdraw()` can only take the surplus, never the reserve.
 - **Buying** chips is self-backing (player deposits exactly the peg). **Losing/spending** chips frees reserve into the surplus. **Redeeming** pays out at the peg.
 - **Nothing burns AVAX.** "Burn" only ever means destroying chip *tokens* (losses, tournament entry). Yield reaches players only through tournament prize pools.
@@ -285,11 +285,11 @@ authoritatively (chips lost on abandon, logged to KV).
 1. MINT          MembersOnly.mint()              → pass + rarity welcome (tournament chips)
 2. SETUP         MembersOnly.setName()           → name your pass (12 chars)
 3. WEEKLY CLAIM  MembersOnly.claimWeeklyChips()  → 20 / 40 / 100 tournament chips
-4. BUY CHIPS     Items.buyChips() (0.05 AVAX ea) → regular chips to gamble with
+4. BUY CHIPS     Items.buyChips() (0.0001 AVAX ea) → regular chips to gamble with
 5. GAMBLE        Gamble.commitWager()            → buy-in regular chips
 6. PLAY          WebSocket → Durable Object       → multiplayer craps / tables
 7. CASH OUT      Gamble.claimWinnings()          → oracle-signed payout
-8. REDEEM        Items.redeemChips()             → regular chips → 0.05 AVAX each
+8. REDEEM        Items.redeemChips()             → regular chips → 0.0001 AVAX each
 9. TOURNAMENT    Tournament.enter / lockScore    → owner settleTournament pays the pool
 ```
 
