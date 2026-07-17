@@ -68,6 +68,19 @@ body {
   object-fit: contain;
   object-position: center;
   display: block;
+  /* evening scene, lifted out of the murk — brighter, a touch warmer */
+  filter: brightness(1.6) contrast(0.88) saturate(1.08);
+}
+/* a soft warm glow from the doorway lamp, so the lift reads as light not haze */
+#door-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255,208,132,0.30) 0%, rgba(255,208,132,0) 60%),
+    linear-gradient(180deg, rgba(60,50,70,0.10) 0%, rgba(70,55,60,0.16) 100%);
 }
 .rain-overlay {
   position: absolute;
