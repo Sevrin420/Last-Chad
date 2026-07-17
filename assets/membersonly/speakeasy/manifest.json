@@ -1,0 +1,38 @@
+{
+  "collection": "Speakeasy Pixels (working title)",
+  "characters": 20,
+  "structure": {
+    "nft/": "512px front-facing NFT image per character",
+    "spritesheets/": "4 directions (rows: S,N,W,E) x 4 walk frames, uniform cells, transparent",
+    "frames/<char>/": "individual frames: {S,N,W,E}_walk0..3.png and {S,N,W,E}_idle0..1.png",
+    "previews/": "animated GIFs: walk cycle (180ms/frame) and idle vibe (500ms/frame)"
+  },
+  "notes": [
+    "Walk cycle = [idle, step-left, idle, step-right]; frame 0 doubles as standing pose",
+    "Idle vibe = gentle 2px bob, 2 frames",
+    "W and E are mirrors of one AI side-view generation",
+    "m07_bootlegger W/E views are a placeholder (back view) - image-gen quota was exhausted; regenerate next billing cycle"
+  ],
+  "cast": {
+    "m01_mobboss": "Mob Boss",
+    "m02_bouncer": "Bouncer",
+    "m03_bartender": "Bartender",
+    "m04_saxophone": "Saxophonist",
+    "m05_trumpet": "Trumpeter",
+    "m06_pianist": "Pianist",
+    "m07_bootlegger": "Bootlegger",
+    "m08_detective": "Detective",
+    "m09_gambler": "Gambler",
+    "m10_gentleman": "Gentleman",
+    "f01_flapper": "Flapper",
+    "f02_singer": "Jazz Singer",
+    "f03_dancer": "Charleston Dancer",
+    "f04_socialite": "Socialite",
+    "f05_cigarette": "Cigarette Girl",
+    "f06_waitress": "Waitress",
+    "f07_newsgirl": "Newsgirl",
+    "f08_madame": "The Madame",
+    "f09_reporter": "Reporter",
+    "f10_showgirl": "Showgirl"
+  }
+}
