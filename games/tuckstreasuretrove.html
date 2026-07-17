@@ -1265,7 +1265,7 @@ function traitsForToken(id) {
   const female = rnd() < 0.5;
   const T = CN_TRAITS;
   const roll = rnd();
-  const tier = roll < 0.015 ? 'legendary' : roll < 0.09 ? 'epic' : roll < 0.32 ? 'rare' : 'common';
+  const tier = roll < 0.05 ? 'legendary' : roll < 0.12 ? 'epic' : roll < 0.35 ? 'rare' : 'common';
   let skin = pick(T.skin), hair = pick(T.hair);
   let garment = pick(T.garment), metal = pick(T.metal), jewel = pick(T.jewel);
   /* 30% of the greenwood wear a Robin-Hood bycocket over their hair (the merry
@@ -1327,27 +1327,123 @@ function traitsForToken(id) {
   t.id = id;
   t.bycocket = bycocket;
   t.bycocketCol = bycocketCol;
-  /* backdrop scene (0-15) from a separate hash so the rest of the traits are
-     unchanged; maps to one cell of the 4x4 Egyptian scene sheet */
-  t.bg = Math.floor(mulberry32((id * 2654435761 ^ 0x9e3779b9) >>> 0)() * 16);
+  /* greenwood backdrop, chosen by rarity: legendary → Mushroom Grove, rare/epic →
+     Campfire Night or Treasure Cave, everyone else → one of the six common scenes */
+  t.bg = bgForToken(id, finalTier);
   return t;
 }
-const BG_NAMES = ['Moonlit Temple','Pylon Gate','Bazaar at Dusk','Desert Shrine',
-  'Great Pyramid','Temple of Palms','Market Day','Tomb Door',
-  'Colonnade Night','Nile Felucca','Tomb Entrance','Pyramid Noon',
-  'Temple Ruins','Sphinx Day','The Great Sphinx','Lantern Gate'];
+/* ===================== NFT card backdrops (greenwood scenes) =====================
+   Card logical size 104x132. Painters draw a full scene; the character is then
+   composited bottom-centre. Rarity picks the scene (see bgForToken). */
+const CARD_CW = 104, CARD_CH = 132;
+function cR(g,x,y,w,h,c){ g.fillStyle=c; g.fillRect(x,y,w,h); }
+function cBlob(g,x,y,r,c){ g.fillStyle=c; g.beginPath(); g.arc(x,y,r,0,7); g.fill(); }
+function cGrad(g,a,b,h){ const s=g.createLinearGradient(0,0,0,h||CARD_CH); s.addColorStop(0,a); s.addColorStop(1,b); return s; }
+const CARD_BG = {
+  'DEEP FOREST'(g){
+    g.fillStyle=cGrad(g,'#16351f','#2c5322'); g.fillRect(0,0,CARD_CW,CARD_CH);
+    g.fillStyle='rgba(240,230,150,0.08)'; for(let i=0;i<4;i++){g.save();g.translate(18+i*26,0);g.rotate(0.2);g.fillRect(-4,-10,7,150);g.restore();}
+    for(let x=-6;x<=CARD_CW+6;x+=16) cBlob(g,x,14+(x%13),13,'#1f421c');
+    for(let x=-6;x<=CARD_CW+6;x+=22) cBlob(g,x+8,26,10,'#2c5622');
+    for(const tx of [16,52,88]){cR(g,tx-3,40,6,80,'#3a2612');cR(g,tx-3,40,2,80,'#4a3016');cBlob(g,tx,34,12,'#244a1c');}
+    cR(g,0,104,CARD_CW,28,'#2c5322'); for(let i=0;i<50;i++){cR(g,(i*37%CARD_CW),106+(i*13%24),1,2,'#35632a');}
+  },
+  'CAMPFIRE NIGHT'(g){
+    g.fillStyle=cGrad(g,'#0d1526','#0e1a12'); g.fillRect(0,0,CARD_CW,CARD_CH);
+    for(let i=0;i<9;i++){cR(g,(i*97%CARD_CW),(i*53%40)+6,1,1,'#e8e6d0');}
+    for(let x=-6;x<=CARD_CW+6;x+=18) cBlob(g,x,20,14,'#0f2415');
+    for(const tx of [20,84]){cR(g,tx-3,42,6,78,'#12160d');cBlob(g,tx,36,12,'#0f2415');}
+    cR(g,0,108,CARD_CW,24,'#12180e');
+    const glow=g.createRadialGradient(30,116,3,30,116,40); glow.addColorStop(0,'rgba(255,170,60,0.55)');glow.addColorStop(1,'rgba(255,150,40,0)');
+    g.fillStyle=glow;g.fillRect(0,80,80,52);
+    cR(g,24,116,12,3,'#4a2e15'); cR(g,26,110,3,7,'#ff8c30'); cR(g,30,108,3,9,'#ffd24a'); cR(g,33,111,2,6,'#ff8c30');
+  },
+  'RIVER CROSSING'(g){
+    cR(g,0,0,CARD_CW,60,'#22521f'); for(let x=-6;x<=CARD_CW+6;x+=15) cBlob(g,x,16+(x%9),12,'#1f421c');
+    for(let x=-6;x<=CARD_CW+6;x+=20) cBlob(g,x+6,30,9,'#2c5622');
+    cR(g,0,58,CARD_CW,34,'#274a6e'); cR(g,0,58,CARD_CW,4,'#3a5f8a');
+    for(let i=0;i<8;i++){cR(g,(i*27%CARD_CW),66+(i*7%22),8,1,'#4f7aa8');}
+    cR(g,0,90,CARD_CW,42,'#2c5322'); for(const [sx,sy] of [[34,96],[52,100],[68,94]]) cBlob(g,sx,sy,4,'#6a6a62');
+  },
+  'GREAT HOLLOW OAK'(g){
+    g.fillStyle=cGrad(g,'#1c3a1e','#2c5322'); g.fillRect(0,0,CARD_CW,CARD_CH);
+    for(let x=-6;x<=CARD_CW+6;x+=14) cBlob(g,x,12,15,'#244a1c'); for(let x=-6;x<=CARD_CW+6;x+=20) cBlob(g,x+8,20,10,'#357a2c');
+    cR(g,20,28,64,104,'#4a3016'); cR(g,22,28,6,104,'#5a3f22'); cR(g,78,28,6,104,'#3a2612');
+    for(let y=34;y<120;y+=12){cR(g,26,y,52,2,'#3a2612');}
+    cR(g,40,54,24,66,'#140f0a'); g.fillStyle='rgba(0,0,0,0.5)'; g.beginPath(); g.ellipse(52,54,12,6,0,0,7); g.fill();
+    cR(g,14,120,18,12,'#3a2612'); cR(g,72,120,18,12,'#3a2612'); cR(g,0,124,CARD_CW,8,'#2c5322');
+  },
+  'STONE BRIDGE'(g){
+    cR(g,0,0,CARD_CW,66,'#2c5322'); for(let x=-6;x<=CARD_CW+6;x+=15) cBlob(g,x,16,11,'#1f421c');
+    cR(g,0,60,CARD_CW,26,'#274a6e'); for(let i=0;i<7;i++)cR(g,(i*29%CARD_CW),66+(i*5%16),7,1,'#4f7aa8');
+    cR(g,0,84,CARD_CW,48,'#2c5322'); cR(g,20,44,64,26,'#6a685f'); cR(g,20,44,64,3,'#7c7a70');
+    g.fillStyle='#4a483f'; g.beginPath();g.moveTo(38,70);g.arc(52,70,14,Math.PI,0,true);g.lineTo(66,70);g.closePath();g.fill();
+    cR(g,20,44,4,26,'#514f48'); cR(g,80,44,4,26,'#514f48'); for(let x=22;x<82;x+=8)cR(g,x,46,6,4,'#514f48');
+  },
+  'TREASURE CAVE'(g){
+    g.fillStyle=cGrad(g,'#241c18','#3a2c22'); g.fillRect(0,0,CARD_CW,CARD_CH);
+    for(const [fx,fy] of [[16,40],[88,40]]){ const gl=g.createRadialGradient(fx,fy,3,fx,fy,26); gl.addColorStop(0,'rgba(255,160,50,0.5)');gl.addColorStop(1,'rgba(255,150,40,0)'); g.fillStyle=gl;g.fillRect(fx-26,fy-26,52,60);
+      cR(g,fx-1,fy,2,10,'#3a2612'); cR(g,fx-2,fy-4,4,4,'#ff9a30'); cR(g,fx-1,fy-6,2,3,'#ffd24a'); }
+    g.fillStyle='#c9962c'; g.beginPath();g.ellipse(52,118,30,10,0,0,7);g.fill();
+    const gc=['#e8c24a','#ffe27a','#c9962c']; for(let i=0;i<40;i++){cR(g,24+(i*37%56),108+(i*13%16),2,2,gc[i%3]);}
+  },
+  'BLUEBELL WOOD'(g){
+    g.fillStyle=cGrad(g,'#2a5226','#357a2c'); g.fillRect(0,0,CARD_CW,CARD_CH);
+    g.fillStyle='rgba(240,235,160,0.10)'; for(let i=0;i<4;i++){g.save();g.translate(16+i*26,0);g.rotate(0.2);g.fillRect(-4,-10,7,150);g.restore();}
+    for(let x=-6;x<=CARD_CW+6;x+=16) cBlob(g,x,14,13,'#244a1c'); for(const tx of [24,80]){cR(g,tx-3,30,6,74,'#3a2612');cBlob(g,tx,26,11,'#2c5622');}
+    cR(g,0,82,CARD_CW,50,'#2f6a2c');
+    for(let i=0;i<90;i++){const x=(i*23%CARD_CW),y=86+(i*17%44); cR(g,x,y,1,2,'#2a5226'); cR(g,x,y-1,1,1,i%3?'#5a6ad0':'#8a6ad0');}
+  },
+  'RAINY WOODS'(g){
+    g.fillStyle=cGrad(g,'#3a4a44','#2a3a30'); g.fillRect(0,0,CARD_CW,CARD_CH);
+    for(let x=-6;x<=CARD_CW+6;x+=15) cBlob(g,x,16,12,'#243a24'); for(const tx of [20,54,86]){cR(g,tx-3,36,6,72,'#2a2016');cBlob(g,tx,32,11,'#1f3a1c');}
+    cR(g,0,102,CARD_CW,30,'#2c3a2a');
+    g.strokeStyle='rgba(200,220,230,0.35)'; g.lineWidth=1; for(let i=0;i<40;i++){const x=i*7%CARD_CW; g.beginPath();g.moveTo(x,(i*13%132));g.lineTo(x-4,(i*13%132)+10);g.stroke();}
+    g.fillStyle='#3a4a52'; g.beginPath();g.ellipse(52,118,22,5,0,0,7);g.fill(); cR(g,34,116,36,2,'rgba(200,220,230,0.3)');
+  },
+  'MUSHROOM GROVE'(g){
+    g.fillStyle=cGrad(g,'#101c2a','#14261f'); g.fillRect(0,0,CARD_CW,CARD_CH);
+    for(let x=-6;x<=CARD_CW+6;x+=16) cBlob(g,x,16,13,'#0e2418'); for(const tx of [22,82]){cR(g,tx-3,30,6,80,'#1a1410');}
+    cR(g,0,104,CARD_CW,28,'#152418');
+    for(const [mx,my,s] of [[26,112,1.3],[52,118,1.6],[78,110,1.2],[40,108,1.0]]){
+      const gl=g.createRadialGradient(mx,my,2,mx,my,16*s);gl.addColorStop(0,'rgba(90,200,220,0.5)');gl.addColorStop(1,'rgba(90,200,220,0)');g.fillStyle=gl;g.fillRect(mx-18,my-18,36,30);
+      cR(g,mx-1,my-2,3,8*s,'#e8dcc0'); g.fillStyle='#c0392b'; g.beginPath();g.ellipse(mx,my-4,6*s,4*s,0,0,7);g.fill(); cR(g,mx-3,my-5,1,1,'#fff');cR(g,mx+2,my-4,1,1,'#fff'); }
+    for(const [fx,fy] of [[16,60],[90,50],[60,40],[34,70]]){ const gl=g.createRadialGradient(fx,fy,0,fx,fy,4);gl.addColorStop(0,'rgba(200,240,160,0.6)');gl.addColorStop(1,'rgba(200,240,160,0)');g.fillStyle=gl;g.fillRect(fx-4,fy-4,8,8); cR(g,fx,fy,1,1,'#d0f0a0');}
+  }
+};
+const COMMON_BG = ['DEEP FOREST','RIVER CROSSING','GREAT HOLLOW OAK','STONE BRIDGE','BLUEBELL WOOD','RAINY WOODS'];
+const RARE_BG   = ['CAMPFIRE NIGHT','TREASURE CAVE'];
+/* rarity → backdrop (deterministic, own hash so it doesn't shift other traits) */
+function bgForToken(id, tier) {
+  if (tier === 'legendary') return 'MUSHROOM GROVE';
+  const r = mulberry32((id * 0x9e3779b1 ^ 0x00b5a17f) >>> 0)();
+  if (tier === 'rare' || tier === 'epic') return RARE_BG[Math.floor(r * RARE_BG.length)];
+  return COMMON_BG[Math.floor(r * COMMON_BG.length)];
+}
 /* deterministic guests seeded from any token (used for the floor crowd too) */
 function characterForToken(id) { return makeCharacterHD(traitsForToken(id)); }
-/* the front (down) frame, trimmed and upscaled — the NFT card image */
+/* the NFT card image: greenwood backdrop + character, with a golden aura on legendaries */
 function buildFrontCanvas(id, scale) {
   scale = scale || 10;
-  const fr = characterForToken(id).down[0];   // 40x56 backing
-  const sx = 6, sy = 0, sw = 28, sh = 54;      // crop to the character
+  const t = traitsForToken(id);
   const c = document.createElement('canvas');
-  c.width = sw * scale; c.height = sh * scale;
+  c.width = CARD_CW * scale; c.height = CARD_CH * scale;
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
-  g.drawImage(fr, sx, sy, sw, sh, 0, 0, sw * scale, sh * scale);
+  g.save(); g.scale(scale, scale);
+  (CARD_BG[t.bg] || CARD_BG['DEEP FOREST'])(g);
+  if (t.tier === 'legendary') {   // golden aura behind the character
+    const gl = g.createRadialGradient(CARD_CW/2, 70, 6, CARD_CW/2, 70, 62);
+    gl.addColorStop(0, 'rgba(255,226,120,0.38)');
+    gl.addColorStop(0.55, 'rgba(255,206,80,0.16)');
+    gl.addColorStop(1, 'rgba(255,206,80,0)');
+    g.fillStyle = gl; g.fillRect(0, 0, CARD_CW, CARD_CH);
+  }
+  g.fillStyle = 'rgba(0,0,0,0.28)'; g.beginPath(); g.ellipse(CARD_CW/2, 120, 20, 5, 0, 0, 7); g.fill();
+  const fr = characterForToken(id).down[0];
+  const dw = 48, dh = dw * 54 / 28, dx = (CARD_CW - dw) / 2, dy = 124 - dh;
+  g.drawImage(fr, 6, 0, 28, 54, dx, dy, dw, dh);
+  g.restore();
   return c;
 }
 /* always-on API for the image generator and the future NFT gate */
