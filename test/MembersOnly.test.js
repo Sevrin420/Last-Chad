@@ -179,13 +179,13 @@ describe("MembersOnly", function () {
   describe("Level System", function () {
     it("should return correct levels by token ID range", async function () {
       expect(await membersOnly.getLevel(1)).to.equal(1);
-      expect(await membersOnly.getLevel(555)).to.equal(1);
-      expect(await membersOnly.getLevel(556)).to.equal(2);
-      expect(await membersOnly.getLevel(1111)).to.equal(2);
-      expect(await membersOnly.getLevel(1112)).to.equal(3);
-      expect(await membersOnly.getLevel(1666)).to.equal(3);
-      expect(await membersOnly.getLevel(1667)).to.equal(4);
-      expect(await membersOnly.getLevel(2222)).to.equal(4);
+      expect(await membersOnly.getLevel(222)).to.equal(1);
+      expect(await membersOnly.getLevel(223)).to.equal(2);
+      expect(await membersOnly.getLevel(444)).to.equal(2);
+      expect(await membersOnly.getLevel(445)).to.equal(3);
+      expect(await membersOnly.getLevel(666)).to.equal(3);
+      expect(await membersOnly.getLevel(667)).to.equal(4);
+      expect(await membersOnly.getLevel(888)).to.equal(4);
     });
   });
 

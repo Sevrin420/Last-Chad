@@ -17,7 +17,7 @@ interface IMembersOnlyItems {
 }
 
 contract MembersOnly is ERC721Enumerable, Ownable {
-    uint256 public constant MAX_SUPPLY = 2222;
+    uint256 public constant MAX_SUPPLY = 888;
     uint256 public constant MINT_PRICE = 5 ether;                 // 5 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
     // Welcome bonus = the token's rarity weekly amount (20/40/100), paid once at
@@ -40,9 +40,9 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     //
     // Three rarities, assigned to match each token's immutable metadata trait.
     // Intended distribution across the collection:
-    //   COMMON    (tier 1) — 85%  —  20 chips / week
-    //   RARE      (tier 2) — 10%  —  40 chips / week
-    //   LEGENDARY (tier 3) —  5%  — 100 chips / week
+    //   COMMON    (tier 1) — 90%  —  20 chips / week
+    //   RARE      (tier 2) —  9%  —  40 chips / week
+    //   LEGENDARY (tier 3) —  1%  — 100 chips / week
     //
     // The weekly drop is paid in TOURNAMENT tokens (MembersOnlyItems token 1) —
     // free, no cash value, used only to enter tournaments / redeem for prizes.
@@ -319,10 +319,10 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function getLevel(uint256 tokenId) public pure returns (uint8) {
         require(tokenId >= 1 && tokenId <= MAX_SUPPLY, "Invalid token ID");
-        if (tokenId <= 555) return 1;
-        if (tokenId <= 1111) return 2;
-        if (tokenId <= 1666) return 3;
-        return 4; // 1667-2222
+        if (tokenId <= 222) return 1;
+        if (tokenId <= 444) return 2;
+        if (tokenId <= 666) return 3;
+        return 4; // 667-888
     }
 
     function setLevelBonus(uint8 level, uint256 amount) external onlyOwner {

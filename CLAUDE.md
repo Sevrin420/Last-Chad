@@ -60,7 +60,7 @@ All project assets (images, GIFs, audio, etc.) live in **`assets/membersonly/`**
 
 ## Project Overview
 
-**Members Only** is an NFT-gated casino on Avalanche. 2222 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
+**Members Only** is an NFT-gated casino on Avalanche. 888 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
 
 ### Elevator Pitch
 
@@ -79,7 +79,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 | Contract | Purpose |
 |----------|---------|
-| `MembersOnly.sol` | ERC-721 NFT (2222 max, 5 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
+| `MembersOnly.sol` | ERC-721 NFT (888 max, 5 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
 | `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.01 AVAX-backed) + tournament tokens (token 1, free) + items |
 | `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
 | `Market.sol` | Player-to-player NFT/item trading |
@@ -89,15 +89,15 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 **Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, and Tournament (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
 
 **Key constants:**
-- `MAX_SUPPLY`: 2222
+- `MAX_SUPPLY`: 888
 - `MINT_PRICE`: 5 AVAX
 - `MAX_MINT_PER_WALLET`: 5
 - `CHIP_PRICE`: 0.01 AVAX per regular chip (buy & redeem, AVAX-backed)
-- Level by mint order: #1-555=L1, #556-1111=L2, #1112-1666=L3, #1667-2222=L4
-- **Rarity tiers** (owner-set to match metadata, target split across 2222):
-  - Tier 1 **Common** — 85% — **20** tournament tokens/week
-  - Tier 2 **Rare** — 10% — **40** tournament tokens/week
-  - Tier 3 **Legendary** — 5% — **100** tournament tokens/week
+- Level by mint order: #1-222=L1, #223-444=L2, #445-666=L3, #667-888=L4
+- **Rarity tiers** (owner-set to match metadata, target split across 888):
+  - Tier 1 **Common** — 90% — **20** tournament tokens/week
+  - Tier 2 **Rare** — 9% — **40** tournament tokens/week
+  - Tier 3 **Legendary** — 1% — **100** tournament tokens/week
 
 ---
 

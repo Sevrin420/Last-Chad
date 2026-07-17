@@ -57,7 +57,7 @@ win/lose them at the tables. Prizes are paid exclusively through tournaments.
 
 | Property | Value |
 |---|---|
-| Max supply | **2222** |
+| Max supply | **888** |
 | Mint price | **5 AVAX** |
 | Max mint per wallet | **5** |
 | Name | Set once via `setName` (12 char max, must be unique) |
@@ -70,9 +70,9 @@ drives the size of the weekly tournament-chip drop.
 
 | Tier | Target share | Weekly tournament tokens |
 |---|---|---|
-| 1 · **Common** | 85% | **20** |
-| 2 · **Rare** | 10% | **40** |
-| 3 · **Legendary** | 5% | **100** |
+| 1 · **Common** | 90% | **20** |
+| 2 · **Rare** | 9% | **40** |
+| 3 · **Legendary** | 1% | **100** |
 
 Legendary passes are also visually distinguished in-game (a glow aura) and get the
 rarest generated backdrops.
@@ -84,10 +84,10 @@ Level is a pure function of the token ID (the order it was minted) and adds a
 
 | Level | Token IDs |
 |---|---|
-| L1 | #1 – #555 |
-| L2 | #556 – #1111 |
-| L3 | #1112 – #1666 |
-| L4 | #1667 – #2222 |
+| L1 | #1 – #222 |
+| L2 | #223 – #444 |
+| L3 | #445 – #666 |
+| L4 | #667 – #888 |
 
 ### Multi-pass identity
 
@@ -199,7 +199,7 @@ Six contracts in [`/contracts`](contracts):
 
 | Contract | Purpose |
 |---|---|
-| **`MembersOnly.sol`** | ERC-721 membership pass — 2222 max, 5 AVAX mint, 3 rarity tiers, 4 levels, weekly tournament-chip drop, naming, Merkle whitelist, transfer-lock while active. |
+| **`MembersOnly.sol`** | ERC-721 membership pass — 888 max, 5 AVAX mint, 3 rarity tiers, 4 levels, weekly tournament-chip drop, naming, Merkle whitelist, transfer-lock while active. |
 | **`MembersOnlyItems.sol`** | ERC-1155 — regular chips (id 0, 0.01 AVAX-backed) + tournament tokens (id 1, free) + arbitrary items. Holds the AVAX reserve + house bankroll. |
 | **`Gamble.sol`** | Regular-chip wagering: `commitWager`/`claimWinnings` (craps) and `resolveGame` (oracle-settled blackjack/poker); cage buy-in; wager limits + max-payout guard. |
 | **`Tournament.sol`** | Tournament system: entry (burns tournament tokens), score locking, rebuy, leaderboard, rank-weighted AVAX prize pools. |

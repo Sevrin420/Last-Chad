@@ -670,7 +670,7 @@ function paintGrassFloor(g, w, h) {
    TRAIT-DRIVEN: a character is just { skin, hat, hair, coat, pants, ... }
    base colours, and ramp() derives the warm-highlight / cool-shadow 3-tone
    ramp for each material the way LTTP palettes do. This is the foundation
-   for the 2222 NFT characters: each NFT's metadata traits (head style, outfit,
+   for the 888 NFT characters: each NFT's metadata traits (head style, outfit,
    colour set) map straight onto makeCharacterHD() — unique characters come
    from data, not hand-drawn sprites. */
 function hex2rgb(h) {
@@ -1266,7 +1266,7 @@ const LEGENDARY = {
   77:  { name:'The Emerald Archer',metal:'#d9c07a', garment:'#2f5f34', jewel:'#3a8a5a', headAcc:'plume', faceAcc:'rose', feather:'#3a8a5a' },
   100: { name:'Baron of Chips',   metal:'#e8c24a', garment:'#274a6e', jewel:'#c9a13b', headAcc:'tiara', faceAcc:'none', feather:'#d9c07a' },
   222: { name:'The Ruby Maiden',  metal:'#b0b0ba', garment:'#334a3a', jewel:'#c0392b', headAcc:'plume', faceAcc:'none', feather:'#e8dcc0' },
-  2222: { name:"King o' the Greenwood", metal:'#e8c24a', garment:'#2f5f34', jewel:'#e8c24a', headAcc:'feather', faceAcc:'none', feather:'#e8c24a' }
+  888: { name:"King o' the Greenwood", metal:'#e8c24a', garment:'#2f5f34', jewel:'#e8c24a', headAcc:'feather', faceAcc:'none', feather:'#e8c24a' }
 };
 function traitsForToken(id) {
   const rnd = mulberry32(id * 2654435761 >>> 0);
@@ -1274,7 +1274,7 @@ function traitsForToken(id) {
   const female = rnd() < 0.5;
   const T = CN_TRAITS;
   const roll = rnd();
-  const tier = roll < 0.05 ? 'legendary' : roll < 0.15 ? 'rare' : 'common';   // 5% / 10% / 85%
+  const tier = roll < 0.01 ? 'legendary' : roll < 0.10 ? 'rare' : 'common';   // 1% / 9% / 90%
   let skin = pick(T.skin), hair = pick(T.hair);
   const REDS = { '#7a1a26':1, '#9c3b1e':1, '#5c1a2c':1 };   // no red dresses on women
   let garment = pick(female ? T.garment.filter(c => !REDS[c]) : T.garment);
@@ -1464,7 +1464,7 @@ function buildFrontCanvas(id, scale) {
 }
 /* always-on API for the image generator and the future NFT gate */
 window.ClubNile = {
-  COUNT: 2222,
+  COUNT: 888,
   traits: traitsForToken,
   frontDataURL(id, scale) { return buildFrontCanvas(id, scale).toDataURL('image/png'); }
 };
@@ -1473,7 +1473,7 @@ window.ClubNile = {
 let PLAYER_TOKEN = 1;
 try {
   const s = JSON.parse(sessionStorage.getItem('tuck_session') || 'null');
-  if (s && s.tokenId) PLAYER_TOKEN = Math.max(1, Math.min(2222, parseInt(s.tokenId, 10) || 1));
+  if (s && s.tokenId) PLAYER_TOKEN = Math.max(1, Math.min(888, parseInt(s.tokenId, 10) || 1));
 } catch (e) { /* guest play */ }
 
 const SPRITES = {
