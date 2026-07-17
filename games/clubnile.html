@@ -2391,42 +2391,32 @@ function powerOff() {
     const W = 240, H = 240;
     g.clearRect(0, 0, W, H);
     g.imageSmoothingEnabled = false;
-    /* ── sky: soft dawn glow filtering through the club canopy ── */
+    /* ── warm speakeasy interior behind the title ── */
     const sky = g.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, '#12351f');
-    sky.addColorStop(0.35, '#1c4a26');
-    sky.addColorStop(0.62, '#3f6a2c');
-    sky.addColorStop(1, '#24421c');
+    sky.addColorStop(0, '#2a1420');
+    sky.addColorStop(0.45, '#3a1c26');
+    sky.addColorStop(0.70, '#4a2a1e');
+    sky.addColorStop(1, '#2a1712');
     g.fillStyle = sky; g.fillRect(0, 0, W, H);
-    /* shafts of morning light slanting through the trees */
-    g.fillStyle = 'rgba(240,224,150,0.10)';
+    /* soft golden spotlights */
+    g.fillStyle = 'rgba(240,200,110,0.08)';
     for (let i = 0; i < 5; i++) { g.save(); g.translate(60 + i * 34, 0); g.rotate(0.20); g.fillRect(-5, -20, 9, 200); g.restore(); }
-
-    /* ── a whole forest of trees: rounded canopies layered back-to-front ── */
-    const tree = (tx, ty, r, dark, mid, hi, trunk) => {
-      g.fillStyle = '#2a1a0c'; g.fillRect(tx - 1.5, ty + r * 0.5, 3, r * 1.15);  // trunk
-      if (trunk) { g.fillStyle = trunk; g.fillRect(tx - 1.5, ty + r * 0.5, 1.2, r * 1.15); }
-      const blob = (bx, by, br, col) => { g.fillStyle = col; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill(); };
-      blob(tx, ty, r, dark);
-      blob(tx - r * 0.5, ty + r * 0.2, r * 0.66, dark);
-      blob(tx + r * 0.5, ty + r * 0.2, r * 0.66, dark);
-      blob(tx - r * 0.25, ty - r * 0.2, r * 0.6, mid);
-      blob(tx + r * 0.3, ty - r * 0.1, r * 0.5, mid);
-      blob(tx - r * 0.35, ty - r * 0.4, r * 0.32, hi);
+    /* ── art-deco back wall: gilded columns + a wainscot band ── */
+    const column = (cx) => {
+      g.fillStyle = '#3a2415'; g.fillRect(cx - 6, 20, 12, 158);
+      g.fillStyle = '#7a5330'; g.fillRect(cx - 5, 20, 10, 158);
+      g.fillStyle = '#9a6e3c'; g.fillRect(cx - 5, 20, 2, 158);
+      g.fillStyle = '#c9a13b'; g.fillRect(cx - 6, 20, 12, 3); g.fillRect(cx - 6, 174, 12, 3);
+      g.fillStyle = '#e8c24a'; for (let y = 30; y < 170; y += 6) g.fillRect(cx - 1, y, 2, 3);
     };
-    /* far tree line (small, hazy, dark) */
-    for (let x = -8; x <= W + 8; x += 15) tree(x, 70 + (h2(x, 2) % 8), 12 + (h2(x, 3) % 4), '#1f3d1a', '#2c5122', '#3a6a2c');
-    /* mid trees */
-    for (let x = -6; x <= W + 6; x += 30) tree(x + (h2(x, 5) % 8), 96 + (h2(x, 6) % 10), 20 + (h2(x, 7) % 7), '#234a1c', '#33642a', '#4c8a3c', '#4a3016');
-    /* near trees framing the sides */
-    tree(24, 120, 30, '#1d4018', '#2c5822', '#437a33', '#3a2612');
-    tree(216, 118, 32, '#1d4018', '#2c5822', '#437a33', '#3a2612');
-
-    /* ── grassy foreground clearing ── */
-    g.fillStyle = '#2c5322'; g.fillRect(0, 176, W, 64);
-    g.fillStyle = '#35632a';
-    for (let i = 0; i < 120; i++) { const gx = h2(i * 7, 9) / 97 * W, gy = 178 + h2(9, i * 7) / 97 * 60; g.fillRect(gx, gy, 1, 2); }
-
+    column(30); column(210);
+    g.fillStyle = '#6e4a2b'; g.fillRect(0, 150, W, 30);
+    g.fillStyle = '#8a6033'; g.fillRect(0, 150, W, 2);
+    g.fillStyle = '#c9a13b'; g.fillRect(0, 152, W, 1);
+    /* ── dark parquet foreground floor ── */
+    g.fillStyle = '#3a241a'; g.fillRect(0, 176, W, 64);
+    g.fillStyle = '#4a3020';
+    for (let i = 0; i < 60; i++) { const gx = h2(i * 7, 9) / 97 * W, gy = 178 + h2(9, i * 7) / 97 * 60; g.fillRect(gx, gy, 2, 1); }
     /* ── wooden table stacked with gold coins ── */
     const tX = W / 2, tTop = 176, tW = 108, tH = 12;
     // table top
@@ -6068,31 +6058,27 @@ for (const t of T_TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; 
 for (let c = T_CAGE.c0; c <= T_CAGE.c1; c++) { tourneyTalk[key(c, T_CAGE.r1)] = 'tcage'; tourneyTalk[key(c, T_CAGE.r1 + 1)] = 'tcage'; }
 [[T_HOST.c,T_HOST.r],[T_HOST.c-1,T_HOST.r],[T_HOST.c+1,T_HOST.r],[T_HOST.c,T_HOST.r+1],[T_HOST.c-1,T_HOST.r+1],[T_HOST.c+1,T_HOST.r+1]].forEach(([c,r]) => tourneyTalk[key(c,r)] = 'thost');
 const tourneyBg = makeCanvas(W, H, g => {
-  /* grassy clearing, same speakeasy as the antechamber */
-  paintGrassFloor(g, W, H);
-  for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x += 3) {
-    const hsh = h2(x, y);
-    if (hsh % 6 === 0) { g.fillStyle = 'rgba(226,206,120,0.18)'; g.fillRect(x, y, 2, 1); }
-    else if (hsh % 13 === 0) { g.fillStyle = 'rgba(80,54,16,0.20)'; g.fillRect(x, y, 1, 2); }
+  /* ── sandstone hall floor: 3-tone checker ── */
+  for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
+    g.fillStyle = (c + r) % 2 ? C.floorA : C.floorB;
+    g.fillRect(c*TS, r*TS, TS, TS);
+    g.fillStyle = 'rgba(255,246,214,0.22)'; g.fillRect(c*TS, r*TS, TS, 1);
+    g.fillStyle = 'rgba(120,90,40,0.16)';   g.fillRect(c*TS, r*TS + TS - 1, TS, 1);
+    if (h2(c*TS, r*TS) % 3 === 0) { g.fillStyle = C.floorC; g.fillRect(c*TS + (h2(c,r) % 12), r*TS + (h2(r,c) % 12), 1, 1); }
   }
-  for (let i = 0; i < 60; i++) {
-    const x = (h2(i*7, 5) / 97) * W, y = (h2(5, i*11) / 97) * H;
-    g.fillStyle = '#d6bb60'; g.fillRect(x, y, 1, 2); g.fillRect(x+1, y-1, 1, 3);
-  }
-  /* forest border ringing the room, with a gap for the south doorway */
-  const clump = (cx, cy, rad) => {
-    g.fillStyle = C.leafDark; g.beginPath(); g.arc(cx, cy, rad, 0, 7); g.fill();
-    g.fillStyle = C.leaf;     g.beginPath(); g.arc(cx - rad*0.28, cy - rad*0.28, rad*0.62, 0, 7); g.fill();
-    g.fillStyle = C.leafHi;   g.beginPath(); g.arc(cx - rad*0.4, cy - rad*0.45, rad*0.3, 0, 7); g.fill();
+  /* ── panelled sandstone walls ringing the hall (gap on the right for the door) ── */
+  const dyr = T_DOOR.r0*TS, dht = (T_DOOR.r1 - T_DOOR.r0 + 1)*TS;
+  const wallBlock = (x, y, w, h) => {
+    g.fillStyle = C.wall; g.fillRect(x, y, w, h);
+    g.fillStyle = C.wallLight; g.fillRect(x, y, w, 1);
+    g.fillStyle = C.wallDark;  g.fillRect(x, y + h - 1, w, 1);
+    g.fillStyle = C.wallLine;  for (let bx = x; bx < x + w; bx += TS) g.fillRect(bx, y, 1, h);
   };
-  const dyr = T_DOOR.r0*TS, dht = (T_DOOR.r1 - T_DOOR.r0 + 1)*TS;   // door span on the right wall
-  for (let x = -6; x <= W + 6; x += 15) clump(x, 5 + (h2(x,1) % 5), 12 + (h2(x,2) % 5));   // top line
-  for (let y = 2*TS; y <= 15*TS; y += 15) {                                                 // sides
-    clump(4 + (h2(y,4) % 5), y, 12 + (h2(y,5) % 5));                                         // left side (full)
-    if (y > dyr - 20 && y < dyr + dht + 20) continue;                                        // right side, gap for the door
-    clump(W - 4 - (h2(y,6) % 5), y, 12 + (h2(y,7) % 5));
-  }
-  for (let x = -6; x <= W + 6; x += 15) clump(x, H - 4 + (h2(x,8) % 4), 12 + (h2(x,9) % 5));  // bottom line (full)
+  wallBlock(0, 0, W, 2*TS);
+  g.fillStyle = C.wallGold; g.fillRect(0, 2*TS - 2, W, 2); g.fillStyle = C.wallGoldDark; g.fillRect(0, 2*TS, W, 1);
+  wallBlock(0, 2*TS, TS, 13*TS);
+  wallBlock((COLS-1)*TS, 2*TS, TS, 13*TS);
+  wallBlock(0, 14*TS, W, TS);
   /* east doorway back to the floor, in the middle of the right wall */
   g.fillStyle = '#0e1410'; g.fillRect(W - TS, dyr, TS, dht);
   const dg = g.createLinearGradient(W - TS, 0, W, 0);
