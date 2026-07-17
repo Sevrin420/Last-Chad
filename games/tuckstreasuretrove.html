@@ -152,19 +152,20 @@ body {
 #btn-chat, #btn-mute {
   position: absolute;
   z-index: 4;
-  width: 15%;
-  padding: 1cqw 0;
+  width: 12.5%;
+  padding: 0.7cqw 0;
   text-align: center;
   color: #f2d488;
-  font-size: 2.6cqw;
-  letter-spacing: 0.3cqw;
+  font-size: 2.3cqw;
+  letter-spacing: 0.25cqw;
   background: rgba(24,14,4,0.72);
-  border: 0.55cqw solid #8a6015;
-  border-radius: 3cqw;
+  border: 0.5cqw solid #8a6015;
+  border-radius: 2.6cqw;
   cursor: pointer;
 }
-#btn-chat { left: 71%; top: 16.5%; }   /* stacked right under MUTE, inside the forest screen */
-#btn-mute { left: 71%; top: 12.7%; display: none; }   /* tucked just under the screen's top wood border; hidden while off / on the title card */
+/* side by side in the top HUD strip so they clear the MINT/DOCS signboards below */
+#btn-chat { left: 73.5%; top: 9.3%; }
+#btn-mute { left: 60.2%; top: 9.3%; display: none; }   /* shown once the game is running */
 #btn-mute.live { display: block; }                    /* shown once the game is running */
 #btn-chat.pressed, #btn-mute.pressed { background: rgba(255,235,170,0.35); }
 #btn-mute.muted {
