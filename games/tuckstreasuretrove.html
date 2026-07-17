@@ -49,16 +49,16 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* Screen window: the frame cutout is x 31-801, y 35-800 on the 832x1248
-   art. The canvas is centred in it (nudged 3px down vs the old measure)
-   and the bezel is a per-side-fitted frame overlay: each border exactly
-   wide enough to bury the cutout's feathered edge, and no wider. */
+/* Screen window: the robs-console.png cutout is x 106-720, y 110-738 on the
+   832x1248 art (measured from the PNG's transparent hole). The screen fills it
+   with a small overhang tucked under the frame; the bezel rings bury the
+   cutout's feathered edge. */
 #screen {
   position: absolute;
-  left: 12.38%;
-  top: 12.26%;
-  width: 75.0%;
-  height: 47.36%;
+  left: 12.5%;
+  top: 8.5%;
+  width: 74.3%;
+  height: 51.0%;
   z-index: 1;
   background: #0a0710;
   image-rendering: pixelated;
@@ -67,10 +67,10 @@ body {
 /* near-black inner band buries the wood cutout's edge */
 #bezel {
   position: absolute;
-  left: 11.9%;
-  top: 11.8%;
-  width: 75.9%;
-  height: 48.3%;
+  left: 12.5%;
+  top: 8.5%;
+  width: 74.3%;
+  height: 51.0%;
   z-index: 3;
   pointer-events: none;
   border-style: solid;
@@ -80,10 +80,10 @@ body {
 /* thin accent ring right against the game edge */
 #bezel-in {
   position: absolute;
-  left: 12.2%;
-  top: 12.1%;
-  width: 75.3%;
-  height: 47.7%;
+  left: 13.0%;
+  top: 9.1%;
+  width: 73.3%;
+  height: 49.8%;
   z-index: 3;
   pointer-events: none;
   border: 0.3cqw solid #2c1d10;
@@ -95,10 +95,10 @@ body {
    darkens, then the black slowly lifts to reveal the room. ── */
 #boot {
   position: absolute;
-  left: 12.38%;
-  top: 12.26%;
-  width: 75.0%;
-  height: 47.36%;
+  left: 12.5%;
+  top: 8.5%;
+  width: 74.3%;
+  height: 51.0%;
   z-index: 5;
   overflow: hidden;
   background: #000;
