@@ -3708,9 +3708,49 @@ let modal = null;   // {type:'emoji', idx} | {type:'tip', tIdx, aIdx}
 let flashMsg = '', flashT = 0;
 function flash(msg) { flashMsg = msg; flashT = 90; }
 
-function openTipModal() {
-  if (!social.roster.length) { flash('NO PLAYERS TO TIP'); return; }
-  modal = { type: 'tip', tIdx: 0, aIdx: 0 };
+/* Who you can tip at a table: the DEALER first (always), then any other
+   players in the room. Dealer tips go to the house team wallet. */
+function tipTargets() {
+  return [{ id: '__dealer__', name: 'DEALER', dealer: true }, ...social.roster];
+}
+function openTipModal() { modal = { type: 'tip', tIdx: 0, aIdx: 0 }; }
+
+/* Log every tip to the backend for the (future) top-tippers leaderboard;
+   dealer tips are also credited to the team wallet. Fire-and-forget: the game
+   never waits on it and it no-ops cleanly if the endpoint isn't live yet. */
+function recordTip(toLabel, toName, amount) {
+  try {
+    const base = (WS_BASE || '').replace(/^ws/, 'http');
+    if (!base) return;
+    fetch(base + '/clubnile/tip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: myName, fromToken: String(PLAYER_TOKEN || ''),
+        to: toLabel, toName, amount, table: scene
+      })
+    }).catch(() => {});
+  } catch (e) { /* recording is best-effort */ }
+}
+
+/* the dealer's over-the-top gracious thank-you when you tip him */
+const DEALER_THANKS = [
+  "Why, you're a prince among players — may your luck run deep as the Nile.",
+  "Too kind, friend! I'll remember your name when fortune hands out favours.",
+  "A gentleman of the first water! The house ought to be tipping YOU.",
+  "Bless your generous heart — the cards'll treat you sweet all night.",
+  "Now that's pure class. May every hand you hold be a queen and her king.",
+  "You honour the table, friend — nothing but silk dealt your way from here.",
+  "Ah, a true sport! Your kindness rides on the very next roll, I promise you.",
+  "The pharaohs themselves never tipped so well. You're a living legend.",
+  "My word — a heart of gold under all that swagger. Thank you kindly, friend.",
+  "You've made an old dealer's whole evening. May your chips breed like stars."
+];
+function dealerTip(amt) {
+  addPopup('dealer', 'tip', '+' + amt);
+  dealerSay(DEALER_THANKS[Math.floor(Math.random() * DEALER_THANKS.length)], 360);
+  pushChat('', 'You tipped the dealer ' + amt + ' chips → house team wallet', true);
+  recordTip('TEAM', 'DEALER', amt);
 }
 /* emoji picker: a scroll wheel. `sel` is an unbounded index the d-pad nudges
    by ±1; `disp` eases toward it so the ring spins. The emoji at the top (12
@@ -3787,21 +3827,26 @@ function modalUpdate() {
     if (aQueued) { aQueued = false; sendEmoji(EMOJIS[idx]); modal = null; }
     if (bQueued) { bQueued = false; modal = null; }
   } else if (modal.type === 'tip') {
-    if (!social.roster.length) { modal = null; return true; }
-    modal.tIdx = Math.min(modal.tIdx, social.roster.length - 1);
-    if (tapLeft)  modal.tIdx = (modal.tIdx + social.roster.length - 1) % social.roster.length;
-    if (tapRight) modal.tIdx = (modal.tIdx + 1) % social.roster.length;
+    const targets = tipTargets();
+    modal.tIdx = ((modal.tIdx % targets.length) + targets.length) % targets.length;
+    if (tapLeft)  modal.tIdx = (modal.tIdx + targets.length - 1) % targets.length;
+    if (tapRight) modal.tIdx = (modal.tIdx + 1) % targets.length;
     if (tapUp)   modal.aIdx = (modal.aIdx + 1) % TIP_AMTS.length;
     if (tapDown) modal.aIdx = (modal.aIdx + TIP_AMTS.length - 1) % TIP_AMTS.length;
     if (aQueued) {
       aQueued = false;
       const amt = TIP_AMTS[modal.aIdx];
-      const target = social.roster[modal.tIdx];
+      const target = targets[modal.tIdx];
       if (chips < amt) { flash('NOT ENOUGH CHIPS'); return true; }
       setChips(chips - amt);
-      social.table && social.table.send({ t: 'tip', to: target.id, amount: amt });
-      addPopup(target.id, 'tip', '+' + amt);
-      pushChat('', 'You tipped ' + target.name + ' ' + amt + ' chips', true);
+      if (target.dealer) {
+        dealerTip(amt);
+      } else {
+        social.table && social.table.send({ t: 'tip', to: target.id, amount: amt });
+        addPopup(target.id, 'tip', '+' + amt);
+        pushChat('', 'You tipped ' + target.name + ' ' + amt + ' chips', true);
+        recordTip(target.id, target.name, amt);
+      }
       modal = null;
     }
     if (bQueued) { bQueued = false; modal = null; }
@@ -3831,11 +3876,17 @@ function modalDraw(seatPos) {
        as a bracelet seen at an angle. The pick sits at the FRONT (nearest the
        viewer, low centre) where it grows and lifts out; the rest shrink and
        bunch together toward the back. No disc/wheel — just the beads. */
-    const cx = 120, cy = 90, Rx = 68, Ry = 22;
-    ctx.fillStyle = 'rgba(8,5,14,0.5)';                    // soft dim, keeps colour readable
+    const cx = 120, cy = 92, Rx = 70, Ry = 22;
+    /* a gentle radial vignette (not a flat dim) so the beads read against the
+       table without washing their colour — the centre stays clear */
+    const vg = ctx.createRadialGradient(cx, cy, 8, cx, cy, 130);
+    vg.addColorStop(0, 'rgba(8,5,14,0.28)');
+    vg.addColorStop(1, 'rgba(8,5,14,0.62)');
+    ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, 176);
     const prevAlign = ctx.textAlign, prevBase = ctx.textBaseline;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 1;                                    // beads are always full colour
     const beads = [];
     for (let i = 0; i < n; i++) {
       let d = i - modal.disp;
@@ -3848,20 +3899,24 @@ function modalDraw(seatPos) {
       const pop = sel * sel;                               // sharpen it
       const x = cx + Rx * Math.sin(phi);
       const y = cy + Ry * front + pop * 10;                // pick lifts down toward the viewer
-      const size = 8 + 4 * depth + 15 * pop;               // tiny beads back, big pick front
-      beads.push({ i, x, y, size, depth });
+      const size = 11 + 4 * depth + 15 * pop;              // small beads back, big pick front
+      beads.push({ i, x: Math.round(x), y: Math.round(y), size, depth });
     }
     beads.sort((a, b) => a.depth - b.depth);               // back-to-front; pick draws on top
     for (const bd of beads) {
       ctx.font = Math.round(bd.size) + 'px sans-serif';
       ctx.fillText(EMOJIS[bd.i], bd.x, bd.y);              // full colour, no transparency
     }
+    ctx.globalAlpha = 1;
     ctx.font = FONT; ctx.textAlign = prevAlign; ctx.textBaseline = prevBase;
   } else {
-    const target = social.roster[modal.tIdx];
-    uiText('TIP ' + target.name + '  ·  ' + TIP_AMTS[modal.aIdx] + ' CHIPS', C.white, 186);
-    uiText('◄ ► PLAYER   ▲▼ AMOUNT', C.dim, 204);
-    const pos = seatPos(target.id);
+    const targets = tipTargets();
+    const idx = ((modal.tIdx % targets.length) + targets.length) % targets.length;
+    const target = targets[idx];
+    const who = target.dealer ? 'TIP THE DEALER' : 'TIP ' + target.name;
+    uiText(who + '  ·  ' + TIP_AMTS[modal.aIdx] + ' CHIPS', C.white, 186);
+    uiText('◄ ► WHO   ▲▼ AMOUNT   A SEND', C.dim, 204);
+    const pos = seatPos(target.dealer ? 'dealer' : target.id);
     if (pos && Math.floor(tick / 15) % 2) {
       ctx.fillStyle = C.gold;
       ctx.fillText('▼', pos.x - 4, pos.y - 38);
@@ -6975,7 +7030,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     get nameLocked() { return nameLocked; }, get myName() { return myName; }, get playerToken() { return PLAYER_TOKEN; },
     get chips() { return chips; }, setChips,
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
-    openEmojiModal, get modal() { return modal; }, EMOJIS,
+    openEmojiModal, openTipModal, tipTargets, get modal() { return modal; }, EMOJIS,
     skipTitle() { started = true; titleAlpha = 0; }
   };
 }

@@ -163,6 +163,15 @@ export default {
         return await env.CLUBNILE_ROOM.get(id).fetch(request);
       }
 
+      // Club Nile tips: record who tipped what to whom (dealer tips → team
+      // wallet). Powers the future top-tippers leaderboard.
+      if (request.method === 'POST' && url.pathname === '/clubnile/tip') {
+        return await handleClubNileTip(request, env);
+      }
+      if (request.method === 'GET' && url.pathname === '/clubnile/tip-leaderboard') {
+        return await handleClubNileTipLeaderboard(env);
+      }
+
       // Table list (queries Durable Objects for player counts)
       if (request.method === 'GET' && url.pathname === '/tables/list') {
         return await handleTableList(env);
@@ -1335,6 +1344,58 @@ async function buildAgoraToken006(appId, appCert, channelName, uidStr, privilege
   return '006' + appId + b64;
 }
 
+
+// ── Club Nile Tips ──
+// A durable ledger of every tip (who → whom, how much), a running team-wallet
+// total for dealer tips, and an aggregated top-tippers leaderboard. Kept in KV
+// so it survives to feed a leaderboard UI later.
+const CN_TIP_LEDGER_KEY = 'clubnile:tips';          // recent raw tips (capped)
+const CN_TIP_LB_KEY     = 'clubnile:tip-leaderboard'; // aggregated by tipper
+const CN_TEAM_WALLET_KEY = 'clubnile:team-wallet';    // total dealer tips → team
+const CN_TIP_LEDGER_MAX = 500;
+const CN_TIP_LB_MAX     = 100;
+
+async function handleClubNileTip(request, env) {
+  let body;
+  try { body = await request.json(); } catch (_) { return json({ error: 'bad json' }, 400); }
+  const from = String(body.from || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 32).trim() || 'CHAD';
+  const fromToken = String(body.fromToken || '').replace(/[^\w\-#]/g, '').slice(0, 16);
+  const toName = String(body.toName || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 32).trim() || 'DEALER';
+  const to = String(body.to || '').replace(/[^\w\-#]/g, '').slice(0, 32) || 'TEAM';
+  const table = String(body.table || '').replace(/[^\w\-]/g, '').slice(0, 16);
+  const amount = Math.floor(Number(body.amount));
+  if (!(amount >= 1 && amount <= 100000)) return json({ error: 'invalid amount' }, 400);
+  const toTeam = (to === 'TEAM');   // dealer tips are credited to the team wallet
+
+  // 1) append to the raw ledger (newest first, capped)
+  const ledger = await env.RUNNER_KV.get(CN_TIP_LEDGER_KEY, { type: 'json' }) || [];
+  ledger.unshift({ from, fromToken, to, toName, amount, table, toTeam, ts: Date.now() });
+  await env.RUNNER_KV.put(CN_TIP_LEDGER_KEY, JSON.stringify(ledger.slice(0, CN_TIP_LEDGER_MAX)));
+
+  // 2) aggregate the top-tippers leaderboard (keyed by token, else name)
+  const key = fromToken || from;
+  const lb = await env.RUNNER_KV.get(CN_TIP_LB_KEY, { type: 'json' }) || [];
+  let row = lb.find(e => e.key === key);
+  if (!row) { row = { key, name: from, token: fromToken, total: 0, toDealer: 0, count: 0 }; lb.push(row); }
+  row.name = from;                       // keep the latest display name
+  row.total += amount;
+  if (toTeam) row.toDealer += amount;
+  row.count += 1;
+  lb.sort((a, b) => b.total - a.total);
+  await env.RUNNER_KV.put(CN_TIP_LB_KEY, JSON.stringify(lb.slice(0, CN_TIP_LB_MAX)));
+
+  // 3) credit the team wallet for dealer tips
+  let teamWallet = Number(await env.RUNNER_KV.get(CN_TEAM_WALLET_KEY)) || 0;
+  if (toTeam) { teamWallet += amount; await env.RUNNER_KV.put(CN_TEAM_WALLET_KEY, String(teamWallet)); }
+
+  return json({ ok: true, teamWallet, rank: lb.findIndex(e => e.key === key) + 1 });
+}
+
+async function handleClubNileTipLeaderboard(env) {
+  const lb = await env.RUNNER_KV.get(CN_TIP_LB_KEY, { type: 'json' }) || [];
+  const teamWallet = Number(await env.RUNNER_KV.get(CN_TEAM_WALLET_KEY)) || 0;
+  return json({ ok: true, teamWallet, leaderboard: lb.slice(0, 20) });
+}
 
 // ── Freeplay Leaderboard ──
 const FREEPLAY_LB_KEY = 'freeplay:leaderboard';
