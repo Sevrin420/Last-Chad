@@ -204,6 +204,7 @@ contract MembersOnlyItems is ERC1155, Ownable {
 
     event ChipsBought(address indexed player, uint256 chips, uint256 avaxPaid);
     event ChipsRedeemed(address indexed player, uint256 chips, uint256 avaxPaid);
+    event ChipsPaidOut(address indexed from, address indexed recipient, uint256 chips, uint256 avaxPaid);
     event HouseDeposited(uint256 amount);
 
     /// @notice ETH/AVAX that must stay locked to back every outstanding chip.
@@ -244,6 +245,27 @@ contract MembersOnlyItems is ERC1155, Ownable {
         uint256 avax = amount * CHIP_PRICE;
         emit ChipsRedeemed(msg.sender, amount, avax);
         (bool ok, ) = payable(msg.sender).call{value: avax}("");
+        require(ok, "Payout failed");
+    }
+
+    /// @notice Authorized: pay a tip or purchase by burning the payer's regular
+    ///         chips and releasing the AVAX that backed them straight to
+    ///         `recipient` (a creator or the team wallet). Because chipSupply and
+    ///         the contract balance fall by exactly the same value, the solvency
+    ///         invariant (balance >= chipSupply * CHIP_PRICE) is preserved. This
+    ///         is `redeemChips`, but the cash-out goes to the payee, not the
+    ///         payer — the on-chain leg of a chip tip/buy. Only callable by an
+    ///         authorized router (e.g. the Tips contract), never by players
+    ///         directly, so funds can only flow to routed payees.
+    function payFromChips(address from, uint256 amount, address recipient) external onlyAuthorized {
+        require(amount > 0, "Amount must be > 0");
+        require(recipient != address(0), "Invalid recipient");
+        require(balanceOf(from, CHIPS_ID) >= amount, "Insufficient chips");
+        _burn(from, CHIPS_ID, amount);
+        chipSupply -= amount;
+        uint256 avax = amount * CHIP_PRICE;
+        emit ChipsPaidOut(from, recipient, amount, avax);
+        (bool ok, ) = payable(recipient).call{value: avax}("");
         require(ok, "Payout failed");
     }
 

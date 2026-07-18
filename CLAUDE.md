@@ -75,18 +75,19 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 ---
 
-## Smart Contracts (6 total, in `/contracts`)
+## Smart Contracts (7 total, in `/contracts`)
 
 | Contract | Purpose |
 |----------|---------|
 | `MembersOnly.sol` | ERC-721 NFT (888 max, 5 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
-| `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.01 AVAX-backed) + tournament tokens (token 1, free) + items |
+| `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.01 AVAX-backed) + tournament tokens (token 1, free) + items. `payFromChips(from, amount, recipient)` (authorized) burns a payer's chips and releases the backing AVAX to a payee — the on-chain leg of a chip tip/buy, solvency-preserving. |
 | `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
 | `Market.sol` | Player-to-player NFT/item trading |
 | `Tournament.sol` | Tournament system: enter (burns tournament tokens), lock score, rebuy, leaderboard |
 | `TraditionalGambling.sol` | Standalone ETH-backed chip house (no NFT gate), 1 chip = 0.005 ETH |
+| `Tips.sol` | Routes CHIP tips & gallery buys to payees via `Items.payFromChips`. Owner-set **team wallet**; owner-updatable **creator registry** (bytes32 id → wallet) for band songwriters & gallery artists — re-point wallets any time as the line-up changes. Tournament TOKEN tips are prize-only and never routed here. |
 
-**Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, and Tournament (for chip mint/burn). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
+**Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, Tournament (for chip mint/burn), and **Tips** (for `payFromChips`). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
 
 **Key constants:**
 - `MAX_SUPPLY`: 888
