@@ -1592,6 +1592,12 @@ function useCurrency(store, dflt) {
   chipStore = store;
   chips = parseInt(localStorage.getItem(store) || String(dflt), 10);
 }
+/* which purse is live: the tournament hall spends free tournament TOKENS
+   (no cash value); the casino floor spends AVAX-backed CHIPS. Tips follow
+   whichever purse you're on, so a tip in the tournament is paid in tokens. */
+function inTourneyPurse() { return chipStore === TCHIP_STORE; }
+function curWord() { return inTourneyPurse() ? 'TOKENS' : 'CHIPS'; }
+function curKind() { return inTourneyPurse() ? 'tokens' : 'chips'; }
 function tourneyBest() { return parseInt(localStorage.getItem(TBEST_STORE) || '0', 10); }
 function recordTourneyBest() {
   if (chipStore === TCHIP_STORE && chips > tourneyBest()) localStorage.setItem(TBEST_STORE, String(chips));
@@ -2547,7 +2553,7 @@ function dialogSelect() {
       : dlg.action === 'roulette' ? enterRoulette() : enterBlackjack());
     return;
   }
-  if (dlg.action === 'songs') { songMenu.open = true; songMenu.idx = 0; }
+  if (dlg.action === 'songs') { songMenu.open = true; songMenu.idx = 0; songMenu.tip = 0; }
   /* the tournament cage hands out (or tops up) your tournament stack */
   if (dlg.action === 'tourneychips') {
     recordTourneyBest();
@@ -2562,40 +2568,67 @@ function dialogSelect() {
 }
 
 /* ============================ jukebox (band requests) ============================ */
+/* ── Jukebox catalog — the single source of truth for band requests ───────
+   To add or change a song, its creator, or the wallet its tips are paid to,
+   edit a row here (then it's committed & pushed — the page picks it up live).
+     title   — shown big in the request box
+     by      — small subtitle
+     file    — the track to play (asset path)
+     creator — display name credited on the tip / who the money is "for"
+     wallet  — the creator's payout address the tip is recorded against
+   The art gallery will reuse this same {creator, wallet} shape for artist
+   tips later, so keep the fields in sync if you factor them out. Wallets
+   below are PLACEHOLDERS — swap in the real payout addresses. */
 const SONGS = [
-  { title:'IN DA CLUB',       by:'8-bit tribute',   file:'../assets/membersonly/indaclub.mp3' },
-  { title:'MY HEART WILL GO ON', by:'the balladeer', file:'../assets/membersonly/myheartwillgoon.mp3' },
-  { title:'CIRCLE OF LIFE',   by:'the wanderers',   file:'../assets/membersonly/circleoflife.mp3' }
+  { title:'IN DA CLUB',          by:'8-bit tribute', file:'../assets/membersonly/indaclub.mp3',
+    creator:'8-BIT TRIBUTE', wallet:'0x0000000000000000000000000000000000000000' },
+  { title:'MY HEART WILL GO ON', by:'the balladeer', file:'../assets/membersonly/myheartwillgoon.mp3',
+    creator:'THE BALLADEER', wallet:'0x0000000000000000000000000000000000000000' },
+  { title:'CIRCLE OF LIFE',      by:'the wanderers', file:'../assets/membersonly/circleoflife.mp3',
+    creator:'THE WANDERERS', wallet:'0x0000000000000000000000000000000000000000' }
 ];
-const SONG_COST = 10;
-const songMenu = { open:false, idx:0 };
+const SONG_TIP_AMTS = [10, 25, 100];   // the tip (chips) that goes to the creator
+/* the band's warm thank-you, crediting whoever wrote the tune */
+const BAND_THANKS = [
+  s => '“' + s.title + '” for ' + s.creator + ' — comin’ right up, and bless ya!',
+  s => 'Ahh, ' + s.creator + '! Fine taste, friend. This one’s all for you.',
+  s => 'You heard the gent — “' + s.title + '”! ' + s.creator + ' thanks ya kindly.'
+];
+const songMenu = { open:false, idx:0, tip:0 };
 function songMenuUpdate() {
   if (tapLeft)  songMenu.idx = (songMenu.idx + SONGS.length - 1) % SONGS.length;
   if (tapRight) songMenu.idx = (songMenu.idx + 1) % SONGS.length;
+  if (tapUp)    songMenu.tip = (songMenu.tip + 1) % SONG_TIP_AMTS.length;
+  if (tapDown)  songMenu.tip = (songMenu.tip + SONG_TIP_AMTS.length - 1) % SONG_TIP_AMTS.length;
   if (bQueued) { bQueued = false; songMenu.open = false; return; }
   if (aQueued) {
     aQueued = false;
-    if (chips < SONG_COST) { flash('NEED ' + SONG_COST + ' CHIPS'); return; }
-    setChips(chips - SONG_COST);
-    sound.playSong(SONGS[songMenu.idx].file);
-    pushChat('', 'You put ' + SONG_COST + ' chips in for “' + SONGS[songMenu.idx].title + '”', true);
-    addPopup('band', 'bubble', '“' + SONGS[songMenu.idx].title + '” — you got it!', 240);
+    const s = SONGS[songMenu.idx];
+    const amt = SONG_TIP_AMTS[songMenu.tip];
+    if (chips < amt) { flash('NEED ' + amt + ' CHIPS'); return; }
+    setChips(chips - amt);
+    sound.playSong(s.file);
+    pushChat('', 'You tipped the band ' + amt + ' ' + curKind() + ' for “' + s.title + '” → ' + s.creator, true);
+    addPopup('band', 'bubble', BAND_THANKS[Math.floor(Math.random() * BAND_THANKS.length)](s), 280);
+    recordTip('CREATOR', s.creator, amt, { wallet: s.wallet, category: 'band', item: s.title });
     songMenu.open = false;
   }
 }
 function drawSongMenu() {
-  const x = 40, y = 150, w = 160, h = 60;
+  const x = 34, y = 138, w = 172, h = 78;
   ctx.fillStyle = 'rgba(18,13,31,0.95)'; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = C.rugGold; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
   ctx.fillStyle = C.goldHi; ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  ctx.fillText('REQUEST A SONG', x + w / 2, y + 6);
+  ctx.fillText('TIP THE BAND', x + w / 2, y + 6);
   const s = SONGS[songMenu.idx];
   ctx.fillStyle = C.white; ctx.font = '10px "Press Start 2P", monospace';
   ctx.fillText(s.title, x + w / 2, y + 22);
+  if (SONGS.length > 1) { ctx.fillStyle = C.gold; ctx.font = FONT; ctx.fillText('◄            ►', x + w / 2, y + 24); }
   ctx.font = FONT; ctx.fillStyle = C.dim;
-  ctx.fillText(s.by + '  ·  ' + SONG_COST + ' CHIPS', x + w / 2, y + 36);
-  if (SONGS.length > 1) { ctx.fillStyle = C.gold; ctx.fillText('◄            ►', x + w / 2, y + 22); }
-  ctx.fillStyle = C.rugGold; ctx.fillText('A: PLAY   B: BACK', x + w / 2, y + 48);
+  ctx.fillText('FOR ' + s.creator, x + w / 2, y + 38);
+  ctx.fillStyle = C.gold;
+  ctx.fillText('▲▼  TIP ' + SONG_TIP_AMTS[songMenu.tip] + ' ' + curWord(), x + w / 2, y + 52);
+  ctx.fillStyle = C.rugGold; ctx.fillText('A: PLAY   B: BACK', x + w / 2, y + 66);
   ctx.textAlign = 'left';
 }
 
@@ -3718,17 +3751,24 @@ function openTipModal() { modal = { type: 'tip', tIdx: 0, aIdx: 0 }; }
 /* Log every tip to the backend for the (future) top-tippers leaderboard;
    dealer tips are also credited to the team wallet. Fire-and-forget: the game
    never waits on it and it no-ops cleanly if the endpoint isn't live yet. */
-function recordTip(toLabel, toName, amount) {
+function recordTip(toLabel, toName, amount, extra) {
   try {
     const base = (WS_BASE || '').replace(/^ws/, 'http');
     if (!base) return;
+    const payload = {
+      from: myName, fromToken: String(PLAYER_TOKEN || ''),
+      to: toLabel, toName, amount, table: scene,
+      currency: curKind()             // 'chips' (AVAX-backed) or 'tokens' (tournament)
+    };
+    if (extra) {                       // creator payouts (band now, gallery later)
+      if (extra.wallet)   payload.wallet = extra.wallet;
+      if (extra.category) payload.category = extra.category;
+      if (extra.item)     payload.item = extra.item;
+    }
     fetch(base + '/clubnile/tip', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: myName, fromToken: String(PLAYER_TOKEN || ''),
-        to: toLabel, toName, amount, table: scene
-      })
+      body: JSON.stringify(payload)
     }).catch(() => {});
   } catch (e) { /* recording is best-effort */ }
 }
@@ -3746,11 +3786,17 @@ const DEALER_THANKS = [
   "My word — a heart of gold under all that swagger. Thank you kindly, friend.",
   "You've made an old dealer's whole evening. May your chips breed like stars."
 ];
+/* Where dealer/house tips are paid. This is the dedicated TEAM wallet —
+   separate from the creator wallets in the SONGS catalog. Real-money CHIP
+   tips accrue here to be cashed out to this address; tournament TOKEN tips
+   have no cash value and are recorded but never cashed out. Swap in the real
+   address. */
+const TEAM_WALLET = '0x0000000000000000000000000000000000000000';
 function dealerTip(amt) {
   addPopup('dealer', 'tip', '+' + amt);
   dealerSay(DEALER_THANKS[Math.floor(Math.random() * DEALER_THANKS.length)], 360);
-  pushChat('', 'You tipped the dealer ' + amt + ' chips → house team wallet', true);
-  recordTip('TEAM', 'DEALER', amt);
+  pushChat('', 'You tipped the dealer ' + amt + ' ' + curWord() + ' → house team wallet', true);
+  recordTip('TEAM', 'DEALER', amt, { wallet: TEAM_WALLET, category: 'team' });
 }
 /* emoji picker: a scroll wheel. `sel` is an unbounded index the d-pad nudges
    by ±1; `disp` eases toward it so the ring spins. The emoji at the top (12
@@ -3844,7 +3890,7 @@ function modalUpdate() {
       } else {
         social.table && social.table.send({ t: 'tip', to: target.id, amount: amt });
         addPopup(target.id, 'tip', '+' + amt);
-        pushChat('', 'You tipped ' + target.name + ' ' + amt + ' chips', true);
+        pushChat('', 'You tipped ' + target.name + ' ' + amt + ' ' + curKind(), true);
         recordTip(target.id, target.name, amt);
       }
       modal = null;
@@ -3914,7 +3960,7 @@ function modalDraw(seatPos) {
     const idx = ((modal.tIdx % targets.length) + targets.length) % targets.length;
     const target = targets[idx];
     const who = target.dealer ? 'TIP THE DEALER' : 'TIP ' + target.name;
-    uiText(who + '  ·  ' + TIP_AMTS[modal.aIdx] + ' CHIPS', C.white, 186);
+    uiText(who + '  ·  ' + TIP_AMTS[modal.aIdx] + ' ' + curWord(), C.white, 186);
     uiText('◄ ► WHO   ▲▼ AMOUNT   A SEND', C.dim, 204);
     const pos = seatPos(target.dealer ? 'dealer' : target.id);
     if (pos && Math.floor(tick / 15) % 2) {
@@ -7031,6 +7077,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     get chips() { return chips; }, setChips,
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
     openEmojiModal, openTipModal, tipTargets, get modal() { return modal; }, EMOJIS,
+    get songMenu() { return songMenu; }, SONGS, SONG_TIP_AMTS,
     skipTitle() { started = true; titleAlpha = 0; }
   };
 }

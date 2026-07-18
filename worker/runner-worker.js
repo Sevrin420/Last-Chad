@@ -1349,11 +1349,14 @@ async function buildAgoraToken006(appId, appCert, channelName, uidStr, privilege
 // A durable ledger of every tip (who → whom, how much), a running team-wallet
 // total for dealer tips, and an aggregated top-tippers leaderboard. Kept in KV
 // so it survives to feed a leaderboard UI later.
-const CN_TIP_LEDGER_KEY = 'clubnile:tips';          // recent raw tips (capped)
-const CN_TIP_LB_KEY     = 'clubnile:tip-leaderboard'; // aggregated by tipper
-const CN_TEAM_WALLET_KEY = 'clubnile:team-wallet';    // total dealer tips → team
+const CN_TIP_LEDGER_KEY = 'clubnile:tips';            // recent raw tips (capped)
+const CN_TIP_LB_KEY      = 'clubnile:tip-leaderboard'; // aggregated by tipper
+const CN_EARN_KEY        = 'clubnile:earnings';        // aggregated by recipient (creator/wallet)
+const CN_TEAM_WALLET_KEY = 'clubnile:team-wallet';     // lifetime CHIP dealer tips → team
+const CN_TEAM_PENDING_KEY = 'clubnile:team-cashout-pending'; // CHIP team tips awaiting cashout
 const CN_TIP_LEDGER_MAX = 500;
 const CN_TIP_LB_MAX     = 100;
+const CN_EARN_MAX       = 200;
 
 async function handleClubNileTip(request, env) {
   let body;
@@ -1363,13 +1366,18 @@ async function handleClubNileTip(request, env) {
   const toName = String(body.toName || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 32).trim() || 'DEALER';
   const to = String(body.to || '').replace(/[^\w\-#]/g, '').slice(0, 32) || 'TEAM';
   const table = String(body.table || '').replace(/[^\w\-]/g, '').slice(0, 16);
+  const wallet = String(body.wallet || '').replace(/[^\w]/g, '').slice(0, 64);   // payout address
+  const category = String(body.category || '').replace(/[^\w\-]/g, '').slice(0, 24); // band | gallery | team | …
+  const item = String(body.item || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 48).trim(); // song / artwork
+  const currency = (String(body.currency || 'chips') === 'tokens') ? 'tokens' : 'chips';
   const amount = Math.floor(Number(body.amount));
   if (!(amount >= 1 && amount <= 100000)) return json({ error: 'invalid amount' }, 400);
-  const toTeam = (to === 'TEAM');   // dealer tips are credited to the team wallet
+  const toTeam = (to === 'TEAM');           // dealer/house tips go to the team wallet
+  const isChips = (currency === 'chips');   // real AVAX-backed money (tokens have no cash value)
 
   // 1) append to the raw ledger (newest first, capped)
   const ledger = await env.RUNNER_KV.get(CN_TIP_LEDGER_KEY, { type: 'json' }) || [];
-  ledger.unshift({ from, fromToken, to, toName, amount, table, toTeam, ts: Date.now() });
+  ledger.unshift({ from, fromToken, to, toName, amount, table, wallet, category, item, currency, toTeam, ts: Date.now() });
   await env.RUNNER_KV.put(CN_TIP_LEDGER_KEY, JSON.stringify(ledger.slice(0, CN_TIP_LEDGER_MAX)));
 
   // 2) aggregate the top-tippers leaderboard (keyed by token, else name)
@@ -1384,17 +1392,39 @@ async function handleClubNileTip(request, env) {
   lb.sort((a, b) => b.total - a.total);
   await env.RUNNER_KV.put(CN_TIP_LB_KEY, JSON.stringify(lb.slice(0, CN_TIP_LB_MAX)));
 
-  // 3) credit the team wallet for dealer tips
-  let teamWallet = Number(await env.RUNNER_KV.get(CN_TEAM_WALLET_KEY)) || 0;
-  if (toTeam) { teamWallet += amount; await env.RUNNER_KV.put(CN_TEAM_WALLET_KEY, String(teamWallet)); }
+  // 3) aggregate what each recipient has earned (creator/wallet), keyed by
+  //    wallet when present else the recipient name — powers creator payouts
+  //    for the band now and the art gallery later
+  const rkey = wallet || toName || to;
+  const earn = await env.RUNNER_KV.get(CN_EARN_KEY, { type: 'json' }) || [];
+  let er = earn.find(e => e.key === rkey);
+  if (!er) { er = { key: rkey, name: toName, wallet, category, total: 0, count: 0 }; earn.push(er); }
+  er.name = toName; er.total += amount; er.count += 1;
+  if (wallet) er.wallet = wallet;
+  if (category) er.category = category;
+  earn.sort((a, b) => b.total - a.total);
+  await env.RUNNER_KV.put(CN_EARN_KEY, JSON.stringify(earn.slice(0, CN_EARN_MAX)));
 
-  return json({ ok: true, teamWallet, rank: lb.findIndex(e => e.key === key) + 1 });
+  // 4) credit the team wallet — only real CHIP tips carry cash value, so only
+  //    those accrue to the pending-cashout balance that a settlement job will
+  //    redeem to AVAX and send to the team wallet. Token tips are prize-only.
+  let teamWallet = Number(await env.RUNNER_KV.get(CN_TEAM_WALLET_KEY)) || 0;
+  let teamPending = Number(await env.RUNNER_KV.get(CN_TEAM_PENDING_KEY)) || 0;
+  if (toTeam && isChips) {
+    teamWallet += amount; teamPending += amount;
+    await env.RUNNER_KV.put(CN_TEAM_WALLET_KEY, String(teamWallet));
+    await env.RUNNER_KV.put(CN_TEAM_PENDING_KEY, String(teamPending));
+  }
+
+  return json({ ok: true, teamWallet, teamPending, rank: lb.findIndex(e => e.key === key) + 1 });
 }
 
 async function handleClubNileTipLeaderboard(env) {
   const lb = await env.RUNNER_KV.get(CN_TIP_LB_KEY, { type: 'json' }) || [];
+  const earnings = await env.RUNNER_KV.get(CN_EARN_KEY, { type: 'json' }) || [];
   const teamWallet = Number(await env.RUNNER_KV.get(CN_TEAM_WALLET_KEY)) || 0;
-  return json({ ok: true, teamWallet, leaderboard: lb.slice(0, 20) });
+  const teamPending = Number(await env.RUNNER_KV.get(CN_TEAM_PENDING_KEY)) || 0;
+  return json({ ok: true, teamWallet, teamPending, leaderboard: lb.slice(0, 20), earnings: earnings.slice(0, 20) });
 }
 
 // ── Freeplay Leaderboard ──
