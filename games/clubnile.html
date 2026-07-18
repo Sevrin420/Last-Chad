@@ -2650,9 +2650,12 @@ function drawSongMenu() {
    upload. Same {artist, wallet} shape as the jukebox, so gallery tips & sales
    flow through the same backend (category 'gallery' / 'gallery-buy'). ── */
 const GALLERY = [
-  { title:'SLOT ONE',   artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:250,  img:'../assets/membersonly/gallery/1.png', tokenId:'' },
-  { title:'SLOT TWO',   artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:500,  img:'../assets/membersonly/gallery/2.png', tokenId:'' },
-  { title:'SLOT THREE', artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:1000, img:'../assets/membersonly/gallery/3.png', tokenId:'' }
+  { title:'SLOT ONE',   artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:250,  img:'../assets/membersonly/gallery/1.png', tokenId:'',
+    blurb:'A short blurb about this piece and the artist behind it. Edit this in the GALLERY catalog — a sentence or two on the work, the maker, and why it hangs in the club.' },
+  { title:'SLOT TWO',   artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:500,  img:'../assets/membersonly/gallery/2.png', tokenId:'',
+    blurb:'A short blurb about this piece and the artist behind it. Edit this in the GALLERY catalog — a sentence or two on the work, the maker, and why it hangs in the club.' },
+  { title:'SLOT THREE', artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:1000, img:'../assets/membersonly/gallery/3.png', tokenId:'',
+    blurb:'A short blurb about this piece and the artist behind it. Edit this in the GALLERY catalog — a sentence or two on the work, the maker, and why it hangs in the club.' }
 ];
 const GALLERY_TIP_AMTS = [10, 50, 200];
 /* preload the artwork the instant the page opens; `ready` gates drawing so a
@@ -2725,9 +2728,9 @@ function galleryPlaceholder(g, x, y, w, h, i) {
 }
 function galleryDraw() {
   const a = GALLERY[gallery.idx], im = galleryImgs[gallery.idx];
-  ctx.fillStyle = 'rgba(6,4,12,0.86)'; ctx.fillRect(0, 0, W, H);
-  /* gilded frame + canvas */
-  const fw = 118, fh = 96, fx = (W - fw) / 2, fy = 20;
+  ctx.fillStyle = 'rgba(6,4,12,0.88)'; ctx.fillRect(0, 0, W, H);
+  /* gilded frame + canvas (smaller now, to leave room for the blurb) */
+  const fw = 92, fh = 68, fx = (W - fw) / 2, fy = 12;
   ctx.fillStyle = '#0a0710'; ctx.fillRect(fx - 6, fy - 6, fw + 12, fh + 12);
   ctx.fillStyle = '#c9a13b'; ctx.fillRect(fx - 4, fy - 4, fw + 8, fh + 8);
   ctx.fillStyle = '#1a130a'; ctx.fillRect(fx - 2, fy - 2, fw + 4, fh + 4);
@@ -2739,8 +2742,15 @@ function galleryDraw() {
   ctx.fillText(a.title, W / 2, fy + fh + 12);
   ctx.font = FONT; ctx.fillStyle = C.dim;
   ctx.fillText('by ' + a.artist, W / 2, fy + fh + 26);
+  /* the blurb: wrapped, left-aligned, up to a few lines */
+  if (a.blurb) {
+    ctx.textAlign = 'left'; ctx.fillStyle = '#cdbf9a'; ctx.font = FONT;
+    const lines = wrapText(a.blurb, W - 40, FONT).slice(0, 5);
+    lines.forEach((ln, i) => ctx.fillText(ln, 20, fy + fh + 40 + i * 10));
+    ctx.textAlign = 'center';
+  }
   /* option row */
-  const oy = fy + fh + 44;
+  const oy = 188;
   if (gallery.mode === 'view') {
     const tipSel = gallery.opt === 0, buySel = gallery.opt === 1;
     ctx.font = FONT;
