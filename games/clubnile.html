@@ -1790,7 +1790,16 @@ const lobbyHandlers = {
       renderChatLog();
     }
   },
-  chat(m) { pushChat(m.name, m.text); bubbleFor(m.id, m.name, m.text); }
+  chat(m) { pushChat(m.name, m.text); bubbleFor(m.id, m.name, m.text); },
+  /* someone across the casino tipped the band — play the same track here so
+     the whole house hears it together. Only tracks in our own SONGS catalog
+     are played (never an arbitrary URL). */
+  song(m) {
+    const known = SONGS.find(s => s.file === m.file);
+    if (!known) return;
+    sound.playSong(known.file);
+    pushChat('', '🎵 ' + (m.name || 'Someone') + ' played “' + (m.title || known.title) + '” for the house', true);
+  }
 };
 const tableHandlers = {
   welcome(m) {
@@ -2618,6 +2627,10 @@ function songMenuUpdate() {
     if (chips < amt) { flash('NEED ' + amt + ' CHIPS'); return; }
     setChips(chips - amt);
     sound.playSong(s.file);
+    /* the whole casino hears it: broadcast the pick over the lobby so every
+       connected player switches to this track too (the requester plays now;
+       everyone else starts when the relay lands ~a moment later) */
+    if (social.lobby) social.lobby.send({ t: 'song', file: s.file, title: s.title, by: s.by });
     pushChat('', 'You tipped the band ' + amt + ' ' + curKind() + ' for “' + s.title + '” → ' + s.creator, true);
     addPopup('band', 'bubble', BAND_THANKS[Math.floor(Math.random() * BAND_THANKS.length)](s), 280);
     recordTip('CREATOR', s.creator, amt, { wallet: s.wallet, category: 'band', item: s.title });

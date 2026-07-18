@@ -23,10 +23,12 @@
  *
  * Protocol (JSON over WebSocket):
  *   client → server: {t:'chat', text} · {t:'emoji', e} · {t:'tip', to, amount}
+ *                    {t:'song', file, title, by}          (jukebox — lobby room)
  *                    {t:'roll'}                          (craps shooter, action)
  *   server → client: {t:'welcome', id, seat, roster, history, game}
  *                    {t:'join', player} · {t:'leave', id} · {t:'full'}
  *                    {t:'chat', id, name, text} · {t:'emoji', id, e} · {t:'tip', …}
+ *                    {t:'song', id, name, file, title, by}  (whole-casino jukebox)
  *                    {t:'phase', phase, ms, …}      (per-game extra fields)
  *                    {t:'dice', d:[a,b], point, seven, shooter}   (craps)
  *                    {t:'spin', n}                                (roulette)
@@ -38,6 +40,7 @@ const MAX_SEATS = 4;
 const HISTORY_LIMIT = 40;
 const CHAT_COOLDOWN_MS = 700;
 const EMOJI_COOLDOWN_MS = 400;
+const SONG_COOLDOWN_MS = 3000;   // one jukebox request per player every few seconds
 
 const BETTING_MS = 15000;
 const CRAPS_ACTION_MS = 10000;
@@ -252,7 +255,7 @@ export class ClubNileRoom {
       }
     }
 
-    const sess = { id: 'p' + (this.nextId++), name, sprite, seat, lastChat: 0, lastEmoji: 0 };
+    const sess = { id: 'p' + (this.nextId++), name, sprite, seat, lastChat: 0, lastEmoji: 0, lastSong: 0 };
     this.sessions.set(server, sess);
 
     /* the first player at a table starts the shared clock */
@@ -330,6 +333,18 @@ export class ClubNileRoom {
         to: target.id, toName: target.name,
         amount
       }, ws);
+    }
+    else if (msg.t === 'song') {
+      // a jukebox request: relay the picked track to everyone else in the
+      // casino so the whole house plays it together. The requester already
+      // started it locally, so exclude them from the broadcast.
+      if (now - sess.lastSong < SONG_COOLDOWN_MS) return;
+      sess.lastSong = now;
+      const file = String(msg.file || '').replace(/[^\w./-]/g, '').slice(0, 80);
+      if (!file) return;
+      const title = String(msg.title || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 40);
+      const by = String(msg.by || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 40);
+      this.broadcast({ t: 'song', id: sess.id, name: sess.name, file, title, by }, ws);
     }
     else if (msg.t === 'roll') {
       if (this.gameType() === 'craps' && this.game &&
