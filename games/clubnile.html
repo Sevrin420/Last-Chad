@@ -1729,7 +1729,7 @@ function addPopup(target, kind, str, life, delay) {
       if (popups[i].target === 'dealer' && popups[i].kind === 'bubble') popups.splice(i, 1);
     }
   }
-  let ttl = life || (kind === 'bubble' ? 360 : 150);
+  let ttl = life || (kind === 'bubble' ? 360 : kind === 'emoji' ? 225 : 150);
   if (kind === 'bubble') {
     /* bubbles type out at ~0.5 chars/tick — guarantee the whole line
        scrolls in and still hangs around long enough to read */
@@ -1861,7 +1861,7 @@ const chatLogEl = document.getElementById('chat-log');
 const chatInput = document.getElementById('chat-input');
 const chatNameEl = document.getElementById('chat-name');
 const chatBtn = document.getElementById('btn-chat');
-const EMOJIS = ['😀','😂','🎉','😡','😭','🍀'];
+const EMOJIS = ['😀','😂','😍','😎','😭','😡','👍','🤷','🎉','🔥','💀','🍀','🍑','🍆'];
 
 chatNameEl.value = myName;
 function chatOpen() { return chatPanel.classList.contains('open'); }
@@ -2239,6 +2239,20 @@ const sound = (() => {
 })();
 /* the browser only opens the audio gate inside a real user gesture */
 addEventListener('pointerdown', () => sound.unlock(), { capture: true });
+
+/* Preload every file-based sound the instant the page loads, so the first
+   click never waits on a network fetch. (The SFX — blip, chip, dice, win… —
+   are synthesised in the sound module and need no file.) These hidden Audio
+   elements warm the browser cache; when a track later plays it's already
+   local. Kept in an array so they aren't garbage-collected mid-download. */
+const PRELOADED_SOUNDS = [
+  '../assets/membersonly/capcom.wav',
+  '../assets/membersonly/select.wav',
+  '../assets/membersonly/indaclub.mp3',
+  '../assets/membersonly/myheartwillgoon.mp3',
+  '../assets/membersonly/circleoflife.mp3'
+].map(src => { const a = new Audio(); a.preload = 'auto'; a.src = src; try { a.load(); } catch (e) {} return a; });
+
 const muteBtn = document.getElementById('btn-mute');
 function updateMuteBtn() {
   muteBtn.classList.toggle('muted', sound.muted);
@@ -3698,6 +3712,10 @@ function openTipModal() {
   if (!social.roster.length) { flash('NO PLAYERS TO TIP'); return; }
   modal = { type: 'tip', tIdx: 0, aIdx: 0 };
 }
+/* emoji picker: a scroll wheel. `sel` is an unbounded index the d-pad nudges
+   by ±1; `disp` eases toward it so the ring spins. The emoji at the top (12
+   o'clock) is the selection — idx = sel wrapped into range. */
+function openEmojiModal() { modal = { type: 'emoji', sel: 0, disp: 0 }; }
 /* B at any table → confirm before standing up */
 function openLeaveModal() { modal = { type: 'leave' }; }
 function bjHandLive() {
@@ -3761,9 +3779,12 @@ function modalUpdate() {
     return true;
   }
   if (modal.type === 'emoji') {
-    if (tapLeft)  modal.idx = (modal.idx + EMOJIS.length - 1) % EMOJIS.length;
-    if (tapRight) modal.idx = (modal.idx + 1) % EMOJIS.length;
-    if (aQueued) { aQueued = false; sendEmoji(EMOJIS[modal.idx]); modal = null; }
+    const n = EMOJIS.length;
+    if (tapLeft || tapUp)    { modal.sel--; sound.tick(); }
+    if (tapRight || tapDown) { modal.sel++; sound.tick(); }
+    modal.disp += (modal.sel - modal.disp) * 0.25;   // ease the ring toward the pick
+    const idx = ((modal.sel % n) + n) % n;
+    if (aQueued) { aQueued = false; sendEmoji(EMOJIS[idx]); modal = null; }
     if (bQueued) { bQueued = false; modal = null; }
   } else if (modal.type === 'tip') {
     if (!social.roster.length) { modal = null; return true; }
@@ -3804,18 +3825,44 @@ function modalDraw(seatPos) {
   }
   if (modal.type === 'emoji') {
     uiText('SEND AN EMOJI', C.white, 186);
-    ctx.font = '12px sans-serif';
-    for (let i = 0; i < EMOJIS.length; i++) {
-      const x = 32 + i * 32;
-      if (i === modal.idx) {
-        ctx.fillStyle = 'rgba(245,215,110,0.25)';
-        ctx.fillRect(x - 4, 200, 22, 18);
-        ctx.strokeStyle = C.gold; ctx.lineWidth = 1;
-        ctx.strokeRect(x - 3.5, 200.5, 21, 17);
-      }
-      ctx.fillText(EMOJIS[i], x, 202);
+    uiText('◄ ► SPIN   A SEND   B BACK', C.dim, 204);
+    const n = EMOJIS.length;
+    const cx = 120, cy = 96, R = 54;
+    /* dim the room and float a dark disc so the wheel reads clearly */
+    ctx.fillStyle = 'rgba(8,5,14,0.66)';
+    ctx.fillRect(0, 0, W, 176);
+    ctx.beginPath(); ctx.arc(cx, cy, R + 20, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(20,13,7,0.72)'; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(245,215,110,0.25)'; ctx.stroke();
+    const prevAlign = ctx.textAlign, prevBase = ctx.textBaseline;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    /* draw the ring back-to-front so the top (selected) emoji sits on top */
+    const order = [];
+    for (let i = 0; i < n; i++) {
+      let d = i - modal.disp;
+      d = ((d % n) + n) % n;
+      if (d > n / 2) d -= n;                              // nearest wrap
+      order.push({ i, d });
     }
-    ctx.font = FONT;
+    order.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));  // farthest first
+    for (const o of order) {
+      const ang = (o.d / n) * Math.PI * 2 - Math.PI / 2;  // d=0 → top
+      const t = (1 + Math.cos(ang + Math.PI / 2)) / 2;    // 1 at top → 0 at bottom
+      if (t < 0.1) continue;                              // hide the crowded far side
+      const x = cx + R * Math.cos(ang);
+      const y = cy + R * Math.sin(ang);
+      const size = Math.round(13 + 19 * t);               // 13px → 32px at the top
+      ctx.globalAlpha = 0.3 + 0.7 * t;
+      ctx.font = size + 'px sans-serif';
+      ctx.fillText(EMOJIS[o.i], x, y);
+    }
+    ctx.globalAlpha = 1;
+    /* pointer marking the top selection slot */
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - R - 9); ctx.lineTo(cx - 5, cy - R - 17);
+    ctx.lineTo(cx + 5, cy - R - 17); ctx.closePath(); ctx.fill();
+    ctx.font = FONT; ctx.textAlign = prevAlign; ctx.textBaseline = prevBase;
   } else {
     const target = social.roster[modal.tIdx];
     uiText('TIP ' + target.name + '  ·  ' + TIP_AMTS[modal.aIdx] + ' CHIPS', C.white, 186);
@@ -3843,9 +3890,11 @@ function drawPopups(seatPos, filter, scale) {
     ctx.globalAlpha = fade;
     if (p.kind === 'emoji') {
       const rise = Math.min(p.t / 3, 8);
-      ctx.font = '12px sans-serif';
-      ctx.fillText(p.str, pos.x - 6, pos.y - 34 - rise);
-      ctx.font = FONT;
+      const prevAlign = ctx.textAlign, prevBase = ctx.textBaseline;
+      ctx.font = '24px sans-serif';                 // 2x the old 12px
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(p.str, pos.x, pos.y - 40 - rise);
+      ctx.font = FONT; ctx.textAlign = prevAlign; ctx.textBaseline = prevBase;
     } else if (p.kind === 'tip') {
       const rise = Math.min(p.t / 2, 12);
       ctx.font = FONT; ctx.textBaseline = 'top';
@@ -4193,7 +4242,7 @@ function bjUpdateSolo() {
         else if (bj.betAmt > chips) flash('NOT ENOUGH CHIPS');
         else bjStartHand();
       }
-      else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
+      else if (pick === 'EMOJI') openEmojiModal();
       else openTipModal();
     }
   }
@@ -4330,7 +4379,7 @@ function bjUpdateSolo() {
         if (bj.betAmt >= 1 && bj.betAmt <= chips) bjStartHand();
         else bj.state = 'bet';
       }
-      else if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
+      else if (pick === 'EMOJI') openEmojiModal();
       else openTipModal();
     }
   }
@@ -4407,7 +4456,7 @@ function bjUpdateNet() {
     const pick = bjMenu(['BET','EMOJI','TIP'], 'actIdx');
     if (aQueued) {
       aQueued = false;
-      if (pick === 'EMOJI') modal = { type:'emoji', idx:0 };
+      if (pick === 'EMOJI') openEmojiModal();
       else if (pick === 'TIP') openTipModal();
       else flash(bj.betAmt < 1 ? 'TAP CHIPS TO BET' : 'BET IN · DEAL IS ON THE CLOCK');
     }
@@ -4435,13 +4484,13 @@ function bjUpdateNet() {
   }
   else if (bj.state === 'stood') {
     const pick = bjMenu(['WAIT','EMOJI','TIP'], 'actIdx');
-    if (aQueued) { aQueued = false; if (pick === 'EMOJI') modal = { type:'emoji', idx:0 }; else if (pick === 'TIP') openTipModal(); }
+    if (aQueued) { aQueued = false; if (pick === 'EMOJI') openEmojiModal(); else if (pick === 'TIP') openTipModal(); }
   }
   else if (bj.state === 'result') {
     if (bj.flash > 0) bj.flash--;
     maybeTableQuip('blackjack');
     const pick = bjMenu(['EMOJI','TIP'], 'actIdx');
-    if (aQueued) { aQueued = false; if (pick === 'EMOJI') modal = { type:'emoji', idx:0 }; else openTipModal(); }
+    if (aQueued) { aQueued = false; if (pick === 'EMOJI') openEmojiModal(); else openTipModal(); }
   }
 }
 function drawHand(g, hand, x, y, hideFirst) {
@@ -4951,7 +5000,7 @@ function crUpdate() {
       else if (cr.net.phase === 'action') flash('WAITING ON THE SHOOTER');
       else flash('DICE ROLL ON THE TABLE CLOCK');
     }
-    else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
+    else if (item === 'EMOJI') openEmojiModal();
     else if (item === 'TIP') openTipModal();
   }
 }
@@ -5348,7 +5397,7 @@ function rouUpdate() {
     aQueued = false;
     const item = ROU_MENU[rou.menuIdx];
     if (item === 'SPIN') flash('THE WHEEL SPINS ON THE CLOCK');
-    else if (item === 'EMOJI') modal = { type:'emoji', idx:0 };
+    else if (item === 'EMOJI') openEmojiModal();
     else if (item === 'TIP') openTipModal();
   }
 }
@@ -6932,6 +6981,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     get nameLocked() { return nameLocked; }, get myName() { return myName; }, get playerToken() { return PLAYER_TOKEN; },
     get chips() { return chips; }, setChips,
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
+    openEmojiModal, get modal() { return modal; }, EMOJIS,
     skipTitle() { started = true; titleAlpha = 0; }
   };
 }
