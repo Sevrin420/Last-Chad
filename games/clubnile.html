@@ -2667,9 +2667,26 @@ const galleryImgs = GALLERY.map(a => {
   try { im.src = a.img; } catch (e) {}
   return im;
 });
-/* viewer state — a floor-scene overlay like the jukebox */
-const gallery = { open:false, idx:0, opt:0, tipIdx:0, mode:'view', note:'', noteT:0 };
-function galleryOpen(idx) { gallery.open = true; gallery.idx = idx; gallery.opt = 0; gallery.tipIdx = 0; gallery.mode = 'view'; gallery.noteT = 0; sound.tick(); }
+/* Second catalog: the tournament hall's two pieces. Same shape as GALLERY,
+   but priced in tournament TOKENS — the tourney room spends the token purse,
+   so tips/buys here are automatically in tokens (curKind() === 'tokens'). */
+const TGALLERY = [
+  { title:'TOURNEY ONE', artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:300, img:'../assets/membersonly/gallery/t1.png', tokenId:'',
+    blurb:'A short blurb about this piece and the artist behind it. Edit this in the TGALLERY catalog — a line or two on the work and its maker.' },
+  { title:'TOURNEY TWO', artist:'YOUR ARTIST', wallet:'0x0000000000000000000000000000000000000000', price:600, img:'../assets/membersonly/gallery/t2.png', tokenId:'',
+    blurb:'A short blurb about this piece and the artist behind it. Edit this in the TGALLERY catalog — a line or two on the work and its maker.' }
+];
+const tgalleryImgs = TGALLERY.map(a => {
+  const im = new Image(); im.ready = false;
+  im.onload = () => { im.ready = true; };
+  im.onerror = () => { im.ready = false; };
+  try { im.src = a.img; } catch (e) {}
+  return im;
+});
+/* viewer state — a scene overlay (floor + tourney) like the jukebox. `cat`
+   and `imgs` point at whichever catalog was opened. */
+const gallery = { open:false, cat:null, imgs:null, idx:0, opt:0, tipIdx:0, mode:'view', note:'', noteT:0 };
+function galleryOpen(cat, imgs, idx) { gallery.open = true; gallery.cat = cat; gallery.imgs = imgs; gallery.idx = idx; gallery.opt = 0; gallery.tipIdx = 0; gallery.mode = 'view'; gallery.noteT = 0; sound.tick(); }
 function galleryNote(msg) { gallery.note = msg; gallery.noteT = 90; }
 function galleryTipArtist(a, amt) {
   setChips(chips - amt);
@@ -2683,7 +2700,7 @@ function galleryBuy(a) {
 }
 function galleryUpdate() {
   if (gallery.noteT > 0) gallery.noteT--;
-  const a = GALLERY[gallery.idx];
+  const a = gallery.cat[gallery.idx];
   if (bQueued) { bQueued = false; if (gallery.mode === 'tip') gallery.mode = 'view'; else gallery.open = false; return; }
   if (gallery.mode === 'view') {
     if (tapLeft || tapRight) { gallery.opt = 1 - gallery.opt; sound.tick(); }   // TIP ⇄ BUY
@@ -2727,7 +2744,7 @@ function galleryPlaceholder(g, x, y, w, h, i) {
   g.textBaseline = 'alphabetic';
 }
 function galleryDraw() {
-  const a = GALLERY[gallery.idx], im = galleryImgs[gallery.idx];
+  const a = gallery.cat[gallery.idx], im = gallery.imgs[gallery.idx];
   ctx.fillStyle = 'rgba(6,4,12,0.88)'; ctx.fillRect(0, 0, W, H);
   /* gilded frame + canvas (smaller now, to leave room for the blurb) */
   const fw = 92, fh = 68, fx = (W - fw) / 2, fy = 12;
@@ -2765,9 +2782,10 @@ function galleryDraw() {
   if (gallery.noteT > 0) { ctx.fillStyle = '#e05a70'; ctx.fillText(gallery.note, W / 2, oy + 28); }
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 }
-/* the wall panel + three framed thumbnails, drawn on the floor */
-function drawGalleryWall(g) {
-  const r = GALLERY_WALL.r, x0 = GALLERY_WALL.c0 * TS, wallW = (GALLERY_WALL.c1 - GALLERY_WALL.c0 + 1) * TS, y = r * TS;
+/* a wall panel with one framed thumbnail per column, drawn in the room.
+   Works for any wall geometry + image set (floor gallery and tourney both). */
+function drawArtWall(g, wall, imgs) {
+  const r = wall.r, x0 = wall.c0 * TS, n = wall.c1 - wall.c0 + 1, wallW = n * TS, y = r * TS;
   /* deco backing panel rising above the row */
   g.fillStyle = '#241a10'; g.fillRect(x0 - 2, y - 24, wallW + 4, 30);
   g.fillStyle = '#3a2a18'; g.fillRect(x0 - 2, y - 24, wallW + 4, 3);
@@ -2775,12 +2793,12 @@ function drawGalleryWall(g) {
   /* placard */
   g.fillStyle = C.gold; g.font = FONT; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillText('GALLERY', x0 + wallW / 2, y - 27);
-  /* three framed thumbnails, one per column */
-  for (let i = 0; i < 3; i++) {
-    const cx = (GALLERY_WALL.c0 + i) * TS + TS / 2, fw = 13, fh = 15, fxx = cx - fw / 2, fyy = y - 21;
+  /* framed thumbnails, one per column */
+  for (let i = 0; i < n; i++) {
+    const cx = (wall.c0 + i) * TS + TS / 2, fw = 13, fh = 15, fxx = cx - fw / 2, fyy = y - 21;
     g.fillStyle = '#c9a13b'; g.fillRect(fxx - 1, fyy - 1, fw + 2, fh + 2);
     g.fillStyle = '#0a0710'; g.fillRect(fxx, fyy, fw, fh);
-    const im = galleryImgs[i];
+    const im = imgs[i];
     if (im && im.ready) drawContained(g, im, fxx, fyy, fw, fh);
     else galleryPlaceholder(g, fxx, fyy, fw, fh, i);
   }
@@ -5868,9 +5886,9 @@ function floorUpdate() {
       }
       if (t.id === 'cage') openCagePanel();
       else if (t.id === 'tourneydoor') enterTourney();
-      else if (t.id === 'art0') galleryOpen(0);
-      else if (t.id === 'art1') galleryOpen(1);
-      else if (t.id === 'art2') galleryOpen(2);
+      else if (t.id === 'art0') galleryOpen(GALLERY, galleryImgs, 0);
+      else if (t.id === 'art1') galleryOpen(GALLERY, galleryImgs, 1);
+      else if (t.id === 'art2') galleryOpen(GALLERY, galleryImgs, 2);
       else openDialog(t.id);
     }
   }
@@ -6122,7 +6140,7 @@ function floorRender() {
   items.push({ y: cgTop + TS + 2,     draw: g => drawEntity(g, { sprite:'cashier', dir:'down', frame:0, x: (CAGE.c0+1.5)*TS, y: cgTop + TS + 4, staticNPC:true }, tick + 40) });
   items.push({ y: CAGE.r1*TS + 12,    draw: g => g.drawImage(cageFront, cgx, CAGE.r1*TS + 2, cageFront.lw, cageFront.lh) });
   /* art gallery: the framed wall panel (behind the viewer) and its bench */
-  items.push({ y: GALLERY_WALL.r*TS + 4,   draw: g => drawGalleryWall(g) });
+  items.push({ y: GALLERY_WALL.r*TS + 4,   draw: g => drawArtWall(g, GALLERY_WALL, galleryImgs) });
   items.push({ y: GALLERY_BENCH.r*TS + 8,  draw: g => drawGalleryBench(g) });
   npcs.forEach(n => items.push({ y: n.y, draw: g => drawEntity(g, { ...n, staticNPC: true }, tick + n.x) }));
   guests.forEach(gu => items.push({ y: gu.y, draw: g => drawEntity(g, gu, 0) }));
@@ -6378,6 +6396,12 @@ const tourneyTalk = {};
 for (const t of T_TABLES) for (let c = t.c0; c <= t.c1; c++) for (let r = t.r0; r <= t.r1; r++) tourneyTalk[key(c,r)] = t.game;
 for (let c = T_CAGE.c0; c <= T_CAGE.c1; c++) { tourneyTalk[key(c, T_CAGE.r1)] = 'tcage'; tourneyTalk[key(c, T_CAGE.r1 + 1)] = 'tcage'; }
 [[T_HOST.c,T_HOST.r],[T_HOST.c-1,T_HOST.r],[T_HOST.c+1,T_HOST.r],[T_HOST.c,T_HOST.r+1],[T_HOST.c-1,T_HOST.r+1],[T_HOST.c+1,T_HOST.r+1]].forEach(([c,r]) => tourneyTalk[key(c,r)] = 'thost');
+/* the tournament hall's own two-piece gallery: a wall panel in the open left-
+   centre, viewed from below. Priced in tournament tokens. */
+const TGALLERY_WALL = { r: 8, c0: 3, c1: 4 };
+for (let c = TGALLERY_WALL.c0; c <= TGALLERY_WALL.c1; c++) tourneySolid.add(key(c, TGALLERY_WALL.r));
+tourneyTalk[key(3, TGALLERY_WALL.r)] = 'tart0';
+tourneyTalk[key(4, TGALLERY_WALL.r)] = 'tart1';
 const tourneyBg = makeCanvas(W, H, g => {
   /* ── sandstone hall floor: 3-tone checker ── */
   for (let r = 0; r < 15; r++) for (let c = 0; c < COLS; c++) {
@@ -6443,6 +6467,7 @@ function leaveTourney() {
 }
 function tourneyUpdate() {
   if (popupOpen()) { aQueued = bQueued = false; return; }
+  if (gallery.open) { galleryUpdate(); return; }
   if (dlg.open) {
     const prevCh = Math.floor(dlg.chars);
     dlg.chars += DLG_SPEED;
@@ -6470,6 +6495,8 @@ function tourneyUpdate() {
     const t = interactTarget();
     if (t) {
       if (t.id === 'tcage') openTCagePanel();   // tournament cage: tourney chips + naming
+      else if (t.id === 'tart0') galleryOpen(TGALLERY, tgalleryImgs, 0);
+      else if (t.id === 'tart1') galleryOpen(TGALLERY, tgalleryImgs, 1);
       else openDialog(t.id);
     }
   }
@@ -6505,6 +6532,8 @@ function tourneyRender() {
   }
   /* tournament host at the leaderboard */
   items.push({ y: T_HOST.r*TS + TS, draw: g => drawEntity(g, { sprite:'docsHost', dir:'down', frame:0, x: T_HOST.c*TS + TS/2, y: T_HOST.r*TS + TS + 2, staticNPC:true }, tick + 12) });
+  /* the hall's two-piece gallery panel */
+  items.push({ y: TGALLERY_WALL.r*TS + 4, draw: g => drawArtWall(g, TGALLERY_WALL, tgalleryImgs) });
   items.push({ y: player.y, draw: g => drawEntity(g, { ...player, sprite: 'player' }, 0) });
   items.sort((a,b) => a.y - b.y);
   for (const it of items) it.draw(ctx);
@@ -6524,6 +6553,7 @@ function tourneyRender() {
   ctx.font = FONT; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillStyle = C.gold; ctx.fillText('BEST ' + tourneyBest(), 6, 17);
   if (dlg.open) drawDialog(ctx);
+  if (gallery.open) galleryDraw();
 }
 
 /* ── popups: mint + house rules + cage (DOM overlays) ── */
@@ -7249,7 +7279,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     get scene() { return scene; }, get chipStore() { return chipStore; }, tourneyBest,
     openEmojiModal, openTipModal, tipTargets, get modal() { return modal; }, EMOJIS,
     get songMenu() { return songMenu; }, SONGS, SONG_TIP_AMTS,
-    galleryOpen, get gallery() { return gallery; }, GALLERY, GALLERY_WALL, enterCasino,
+    galleryOpen, get gallery() { return gallery; }, GALLERY, galleryImgs, TGALLERY, tgalleryImgs, GALLERY_WALL, TGALLERY_WALL, enterCasino,
     skipTitle() { started = true; titleAlpha = 0; }
   };
 }
