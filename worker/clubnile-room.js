@@ -116,6 +116,59 @@ function timingSafeEq(a, b) {
   return r === 0;
 }
 
+// ── Server-authoritative blackjack + craps settlement (pure, mirror client) ──
+// Blackjack: final hands + (possibly doubled) bet → chips credited to the stack.
+export function resolveBlackjack(playerHand, dealerHand, bet) {
+  const pv = bjValue(playerHand), dv = bjValue(dealerHand);
+  const natural  = pv === 21 && playerHand.length === 2;
+  const dealerBJ = dv === 21 && dealerHand.length === 2;
+  if (pv > 21) return 0;                                   // player bust
+  if (natural && !dealerBJ) return bet + Math.floor(bet * 1.5);   // blackjack 3:2 (stake back + 1.5x)
+  if (dv > 21 || pv > dv) return bet * 2;                  // win (stake back + even)
+  if (pv === dv) return bet;                               // push (stake back)
+  return 0;                                                // dealer wins
+}
+
+// Craps: resolve one roll against a seat's standing bet ledger + shared point.
+// Stakes were deducted at placement; standing bets ride, so this returns the
+// WINNINGS credited this roll plus the updated ledger + point. Mirrors crResolve.
+const CR_PLACE_NUMS = [4, 5, 6, 8, 9, 10];
+const CR_HARD_NUMS  = [4, 6, 8, 10];
+const CR_PLACE_PAY  = { 4: [9, 5], 5: [7, 5], 6: [7, 6], 8: [7, 6], 9: [7, 5], 10: [9, 5] };
+const CR_HARD_PAY   = { 4: 7, 6: 9, 8: 9, 10: 7 };
+export function resolveCraps(bets, point, d1, d2) {
+  const sum = d1 + d2, hard = d1 === d2;
+  const b = { ...bets };
+  let credit = 0, seven = false, pt = point;
+  if (b.field > 0) {                                       // field: one-roll, always working
+    let mult = 0;
+    if (sum === 2) mult = 2; else if (sum === 12) mult = 3;
+    else if ([3, 4, 9, 10, 11].includes(sum)) mult = 1;
+    if (mult > 0) credit += b.field * mult;               // pays; stake rides
+    else b.field = 0;                                      // loses; comes down
+  }
+  if (pt === 0) {                                          // come-out
+    if (sum === 7 || sum === 11) { if (b.pass) { credit += b.pass * 2; b.pass = 0; } }
+    else if (sum === 2 || sum === 3 || sum === 12) { if (b.pass) b.pass = 0; }
+    else pt = sum;                                         // point established
+  } else {
+    if (sum === 7) {                                       // seven out — everything down
+      seven = true; b.pass = 0;
+      CR_PLACE_NUMS.forEach(n => b['p' + n] = 0);
+      CR_HARD_NUMS.forEach(n => b['h' + n] = 0);
+      pt = 0;
+    } else {
+      if (sum === pt) { if (b.pass) { credit += b.pass * 2; b.pass = 0; } pt = 0; }
+      if (b['p' + sum]) { const [a, bb] = CR_PLACE_PAY[sum]; credit += Math.floor(b['p' + sum] * a / bb); }
+      if (CR_HARD_NUMS.includes(sum) && b['h' + sum]) {
+        if (hard) credit += b['h' + sum] * CR_HARD_PAY[sum];   // hard hit; stays
+        else b['h' + sum] = 0;                                 // easy; hard comes down
+      }
+    }
+  }
+  return { credit, bets: b, point: pt, seven };
+}
+
 function bjValue(hand) {
   let v = 0, aces = 0;
   for (const c of hand) {
