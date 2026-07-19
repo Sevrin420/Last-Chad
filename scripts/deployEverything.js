@@ -295,9 +295,14 @@ async function main() {
       /(gamble:\s*)'0x[0-9a-fA-F]{40}'(\s*,\s*\/\/ Gamble)/,
       `$1'${gambleAddress}'$2`
     );
+    // CAGE_CFG.leaderboard = TournamentLeaderboard (anchored on its comment)
+    game = game.replace(
+      /(leaderboard:\s*)'0x[0-9a-fA-F]{40}'(\s*,\s*\/\/ TournamentLeaderboard)/,
+      `$1'${leaderboardAddress}'$2`
+    );
     if (isMainnet) game = toMainnet(game);  // MINT_CFG.chainId + switch calls 0xa869→0xa86a
     fs.writeFileSync(gamePath, game, 'utf8');
-    console.log(`  games/clubnile.html                      ✓  (3 addresses${isMainnet ? ' + mainnet chainId' : ''})`);
+    console.log(`  games/clubnile.html                      ✓  (4 addresses${isMainnet ? ' + mainnet chainId' : ''})`);
   } else {
     console.warn("  ⚠ games/clubnile.html not found");
   }

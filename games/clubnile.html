@@ -326,6 +326,13 @@ body {
 }
 #mint-go, #mint-connect { align-self: flex-start; background: #7a1a26; color: #ffe9a8; }
 #mint-status { color: #9fd8b0; min-height: 3cqw; }
+/* tournament cage rows: input + action side by side, board list */
+.tcage-row { display: flex; gap: 1.4cqw; align-items: stretch; }
+.tcage-row input { flex: 1 1 auto; min-width: 0; }
+.tcage-row button { flex: 0 0 auto; white-space: nowrap; }
+.tcage-sep { border: 0; border-top: 0.25cqw solid #4a3a22; margin: 1.6cqw 0; }
+#tcage-board-list { display: flex; flex-direction: column; gap: 0.6cqw; margin-top: 1cqw; max-height: 30cqw; overflow-y: auto; }
+.tcage-board-row { display: flex; justify-content: space-between; gap: 1.4cqw; color: #e7dcc0; font-size: 2.7cqw; padding: 0.6cqw 1cqw; background: #241a30; border-radius: 0.6cqw; }
 /* ── HOUSE RULES: a carved-wood picker wheel over an aged
    parchment reading pane. Spin the wheel (scroll / drag / arrows /
    chevrons) to select a scroll; the parchment turns to it. ── */
@@ -559,15 +566,27 @@ body {
   <div id="tcage-panel" class="popup-panel">
     <div class="popup-head"><span>TOURNAMENT CAGE</span><button class="popup-close" data-close="tcage-panel" type="button">X</button></div>
     <div class="popup-body">
-      <p class="popup-lead">Claim your weekly tournament tokens, name your giraffe, and grab a stack to play the tournament tables.</p>
+      <p class="popup-lead">Claim your weekly tournament tokens, withdraw a stack to play the tournament tables, and burn tokens onto the leaderboard for a share of the month's yield.</p>
       <div id="tcage-balances">
-        <div>WALLET (tourney chips): <span id="tcage-wallet">—</span></div>
+        <div>WALLET (tourney tokens): <span id="tcage-wallet">—</span></div>
         <div>YOUR STACK: <span id="tcage-play">0</span></div>
       </div>
       <button id="tcage-connect" type="button">CONNECT WALLET</button>
       <div id="tcage-actions" style="display:none">
         <button id="tcage-herd" type="button">MY GIRAFFES · CLAIM WEEKLY</button>
-        <button id="tcage-stack" type="button">GRAB A STACK →</button>
+        <div class="tcage-row">
+          <input id="tcage-in" type="number" min="1" placeholder="tokens" inputmode="numeric">
+          <button id="tcage-withdraw" type="button">WITHDRAW TO PLAY →</button>
+        </div>
+        <button id="tcage-deposit" type="button">← DEPOSIT STACK TO WALLET</button>
+        <hr class="tcage-sep">
+        <p class="popup-lead" style="margin:.3em 0">Burn tokens onto this month's leaderboard (min 2000). Burn more to climb. Yield splits by share of tokens burned.</p>
+        <div class="tcage-row">
+          <input id="tcage-burn-in" type="number" min="2000" placeholder="≥ 2000" inputmode="numeric">
+          <button id="tcage-burn" type="button">BURN FOR LEADERBOARD 🔥</button>
+        </div>
+        <button id="tcage-board" type="button">VIEW LEADERBOARD</button>
+        <div id="tcage-board-list"></div>
       </div>
       <div id="tcage-status"></div>
     </div>
@@ -6891,12 +6910,25 @@ document.getElementById('mint-go').addEventListener('click', async () => {
 const CAGE_CFG = {
   items:  '0x66A3828a06b3C1Bf6D6DE39E229468e365e22EA5',   // MembersOnlyItems (chips = id 0)
   gamble: '0xFd6eb6DCc63E47a554B9a4C6434034E86Dd394B8',   // Gamble (cageBuyIn / cageCashOut)
+  leaderboard: '0x0000000000000000000000000000000000000000', // TournamentLeaderboard (set on deploy)
   worker: 'https://last-chad-runner.severin20.workers.dev'
 };
 const ITEMS_MIN_ABI  = ['function balanceOf(address account, uint256 id) view returns (uint256)'];
 const GAMBLE_MIN_ABI = [
   'function cageBuyIn(uint256 tokenId, uint256 amount) returns (uint256)',
-  'function cageCashOut(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig)'
+  'function cageCashOut(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig)',
+  'function tourneyWithdraw(uint256 tokenId, uint256 amount) returns (uint256)',
+  'function tourneyDeposit(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig)'
+];
+const LEADERBOARD_MIN_ABI = [
+  'function burnForLeaderboard(uint256 tokenId, uint256 amount)',
+  'function MIN_BURN() view returns (uint256)',
+  'function epoch() view returns (uint256)',
+  'function burnedOf(uint256 epoch, uint256 tokenId) view returns (uint256)',
+  'function pool(uint256 epoch) view returns (uint256)',
+  'function participantCount(uint256 epoch) view returns (uint256)',
+  'function leaderboard(uint256 epoch, uint256 offset, uint256 limit) view returns (uint256[] ids, string[] names, uint256[] amounts)',
+  'function pendingShare(uint256 epoch, uint256 tokenId) view returns (uint256)'
 ];
 function cageStatus(m, ok) { const s = document.getElementById('cage-status'); s.textContent = m || ''; s.style.color = ok === false ? '#e08a8a' : '#9fd8b0'; }
 async function refreshCageBalances() {
@@ -7011,14 +7043,94 @@ document.getElementById('tcage-connect').addEventListener('click', async () => {
   } catch (e) { tcageStatus('Connect failed: ' + (e.message || e), false); }
 });
 document.getElementById('tcage-herd').addEventListener('click', () => openHerdModal({ claim: true }));
-document.getElementById('tcage-stack').addEventListener('click', () => {
-  recordTourneyBest();
-  if (chips >= TOURNEY_STACK) { tcageStatus('You still hold ' + chips + ' tournament tokens.'); return; }
-  setChips(TOURNEY_STACK);
-  pushChat('', 'Claimed a tournament stack: ' + TOURNEY_STACK + ' chips. Best run: ' + tourneyBest(), true);
-  refreshTCageBalances();
-  tcageStatus(TOURNEY_STACK + ' tournament tokens — good luck!');
+
+/* WITHDRAW: burn tournament tokens from the wallet on-chain, then the worker
+   verifies the burn and credits your server-tracked token stack (kind:tourney).
+   The stack shows in your chip counter and plays the tournament tables. */
+document.getElementById('tcage-withdraw').addEventListener('click', async () => {
+  try {
+    if (!mintSigner) return tcageStatus('Connect a wallet first.', false);
+    const amt = parseInt(document.getElementById('tcage-in').value || '0', 10);
+    if (amt < 1) return tcageStatus('Enter how many tokens to withdraw.', false);
+    const g = new window.ethers.Contract(CAGE_CFG.gamble, GAMBLE_MIN_ABI, mintSigner);
+    tcageStatus('Confirm the withdraw in your wallet… (burns ' + amt + ' tokens)');
+    const tx = await g.tourneyWithdraw(PLAYER_TOKEN, amt);
+    await tx.wait();
+    tcageStatus('Registering your stack at the cage…');
+    const res = await fetch(CAGE_CFG.worker + '/tourney/withdraw', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokenId: PLAYER_TOKEN, player: mintAccount, txHash: tx.hash })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (data.session) social.money = { token: data.session, tokenId: PLAYER_TOKEN, player: mintAccount };
+    if (inTourneyPurse()) setChips(chips + amt);   // reflect the play stack in the token purse
+    refreshTCageBalances();
+    tcageStatus('Withdrew ' + amt + ' tokens to play. Good luck.');
+  } catch (e) { tcageStatus('Withdraw failed: ' + ((e.data && e.data.message) || e.message || e), false); }
 });
+
+/* DEPOSIT: the worker signs your whole remaining token stack; tourneyDeposit
+   mints it back to your wallet. Losses stay burnt. */
+document.getElementById('tcage-deposit').addEventListener('click', async () => {
+  try {
+    if (!mintSigner) return tcageStatus('Connect a wallet first.', false);
+    tcageStatus('Requesting the house signature for your stack…');
+    const res = await fetch(CAGE_CFG.worker + '/tourney/deposit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokenId: PLAYER_TOKEN, player: mintAccount })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    const { amount, nonce, signature } = data;
+    const g = new window.ethers.Contract(CAGE_CFG.gamble, GAMBLE_MIN_ABI, mintSigner);
+    tcageStatus('Confirm the deposit in your wallet… (' + amount + ' tokens)');
+    const tx = await g.tourneyDeposit(PLAYER_TOKEN, amount, nonce, signature);
+    await tx.wait();
+    if (inTourneyPurse()) setChips(Math.max(0, chips - amount));
+    refreshTCageBalances();
+    tcageStatus('Deposited ' + amount + ' tokens back to your wallet.');
+  } catch (e) { tcageStatus('Deposit failed: ' + ((e.data && e.data.message) || e.message || e), false); }
+});
+
+/* BURN FOR LEADERBOARD: permanently burn tokens (min 2000 to enter) onto this
+   month's board. Burn again any time to climb. Yield splits by burned share. */
+document.getElementById('tcage-burn').addEventListener('click', async () => {
+  try {
+    if (!mintSigner) return tcageStatus('Connect a wallet first.', false);
+    if (!CAGE_CFG.leaderboard || /^0x0+$/.test(CAGE_CFG.leaderboard)) return tcageStatus('Leaderboard not live yet.', false);
+    const amt = parseInt(document.getElementById('tcage-burn-in').value || '0', 10);
+    if (amt < 2000) return tcageStatus('Minimum 2000 tokens to enter the board.', false);
+    const lb = new window.ethers.Contract(CAGE_CFG.leaderboard, LEADERBOARD_MIN_ABI, mintSigner);
+    tcageStatus('Confirm the burn in your wallet… (' + amt + ' tokens, permanent)');
+    const tx = await lb.burnForLeaderboard(PLAYER_TOKEN, amt);
+    await tx.wait();
+    refreshTCageBalances();
+    tcageStatus('Burned ' + amt + ' tokens onto the leaderboard. 🔥');
+    renderLeaderboard();
+  } catch (e) { tcageStatus('Burn failed: ' + ((e.data && e.data.message) || e.message || e), false); }
+});
+document.getElementById('tcage-board').addEventListener('click', renderLeaderboard);
+
+/* Read the current epoch's board on-chain and render it, sorted by amount. */
+async function renderLeaderboard() {
+  const el = document.getElementById('tcage-board-list');
+  if (!el) return;
+  if (!CAGE_CFG.leaderboard || /^0x0+$/.test(CAGE_CFG.leaderboard)) { el.textContent = 'Leaderboard not live yet.'; return; }
+  try {
+    el.textContent = 'Loading…';
+    const provider = new window.ethers.providers.Web3Provider(window.ethereum);
+    const lb = new window.ethers.Contract(CAGE_CFG.leaderboard, LEADERBOARD_MIN_ABI, provider);
+    const epoch = await lb.epoch();
+    const [ids, names, amounts] = await lb.leaderboard(epoch, 0, 50);
+    const rows = ids.map((id, i) => ({ id: id.toString(), name: names[i] || ('#' + id), amt: Number(amounts[i]) }))
+      .sort((a, b) => b.amt - a.amt);
+    if (!rows.length) { el.textContent = 'No burns yet this month — be the first.'; return; }
+    el.innerHTML = rows.map((r, i) =>
+      '<div class="tcage-board-row"><span>' + (i + 1) + '. ' + escapeHtml(r.name) + '</span><span>' + r.amt + ' 🔥</span></div>'
+    ).join('');
+  } catch (e) { el.textContent = 'Could not load the board.'; }
+}
 
 /* ── name your NFT (first entry): writes to the NFT, becomes your casino name ──
    The check runs whenever a wallet connects. If the owned pass has no name yet
