@@ -550,29 +550,34 @@ async function handleCageBuyin(request, env) {
   await env.RUNNER_KV.put(key, JSON.stringify(cur), { expirationTtl: CAGE_SESSION_TTL });
   await env.RUNNER_KV.put(seenKey, '1', { expirationTtl: CAGE_SESSION_TTL });
 
-  return json({ ok: true, credited: amount, stack: cur.stack });
+  // The buy-in TX itself proves this wallet controls the token, so issue the
+  // money-seat session token right here — no separate signature needed. Player
+  // signs exactly twice: buy-in (now) and cash-out (later).
+  const exp = Date.now() + 1000 * 60 * 60 * 24;   // 24h
+  const token = await issueSessionToken(env.ORACLE_PRIVATE_KEY, { tokenId: String(tokenId), player: player.toLowerCase(), exp });
+
+  return json({ ok: true, credited: amount, stack: cur.stack, session: token, exp });
 }
 
-// POST /cage/session  { tokenId, player, message, signature }
-// Issues a short-lived HMAC session token that the Durable Object accepts for
-// real-money seats. Requires: (1) a wallet signature proving control of
-// `player` over a message that binds the tokenId, and (2) that player owns a
-// funded cage stack for that token. The token binds {tokenId, player, exp}.
+// POST /cage/session  { tokenId, player }  — RESUME a stack you already bought
+// into, without a new signature (so the player still signs only twice: buy-in
+// and cash-out). Issues a fresh money-seat token if a funded stack owned by
+// `player` exists. This is a BEARER token: it can only be used to play that
+// stack — never to withdraw, since cash-out always mints to the NFT owner's
+// wallet. Worst case if a token is sniffed is griefing a parked stack, not
+// theft. If you'd rather trade a 3rd signature for stronger resume auth, we can
+// re-add the signature check here.
 async function handleCageSession(request, env) {
-  const { tokenId, player, message, signature } = await parseBody(request);
-  if (tokenId == null || !player || !message || !signature) return json({ error: 'Missing fields' }, 400);
+  const { tokenId, player } = await parseBody(request);
+  if (tokenId == null || !player) return json({ error: 'Missing tokenId or player' }, 400);
   if (!ethers.isAddress(player)) return json({ error: 'Invalid player address' }, 400);
-  if (!String(message).includes(String(tokenId))) return json({ error: 'Message must bind tokenId' }, 400);
-
-  let recovered;
-  try { recovered = ethers.verifyMessage(message, signature); } catch { return json({ error: 'Bad signature' }, 400); }
-  if (recovered.toLowerCase() !== player.toLowerCase()) return json({ error: 'Signature does not match player' }, 403);
 
   const rec = await env.RUNNER_KV.get(`cage:${tokenId}`, { type: 'json' });
   if (!rec || (rec.stack || 0) <= 0) return json({ error: 'No funded stack for this token' }, 400);
   if (rec.player && rec.player.toLowerCase() !== player.toLowerCase()) return json({ error: 'Token/player mismatch' }, 403);
+  if (rec.pendingCashout) return json({ error: 'Cash-out in flight — finish it first' }, 409);
 
-  const exp = Date.now() + 1000 * 60 * 30;   // 30-minute session
+  const exp = Date.now() + 1000 * 60 * 60 * 24;   // 24h
   const token = await issueSessionToken(env.ORACLE_PRIVATE_KEY, { tokenId: String(tokenId), player: player.toLowerCase(), exp });
   return json({ ok: true, token, exp });
 }
