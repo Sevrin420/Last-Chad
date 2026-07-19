@@ -91,15 +91,15 @@ jobs:
           ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
         run: npx hardhat run scripts/deployGamble.js --network ${{ inputs.network }}
 
-      - name: Commit updated js/config.js
+      - name: Commit updated config + game page
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add js/config.js worker/wrangler.toml
+          git add js/config.js worker/wrangler.toml games/clubnile.html
           if git diff --cached --quiet; then
             echo "config files unchanged — skipping commit"
           else
-            git commit -m "chore: update contract addresses after mainnet deploy [skip ci]"
+            git commit -m "chore: update contract addresses after ${{ inputs.network }} deploy [skip ci]"
             git push origin ${{ github.ref_name }}
           fi
 
