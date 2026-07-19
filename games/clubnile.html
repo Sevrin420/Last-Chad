@@ -6813,7 +6813,7 @@ function openDocsPanel() {
    Launch model: 0.02 AVAX. address / chainId are patched by
    scripts/deployEverything.js — Fuji (0xa869) on staging, mainnet (0xa86a)
    when deployed with --network avalanche. */
-const MINT_CFG = { address: '0x6defA84b02efcEd65930341B1b20aDb6BC881809', chainId: '0xa869', priceEth: '0.02', priceLabel: 'AVAX' };
+const MINT_CFG = { address: '0x1517f9a3D3005c01019B780dE7153a0A3292E2DE', chainId: '0xa86a', priceEth: '0.02', priceLabel: 'AVAX' };
 const MINT_ABI = [
   'function mint(uint256 quantity) payable',
   'function setName(uint256 tokenId, string name)',
@@ -6889,8 +6889,8 @@ document.getElementById('mint-go').addEventListener('click', async () => {
 
 /* ── the cage: buy chips in to play / cash your stack back to your wallet ── */
 const CAGE_CFG = {
-  items:  '0x67FE75E74de7752EfcEE33f1c3ae72930B954fc3',   // MembersOnlyItems (chips = id 0)
-  gamble: '0xfE89BE7c7614e5Ce243BD7C492077FaFf8B12cB2',   // Gamble (cageBuyIn / cageCashOut)
+  items:  '0x66A3828a06b3C1Bf6D6DE39E229468e365e22EA5',   // MembersOnlyItems (chips = id 0)
+  gamble: '0xFd6eb6DCc63E47a554B9a4C6434034E86Dd394B8',   // Gamble (cageBuyIn / cageCashOut)
   worker: 'https://last-chad-runner.severin20.workers.dev'
 };
 const ITEMS_MIN_ABI  = ['function balanceOf(address account, uint256 id) view returns (uint256)'];
@@ -6921,7 +6921,7 @@ document.getElementById('cage-connect').addEventListener('click', async () => {
     if (!window.ethereum || !window.ethers) return cageStatus('No wallet / library available.', false);
     const accts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     mintAccount = accts[0];
-    try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa869' }] }); } catch (e) {}
+    try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa86a' }] }); } catch (e) {}
     mintSigner = new window.ethers.providers.Web3Provider(window.ethereum).getSigner();
     document.getElementById('cage-connect').style.display = 'none';
     document.getElementById('cage-actions').style.display = 'block';
@@ -7002,7 +7002,7 @@ document.getElementById('tcage-connect').addEventListener('click', async () => {
     if (!window.ethereum || !window.ethers) return tcageStatus('No wallet / library available.', false);
     const accts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     mintAccount = accts[0];
-    try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa869' }] }); } catch (e) {}
+    try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa86a' }] }); } catch (e) {}
     mintSigner = new window.ethers.providers.Web3Provider(window.ethereum).getSigner();
     document.getElementById('tcage-connect').style.display = 'none';
     document.getElementById('tcage-actions').style.display = 'block';
