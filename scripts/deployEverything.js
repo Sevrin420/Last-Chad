@@ -8,6 +8,7 @@
  *   4. Gamble           (chip wagering — oracle required)
  *   5. Tournament       (tournament system)
  *   6. Tips             (CHIP tips & gallery buys → team/creator wallets)
+ *   7. TournamentLeaderboard (burn tournament tokens → monthly pro-rata yield)
  *
  * After deploy:
  *   - Wires all cross-contract references (incl. authorizing Tips for payFromChips)
@@ -115,7 +116,7 @@ async function main() {
   const teamWallet = (process.env.TEAM_WALLET && hre.ethers.isAddress(process.env.TEAM_WALLET))
     ? process.env.TEAM_WALLET
     : deployer.address;
-  console.log("\n6/6  Deploying Tips...");
+  console.log("\n6/7  Deploying Tips...");
   console.log("     Team wallet:", teamWallet,
     teamWallet === deployer.address ? "(deployer — set TEAM_WALLET to override)" : "");
   const Tips = await hre.ethers.getContractFactory("Tips");
@@ -123,6 +124,14 @@ async function main() {
   await tips.waitForDeployment();
   const tipsAddress = await tips.getAddress();
   console.log("     ✓ Tips:", tipsAddress);
+
+  // ── 7. TournamentLeaderboard ──────────────────────────────────────────────
+  console.log("\n7/7  Deploying TournamentLeaderboard...");
+  const Leaderboard = await hre.ethers.getContractFactory("TournamentLeaderboard");
+  const leaderboard = await Leaderboard.deploy(itemsAddress, membersOnlyAddress);
+  await leaderboard.waitForDeployment();
+  const leaderboardAddress = await leaderboard.getAddress();
+  console.log("     ✓ TournamentLeaderboard:", leaderboardAddress);
 
   // ════════════════════════════════════════════════════════════════════════
   // WIRING
@@ -156,6 +165,11 @@ async function main() {
   tx = await itemsAuth.setGameContract(tipsAddress, true);
   await tx.wait();
   console.log("  Items.setGameContract(Tips)                ✓");
+
+  // Items authorizes TournamentLeaderboard (to burn tournament tokens on entry)
+  tx = await itemsAuth.setGameContract(leaderboardAddress, true);
+  await tx.wait();
+  console.log("  Items.setGameContract(Leaderboard)         ✓");
 
   // Market approves MembersOnly + Items for trading
   const marketContract = new hre.ethers.Contract(marketAddress, MARKET_WIRE_ABI, deployer);
@@ -224,6 +238,7 @@ async function main() {
       GAMBLE_ADDRESS:         gambleAddress,
       TOURNAMENT_ADDRESS:     tournamentAddress,
       TIPS_ADDRESS:           tipsAddress,
+      LEADERBOARD_ADDRESS:    leaderboardAddress,
     };
 
     for (const [key, addr] of Object.entries(replacements)) {
@@ -235,7 +250,7 @@ async function main() {
     if (isMainnet) config = toMainnet(config);
 
     fs.writeFileSync(configPath, config, 'utf8');
-    console.log(`  js/config.js                             ✓  (6 addresses${isMainnet ? ' + mainnet' : ''})`);
+    console.log(`  js/config.js                             ✓  (7 addresses${isMainnet ? ' + mainnet' : ''})`);
   } else {
     console.warn("  ⚠ js/config.js not found");
   }
@@ -300,6 +315,7 @@ async function main() {
   console.log(`  Gamble:           ${gambleAddress}`);
   console.log(`  Tournament:       ${tournamentAddress}`);
   console.log(`  Tips:             ${tipsAddress}`);
+  console.log(`  Leaderboard:      ${leaderboardAddress}`);
   console.log(`  Team wallet:      ${teamWallet}`);
   console.log(`  Oracle:           ${oracleAddress}`);
   console.log("");
@@ -309,6 +325,7 @@ async function main() {
   console.log("    Items ← authorized → Gamble            ✓");
   console.log("    Items ← authorized → Tournament        ✓");
   console.log("    Items ← authorized → Tips              ✓");
+  console.log("    Items ← authorized → Leaderboard       ✓");
   console.log("    Market ← approved  → MembersOnly       ✓");
   console.log("    Market ← approved  → Items             ✓");
   console.log("");

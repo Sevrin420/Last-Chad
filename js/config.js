@@ -15,6 +15,7 @@ export const MARKET_ADDRESS          = '0x8c36424500a77e0Bd8f9A325F27b2A36086F98
 export const GAMBLE_ADDRESS          = '0xFd6eb6DCc63E47a554B9a4C6434034E86Dd394B8'; // Gamble
 export const TOURNAMENT_ADDRESS      = '0xCAEee9778c2a06490B52776944B58E1114D7d09b'; // Tournament
 export const TIPS_ADDRESS            = '0xBD52198aaC6A19251f276A5d6C2cEEE22E855E39'; // Tips (set on deploy)
+export const LEADERBOARD_ADDRESS     = '0x0000000000000000000000000000000000000000'; // TournamentLeaderboard (set on deploy)
 
 // ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax.network/ext/bc/C/rpc';
@@ -173,6 +174,13 @@ export const GAMBLE_ABI = [
   'function cageCashOut(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig) external',
   'function cageLimit() view returns (uint256)',
   'function setCageLimit(uint256 limit) external',
+  // The tournament-token cage: withdraw tokens to play / deposit remaining back
+  'function tourneyWithdraw(uint256 tokenId, uint256 amount) external returns (uint256)',
+  'function tourneyDeposit(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig) external',
+  'function tourneyCageLimit() view returns (uint256)',
+  'function setTourneyCageLimit(uint256 limit) external',
+  'event TourneyWithdraw(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
+  'event TourneyDeposit(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
   // View
   'function minWager() view returns (uint256)',
   'function maxWager() view returns (uint256)',
@@ -249,4 +257,30 @@ export const TIPS_ABI = [
   'event TeamTip(address indexed from, uint256 chips, uint256 avax, string context)',
   'event CreatorTip(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string category, string item)',
   'event Purchase(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string item)',
+];
+
+export const LEADERBOARD_ABI = [
+  // Burn tournament tokens to hold a leaderboard spot (min 2000 to enter)
+  'function burnForLeaderboard(uint256 tokenId, uint256 amount)',
+  'function MIN_BURN() view returns (uint256)',
+  'function epoch() view returns (uint256)',
+  // Per-epoch state
+  'function burnedOf(uint256 epoch, uint256 tokenId) view returns (uint256)',
+  'function totalBurned(uint256 epoch) view returns (uint256)',
+  'function pool(uint256 epoch) view returns (uint256)',
+  'function closed(uint256 epoch) view returns (bool)',
+  'function claimed(uint256 epoch, uint256 tokenId) view returns (bool)',
+  'function participantCount(uint256 epoch) view returns (uint256)',
+  'function leaderboard(uint256 epoch, uint256 offset, uint256 limit) view returns (uint256[] ids, string[] names, uint256[] amounts)',
+  'function pendingShare(uint256 epoch, uint256 tokenId) view returns (uint256)',
+  // Monthly yield: fund → close → claim
+  'function fundYield() payable',
+  'function closeEpoch()',
+  'function claim(uint256 epoch, uint256 tokenId) returns (uint256)',
+  'function claimMany(uint256 epoch, uint256[] tokenIds)',
+  // Events
+  'event Burned(uint256 indexed epoch, uint256 indexed tokenId, string name, uint256 amount, uint256 cumulative)',
+  'event YieldFunded(uint256 indexed epoch, uint256 amount, uint256 pool)',
+  'event EpochClosed(uint256 indexed epoch, uint256 pool, uint256 totalBurned, uint256 nextEpoch)',
+  'event Claimed(uint256 indexed epoch, uint256 indexed tokenId, address indexed to, uint256 amount)',
 ];
