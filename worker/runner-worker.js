@@ -22,6 +22,7 @@ import { ethers } from 'ethers';
 export { CrapsTable } from './craps-table.js';
 export { HashCashTable } from './hashcash-table.js';
 export { ClubNileRoom } from './clubnile-room.js';
+import { issueSessionToken } from './clubnile-room.js';
 
 const ALLOWED_ORIGINS = ['https://membersonly.cc', 'https://www.membersonly.cc', 'https://lastchad.xyz', 'https://enterthegrotto.xyz', 'https://api.enterthegrotto.xyz'];
 function getCors(request) {
@@ -149,6 +150,9 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/cage/cashout') {
         return await handleCageCashout(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/cage/session') {
+        return await handleCageSession(request, env);
       }
 
       // ── WebSocket upgrade → Durable Object ──
@@ -547,6 +551,30 @@ async function handleCageBuyin(request, env) {
   await env.RUNNER_KV.put(seenKey, '1', { expirationTtl: CAGE_SESSION_TTL });
 
   return json({ ok: true, credited: amount, stack: cur.stack });
+}
+
+// POST /cage/session  { tokenId, player, message, signature }
+// Issues a short-lived HMAC session token that the Durable Object accepts for
+// real-money seats. Requires: (1) a wallet signature proving control of
+// `player` over a message that binds the tokenId, and (2) that player owns a
+// funded cage stack for that token. The token binds {tokenId, player, exp}.
+async function handleCageSession(request, env) {
+  const { tokenId, player, message, signature } = await parseBody(request);
+  if (tokenId == null || !player || !message || !signature) return json({ error: 'Missing fields' }, 400);
+  if (!ethers.isAddress(player)) return json({ error: 'Invalid player address' }, 400);
+  if (!String(message).includes(String(tokenId))) return json({ error: 'Message must bind tokenId' }, 400);
+
+  let recovered;
+  try { recovered = ethers.verifyMessage(message, signature); } catch { return json({ error: 'Bad signature' }, 400); }
+  if (recovered.toLowerCase() !== player.toLowerCase()) return json({ error: 'Signature does not match player' }, 403);
+
+  const rec = await env.RUNNER_KV.get(`cage:${tokenId}`, { type: 'json' });
+  if (!rec || (rec.stack || 0) <= 0) return json({ error: 'No funded stack for this token' }, 400);
+  if (rec.player && rec.player.toLowerCase() !== player.toLowerCase()) return json({ error: 'Token/player mismatch' }, 403);
+
+  const exp = Date.now() + 1000 * 60 * 30;   // 30-minute session
+  const token = await issueSessionToken(env.ORACLE_PRIVATE_KEY, { tokenId: String(tokenId), player: player.toLowerCase(), exp });
+  return json({ ok: true, token, exp });
 }
 
 // POST /cage/balance  { tokenId }  → the authoritative play stack

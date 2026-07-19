@@ -51,6 +51,71 @@ const BJ_OUTCOME_MS = 7000;      // blackjack result hold
 
 const RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 
+// ── Server-authoritative roulette settlement ──────────────────────────────
+// Legal bet keys: straights n0..n36 + the outside bets. Mirrors the client.
+const ROU_OUTSIDE = new Set(['red','black','odd','even','low','high','d1','d2','d3','c1','c2','c3']);
+function rouBetKeyValid(k) {
+  if (ROU_OUTSIDE.has(k)) return true;
+  if (typeof k === 'string' && k[0] === 'n') {
+    const v = Number(k.slice(1));
+    return Number.isInteger(v) && v >= 0 && v <= 36;
+  }
+  return false;
+}
+const ROU_MAX_BET = 1_000_000;   // per-spot sanity cap
+
+// Pure resolver — MUST match the client's rouResolve payout math exactly.
+// `bets` maps bet key → staked amount (stakes already deducted from the stack
+// when placed). Returns the amount to CREDIT back to the stack: stake+winnings
+// on winning bets, 0 on losers. `profit` is winnings above stake (for display).
+export function resolveRoulette(bets, n) {
+  let returned = 0, profit = 0;
+  if (!bets) return { returned, profit };
+  const red = RED.has(n);
+  const pay = (amt, mult) => { returned += amt * (mult + 1); profit += amt * mult; };
+  for (let k = 0; k <= 36; k++) { const a = bets['n' + k]; if (a && k === n) pay(a, 35); }
+  if (n !== 0) {
+    if (bets.red   && red)         pay(bets.red, 1);
+    if (bets.black && !red)        pay(bets.black, 1);
+    if (bets.odd   && n % 2 === 1) pay(bets.odd, 1);
+    if (bets.even  && n % 2 === 0) pay(bets.even, 1);
+    if (bets.low   && n <= 18)     pay(bets.low, 1);
+    if (bets.high  && n >= 19)     pay(bets.high, 1);
+    const doz = n <= 12 ? 'd1' : n <= 24 ? 'd2' : 'd3';
+    if (bets[doz]) pay(bets[doz], 2);
+    const col = n % 3 === 0 ? 'c3' : n % 3 === 1 ? 'c1' : 'c2';
+    if (bets[col]) pay(bets[col], 2);
+  }
+  return { returned, profit };
+}
+
+// ── Signed money-seat sessions (HMAC over the payload with the oracle key) ──
+// A connection may only play with real chips if it presents a token issued by
+// the Worker's /cage/session (which checks a wallet signature + a funded cage
+// stack). Same algorithm on both sides.
+function b64urlStr(s) {
+  return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlBytes(bytes) {
+  let s = ''; for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+export async function hmacB64(secret, msg) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(String(secret)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
+  return b64urlBytes(new Uint8Array(sig));
+}
+export async function issueSessionToken(secret, payload) {
+  const b64 = b64urlStr(JSON.stringify(payload));
+  return b64 + '.' + await hmacB64(secret, b64);
+}
+function timingSafeEq(a, b) {
+  if (a.length !== b.length) return false;
+  let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
 function bjValue(hand) {
   let v = 0, aces = 0;
   for (const c of hand) {
@@ -95,6 +160,48 @@ export class ClubNileRoom {
       if (ws === exceptWs) continue;
       try { ws.send(raw); } catch (e) { /* close handler cleans up */ }
     }
+  }
+
+  /* ── money seats: verify the signed session, load/persist the cage stack ── */
+  async verifySession(tok) {
+    try {
+      if (!tok || typeof tok !== 'string' || !this.env.ORACLE_PRIVATE_KEY) return null;
+      const dot = tok.indexOf('.');
+      if (dot <= 0) return null;
+      const b64 = tok.slice(0, dot), sig = tok.slice(dot + 1);
+      const expect = await hmacB64(this.env.ORACLE_PRIVATE_KEY, b64);
+      if (!timingSafeEq(expect, sig)) return null;
+      const p = JSON.parse(decodeURIComponent(escape(atob(b64.replace(/-/g, '+').replace(/_/g, '/')))));
+      if (!p || p.tokenId == null || !p.player || !p.exp || Date.now() > p.exp) return null;
+      return { tokenId: String(p.tokenId), player: String(p.player).toLowerCase() };
+    } catch (e) { return null; }
+  }
+  async bindStack(sess, tokenId, player) {
+    try {
+      const rec = await this.env.RUNNER_KV.get('cage:' + tokenId, { type: 'json' });
+      if (!rec || rec.pendingCashout) return;                       // no buy-in, or mid-cashout
+      if (rec.player && rec.player.toLowerCase() !== player) return; // not this wallet's token
+      sess.tokenId = String(tokenId);
+      sess.player  = player;
+      sess.stack   = rec.stack || 0;
+      sess.funded  = true;
+    } catch (e) { /* unfunded seat */ }
+  }
+  async flushStack(sess) {
+    if (!sess || !sess.funded || sess.tokenId == null) return;
+    try {
+      const key = 'cage:' + sess.tokenId;
+      const rec = (await this.env.RUNNER_KV.get(key, { type: 'json' })) || { player: sess.player, stack: 0 };
+      if (rec.pendingCashout) return;   // a cash-out is in flight — never overwrite / double-credit
+      rec.player = sess.player || rec.player;
+      rec.stack  = sess.stack;
+      await this.env.RUNNER_KV.put(key, JSON.stringify(rec), { expirationTtl: 60 * 60 * 24 * 7 });
+    } catch (e) { /* best-effort persist */ }
+  }
+  rouRefundBets(sess) {
+    let r = 0; for (const k in sess.bets) r += sess.bets[k] || 0;
+    sess.stack += r; sess.bets = {};
+    return r;
   }
 
   /* ── shared game engine ───────────────────────────────────────────── */
@@ -197,7 +304,21 @@ export class ClubNileRoom {
     const n = buf[0] % 37;                                 // 0..36, single-zero wheel
     this.game.n = n;
     this.broadcast({ t: 'spin', n });
+    this.settleRoulette(n);
     this.startPhase('outcome', ROU_OUTCOME_MS);
+  }
+  /* resolve every money seat's bets against the number, update + persist their
+     stack, and send each an authoritative settlement. Client-side (legacy)
+     seats are untouched — they resolve their own bets as before. */
+  settleRoulette(n) {
+    for (const [ws, s] of this.sessions) {
+      if (!s.funded) continue;
+      const { returned, profit } = resolveRoulette(s.bets, n);
+      s.stack += returned;
+      s.bets = {};
+      this.flushStack(s);   // persist to the cage (best-effort; also flushed on leave)
+      try { ws.send(JSON.stringify({ t: 'rsettle', n, stack: s.stack, profit })); } catch (e) {}
+    }
   }
 
   /* blackjack — server owns the shared dealer; clients play their own hands */
@@ -239,6 +360,10 @@ export class ClubNileRoom {
     const name = (url.searchParams.get('name') || 'CHAD')
       .replace(/[^\w\-#]/g, '').slice(0, 12) || 'CHAD';
     const sprite = Math.abs(parseInt(url.searchParams.get('sprite') || '0', 10) || 0) % 3;
+    // Opt-in money seat: a signed session (from /cage/session) binds this
+    // connection to a funded NFT stack. Legacy clients omit `auth` and play the
+    // classic client-side way — this whole path stays dormant for them.
+    const authClaim = await this.verifySession(url.searchParams.get('auth'));
 
     const pair = new WebSocketPair();
     const client = pair[0], server = pair[1];
@@ -255,8 +380,11 @@ export class ClubNileRoom {
       }
     }
 
-    const sess = { id: 'p' + (this.nextId++), name, sprite, seat, lastChat: 0, lastEmoji: 0, lastSong: 0 };
+    const sess = { id: 'p' + (this.nextId++), name, sprite, seat, lastChat: 0, lastEmoji: 0, lastSong: 0,
+                   tokenId: null, player: null, stack: 0, bets: {}, funded: false };
     this.sessions.set(server, sess);
+    // load the authoritative cage stack for a verified money seat
+    if (authClaim && isTable) await this.bindStack(sess, authClaim.tokenId, authClaim.player);
 
     /* the first player at a table starts the shared clock */
     if (this.isGame()) this.startGameIfIdle(sess.id);
@@ -267,7 +395,9 @@ export class ClubNileRoom {
       seat,
       roster: this.roster(sess.id),
       history: isTable ? [] : this.history.slice(-30),
-      game: this.gameSnapshot()
+      game: this.gameSnapshot(),
+      funded: sess.funded,
+      stack: sess.stack
     }));
     this.broadcast({ t: 'join', player: { id: sess.id, name: sess.name, sprite: sess.sprite, seat: sess.seat } }, server);
 
@@ -275,6 +405,11 @@ export class ClubNileRoom {
     const bye = () => {
       const s = this.sessions.get(server);
       if (!s) return;
+      // money seat: refund any un-spun bets and persist the stack before leaving
+      if (s.funded) {
+        if (this.game && this.gameType() === 'roulette' && this.game.phase === 'betting') this.rouRefundBets(s);
+        this.flushStack(s);
+      }
       this.sessions.delete(server);
       this.broadcast({ t: 'leave', id: s.id });
       /* failsafes: the table keeps playing without them */
@@ -345,6 +480,26 @@ export class ClubNileRoom {
       const title = String(msg.title || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 40);
       const by = String(msg.by || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 40);
       this.broadcast({ t: 'song', id: sess.id, name: sess.name, file, title, by }, ws);
+    }
+    else if (msg.t === 'rbet') {
+      // place a roulette bet against the server-held stack (money seats only)
+      if (this.gameType() !== 'roulette' || !sess.funded) return;
+      if (!this.game || this.game.phase !== 'betting') return;   // bets only while betting is open
+      const spot = String(msg.spot || '');
+      const amount = Math.floor(Number(msg.amount));
+      if (!rouBetKeyValid(spot)) return;
+      if (!(amount >= 1 && amount <= ROU_MAX_BET)) return;
+      if ((sess.stack || 0) < amount) { try { ws.send(JSON.stringify({ t: 'rbal', stack: sess.stack, bets: sess.bets, err: 'insufficient' })); } catch (e) {} return; }
+      sess.bets[spot] = (sess.bets[spot] || 0) + amount;
+      sess.stack -= amount;
+      try { ws.send(JSON.stringify({ t: 'rbal', stack: sess.stack, bets: sess.bets })); } catch (e) {}
+    }
+    else if (msg.t === 'rclear') {
+      // take every un-spun bet back down (money seats only)
+      if (this.gameType() !== 'roulette' || !sess.funded) return;
+      if (!this.game || this.game.phase !== 'betting') return;
+      this.rouRefundBets(sess);
+      try { ws.send(JSON.stringify({ t: 'rbal', stack: sess.stack, bets: sess.bets })); } catch (e) {}
     }
     else if (msg.t === 'roll') {
       if (this.gameType() === 'craps' && this.game &&
