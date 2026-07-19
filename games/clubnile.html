@@ -1694,7 +1694,7 @@ let nameLocked = false;
 const WS_BASE = new URLSearchParams(location.search).get('ws') ||
                 'wss://last-chad-runner.severin20.workers.dev';
 
-function makeRoom(room, handlers) {
+function makeRoom(room, handlers, extra) {
   const obj = {
     status: 'connecting', closed: false, ws: null,
     send(m) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(m)); },
@@ -1706,7 +1706,7 @@ function makeRoom(room, handlers) {
     let ws;
     try {
       ws = new WebSocket(WS_BASE + '/clubnile/ws?room=' + encodeURIComponent(room) +
-        '&name=' + encodeURIComponent(myName) + '&sprite=' + mySprite);
+        '&name=' + encodeURIComponent(myName) + '&sprite=' + mySprite + (extra || ''));
     } catch (e) { obj.status = 'off'; retry(); return; }
     obj.ws = ws;
     ws.onopen = () => { obj.status = 'on'; delay = 1000; };
@@ -1806,11 +1806,23 @@ const tableHandlers = {
     social.youId = m.id;
     social.seat = m.seat;
     social.roster = (m.roster || []).filter(p => p.seat >= 0);
+    /* money seat confirmed by the server: adopt the authoritative stack */
+    if (m.funded && scene === 'roulette') { rou.real = true; rou.stack = m.stack || 0; }
     if (m.game) {
       if (scene === 'craps') crAdoptNet(m.game);
       else if (scene === 'roulette') rouAdoptNet(m.game);
       else if (scene === 'blackjack') bjAdoptNet(m.game);
     }
+  },
+  /* server-authoritative roulette: the DO owns bets + stack */
+  rbal(m) {
+    if (scene !== 'roulette' || !rou.real) return;
+    rou.stack = m.stack;
+    rou.bets = { ...rouBetKeys(), ...(m.bets || {}) };
+  },
+  rsettle(m) {
+    if (scene !== 'roulette' || !rou.real) return;
+    rou.pendingSettle = { n: m.n, stack: m.stack, profit: m.profit };   // applied when the wheel lands
   },
   phase(m) {
     if (scene === 'craps') {
@@ -1865,10 +1877,18 @@ const tableHandlers = {
 };
 social.lobby = makeRoom('lobby', lobbyHandlers);
 
+/* real-money seats (opt-in). `social.money` is set from the cage buy-in (which
+   returns a signed session token); MONEY_FLAG gates the whole feature so it's
+   off unless explicitly enabled. When both are present, table WS connections
+   carry the session token and the server owns the balance. */
+social.money = null;   // { token, tokenId, player }
+const MONEY_FLAG = new URLSearchParams(location.search).has('money') || localStorage.getItem('clubnile_money') === '1';
+function moneyMode() { return MONEY_FLAG && !!(social.money && social.money.token); }
 function tableConnect(room) {
   social.tableRoom = room;
   social.seat = 1; social.youId = null; social.roster = [];
-  social.table = makeRoom(room, tableHandlers);
+  const extra = moneyMode() ? '&auth=' + encodeURIComponent(social.money.token) : '';
+  social.table = makeRoom(room, tableHandlers, extra);
 }
 function tableDisconnect() {
   if (social.table) social.table.close();
@@ -5554,6 +5574,8 @@ function enterRoulette() {
   rou.menuIdx = 0; rou.removeMode = false; rou.result = -1; rou.spinT = 0;
   rou.outcome = []; rou.outT = 0; rou.flash = 0; rou.popupT = 0;
   rou.net = { active:false, phase:'', until:0 };
+  /* real-money seat: server owns bets + stack (confirmed by welcome.funded) */
+  rou.real = moneyMode(); rou.stack = 0; rou.pendingSettle = null;
   modal = null; popups.length = 0;
   lastActMs = Date.now();
   tableConnect('roulette');
@@ -5609,6 +5631,22 @@ function rouCall(n, red) {
   if (n === 0) return 'Zero! The house arrow strikes.';
   return n + ' — ' + (red ? 'red' : 'black') + ', ' + (n % 2 ? 'odd' : 'even') + ', ' + (n <= 18 ? 'in the low' : 'up high') + '.';
 }
+/* real-money settlement: the DO already resolved and sent rsettle (new stack +
+   profit). Apply it when the wheel lands — the client does NO payout math. */
+function rouApplySettle() {
+  const s = rou.pendingSettle, n = rou.result, red = ROU_RED.has(n);
+  const profit = s ? s.profit : 0;
+  if (s) rou.stack = s.stack;
+  rou.history.unshift(n); if (rou.history.length > 6) rou.history.pop();
+  rou.bets = rouBetKeys();
+  rou.flash = profit > 0 ? 40 : 0;
+  if (profit > 0) sound.win(); else sound.lose();
+  rou.outcome = [n + (n === 0 ? ' ZERO' : (red ? ' RED' : ' BLACK')), profit > 0 ? ('+' + profit) : 'NO WIN THIS SPIN'];
+  dealerSay(rouCall(n, red), 360, CALL_BEAT);
+  rou.outT = profit > 0 ? 300 : 240;
+  rou.mode = 'outcome';
+  rou.pendingSettle = null;
+}
 function rouResolve() {
   const n = rou.result, red = ROU_RED.has(n);
   const out = []; let profit = 0;
@@ -5645,7 +5683,7 @@ function rouUpdate() {
   if (rou.mode === 'spinning') {
     aQueued = bQueued = false;
     if (rou.spinT % (rou.spinT > 90 ? 7 : 14) === 0) sound.click();   // ball rattling, slowing
-    if (--rou.spinT <= 0) { sound.thud(); rou.popupT = 72; rouResolve(); }
+    if (--rou.spinT <= 0) { sound.thud(); rou.popupT = 72; if (rou.real) rouApplySettle(); else rouResolve(); }
     return;
   }
   if (modalUpdate()) { lastActMs = Date.now(); return; }
@@ -5671,6 +5709,14 @@ function rouUpdate() {
       const spot = rouSpotAt(tapNow);
       if (spot) {
         if (!canBet) flash('SPIN WINDOW · BETS CLOSED');
+        else if (rou.real) {
+          /* server-authoritative: send an intent; the DO validates against the
+             stack and echoes back via rbal. Remove = take the whole board down
+             (per-spot removal isn't wired server-side yet). */
+          if (rou.removeMode) { social.table.send({ t: 'rclear' }); sound.chip(); }
+          else if (rou.stack < unit) flash('NOT ENOUGH CHIPS');
+          else { social.table.send({ t: 'rbet', spot, amount: unit }); sound.chip(); }
+        }
         else if (rou.removeMode) {
           if (rou.bets[spot] <= 0) flash('NOTHING ON THAT SPOT');
           else { const take = Math.min(unit, rou.bets[spot]); rou.bets[spot] -= take; setChips(chips + take); sound.chip(); rouJournal(); }
@@ -6020,7 +6066,9 @@ function drawHUD(g) {
   g.font = FONT;
   g.fillStyle = C.gold;
   g.textBaseline = 'middle';
-  g.fillText(String(chips), 17, 9);
+  /* in a real-money roulette seat the authoritative balance is the server stack */
+  const shown = (scene === 'roulette' && rou.real) ? rou.stack : chips;
+  g.fillText(String(shown), 17, 9);
   g.textBaseline = 'top';
 }
 function drawDialog(g) {
@@ -6804,6 +6852,7 @@ document.getElementById('cage-buyin').addEventListener('click', async () => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (data.session) social.money = { token: data.session, tokenId: PLAYER_TOKEN, player: mintAccount };
     setChips(chips + amt);                 // reflect the play stack locally
     refreshCageBalances();
     cageStatus('Withdrew ' + amt + ' chips to the floor. Good luck.');
