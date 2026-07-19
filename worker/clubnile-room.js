@@ -64,6 +64,9 @@ function rouBetKeyValid(k) {
 }
 const ROU_MAX_BET = 1_000_000;   // per-spot sanity cap
 
+// Legal craps bet keys: pass, field, place p4..p10, hardways h4/h6/h8/h10.
+const CR_BET_KEYS = new Set(['pass', 'field', 'p4', 'p5', 'p6', 'p8', 'p9', 'p10', 'h4', 'h6', 'h8', 'h10']);
+
 // Pure resolver — MUST match the client's rouResolve payout math exactly.
 // `bets` maps bet key → staked amount (stakes already deducted from the stack
 // when placed). Returns the amount to CREDIT back to the stack: stake+winnings
@@ -256,6 +259,18 @@ export class ClubNileRoom {
     sess.stack += r; sess.bets = {};
     return r;
   }
+  /* leaving craps: come-down bets (place/hard/field, and a come-out pass) are
+     returned; a pass bet with the point ON is a contract bet and forfeits, so
+     you can't dodge a live loss by disconnecting. */
+  crRefundOnLeave(sess) {
+    let r = 0;
+    for (const k in sess.bets) {
+      if (k === 'pass' && this.game && this.game.point !== 0) continue;
+      r += sess.bets[k] || 0; sess.bets[k] = 0;
+    }
+    sess.stack += r;
+    return r;
+  }
 
   /* ── shared game engine ───────────────────────────────────────────── */
   ensureGame() {
@@ -331,6 +346,7 @@ export class ClubNileRoom {
     if (this.game.timer) clearTimeout(this.game.timer);
     const buf = new Uint8Array(2); crypto.getRandomValues(buf);
     const d1 = (buf[0] % 6) + 1, d2 = (buf[1] % 6) + 1, sum = d1 + d2;
+    const pointBefore = this.game.point;                   // resolve money seats against the pre-roll point
     let seven = false;
     if (this.game.point === 0) {
       if (![2, 3, 7, 11, 12].includes(sum)) this.game.point = sum;
@@ -340,7 +356,20 @@ export class ClubNileRoom {
       this.game.point = 0; seven = true; this.rotateShooter();
     }
     this.broadcast({ t: 'dice', d: [d1, d2], point: this.game.point, seven, shooter: this.game.shooter });
+    this.settleCraps(pointBefore, d1, d2);
     this.startPhase('outcome', CRAPS_OUTCOME_MS);
+  }
+  /* resolve every money seat's standing bets against this roll, credit + persist
+     the stack, and send an authoritative settlement. Legacy seats unaffected. */
+  settleCraps(pointBefore, d1, d2) {
+    for (const [ws, s] of this.sessions) {
+      if (!s.funded) continue;
+      const { credit, bets, seven } = resolveCraps(s.bets || {}, pointBefore, d1, d2);
+      s.stack += credit;
+      s.bets = bets;
+      this.flushStack(s);
+      try { ws.send(JSON.stringify({ t: 'crsettle', d: [d1, d2], credit, stack: s.stack, bets: s.bets, seven })); } catch (e) {}
+    }
   }
   rotateShooter() {
     const seated = this.seatedBySeat();
@@ -461,6 +490,7 @@ export class ClubNileRoom {
       // money seat: refund any un-spun bets and persist the stack before leaving
       if (s.funded) {
         if (this.game && this.gameType() === 'roulette' && this.game.phase === 'betting') this.rouRefundBets(s);
+        if (this.gameType() === 'craps') this.crRefundOnLeave(s);
         this.flushStack(s);
       }
       this.sessions.delete(server);
@@ -553,6 +583,32 @@ export class ClubNileRoom {
       if (!this.game || this.game.phase !== 'betting') return;
       this.rouRefundBets(sess);
       try { ws.send(JSON.stringify({ t: 'rbal', stack: sess.stack, bets: sess.bets })); } catch (e) {}
+    }
+    else if (msg.t === 'crbet') {
+      // place a craps bet against the server-held stack (money seats only)
+      if (this.gameType() !== 'craps' || !sess.funded) return;
+      if (!this.game || this.game.phase !== 'betting') return;
+      const spot = String(msg.spot || '');
+      const amount = Math.floor(Number(msg.amount));
+      if (!CR_BET_KEYS.has(spot)) return;
+      if (spot === 'pass' && this.game.point !== 0) { try { ws.send(JSON.stringify({ t: 'crbal', stack: sess.stack, bets: sess.bets, err: 'point is on' })); } catch (e) {} return; }
+      if (!(amount >= 1 && amount <= ROU_MAX_BET)) return;
+      if ((sess.stack || 0) < amount) { try { ws.send(JSON.stringify({ t: 'crbal', stack: sess.stack, bets: sess.bets, err: 'insufficient' })); } catch (e) {} return; }
+      sess.bets[spot] = (sess.bets[spot] || 0) + amount;
+      sess.stack -= amount;
+      try { ws.send(JSON.stringify({ t: 'crbal', stack: sess.stack, bets: sess.bets })); } catch (e) {}
+    }
+    else if (msg.t === 'crclear') {
+      // take down every bet that's allowed to come down (not a live pass on a point)
+      if (this.gameType() !== 'craps' || !sess.funded) return;
+      if (!this.game || this.game.phase !== 'betting') return;
+      let r = 0;
+      for (const k in sess.bets) {
+        if (k === 'pass' && this.game.point !== 0) continue;   // contract bet with the point on stays up
+        r += sess.bets[k] || 0; sess.bets[k] = 0;
+      }
+      sess.stack += r;
+      try { ws.send(JSON.stringify({ t: 'crbal', stack: sess.stack, bets: sess.bets })); } catch (e) {}
     }
     else if (msg.t === 'roll') {
       if (this.gameType() === 'craps' && this.game &&

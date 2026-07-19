@@ -1808,6 +1808,7 @@ const tableHandlers = {
     social.roster = (m.roster || []).filter(p => p.seat >= 0);
     /* money seat confirmed by the server: adopt the authoritative stack */
     if (m.funded && scene === 'roulette') { rou.real = true; rou.stack = m.stack || 0; }
+    if (m.funded && scene === 'craps')    { cr.real = true;  cr.stack = m.stack || 0; }
     if (m.game) {
       if (scene === 'craps') crAdoptNet(m.game);
       else if (scene === 'roulette') rouAdoptNet(m.game);
@@ -1823,6 +1824,16 @@ const tableHandlers = {
   rsettle(m) {
     if (scene !== 'roulette' || !rou.real) return;
     rou.pendingSettle = { n: m.n, stack: m.stack, profit: m.profit };   // applied when the wheel lands
+  },
+  /* server-authoritative craps: the DO owns bets + stack */
+  crbal(m) {
+    if (scene !== 'craps' || !cr.real) return;
+    cr.stack = m.stack;
+    cr.bets = { ...crBetKeys(), ...(m.bets || {}) };
+  },
+  crsettle(m) {
+    if (scene !== 'craps' || !cr.real) return;
+    cr.pendingSettle = { credit: m.credit, stack: m.stack, bets: m.bets, seven: m.seven };   // applied when dice land
   },
   phase(m) {
     if (scene === 'craps') {
@@ -5075,6 +5086,8 @@ function enterCraps() {
   cr.outcome = []; cr.outT = 0;
   cr.net = { active:false, phase:'', until:0, shooter:null };
   cr.rollLand = null; cr.postRoll = null; cr.popupT = 0;
+  /* real-money seat: server owns bets + stack (confirmed by welcome.funded) */
+  cr.real = moneyMode(); cr.stack = 0; cr.pendingSettle = null;
   modal = null;
   popups.length = 0;
   lastActMs = Date.now();
@@ -5132,6 +5145,25 @@ function crSpotAt(pt) {
   if (within(fieldBox)) return 'field';
   if (within(passBox)) return 'pass';
   return null;
+}
+/* real-money settlement: the DO resolved and sent crsettle (winnings + new
+   stack + updated ledger). Apply it when the dice land — no client payout math.
+   The shared point still comes from the server via the dice/phase messages. */
+function crApplySettle() {
+  const [d1, d2] = cr.dice, sum = d1 + d2;
+  const s = cr.pendingSettle;
+  const prevPoint = cr.point;
+  if (s) {
+    cr.stack = s.stack;
+    cr.bets = { ...crBetKeys(), ...(s.bets || {}) };
+  }
+  const credit = s ? s.credit : 0;
+  cr.flash = credit > 0 ? 40 : 0;
+  if (credit > 0) sound.win(); else if (s && s.seven) sound.lose();
+  dealerSay(crCall(d1, d2, prevPoint, cr.point), 380, CALL_BEAT);
+  cr.outcome = [sum + (s && s.seven ? ' · SEVEN OUT' : ''), credit > 0 ? ('+' + credit) : (s && s.seven ? 'LINE AWAY' : 'NO ACTION')];
+  if (cr.postRoll) { cr.point = cr.postRoll.point; cr.net.shooter = cr.postRoll.shooter; cr.postRoll = null; }
+  cr.pendingSettle = null;
 }
 function crResolve() {
   const [d1, d2] = cr.dice;
@@ -5244,7 +5276,7 @@ function crUpdate() {
       cr.rollLand = null;
       sound.thud();
       cr.popupT = 60;          // hold the big-dice window a beat on the result
-      crResolve();
+      if (cr.real) crApplySettle(); else crResolve();
     }
     return;
   }
@@ -5281,6 +5313,15 @@ function crUpdate() {
       const spot = crSpotAt(tapNow);
       if (spot) {
         if (!canBet) flash('DICE ARE OUT · BETS CLOSED');
+        else if (cr.real) {
+          /* server-authoritative: send an intent; the DO validates against the
+             stack + point and echoes back via crbal. Take-down = clear the
+             board (a live pass on a point stays up, per the server). */
+          if (cr.removeMode) { social.table.send({ t: 'crclear' }); sound.chip(); }
+          else if (spot === 'pass' && cr.point !== 0) flash('PASS BETS: COME OUT ONLY');
+          else if (cr.stack < unit) flash('NOT ENOUGH CHIPS');
+          else { social.table.send({ t: 'crbet', spot, amount: unit }); sound.chip(); }
+        }
         else if (cr.removeMode) {
           if (cr.bets[spot] <= 0) flash('NOTHING ON THAT SPOT');
           else if (spot === 'pass' && cr.point !== 0) flash('PASS RIDES UNTIL DECIDED');
@@ -6066,8 +6107,9 @@ function drawHUD(g) {
   g.font = FONT;
   g.fillStyle = C.gold;
   g.textBaseline = 'middle';
-  /* in a real-money roulette seat the authoritative balance is the server stack */
-  const shown = (scene === 'roulette' && rou.real) ? rou.stack : chips;
+  /* in a real-money seat the authoritative balance is the server stack */
+  const shown = (scene === 'roulette' && rou.real) ? rou.stack
+              : (scene === 'craps' && cr.real) ? cr.stack : chips;
   g.fillText(String(shown), 17, 9);
   g.textBaseline = 'top';
 }
