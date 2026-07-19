@@ -410,6 +410,14 @@ export class ClubNileRoom {
     this.game.up = this.drawCard();
     this.game.hole = this.drawCard();
     this.game.dealer = [this.game.up, this.game.hole];
+    // deal each funded seat that placed a bet its own two cards (server-owned)
+    for (const [ws, s] of this.sessions) {
+      if (!s.funded || !(s.bjBet > 0)) { if (s) s.bjHand = null; continue; }
+      s.bjHand = [this.drawCard(), this.drawCard()];
+      s.bjDoubled = false;
+      s.bjDone = bjValue(s.bjHand) === 21;   // a natural stands automatically
+      try { ws.send(JSON.stringify({ t: 'bjdeal', hand: s.bjHand, up: this.game.up, bet: s.bjBet, done: s.bjDone })); } catch (e) {}
+    }
     this.startPhase('action', BJ_ACTION_MS, { up: this.game.up });
   }
   playDealer() {
@@ -418,6 +426,15 @@ export class ClubNileRoom {
     const d = [this.game.up, this.game.hole];
     while (bjValue(d) < 17) d.push(this.drawCard());
     this.game.dealer = d;
+    // settle each funded seat's hand against the final dealer
+    for (const [ws, s] of this.sessions) {
+      if (!s.funded || !s.bjHand) continue;
+      const payout = resolveBlackjack(s.bjHand, d, s.bjBet || 0);
+      s.stack += payout;
+      try { ws.send(JSON.stringify({ t: 'bjsettle', dealer: d, payout, bet: s.bjBet || 0, stack: s.stack })); } catch (e) {}
+      s.bjHand = null; s.bjBet = 0; s.bjDone = false; s.bjDoubled = false;
+      this.flushStack(s);
+    }
     this.startPhase('outcome', BJ_OUTCOME_MS, { dealer: d });
   }
 
@@ -491,6 +508,8 @@ export class ClubNileRoom {
       if (s.funded) {
         if (this.game && this.gameType() === 'roulette' && this.game.phase === 'betting') this.rouRefundBets(s);
         if (this.gameType() === 'craps') this.crRefundOnLeave(s);
+        // blackjack: an un-dealt bet refunds; a bet on a live hand forfeits
+        if (this.gameType() === 'blackjack' && s.bjBet > 0 && !s.bjHand) { s.stack += s.bjBet; s.bjBet = 0; }
         this.flushStack(s);
       }
       this.sessions.delete(server);
@@ -609,6 +628,34 @@ export class ClubNileRoom {
       }
       sess.stack += r;
       try { ws.send(JSON.stringify({ t: 'crbal', stack: sess.stack, bets: sess.bets })); } catch (e) {}
+    }
+    else if (msg.t === 'bjbet') {
+      // set this hand's bet against the stack (money seats, betting phase)
+      if (this.gameType() !== 'blackjack' || !sess.funded) return;
+      if (!this.game || this.game.phase !== 'betting') return;
+      const amount = Math.floor(Number(msg.amount));
+      if (!(amount >= 1 && amount <= ROU_MAX_BET)) return;
+      const prev = sess.bjBet || 0;
+      if ((sess.stack || 0) + prev < amount) { try { ws.send(JSON.stringify({ t: 'bjbal', stack: sess.stack, bet: prev, err: 'insufficient' })); } catch (e) {} return; }
+      sess.stack += prev - amount;          // refund old, take new
+      sess.bjBet = amount;
+      try { ws.send(JSON.stringify({ t: 'bjbal', stack: sess.stack, bet: sess.bjBet })); } catch (e) {}
+    }
+    else if (msg.t === 'bjhit' || msg.t === 'bjstand' || msg.t === 'bjdouble') {
+      if (this.gameType() !== 'blackjack' || !sess.funded) return;
+      if (!this.game || this.game.phase !== 'action' || !sess.bjHand || sess.bjDone) return;
+      if (msg.t === 'bjstand') { sess.bjDone = true; }
+      else if (msg.t === 'bjdouble') {
+        if (sess.bjHand.length !== 2 || (sess.stack || 0) < (sess.bjBet || 0)) return;   // one double, must afford it
+        sess.stack -= sess.bjBet; sess.bjBet *= 2; sess.bjDoubled = true;
+        sess.bjHand.push(this.drawCard());
+        sess.bjDone = true;                                                              // double = one card then stand
+      } else {   // bjhit
+        sess.bjHand.push(this.drawCard());
+        const v = bjValue(sess.bjHand);
+        if (v >= 21) sess.bjDone = true;                                                 // 21 or bust ends the turn
+      }
+      try { ws.send(JSON.stringify({ t: 'bjhand', hand: sess.bjHand, bet: sess.bjBet, done: sess.bjDone, stack: sess.stack })); } catch (e) {}
     }
     else if (msg.t === 'roll') {
       if (this.gameType() === 'craps' && this.game &&

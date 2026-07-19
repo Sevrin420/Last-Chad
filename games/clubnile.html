@@ -1807,8 +1807,9 @@ const tableHandlers = {
     social.seat = m.seat;
     social.roster = (m.roster || []).filter(p => p.seat >= 0);
     /* money seat confirmed by the server: adopt the authoritative stack */
-    if (m.funded && scene === 'roulette') { rou.real = true; rou.stack = m.stack || 0; }
-    if (m.funded && scene === 'craps')    { cr.real = true;  cr.stack = m.stack || 0; }
+    if (m.funded && scene === 'roulette')  { rou.real = true; rou.stack = m.stack || 0; }
+    if (m.funded && scene === 'craps')     { cr.real = true;  cr.stack = m.stack || 0; }
+    if (m.funded && scene === 'blackjack') { bj.real = true;  bj.stack = m.stack || 0; }
     if (m.game) {
       if (scene === 'craps') crAdoptNet(m.game);
       else if (scene === 'roulette') rouAdoptNet(m.game);
@@ -1834,6 +1835,39 @@ const tableHandlers = {
   crsettle(m) {
     if (scene !== 'craps' || !cr.real) return;
     cr.pendingSettle = { credit: m.credit, stack: m.stack, bets: m.bets, seven: m.seven };   // applied when dice land
+  },
+  /* server-authoritative blackjack: the DO deals + settles */
+  bjbal(m) { if (scene === 'blackjack' && bj.real) { bj.stack = m.stack; } },
+  bjdeal(m) {
+    if (scene !== 'blackjack' || !bj.real) return;
+    bj.hand = (m.hand || []).map(c => ({ r: c.r, s: c.s, up: true }));
+    bj.dealer = m.up ? [{ r: m.up.r, s: m.up.s, up: true }] : [];
+    bj.bet = m.bet || 0; bj.hole = true; bj.busted = false; bj.result = ''; bj.menuIdx = 0;
+    bj.state = m.done ? 'stood' : 'player';
+    bj.decideUntil = bj.net.until;
+    dealerSay('Dealer shows ' + CARD_CALLED[m.up.r], 300, CALL_BEAT);
+  },
+  bjhand(m) {
+    if (scene !== 'blackjack' || !bj.real) return;
+    bj.hand = (m.hand || []).map(c => ({ r: c.r, s: c.s, up: true }));
+    bj.bet = m.bet || bj.bet; bj.stack = m.stack != null ? m.stack : bj.stack;
+    if (handValue(bj.hand) > 21) bj.busted = true;
+    if (m.done) bj.state = 'stood';
+  },
+  bjsettle(m) {
+    if (scene !== 'blackjack' || !bj.real) return;
+    bj.dealer = (m.dealer || []).map(c => ({ r: c.r, s: c.s, up: true }));
+    bj.hole = false;
+    bj.stack = m.stack != null ? m.stack : bj.stack;
+    const bet = m.bet || bj.bet, payout = m.payout || 0;
+    if (bj.busted || handValue(bj.hand) > 21) bj.result = 'BUST  -' + bet;
+    else if (payout > bet * 2) bj.result = 'BLACKJACK!  +' + (payout - bet);
+    else if (payout === bet * 2) bj.result = 'YOU WIN  +' + bet;
+    else if (payout === bet) bj.result = 'PUSH';
+    else bj.result = 'DEALER WINS  -' + bet;
+    if (payout > bet) sound.win(); else if (payout === 0) sound.lose();
+    bj.flash = payout > bet ? 40 : 0;
+    bj.state = 'result'; bj.actIdx = 0;
   },
   phase(m) {
     if (scene === 'craps') {
@@ -4461,6 +4495,8 @@ function enterBlackjack() {
   bj.hand = []; bj.dealer = []; bj.hole = true; bj.busted = false;
   bj.pendFlip = null; bj.afterFlip = null;
   bj.net = { active:false, phase:'', until:0 };
+  /* real-money seat: server deals + settles (confirmed by welcome.funded) */
+  bj.real = moneyMode(); bj.stack = 0; bj.sentBet = -1;
   modal = null;
   popups.length = 0;
   lastActMs = Date.now();
@@ -4752,12 +4788,18 @@ function bjNetPhase(m) {
   if (m.phase === 'betting') {
     bj.state = 'bet'; bj.hand = []; bj.dealer = []; bj.hole = true;
     bj.result = ''; bj.busted = false; bj.betAmt = 0; bj.bet = 0; bj.menuIdx = 0; bj.actIdx = 0;
+    bj.sentBet = -1;                       // fresh betting window (real mode)
     dealerSay(BET_CALLS[Math.floor(Math.random() * BET_CALLS.length)], 300);
   } else if (m.phase === 'action') {
-    if (bj.betAmt > 0 && bj.state === 'bet') bjDealNet(m.up);
+    /* real mode: the server deals your hand via a bjdeal message — do nothing
+       here; a seat that placed no bet just watches. */
+    if (bj.real) { if (bj.betAmt <= 0) { bj.state = 'stood'; bj.hand = []; bj.dealer = m.up ? [{ r:m.up.r, s:m.up.s, up:true }] : []; bj.hole = true; } }
+    else if (bj.betAmt > 0 && bj.state === 'bet') bjDealNet(m.up);
     else { bj.state = 'stood'; bj.hand = []; bj.dealer = m.up ? [{ r:m.up.r, s:m.up.s, up:true }] : []; bj.hole = true; }
   } else if (m.phase === 'outcome') {
-    if (bj.bet > 0 && (bj.state === 'player' || bj.state === 'stood') && bj.hand.length) bjNetSettle(m.dealer);
+    /* real mode: the server settles via a bjsettle message. */
+    if (bj.real) { if (!bj.hand.length) { bj.dealer = (m.dealer || []).map(c => ({ r:c.r, s:c.s, up:true })); bj.hole = false; bj.state = 'result'; } }
+    else if (bj.bet > 0 && (bj.state === 'player' || bj.state === 'stood') && bj.hand.length) bjNetSettle(m.dealer);
     else { bj.dealer = (m.dealer || []).map(c => ({ r:c.r, s:c.s, up:true })); bj.hole = false; bj.state = 'result'; }
   }
 }
@@ -4772,7 +4814,9 @@ function bjUpdateNet() {
   if (bj.state === 'bet') {
     maybeTableQuip('blackjack');
     bjTrayTap();
-    if (bj.betAmt > chips) bj.betAmt = chips;
+    if (!bj.real && bj.betAmt > chips) bj.betAmt = chips;
+    /* real mode: register the wager with the server as it changes */
+    if (bj.real && bj.betAmt >= 1 && bj.betAmt !== bj.sentBet) { social.table.send({ t: 'bjbet', amount: bj.betAmt }); bj.sentBet = bj.betAmt; }
     const pick = bjMenu(['BET','EMOJI','TIP'], 'actIdx');
     if (aQueued) {
       aQueued = false;
@@ -4782,12 +4826,18 @@ function bjUpdateNet() {
     }
   }
   else if (bj.state === 'player') {
-    const canDouble = bj.hand.length === 2 && chips >= bj.bet;
+    const canDouble = bj.hand.length === 2 && (bj.real ? bj.stack : chips) >= bj.bet;
     const menu = canDouble ? ['HIT','STAND','DOUBLE'] : ['HIT','STAND'];
     const pick = bjMenu(menu, 'menuIdx');
     if (aQueued) {
       aQueued = false;
-      if (pick === 'HIT') {
+      if (bj.real) {
+        /* server-authoritative: send the action; the hand comes back via bjhand */
+        if (pick === 'HIT') { social.table.send({ t: 'bjhit' }); sound.card(); }
+        else if (pick === 'STAND') { social.table.send({ t: 'bjstand' }); }
+        else if (pick === 'DOUBLE') { social.table.send({ t: 'bjdouble' }); sound.chip(); }
+      }
+      else if (pick === 'HIT') {
         const c = bj.deck.pop(); c.up = true; bj.hand.push(c); sound.card(); bjJournal();
         const v = handValue(bj.hand);
         if (v > 21) { bj.busted = true; bj.state = 'stood'; }
@@ -6109,7 +6159,8 @@ function drawHUD(g) {
   g.textBaseline = 'middle';
   /* in a real-money seat the authoritative balance is the server stack */
   const shown = (scene === 'roulette' && rou.real) ? rou.stack
-              : (scene === 'craps' && cr.real) ? cr.stack : chips;
+              : (scene === 'craps' && cr.real) ? cr.stack
+              : (scene === 'blackjack' && bj.real) ? bj.stack : chips;
   g.fillText(String(shown), 17, 9);
   g.textBaseline = 'top';
 }
