@@ -229,16 +229,21 @@ export class ClubNileRoom {
       if (!timingSafeEq(expect, sig)) return null;
       const p = JSON.parse(decodeURIComponent(escape(atob(b64.replace(/-/g, '+').replace(/_/g, '/')))));
       if (!p || p.tokenId == null || !p.player || !p.exp || Date.now() > p.exp) return null;
-      return { tokenId: String(p.tokenId), player: String(p.player).toLowerCase() };
+      // kind selects the custody purse: 'tourney' seats spend the token cage
+      // (tcage:), everything else the AVAX-backed chip cage (cage:).
+      const kind = p.kind === 'tourney' ? 'tourney' : 'chip';
+      return { tokenId: String(p.tokenId), player: String(p.player).toLowerCase(), kind };
     } catch (e) { return null; }
   }
-  async bindStack(sess, tokenId, player) {
+  cageKey(kind, tokenId) { return (kind === 'tourney' ? 'tcage:' : 'cage:') + tokenId; }
+  async bindStack(sess, tokenId, player, kind) {
     try {
-      const rec = await this.env.RUNNER_KV.get('cage:' + tokenId, { type: 'json' });
+      const rec = await this.env.RUNNER_KV.get(this.cageKey(kind, tokenId), { type: 'json' });
       if (!rec || rec.pendingCashout) return;                       // no buy-in, or mid-cashout
       if (rec.player && rec.player.toLowerCase() !== player) return; // not this wallet's token
       sess.tokenId = String(tokenId);
       sess.player  = player;
+      sess.kind    = kind === 'tourney' ? 'tourney' : 'chip';
       sess.stack   = rec.stack || 0;
       sess.funded  = true;
     } catch (e) { /* unfunded seat */ }
@@ -246,7 +251,7 @@ export class ClubNileRoom {
   async flushStack(sess) {
     if (!sess || !sess.funded || sess.tokenId == null) return;
     try {
-      const key = 'cage:' + sess.tokenId;
+      const key = this.cageKey(sess.kind, sess.tokenId);
       const rec = (await this.env.RUNNER_KV.get(key, { type: 'json' })) || { player: sess.player, stack: 0 };
       if (rec.pendingCashout) return;   // a cash-out is in flight — never overwrite / double-credit
       rec.player = sess.player || rec.player;
@@ -483,7 +488,7 @@ export class ClubNileRoom {
                    tokenId: null, player: null, stack: 0, bets: {}, funded: false };
     this.sessions.set(server, sess);
     // load the authoritative cage stack for a verified money seat
-    if (authClaim && isTable) await this.bindStack(sess, authClaim.tokenId, authClaim.player);
+    if (authClaim && isTable) await this.bindStack(sess, authClaim.tokenId, authClaim.player, authClaim.kind);
 
     /* the first player at a table starts the shared clock */
     if (this.isGame()) this.startGameIfIdle(sess.id);

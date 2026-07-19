@@ -82,6 +82,7 @@ const GAMBLE_ABI = [
   'function wagerPlayers(uint256 nonce) view returns (address)',
   'function usedNonces(uint256 nonce) view returns (bool)',
   'event CageBuyIn(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
+  'event TourneyWithdraw(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
 ];
 
 
@@ -153,6 +154,20 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/cage/session') {
         return await handleCageSession(request, env);
+      }
+
+      // ── The tournament-token cage: withdraw to play / deposit back ──
+      if (request.method === 'POST' && url.pathname === '/tourney/withdraw') {
+        return await handleTourneyWithdraw(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/tourney/balance') {
+        return await handleTourneyBalance(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/tourney/deposit') {
+        return await handleTourneyDeposit(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/tourney/session') {
+        return await handleTourneySession(request, env);
       }
 
       // ── WebSocket upgrade → Durable Object ──
@@ -615,6 +630,118 @@ async function handleCageCashout(request, env) {
   const messageHash  = ethers.solidityPackedKeccak256(
     ['uint256', 'uint256', 'uint256', 'address'],
     [BigInt(tokenId), BigInt(amount), nonce, player]
+  );
+  const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
+
+  cur.pendingCashout = { amount, nonce: nonce.toString(), signature };
+  cur.stack = 0;
+  await env.RUNNER_KV.put(key, JSON.stringify(cur), { expirationTtl: CAGE_SESSION_TTL });
+
+  return json({ ok: true, amount, nonce: nonce.toString(), signature });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  THE TOURNAMENT-TOKEN CAGE — withdraw tokens to play, deposit remaining back.
+//  Identical custody to the chip cage but for tournament TOKENS (id 1): stacks
+//  live under tcage:{tokenId}, the play session is tagged kind:'tourney' so the
+//  DO binds the token purse, and the deposit signature is domain-tagged
+//  "TOURNEY" to match Gamble.tourneyDeposit. Losses stay burnt.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /tourney/withdraw  { tokenId, player, txHash }
+async function handleTourneyWithdraw(request, env) {
+  const { tokenId, player, txHash } = await parseBody(request);
+  if (tokenId == null || !player || !txHash) {
+    return json({ error: 'Missing tokenId, player, or txHash' }, 400);
+  }
+  if (!ethers.isAddress(player)) return json({ error: 'Invalid player address' }, 400);
+
+  const seenKey = `tcage_tx:${String(txHash).toLowerCase()}`;
+  if (await env.RUNNER_KV.get(seenKey)) return json({ error: 'Withdraw already registered' }, 409);
+
+  const provider = new ethers.JsonRpcProvider(env.READ_RPC);
+  const receipt  = await provider.getTransactionReceipt(txHash);
+  if (!receipt || receipt.status !== 1) return json({ error: 'Transaction not found or failed' }, 400);
+
+  // Find the TourneyWithdraw event from the Gamble contract (proves the token burn)
+  const iface = new ethers.Interface(GAMBLE_ABI);
+  let amount = 0;
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== env.GAMBLE_ADDRESS.toLowerCase()) continue;
+    let parsed;
+    try { parsed = iface.parseLog(log); } catch { continue; }
+    if (parsed && parsed.name === 'TourneyWithdraw'
+        && String(parsed.args.tokenId) === String(tokenId)
+        && parsed.args.player.toLowerCase() === player.toLowerCase()) {
+      amount = Number(parsed.args.amount);
+      break;
+    }
+  }
+  if (amount <= 0) return json({ error: 'No matching TourneyWithdraw in this transaction' }, 400);
+
+  const key = `tcage:${tokenId}`;
+  const cur = (await env.RUNNER_KV.get(key, { type: 'json' })) || { player: player.toLowerCase(), stack: 0 };
+  cur.player = player.toLowerCase();
+  cur.stack  = (cur.stack || 0) + amount;
+  delete cur.pendingCashout;
+  await env.RUNNER_KV.put(key, JSON.stringify(cur), { expirationTtl: CAGE_SESSION_TTL });
+  await env.RUNNER_KV.put(seenKey, '1', { expirationTtl: CAGE_SESSION_TTL });
+
+  const exp = Date.now() + 1000 * 60 * 60 * 24;   // 24h
+  const token = await issueSessionToken(env.ORACLE_PRIVATE_KEY, { tokenId: String(tokenId), player: player.toLowerCase(), exp, kind: 'tourney' });
+
+  return json({ ok: true, credited: amount, stack: cur.stack, session: token, exp });
+}
+
+// POST /tourney/session  { tokenId, player }  — RESUME a token stack (no new signature)
+async function handleTourneySession(request, env) {
+  const { tokenId, player } = await parseBody(request);
+  if (tokenId == null || !player) return json({ error: 'Missing tokenId or player' }, 400);
+  if (!ethers.isAddress(player)) return json({ error: 'Invalid player address' }, 400);
+
+  const rec = await env.RUNNER_KV.get(`tcage:${tokenId}`, { type: 'json' });
+  if (!rec || (rec.stack || 0) <= 0) return json({ error: 'No funded token stack for this token' }, 400);
+  if (rec.player && rec.player.toLowerCase() !== player.toLowerCase()) return json({ error: 'Token/player mismatch' }, 403);
+  if (rec.pendingCashout) return json({ error: 'Deposit in flight — finish it first' }, 409);
+
+  const exp = Date.now() + 1000 * 60 * 60 * 24;   // 24h
+  const token = await issueSessionToken(env.ORACLE_PRIVATE_KEY, { tokenId: String(tokenId), player: player.toLowerCase(), exp, kind: 'tourney' });
+  return json({ ok: true, token, exp });
+}
+
+// POST /tourney/balance  { tokenId }  → authoritative token play stack
+async function handleTourneyBalance(request, env) {
+  const { tokenId } = await parseBody(request);
+  if (tokenId == null) return json({ error: 'Missing tokenId' }, 400);
+  const cur = (await env.RUNNER_KV.get(`tcage:${tokenId}`, { type: 'json' })) || { stack: 0 };
+  return json({ ok: true, stack: cur.stack || 0 });
+}
+
+// POST /tourney/deposit  { tokenId, player }
+// Signs the current server-tracked token stack for on-chain tourneyDeposit.
+// Message is domain-tagged "TOURNEY". Idempotent on retry.
+async function handleTourneyDeposit(request, env) {
+  const { tokenId, player } = await parseBody(request);
+  if (tokenId == null || !player) return json({ error: 'Missing tokenId or player' }, 400);
+  if (!ethers.isAddress(player)) return json({ error: 'Invalid player address' }, 400);
+
+  const key = `tcage:${tokenId}`;
+  const cur = await env.RUNNER_KV.get(key, { type: 'json' });
+  if (!cur) return json({ error: 'Nothing to deposit' }, 400);
+  if (cur.player && cur.player.toLowerCase() !== player.toLowerCase()) {
+    return json({ error: 'Player mismatch' }, 403);
+  }
+  if (cur.pendingCashout) return json({ ok: true, ...cur.pendingCashout });   // idempotent retry
+  if ((cur.stack || 0) <= 0) return json({ error: 'Nothing to deposit' }, 400);
+
+  const amount = cur.stack;
+  const nonce = (BigInt(1) << BigInt(200)) + BigInt(Date.now()) * BigInt(1000) + BigInt(Math.floor(Math.random() * 1000));
+
+  const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
+  // Must match Gamble.tourneyDeposit: keccak256(abi.encodePacked("TOURNEY", tokenId, amount, nonce, player))
+  const messageHash  = ethers.solidityPackedKeccak256(
+    ['string', 'uint256', 'uint256', 'uint256', 'address'],
+    ['TOURNEY', BigInt(tokenId), BigInt(amount), nonce, player]
   );
   const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
 
