@@ -75,19 +75,20 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 ---
 
-## Smart Contracts (7 total, in `/contracts`)
+## Smart Contracts (8 total, in `/contracts`)
 
 | Contract | Purpose |
 |----------|---------|
 | `MembersOnly.sol` | ERC-721 NFT (888 max, 0.02 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
 | `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.01 AVAX-backed) + tournament tokens (token 1, free) + items. `payFromChips(from, amount, recipient)` (authorized) burns a payer's chips and releases the backing AVAX to a payee — the on-chain leg of a chip tip/buy, solvency-preserving. |
-| `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
+| `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker). Two cages: the **chip cage** (`cageBuyIn`/`cageCashOut`, AVAX-backed chips) and the **tournament-token cage** (`tourneyWithdraw`/`tourneyDeposit`, free tokens id 1) — same two-signature custody; tourney deposit sigs are domain-tagged `"TOURNEY"` so they can't be replayed against the chip cage. |
 | `Market.sol` | Player-to-player NFT/item trading |
-| `Tournament.sol` | Tournament system: enter (burns tournament tokens), lock score, rebuy, leaderboard |
+| `Tournament.sol` | Legacy tournament system: enter (burns tournament tokens), lock score, rebuy, rank-based prize pool. Superseded by the burn-for-yield leaderboard below for the in-game tournament room. |
+| `TournamentLeaderboard.sol` | **Burn-for-yield leaderboard.** Players burn tournament tokens (min 2000) to hold a spot on the month's board (records NFT name + cumulative burned). Owner funds a monthly AVAX pool (`fundYield`); `closeEpoch` freezes claims + resets the board for the next month; each entrant pull-`claim`s a **pro-rata share** (`burned/totalBurned`) to the current NFT owner. Funded pools shielded from `withdrawSurplus`. |
 | `TraditionalGambling.sol` | Standalone ETH-backed chip house (no NFT gate), 1 chip = 0.005 ETH |
 | `Tips.sol` | Routes CHIP tips & gallery buys to payees via `Items.payFromChips`. Owner-set **team wallet**; owner-updatable **creator registry** (bytes32 id → wallet) for band songwriters & gallery artists — re-point wallets any time as the line-up changes. Tournament TOKEN tips are prize-only and never routed here. |
 
-**Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, Tournament (for chip mint/burn), and **Tips** (for `payFromChips`). MembersOnly also needs `setItems(itemsAddress)` to know about Items.
+**Authorization chain:** Owner must call `setGameContract(address, true)` on **MembersOnlyItems** to authorize MembersOnly, Gamble, Tournament (for chip mint/burn), **Tips** (for `payFromChips`), and **TournamentLeaderboard** (to burn tournament tokens). MembersOnly also needs `setItems(itemsAddress)` to know about Items. `deployEverything.js` wires all of this.
 
 **Key constants:**
 - `MAX_SUPPLY`: 888
