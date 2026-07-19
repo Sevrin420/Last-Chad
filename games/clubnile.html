@@ -6909,8 +6909,7 @@ document.getElementById('mint-go').addEventListener('click', async () => {
 /* ── the cage: buy chips in to play / cash your stack back to your wallet ── */
 const CAGE_CFG = {
   items:  '0x66A3828a06b3C1Bf6D6DE39E229468e365e22EA5',   // MembersOnlyItems (chips = id 0)
-  gamble: '0xFd6eb6DCc63E47a554B9a4C6434034E86Dd394B8',   // Gamble (cageBuyIn / cageCashOut)
-  leaderboard: '0x0000000000000000000000000000000000000000', // TournamentLeaderboard (set on deploy)
+  casino: '0x0000000000000000000000000000000000000000',   // Casino (cages + leaderboard + tips; set on deploy)
   worker: 'https://last-chad-runner.severin20.workers.dev'
 };
 const ITEMS_MIN_ABI  = ['function balanceOf(address account, uint256 id) view returns (uint256)'];
@@ -6966,7 +6965,7 @@ document.getElementById('cage-buyin').addEventListener('click', async () => {
     if (!mintSigner) return cageStatus('Connect a wallet first.', false);
     const amt = parseInt(document.getElementById('cage-in').value || '0', 10);
     if (amt < 1) return cageStatus('Enter an amount to withdraw.', false);
-    const g = new window.ethers.Contract(CAGE_CFG.gamble, GAMBLE_MIN_ABI, mintSigner);
+    const g = new window.ethers.Contract(CAGE_CFG.casino, GAMBLE_MIN_ABI, mintSigner);
     cageStatus('Confirm the buy-in in your wallet… (burns ' + amt + ' chips)');
     const tx = await g.cageBuyIn(PLAYER_TOKEN, amt);
     await tx.wait();
@@ -6996,7 +6995,7 @@ document.getElementById('cage-cashout').addEventListener('click', async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     const { amount, nonce, signature } = data;
-    const g = new window.ethers.Contract(CAGE_CFG.gamble, GAMBLE_MIN_ABI, mintSigner);
+    const g = new window.ethers.Contract(CAGE_CFG.casino, GAMBLE_MIN_ABI, mintSigner);
     cageStatus('Confirm the cash-out in your wallet… (' + amount + ' chips)');
     const tx = await g.cageCashOut(PLAYER_TOKEN, amount, nonce, signature);
     await tx.wait();
@@ -7052,7 +7051,7 @@ document.getElementById('tcage-withdraw').addEventListener('click', async () => 
     if (!mintSigner) return tcageStatus('Connect a wallet first.', false);
     const amt = parseInt(document.getElementById('tcage-in').value || '0', 10);
     if (amt < 1) return tcageStatus('Enter how many tokens to withdraw.', false);
-    const g = new window.ethers.Contract(CAGE_CFG.gamble, GAMBLE_MIN_ABI, mintSigner);
+    const g = new window.ethers.Contract(CAGE_CFG.casino, GAMBLE_MIN_ABI, mintSigner);
     tcageStatus('Confirm the withdraw in your wallet… (burns ' + amt + ' tokens)');
     const tx = await g.tourneyWithdraw(PLAYER_TOKEN, amt);
     await tx.wait();
@@ -7083,7 +7082,7 @@ document.getElementById('tcage-deposit').addEventListener('click', async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     const { amount, nonce, signature } = data;
-    const g = new window.ethers.Contract(CAGE_CFG.gamble, GAMBLE_MIN_ABI, mintSigner);
+    const g = new window.ethers.Contract(CAGE_CFG.casino, GAMBLE_MIN_ABI, mintSigner);
     tcageStatus('Confirm the deposit in your wallet… (' + amount + ' tokens)');
     const tx = await g.tourneyDeposit(PLAYER_TOKEN, amount, nonce, signature);
     await tx.wait();
@@ -7098,10 +7097,10 @@ document.getElementById('tcage-deposit').addEventListener('click', async () => {
 document.getElementById('tcage-burn').addEventListener('click', async () => {
   try {
     if (!mintSigner) return tcageStatus('Connect a wallet first.', false);
-    if (!CAGE_CFG.leaderboard || /^0x0+$/.test(CAGE_CFG.leaderboard)) return tcageStatus('Leaderboard not live yet.', false);
+    if (!CAGE_CFG.casino || /^0x0+$/.test(CAGE_CFG.casino)) return tcageStatus('Leaderboard not live yet.', false);
     const amt = parseInt(document.getElementById('tcage-burn-in').value || '0', 10);
     if (amt < 2000) return tcageStatus('Minimum 2000 tokens to enter the board.', false);
-    const lb = new window.ethers.Contract(CAGE_CFG.leaderboard, LEADERBOARD_MIN_ABI, mintSigner);
+    const lb = new window.ethers.Contract(CAGE_CFG.casino, LEADERBOARD_MIN_ABI, mintSigner);
     tcageStatus('Confirm the burn in your wallet… (' + amt + ' tokens, permanent)');
     const tx = await lb.burnForLeaderboard(PLAYER_TOKEN, amt);
     await tx.wait();
@@ -7116,11 +7115,11 @@ document.getElementById('tcage-board').addEventListener('click', renderLeaderboa
 async function renderLeaderboard() {
   const el = document.getElementById('tcage-board-list');
   if (!el) return;
-  if (!CAGE_CFG.leaderboard || /^0x0+$/.test(CAGE_CFG.leaderboard)) { el.textContent = 'Leaderboard not live yet.'; return; }
+  if (!CAGE_CFG.casino || /^0x0+$/.test(CAGE_CFG.casino)) { el.textContent = 'Leaderboard not live yet.'; return; }
   try {
     el.textContent = 'Loading…';
     const provider = new window.ethers.providers.Web3Provider(window.ethereum);
-    const lb = new window.ethers.Contract(CAGE_CFG.leaderboard, LEADERBOARD_MIN_ABI, provider);
+    const lb = new window.ethers.Contract(CAGE_CFG.casino, LEADERBOARD_MIN_ABI, provider);
     const epoch = await lb.epoch();
     const [ids, names, amounts] = await lb.leaderboard(epoch, 0, 50);
     const rows = ids.map((id, i) => ({ id: id.toString(), name: names[i] || ('#' + id), amt: Number(amounts[i]) }))

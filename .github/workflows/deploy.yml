@@ -19,17 +19,9 @@ on:
         default: 'everything'
         type: choice
         options:
-          - everything       # Deploy ALL 5 contracts + wire + worker (full protocol)
-          - all-contracts    # Deploy MembersOnly + MembersOnlyItems only
-          - gamble           # Deploy Gamble only
+          - everything       # Deploy all 3 contracts (MembersOnly + Items + Casino) + wire + worker
           - worker           # Cloudflare Worker only
-          - authorize        # Re-authorize game contracts in MembersOnly + Items
-          - verify           # Verify all contracts on Snowtrace (no deploy)
-          - validate         # On-chain validation: confirm all contracts are live and wired
-          - gamble-open      # Open the gambling den (authorize Gamble in MembersOnly)
-          - gamble-close     # Close the gambling den / maintenance mode (de-authorize Gamble)
           - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
-          - approve-market   # Whitelist MembersOnly + Items on the Market contract
           - setup-invitation # Create invitation item + airdrop to wallets
           - airdrop-member   # Mint NFT + chips to a wallet
           - reset-tables     # Reset all 6 public craps tables (nuke stuck game state)
@@ -56,7 +48,7 @@ jobs:
   deploy-contract:
     name: Deploy Contracts (${{ inputs.network }})
     runs-on: ubuntu-latest
-    if: inputs.target == 'everything' || inputs.target == 'all-contracts' || inputs.target == 'gamble'
+    if: inputs.target == 'everything'
     environment: mainnet
 
     steps:
@@ -71,25 +63,11 @@ jobs:
 
       - run: npm ci
 
-      - name: Deploy everything (all 5 contracts + wiring)
-        if: inputs.target == 'everything'
+      - name: Deploy everything (3 contracts + wiring)
         env:
           PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
           ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
         run: npx hardhat run scripts/deployEverything.js --network ${{ inputs.network }}
-
-      - name: Deploy all contracts (MembersOnly + Items)
-        if: inputs.target == 'all-contracts'
-        env:
-          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/deployAll.js --network ${{ inputs.network }}
-
-      - name: Deploy Gamble only
-        if: inputs.target == 'gamble'
-        env:
-          PRIVATE_KEY:    ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          ORACLE_ADDRESS: ${{ secrets.ORACLE_ADDRESS }}
-        run: npx hardhat run scripts/deployGamble.js --network ${{ inputs.network }}
 
       - name: Commit updated config + game page
         run: |
@@ -114,8 +92,7 @@ jobs:
     if: |
       always() &&
       (inputs.target == 'worker' ||
-       (inputs.target == 'everything' && needs.deploy-contract.result == 'success') ||
-       (inputs.target == 'all-contracts' && needs.deploy-contract.result == 'success'))
+       (inputs.target == 'everything' && needs.deploy-contract.result == 'success'))
 
     steps:
       - uses: actions/checkout@v4
@@ -166,125 +143,6 @@ jobs:
           fi
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Job 3: Re-authorize game contracts
-  # ───────────────────────────────────────────────────────────────────────────
-  authorize-contracts:
-    name: Authorize Contracts (Avalanche Mainnet)
-    runs-on: ubuntu-latest
-    if: inputs.target == 'authorize'
-    environment: mainnet
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Authorize game contracts in MembersOnly + MembersOnlyItems
-        env:
-          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/authorizeContracts.js --network ${{ inputs.network }}
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 4: Verify contracts on Snowtrace
-  # Reads addresses from js/config.js — no private key needed
-  # ───────────────────────────────────────────────────────────────────────────
-  verify-contracts:
-    name: Verify Contracts (Avalanche Mainnet)
-    runs-on: ubuntu-latest
-    if: inputs.target == 'verify'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Verify all contracts on Snowtrace
-        env:
-          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
-        run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 4b: Validate contracts on-chain (read-only, no secrets needed)
-  # Confirms all 6 contracts are live and correctly wired together.
-  # ───────────────────────────────────────────────────────────────────────────
-  validate-contracts:
-    name: Validate Contracts (Avalanche Mainnet)
-    runs-on: ubuntu-latest
-    if: inputs.target == 'validate'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Validate all contracts on-chain
-        run: npx hardhat run scripts/validateContracts.js --network ${{ inputs.network }}
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 6: Open or close the gambling den
-  # ───────────────────────────────────────────────────────────────────────────
-  toggle-gamble:
-    name: ${{ inputs.target == 'gamble-open' && 'Open Gambling Den' || 'Close Gambling Den (Maintenance)' }} (Avalanche Mainnet)
-    runs-on: ubuntu-latest
-    if: inputs.target == 'gamble-open' || inputs.target == 'gamble-close'
-    environment: mainnet
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Toggle gambling den authorization
-        env:
-          PRIVATE_KEY:  ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          GAMBLE_OPEN:  ${{ inputs.target == 'gamble-open' && 'true' || 'false' }}
-        run: npx hardhat run scripts/toggleGamble.js --network ${{ inputs.network }}
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 8: Whitelist MembersOnly + Items on the Market contract
-  # ───────────────────────────────────────────────────────────────────────────
-  approve-market:
-    name: Approve Contracts on Market (Avalanche Mainnet)
-    runs-on: ubuntu-latest
-    if: inputs.target == 'approve-market'
-    environment: mainnet
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Whitelist MembersOnly + Items on Market contract
-        env:
-          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/approveMarketContracts.js --network ${{ inputs.network }}
-
-  # ───────────────────────────────────────────────────────────────────────────
   # Job: Fix Worker — sync addresses from js/config.js and redeploy
   # Safe to run anytime — no on-chain transactions.
   # ───────────────────────────────────────────────────────────────────────────
@@ -304,15 +162,15 @@ jobs:
         working-directory: worker
         run: |
           CONTRACT=$(grep "CONTRACT_ADDRESS\b" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
-          GAMBLE=$(grep "GAMBLE_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
+          CASINO=$(grep "CASINO_ADDRESS" ../js/config.js | head -1 | sed "s/.*'\(0x[a-fA-F0-9]*\)'.*/\1/")
           RPC=$(grep "READ_RPC" ../js/config.js | head -1 | sed "s/.*'\(https[^']*\)'.*/\1/")
 
           echo "Contract: $CONTRACT"
-          echo "Gamble:   $GAMBLE"
+          echo "Casino:   $CASINO"
           echo "RPC:      $RPC"
 
           sed -i "s|CONTRACT_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|CONTRACT_ADDRESS      = \"${CONTRACT}\"|" wrangler.toml
-          sed -i "s|GAMBLE_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|GAMBLE_ADDRESS        = \"${GAMBLE}\"|" wrangler.toml
+          sed -i "s|CASINO_ADDRESS.*=.*\"0x[a-fA-F0-9]*\"|CASINO_ADDRESS        = \"${CASINO}\"|" wrangler.toml
           sed -i "s|READ_RPC.*=.*\"https[^\"]*\"|READ_RPC              = \"${RPC}\"|" wrangler.toml
 
           echo "--- Updated wrangler.toml ---"

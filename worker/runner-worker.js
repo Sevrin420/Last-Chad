@@ -14,7 +14,7 @@
  *
  * wrangler.toml vars:
  *   CONTRACT_ADDRESS    — MembersOnly.sol contract address
- *   GAMBLE_ADDRESS      — Gamble.sol contract address
+ *   CASINO_ADDRESS      — Casino.sol contract address
  *   READ_RPC            — Avalanche read RPC URL
  */
 
@@ -77,7 +77,7 @@ function isValidHashCashTable(tableCode) {
   return HASHCASH_PUBLIC_TABLES.some(t => t.name === tableCode) || tableCode.startsWith('hcpriv-');
 }
 
-const GAMBLE_ABI = [
+const CASINO_ABI = [
   'function wagerAmounts(uint256 nonce) view returns (uint256)',
   'function wagerPlayers(uint256 nonce) view returns (address)',
   'function usedNonces(uint256 nonce) view returns (bool)',
@@ -322,7 +322,7 @@ async function handlePokerStart(request, env) {
 
   // Verify wager exists on-chain
   const provider = new ethers.JsonRpcProvider(env.READ_RPC);
-  const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
+  const gamble   = new ethers.Contract(env.CASINO_ADDRESS, CASINO_ABI, provider);
   const wager    = Number(await gamble.wagerAmounts(BigInt(nonce)));
   if (wager === 0) {
     return json({ error: 'No active wager for this nonce' }, 403);
@@ -542,10 +542,10 @@ async function handleCageBuyin(request, env) {
   if (!receipt || receipt.status !== 1) return json({ error: 'Transaction not found or failed' }, 400);
 
   // Find the CageBuyIn event from the Gamble contract in this tx (proves the burn)
-  const iface = new ethers.Interface(GAMBLE_ABI);
+  const iface = new ethers.Interface(CASINO_ABI);
   let amount = 0;
   for (const log of receipt.logs) {
-    if (log.address.toLowerCase() !== env.GAMBLE_ADDRESS.toLowerCase()) continue;
+    if (log.address.toLowerCase() !== env.CASINO_ADDRESS.toLowerCase()) continue;
     let parsed;
     try { parsed = iface.parseLog(log); } catch { continue; }
     if (parsed && parsed.name === 'CageBuyIn'
@@ -664,10 +664,10 @@ async function handleTourneyWithdraw(request, env) {
   if (!receipt || receipt.status !== 1) return json({ error: 'Transaction not found or failed' }, 400);
 
   // Find the TourneyWithdraw event from the Gamble contract (proves the token burn)
-  const iface = new ethers.Interface(GAMBLE_ABI);
+  const iface = new ethers.Interface(CASINO_ABI);
   let amount = 0;
   for (const log of receipt.logs) {
-    if (log.address.toLowerCase() !== env.GAMBLE_ADDRESS.toLowerCase()) continue;
+    if (log.address.toLowerCase() !== env.CASINO_ADDRESS.toLowerCase()) continue;
     let parsed;
     try { parsed = iface.parseLog(log); } catch { continue; }
     if (parsed && parsed.name === 'TourneyWithdraw'
@@ -781,7 +781,7 @@ async function handleBlackjackStart(request, env) {
   if (!ethers.isAddress(player)) return json({ error: 'Invalid address' }, 400);
 
   const provider = new ethers.JsonRpcProvider(env.READ_RPC);
-  const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
+  const gamble   = new ethers.Contract(env.CASINO_ADDRESS, CASINO_ABI, provider);
   const wager    = Number(await gamble.wagerAmounts(BigInt(nonce)));
   if (wager === 0) return json({ error: 'No active wager' }, 403);
   const onChain = (await gamble.wagerPlayers(BigInt(nonce))).toLowerCase();
@@ -1124,7 +1124,7 @@ async function handleCrapsStart(request, env) {
 
   // Verify wager on-chain
   const provider = new ethers.JsonRpcProvider(env.READ_RPC);
-  const gamble   = new ethers.Contract(env.GAMBLE_ADDRESS, GAMBLE_ABI, provider);
+  const gamble   = new ethers.Contract(env.CASINO_ADDRESS, CASINO_ABI, provider);
 
   const used = await gamble.usedNonces(BigInt(nonce));
   if (used) {

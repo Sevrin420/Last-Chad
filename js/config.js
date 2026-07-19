@@ -9,13 +9,9 @@
 // ══════════════════════════════════════════════════════════════════════
 
 // ── Contract addresses (update after deployment) ─────────────────────
-export const CONTRACT_ADDRESS        = '0x1517f9a3D3005c01019B780dE7153a0A3292E2DE'; // MembersOnly
-export const ITEMS_CONTRACT_ADDRESS  = '0x66A3828a06b3C1Bf6D6DE39E229468e365e22EA5'; // MembersOnlyItems
-export const MARKET_ADDRESS          = '0x8c36424500a77e0Bd8f9A325F27b2A36086F98E8'; // Market
-export const GAMBLE_ADDRESS          = '0xFd6eb6DCc63E47a554B9a4C6434034E86Dd394B8'; // Gamble
-export const TOURNAMENT_ADDRESS      = '0xCAEee9778c2a06490B52776944B58E1114D7d09b'; // Tournament
-export const TIPS_ADDRESS            = '0xBD52198aaC6A19251f276A5d6C2cEEE22E855E39'; // Tips (set on deploy)
-export const LEADERBOARD_ADDRESS     = '0x0000000000000000000000000000000000000000'; // TournamentLeaderboard (set on deploy)
+export const CONTRACT_ADDRESS        = '0x1517f9a3D3005c01019B780dE7153a0A3292E2DE'; // MembersOnly (ERC-721)
+export const ITEMS_CONTRACT_ADDRESS  = '0x66A3828a06b3C1Bf6D6DE39E229468e365e22EA5'; // MembersOnlyItems (ERC-1155 vault)
+export const CASINO_ADDRESS          = '0x0000000000000000000000000000000000000000'; // Casino operator (set on deploy)
 
 // ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax.network/ext/bc/C/rpc';
@@ -160,111 +156,30 @@ export const ITEMS_ABI = [
   'function setItemClaimable(uint256 itemId, address[] wallets)',
 ];
 
-export const GAMBLE_ABI = [
-  // Generic oracle-signed settlement (blackjack, poker, etc.)
+// ── Casino: the single operator (wagering + both cages + leaderboard + tips) ──
+export const CASINO_ABI = [
+  // Wagering — oracle-signed + two-tx settlement
   'function resolveGame(uint256 tokenId, uint256 wager, uint256 payout, uint8 gameId, uint256 nonce, bytes oracleSig) external',
-  // Admin
-  'function setOracle(address oracle) external',
-  'function setWagerLimits(uint256 min, uint256 max) external',
-  // Two-tx settlement (poker, craps)
   'function commitWager(uint256 tokenId, uint256 wager) external returns (uint256)',
   'function claimWinnings(uint256 tokenId, uint256 payout, uint256 nonce, bytes oracleSig) external',
-  // The Cage: buy-in (burn) / cash-out (oracle-signed mint)
+  // Chip cage (AVAX-backed chips id 0)
   'function cageBuyIn(uint256 tokenId, uint256 amount) external returns (uint256)',
   'function cageCashOut(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig) external',
   'function cageLimit() view returns (uint256)',
-  'function setCageLimit(uint256 limit) external',
-  // The tournament-token cage: withdraw tokens to play / deposit remaining back
+  // Tournament-token cage (free tokens id 1)
   'function tourneyWithdraw(uint256 tokenId, uint256 amount) external returns (uint256)',
   'function tourneyDeposit(uint256 tokenId, uint256 amount, uint256 nonce, bytes oracleSig) external',
   'function tourneyCageLimit() view returns (uint256)',
-  'function setTourneyCageLimit(uint256 limit) external',
-  'event TourneyWithdraw(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
-  'event TourneyDeposit(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
-  // View
-  'function minWager() view returns (uint256)',
-  'function maxWager() view returns (uint256)',
-  'function usedNonces(uint256 nonce) view returns (bool)',
-  'function wagerAmounts(uint256 nonce) view returns (uint256)',
-  'function nextNonce() view returns (uint256)',
-  // Events
-  'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
-  'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
-  'event CageBuyIn(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
-  'event CageCashOut(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
-  'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
-];
-
-export const MARKET_ABI = [
-  'function feeBps() view returns (uint256)',
-  // ERC-721
-  'function getListing(address nftContract, uint256 tokenId) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 price, bool active))',
-  'function getActiveListings(address nftContract, uint256 offset, uint256 limit) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 price, bool active)[] results, uint256 total)',
-  'function buy(address nftContract, uint256 tokenId) payable',
-  'function list(address nftContract, uint256 tokenId, uint256 price)',
-  'function delist(address nftContract, uint256 tokenId)',
-  'event Sold(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 price)',
-  // ERC-1155
-  'function getListing1155(address nftContract, uint256 tokenId, address seller) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 amount, uint256 price, bool active))',
-  'function getActiveListings1155(address nftContract, uint256 offset, uint256 limit) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 amount, uint256 price, bool active)[] results, uint256 total)',
-  'function buy1155(address nftContract, uint256 tokenId, address seller) payable',
-  'function list1155(address nftContract, uint256 tokenId, uint256 price)',
-  'function delist1155(address nftContract, uint256 tokenId)',
-  'event Sold1155(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 amount, uint256 totalPrice)',
-  'function setMembersOnlyContract(address _membersOnly)',
-  'function membersOnlyContract() view returns (address)',
-];
-
-export const TOURNAMENT_ABI = [
-  // Player
-  'function enterTournament(uint256 tournamentId, uint256 tokenId)',
-  'function lockScore(uint256 tournamentId, uint256 tokenId)',
-  // View
-  'function getTournament(uint256 tournamentId) view returns (string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed, bool active, uint256 entryCount)',
-  'function getEntry(uint256 tournamentId, uint256 tokenId) view returns (uint256 tournamentChips, uint256 score, bool entered, uint256 entryCount, bool busted)',
-  'function getLeaderboard(uint256 tournamentId, uint256 offset, uint256 limit) view returns (uint256[] tokenIds, uint256[] scores)',
-  'function getLeaderboardCount(uint256 tournamentId) view returns (uint256)',
-  'function isTournamentActive(uint256 tournamentId) view returns (bool)',
-  'function nextTournamentId() view returns (uint256)',
-  // Owner
-  'function createTournament(string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed) returns (uint256)',
-  'function cancelTournament(uint256 tournamentId)',
-  'function awardTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount)',
-  'function spendTournamentChips(uint256 tournamentId, uint256 tokenId, uint256 amount)',
-  'function distributePrize(address[] winners, uint256[] amounts)',
-  'function withdraw()',
-  // Events
-  'event TournamentCreated(uint256 indexed tournamentId, string name, uint256 startTime, uint256 endTime, uint256 chipCost, uint256 tournamentChips, bool rebuyAllowed)',
-  'event TournamentEntered(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 tournamentChips)',
-  'event ScoreLocked(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 score)',
-  'event ScoreUpdated(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 oldScore, uint256 newScore)',
-];
-
-export const TIPS_ABI = [
-  // Tips & buys — paid in CHIPs, released as AVAX to the payee
+  // Tips & gallery buys — paid in CHIPs, released as AVAX
   'function tipTeam(uint256 chips, string context)',
   'function tipCreator(bytes32 creatorId, uint256 chips, string category, string item)',
   'function buyFromCreator(bytes32 creatorId, uint256 chips, string item)',
-  // Registry
   'function teamWallet() view returns (address)',
   'function creatorWallet(bytes32 creatorId) view returns (address)',
-  // Owner
-  'function setItems(address _items)',
-  'function setTeamWallet(address wallet)',
-  'function setCreator(bytes32 creatorId, address wallet)',
-  'function setCreators(bytes32[] ids, address[] wallets)',
-  // Events
-  'event TeamTip(address indexed from, uint256 chips, uint256 avax, string context)',
-  'event CreatorTip(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string category, string item)',
-  'event Purchase(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string item)',
-];
-
-export const LEADERBOARD_ABI = [
-  // Burn tournament tokens to hold a leaderboard spot (min 2000 to enter)
+  // Burn-for-yield leaderboard (min 2000 to enter; monthly pro-rata)
   'function burnForLeaderboard(uint256 tokenId, uint256 amount)',
   'function MIN_BURN() view returns (uint256)',
   'function epoch() view returns (uint256)',
-  // Per-epoch state
   'function burnedOf(uint256 epoch, uint256 tokenId) view returns (uint256)',
   'function totalBurned(uint256 epoch) view returns (uint256)',
   'function pool(uint256 epoch) view returns (uint256)',
@@ -273,12 +188,31 @@ export const LEADERBOARD_ABI = [
   'function participantCount(uint256 epoch) view returns (uint256)',
   'function leaderboard(uint256 epoch, uint256 offset, uint256 limit) view returns (uint256[] ids, string[] names, uint256[] amounts)',
   'function pendingShare(uint256 epoch, uint256 tokenId) view returns (uint256)',
-  // Monthly yield: fund → close → claim
   'function fundYield() payable',
   'function closeEpoch()',
   'function claim(uint256 epoch, uint256 tokenId) returns (uint256)',
   'function claimMany(uint256 epoch, uint256[] tokenIds)',
+  // Owner
+  'function setOracle(address oracle) external',
+  'function setWagerLimits(uint256 min, uint256 max) external',
+  'function setTeamWallet(address wallet)',
+  'function setCreator(bytes32 creatorId, address wallet)',
+  'function setCreators(bytes32[] ids, address[] wallets)',
+  'function withdrawSurplus(address to)',
+  // View
+  'function usedNonces(uint256 nonce) view returns (bool)',
+  'function nextNonce() view returns (uint256)',
   // Events
+  'event GameResolved(uint256 indexed tokenId, address indexed player, uint8 indexed gameId, uint256 wager, uint256 payout)',
+  'event WagerCommitted(uint256 indexed tokenId, address indexed player, uint256 wager, uint256 nonce)',
+  'event WinningsClaimed(uint256 indexed tokenId, address indexed player, uint256 payout, uint256 nonce)',
+  'event CageBuyIn(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
+  'event CageCashOut(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
+  'event TourneyWithdraw(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
+  'event TourneyDeposit(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce)',
+  'event TeamTip(address indexed from, uint256 chips, uint256 avax, string context)',
+  'event CreatorTip(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string category, string item)',
+  'event Purchase(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string item)',
   'event Burned(uint256 indexed epoch, uint256 indexed tokenId, string name, uint256 amount, uint256 cumulative)',
   'event YieldFunded(uint256 indexed epoch, uint256 amount, uint256 pool)',
   'event EpochClosed(uint256 indexed epoch, uint256 pool, uint256 totalBurned, uint256 nextEpoch)',
