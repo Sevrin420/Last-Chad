@@ -14,6 +14,7 @@ export const ITEMS_CONTRACT_ADDRESS  = '0x67FE75E74de7752EfcEE33f1c3ae72930B954f
 export const MARKET_ADDRESS          = '0x903cb1084f7B23dBcA91FcACd3e0968526465C19'; // Market
 export const GAMBLE_ADDRESS          = '0xfE89BE7c7614e5Ce243BD7C492077FaFf8B12cB2'; // Gamble
 export const TOURNAMENT_ADDRESS      = '0x702ab301C39f7ae610E83F4AA1f47237cbb2E019'; // Tournament
+export const TIPS_ADDRESS            = '0x0000000000000000000000000000000000000000'; // Tips (set on deploy)
 
 // ── RPC endpoints ────────────────────────────────────────────────────
 export const READ_RPC                 = 'https://api.avax-test.network/ext/bc/C/rpc';
@@ -229,4 +230,23 @@ export const TOURNAMENT_ABI = [
   'event TournamentEntered(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 tournamentChips)',
   'event ScoreLocked(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 score)',
   'event ScoreUpdated(uint256 indexed tournamentId, uint256 indexed tokenId, uint256 oldScore, uint256 newScore)',
+];
+
+export const TIPS_ABI = [
+  // Tips & buys — paid in CHIPs, released as AVAX to the payee
+  'function tipTeam(uint256 chips, string context)',
+  'function tipCreator(bytes32 creatorId, uint256 chips, string category, string item)',
+  'function buyFromCreator(bytes32 creatorId, uint256 chips, string item)',
+  // Registry
+  'function teamWallet() view returns (address)',
+  'function creatorWallet(bytes32 creatorId) view returns (address)',
+  // Owner
+  'function setItems(address _items)',
+  'function setTeamWallet(address wallet)',
+  'function setCreator(bytes32 creatorId, address wallet)',
+  'function setCreators(bytes32[] ids, address[] wallets)',
+  // Events
+  'event TeamTip(address indexed from, uint256 chips, uint256 avax, string context)',
+  'event CreatorTip(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string category, string item)',
+  'event Purchase(address indexed from, bytes32 indexed creatorId, address indexed wallet, uint256 chips, uint256 avax, string item)',
 ];

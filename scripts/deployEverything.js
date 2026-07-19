@@ -7,9 +7,12 @@
  *   3. Market           (NFT marketplace)
  *   4. Gamble           (chip wagering — oracle required)
  *   5. Tournament       (tournament system)
+ *   6. Tips             (CHIP tips & gallery buys → team/creator wallets)
  *
  * After deploy:
- *   - Wires all cross-contract references
+ *   - Wires all cross-contract references (incl. authorizing Tips for payFromChips)
+ *   - Sets weekly tier rewards to spec (Common 20 / Rare 40 / Legendary 100)
+ *   - Optionally seeds the house bankroll (HOUSE_DEPOSIT_AVAX)
  *   - Patches js/config.js and worker/wrangler.toml with new addresses
  *
  * Usage:
@@ -17,8 +20,12 @@
  *   npx hardhat run scripts/deployEverything.js --network avalanche
  *
  * Env vars:
- *   PRIVATE_KEY      — deployer wallet
- *   ORACLE_ADDRESS   — Cloudflare Worker public key (REQUIRED for Gamble)
+ *   PRIVATE_KEY        — deployer wallet
+ *   ORACLE_ADDRESS     — Cloudflare Worker public key (REQUIRED for Gamble)
+ *   TEAM_WALLET        — team/house tip payout wallet (optional; defaults to
+ *                        the deployer, re-pointable later via Tips.setTeamWallet)
+ *   HOUSE_DEPOSIT_AVAX — optional initial house bankroll to fund via
+ *                        Items.depositHouse() (e.g. "1.0"); skipped if unset/0
  */
 
 const hre  = require("hardhat");
@@ -32,6 +39,10 @@ const SET_GAME_ABI = [
 const SET_ITEMS_ABI = [
   'function setItems(address _items) external',
   'function setTierReward(uint8 tier, uint256 amount) external',
+];
+
+const DEPOSIT_HOUSE_ABI = [
+  'function depositHouse() external payable',
 ];
 
 const MARKET_WIRE_ABI = [
@@ -89,12 +100,28 @@ async function main() {
   console.log("     ✓ Gamble:", gambleAddress);
 
   // ── 5. Tournament ─────────────────────────────────────────────────────────
-  console.log("\n5/5  Deploying Tournament...");
+  console.log("\n5/6  Deploying Tournament...");
   const Tournament = await hre.ethers.getContractFactory("Tournament");
   const tournament = await Tournament.deploy(membersOnlyAddress, itemsAddress);
   await tournament.waitForDeployment();
   const tournamentAddress = await tournament.getAddress();
   console.log("     ✓ Tournament:", tournamentAddress);
+
+  // ── 6. Tips ───────────────────────────────────────────────────────────────
+  // Team wallet defaults to the deployer if TEAM_WALLET is unset; it can be
+  // re-pointed any time via Tips.setTeamWallet(...). Creator wallets (band /
+  // gallery) are registered post-deploy via Tips.setCreator / setCreators.
+  const teamWallet = (process.env.TEAM_WALLET && hre.ethers.isAddress(process.env.TEAM_WALLET))
+    ? process.env.TEAM_WALLET
+    : deployer.address;
+  console.log("\n6/6  Deploying Tips...");
+  console.log("     Team wallet:", teamWallet,
+    teamWallet === deployer.address ? "(deployer — set TEAM_WALLET to override)" : "");
+  const Tips = await hre.ethers.getContractFactory("Tips");
+  const tips = await Tips.deploy(itemsAddress, teamWallet);
+  await tips.waitForDeployment();
+  const tipsAddress = await tips.getAddress();
+  console.log("     ✓ Tips:", tipsAddress);
 
   // ════════════════════════════════════════════════════════════════════════
   // WIRING
@@ -124,6 +151,11 @@ async function main() {
   await tx.wait();
   console.log("  Items.setGameContract(Tournament)          ✓");
 
+  // Items authorizes Tips (for payFromChips — tip/buy chip→AVAX payouts)
+  tx = await itemsAuth.setGameContract(tipsAddress, true);
+  await tx.wait();
+  console.log("  Items.setGameContract(Tips)                ✓");
+
   // Market approves MembersOnly + Items for trading
   const marketContract = new hre.ethers.Contract(marketAddress, MARKET_WIRE_ABI, deployer);
   tx = await marketContract.setApprovedContract(membersOnlyAddress, true);
@@ -134,15 +166,31 @@ async function main() {
   await tx.wait();
   console.log("  Market.setApprovedContract(Items)          ✓");
 
-  // Set weekly chip drop per rarity: Common=50, Rare=80, Legendary=200
-  // (matches the contract constructor defaults; re-set here to be explicit).
+  // Set weekly tournament-token drop per rarity to spec:
+  //   Common=20, Rare=40, Legendary=100 tournament tokens/week.
   console.log("\n── Setting tier rewards ──────────────────────────────────");
-  const tierRewards = { 1: 50, 2: 80, 3: 200 }; // 1=Common, 2=Rare, 3=Legendary
+  const tierRewards = { 1: 20, 2: 40, 3: 100 }; // 1=Common, 2=Rare, 3=Legendary
   const tierNames = { 1: 'Common', 2: 'Rare', 3: 'Legendary' };
   for (const [tier, reward] of Object.entries(tierRewards)) {
     tx = await moSetItems.setTierReward(tier, reward);
     await tx.wait();
-    console.log(`  ${tierNames[tier]} (tier ${tier}): +${reward} chips/week        ✓`);
+    console.log(`  ${tierNames[tier]} (tier ${tier}): +${reward} tokens/week       ✓`);
+  }
+
+  // ── Optional: seed the house bankroll ─────────────────────────────────────
+  // Free chip mints (game winnings) require the house to be funded or they
+  // revert "House underfunded". Fund it now if HOUSE_DEPOSIT_AVAX is set.
+  const houseDeposit = process.env.HOUSE_DEPOSIT_AVAX;
+  if (houseDeposit && parseFloat(houseDeposit) > 0) {
+    console.log("\n── Funding house bankroll ────────────────────────────────");
+    const itemsHouse = new hre.ethers.Contract(itemsAddress, DEPOSIT_HOUSE_ABI, deployer);
+    tx = await itemsHouse.depositHouse({ value: hre.ethers.parseEther(houseDeposit) });
+    await tx.wait();
+    console.log(`  Items.depositHouse(${houseDeposit} AVAX)                ✓`);
+  } else {
+    console.log("\n── House bankroll ────────────────────────────────────────");
+    console.log("  ⓘ HOUSE_DEPOSIT_AVAX unset — skipping. Fund later via");
+    console.log("    Items.depositHouse() before paying out any free chips.");
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -160,6 +208,7 @@ async function main() {
       MARKET_ADDRESS:         marketAddress,
       GAMBLE_ADDRESS:         gambleAddress,
       TOURNAMENT_ADDRESS:     tournamentAddress,
+      TIPS_ADDRESS:           tipsAddress,
     };
 
     for (const [key, addr] of Object.entries(replacements)) {
@@ -169,7 +218,7 @@ async function main() {
     }
 
     fs.writeFileSync(configPath, config, 'utf8');
-    console.log("  js/config.js                             ✓  (5 addresses)");
+    console.log("  js/config.js                             ✓  (6 addresses)");
   } else {
     console.warn("  ⚠ js/config.js not found");
   }
@@ -203,6 +252,8 @@ async function main() {
   console.log(`  Market:           ${marketAddress}`);
   console.log(`  Gamble:           ${gambleAddress}`);
   console.log(`  Tournament:       ${tournamentAddress}`);
+  console.log(`  Tips:             ${tipsAddress}`);
+  console.log(`  Team wallet:      ${teamWallet}`);
   console.log(`  Oracle:           ${oracleAddress}`);
   console.log("");
   console.log("  Wiring:");
@@ -210,6 +261,7 @@ async function main() {
   console.log("    Items ← authorized → MembersOnly       ✓");
   console.log("    Items ← authorized → Gamble            ✓");
   console.log("    Items ← authorized → Tournament        ✓");
+  console.log("    Items ← authorized → Tips              ✓");
   console.log("    Market ← approved  → MembersOnly       ✓");
   console.log("    Market ← approved  → Items             ✓");
   console.log("════════════════════════════════════════════════════════════\n");

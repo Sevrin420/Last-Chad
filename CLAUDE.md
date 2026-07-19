@@ -79,7 +79,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 | Contract | Purpose |
 |----------|---------|
-| `MembersOnly.sol` | ERC-721 NFT (888 max, 5 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
+| `MembersOnly.sol` | ERC-721 NFT (888 max, 0.02 AVAX mint, 3 rarity tiers, levels, weekly tournament-chip drop, partner bonus, Merkle whitelist) |
 | `MembersOnlyItems.sol` | ERC-1155: regular chips (token 0, 0.01 AVAX-backed) + tournament tokens (token 1, free) + items. `payFromChips(from, amount, recipient)` (authorized) burns a payer's chips and releases the backing AVAX to a payee — the on-chain leg of a chip tip/buy, solvency-preserving. |
 | `Gamble.sol` | Regular-chip wagering: commitWager/claimWinnings (craps), resolveGame (oracle, blackjack/poker) |
 | `Market.sol` | Player-to-player NFT/item trading |
@@ -91,7 +91,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 
 **Key constants:**
 - `MAX_SUPPLY`: 888
-- `MINT_PRICE`: 5 AVAX
+- `MINT_PRICE`: 0.02 AVAX
 - `MAX_MINT_PER_WALLET`: 5
 - `CHIP_PRICE`: 0.01 AVAX per regular chip (buy & redeem, AVAX-backed)
 - Level by mint order: #1-222=L1, #223-444=L2, #445-666=L3, #667-888=L4
@@ -105,7 +105,7 @@ Members Only is a **pure casino**. Mint a Chad, earn chips weekly (based on your
 ## Player Lifecycle
 
 ```
-1. MINT         mint.html   → MembersOnly.mint() (5 AVAX)    → ERC-721 + rarity welcome (tourney chips)
+1. MINT         mint.html   → MembersOnly.mint() (0.02 AVAX) → ERC-721 + rarity welcome (tourney chips)
 2. SETUP        mint.html   → MembersOnly.setName()           → name (12 char max)
 3. WEEKLY CLAIM mint.html   → MembersOnly.claimWeeklyChips()  → 20/40/100 tournament tokens
 4. BUY CHIPS    mint.html   → Items.buyChips() (0.01 AVAX)    → regular chips to gamble with

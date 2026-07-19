@@ -18,7 +18,7 @@ interface IMembersOnlyItems {
 
 contract MembersOnly is ERC721Enumerable, Ownable {
     uint256 public constant MAX_SUPPLY = 888;
-    uint256 public constant MINT_PRICE = 5 ether;                 // 5 AVAX
+    uint256 public constant MINT_PRICE = 0.02 ether;              // 0.02 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
     // Welcome bonus = the token's rarity weekly amount (20/40/100), paid once at
     // mint in TOURNAMENT tokens (free, prize-only currency). See effectiveTier().
