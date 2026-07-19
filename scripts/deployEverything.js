@@ -52,6 +52,7 @@ const MARKET_WIRE_ABI = [
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   const network    = hre.network.name;
+  const isMainnet  = network === 'avalanche' || network === 'mainnet';
 
   const oracleAddress = process.env.ORACLE_ADDRESS;
   if (!oracleAddress || !hre.ethers.isAddress(oracleAddress)) {
@@ -197,7 +198,21 @@ async function main() {
   // PATCH CONFIG FILES
   // ════════════════════════════════════════════════════════════════════════
   console.log("\n── Patching config files ─────────────────────────────────");
+  console.log(`  Target network: ${isMainnet ? 'Avalanche MAINNET (0xa86a)' : 'Fuji testnet (0xa869)'}`);
 
+  // Flip every Fuji-specific value in `s` to mainnet. Idempotent + safe on an
+  // already-mainnet string (the Fuji tokens simply won't be present).
+  // 0xa869 and 43113 are anchored (quoted / word-boundary) so they can only
+  // match chain-id tokens, never a substring of a freshly deployed address.
+  const toMainnet = (s) => s
+    .replace(/api\.avax-test\.network/g, 'api.avax.network')
+    .replace(/rpc\.ankr\.com\/avalanche_fuji/g, 'rpc.ankr.com/avalanche')
+    .replace(/testnet\.snowtrace\.io/g, 'snowtrace.io')
+    .replace(/Avalanche Fuji Testnet/g, 'Avalanche C-Chain')
+    .replace(/\b43113\b/g, '43114')
+    .replace(/'0xa869'/g, "'0xa86a'");
+
+  // ── js/config.js ── addresses + (on mainnet) RPC / chain flip
   const configPath = path.join(__dirname, '..', 'js', 'config.js');
   if (fs.existsSync(configPath)) {
     let config = fs.readFileSync(configPath, 'utf8');
@@ -217,12 +232,15 @@ async function main() {
       config = config.replace(re, `export const ${key}${pad}= '${addr}'`);
     }
 
+    if (isMainnet) config = toMainnet(config);
+
     fs.writeFileSync(configPath, config, 'utf8');
-    console.log("  js/config.js                             ✓  (6 addresses)");
+    console.log(`  js/config.js                             ✓  (6 addresses${isMainnet ? ' + mainnet' : ''})`);
   } else {
     console.warn("  ⚠ js/config.js not found");
   }
 
+  // ── worker/wrangler.toml ── addresses + (on mainnet) RPC flip
   const wranglerPath = path.join(__dirname, '..', 'worker', 'wrangler.toml');
   if (fs.existsSync(wranglerPath)) {
     let wrangler = fs.readFileSync(wranglerPath, 'utf8');
@@ -234,10 +252,39 @@ async function main() {
       /GAMBLE_ADDRESS\s*=\s*"[^"]*"/,
       `GAMBLE_ADDRESS        = "${gambleAddress}"`
     );
+    if (isMainnet) wrangler = toMainnet(wrangler);
     fs.writeFileSync(wranglerPath, wrangler, 'utf8');
-    console.log("  worker/wrangler.toml                     ✓  (2 addresses)");
+    console.log(`  worker/wrangler.toml                     ✓  (2 addresses${isMainnet ? ' + mainnet RPC' : ''})`);
   } else {
     console.warn("  ⚠ worker/wrangler.toml not found");
+  }
+
+  // ── games/clubnile.html ── MINT_CFG / CAGE_CFG addresses + (mainnet) chainId
+  // The game page carries its own hardcoded addresses and chain-switch calls
+  // (independent of js/config.js), so patch them here too.
+  const gamePath = path.join(__dirname, '..', 'games', 'clubnile.html');
+  if (fs.existsSync(gamePath)) {
+    let game = fs.readFileSync(gamePath, 'utf8');
+    // MINT_CFG.address = MembersOnly
+    game = game.replace(
+      /(const MINT_CFG = \{ address: )'0x[0-9a-fA-F]{40}'/,
+      `$1'${membersOnlyAddress}'`
+    );
+    // CAGE_CFG.items = MembersOnlyItems (anchored on its comment)
+    game = game.replace(
+      /(items:\s*)'0x[0-9a-fA-F]{40}'(\s*,\s*\/\/ MembersOnlyItems)/,
+      `$1'${itemsAddress}'$2`
+    );
+    // CAGE_CFG.gamble = Gamble (anchored on its comment)
+    game = game.replace(
+      /(gamble:\s*)'0x[0-9a-fA-F]{40}'(\s*,\s*\/\/ Gamble)/,
+      `$1'${gambleAddress}'$2`
+    );
+    if (isMainnet) game = toMainnet(game);  // MINT_CFG.chainId + switch calls 0xa869→0xa86a
+    fs.writeFileSync(gamePath, game, 'utf8');
+    console.log(`  games/clubnile.html                      ✓  (3 addresses${isMainnet ? ' + mainnet chainId' : ''})`);
+  } else {
+    console.warn("  ⚠ games/clubnile.html not found");
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -246,7 +293,7 @@ async function main() {
   console.log("\n╔════════════════════════════════════════════════════════════╗");
   console.log("║              Deployment Complete!                         ║");
   console.log("╚════════════════════════════════════════════════════════════╝");
-  console.log(`  Network:          ${network}`);
+  console.log(`  Network:          ${network} (${isMainnet ? 'mainnet 0xa86a' : 'Fuji 0xa869'})`);
   console.log(`  MembersOnly:      ${membersOnlyAddress}`);
   console.log(`  MembersOnlyItems: ${itemsAddress}`);
   console.log(`  Market:           ${marketAddress}`);
@@ -264,6 +311,12 @@ async function main() {
   console.log("    Items ← authorized → Tips              ✓");
   console.log("    Market ← approved  → MembersOnly       ✓");
   console.log("    Market ← approved  → Items             ✓");
+  console.log("");
+  console.log("  Patched: js/config.js, worker/wrangler.toml, games/clubnile.html");
+  console.log(isMainnet
+    ? "  ⚠ These files now point at MAINNET — commit & push them, then\n" +
+      "    redeploy the worker so the new addresses/RPC go live."
+    : "  ⓘ Files point at Fuji staging — commit & push, redeploy worker.");
   console.log("════════════════════════════════════════════════════════════\n");
 }
 

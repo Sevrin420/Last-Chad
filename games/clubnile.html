@@ -6808,10 +6808,11 @@ function openDocsPanel() {
   docsPanel.classList.add('open');
   requestAnimationFrame(() => docsGoTo(0, false));
 }
-/* ── mint wiring (ethers + injected wallet, Fuji testnet) ── */
+/* ── mint wiring (ethers + injected wallet) ── */
 /* priceEth / label are the single source of truth for the mint UI and tx.
-   Launch model: 0.1 ETH. NOTE: address/chainId still point at the Fuji
-   staging contract — swap both when the 1111-supply mainnet contract ships. */
+   Launch model: 0.02 AVAX. address / chainId are patched by
+   scripts/deployEverything.js — Fuji (0xa869) on staging, mainnet (0xa86a)
+   when deployed with --network avalanche. */
 const MINT_CFG = { address: '0x6defA84b02efcEd65930341B1b20aDb6BC881809', chainId: '0xa869', priceEth: '0.02', priceLabel: 'AVAX' };
 const MINT_ABI = [
   'function mint(uint256 quantity) payable',
