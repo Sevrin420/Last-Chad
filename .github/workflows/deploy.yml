@@ -21,11 +21,11 @@ on:
         options:
           - everything       # Deploy all 3 contracts (MembersOnly + Items + Casino) + wire + worker
           - worker           # Cloudflare Worker only
+          - verify           # Verify the 3 contracts on Snowtrace (no deploy)
           - fix-worker       # Sync config.js addresses into worker + redeploy (safe, no contract changes)
           - setup-invitation # Create invitation item + airdrop to wallets
           - airdrop-member   # Mint NFT + chips to a wallet
           - reset-tables     # Reset all 6 public craps tables (nuke stuck game state)
-          - diagnose-craps   # Run diagnostic checks for craps wager flow
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Required GitHub secrets (Repo → Settings → Secrets and variables → Actions):
@@ -141,6 +141,28 @@ jobs:
           else
             echo "AGORA_APP_CERT not set — skipping"
           fi
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job: Verify the 3 contracts on Snowtrace (read-only)
+  # Reads addresses from js/config.js; no private key needed.
+  # ───────────────────────────────────────────────────────────────────────────
+  verify-contracts:
+    name: Verify Contracts (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    if: inputs.target == 'verify'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Verify MembersOnly + Items + Casino on Snowtrace
+        env:
+          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
+          ORACLE_ADDRESS:    ${{ secrets.ORACLE_ADDRESS }}
+        run: npx hardhat run scripts/verifyAll.js --network ${{ inputs.network }}
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job: Fix Worker — sync addresses from js/config.js and redeploy
@@ -299,55 +321,3 @@ jobs:
             exit 1
           fi
           echo "All tables reset successfully."
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job: Diagnose craps wager flow (read-only, no private key needed)
-  # ───────────────────────────────────────────────────────────────────────────
-  diagnose-craps:
-    name: Diagnose Craps (${{ inputs.network }})
-    runs-on: ubuntu-latest
-    if: inputs.target == 'diagnose-craps'
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - name: Run craps diagnostic
-        env:
-          WALLET: ${{ vars.AIRDROP_TO || vars.AIRDROP_WALLETS }}
-        run: npx hardhat run scripts/diagnoseCraps.js --network ${{ inputs.network }} 2>&1 | tee diagnostic-output.txt; true
-
-      - name: CORS curl test
-        run: |
-          echo "" >> diagnostic-output.txt
-          echo "=== CURL CORS TESTS ===" >> diagnostic-output.txt
-          echo "--- OPTIONS with Origin: https://membersonly.cc ---" >> diagnostic-output.txt
-          curl -s -D - -o /dev/null -X OPTIONS \
-            -H "Origin: https://membersonly.cc" \
-            -H "Access-Control-Request-Method: POST" \
-            -H "Access-Control-Request-Headers: content-type" \
-            "https://last-chad-runner.severin20.workers.dev/craps/start" 2>&1 | grep -i "access-control\|HTTP/" >> diagnostic-output.txt
-          echo "" >> diagnostic-output.txt
-          echo "--- POST with Origin: https://membersonly.cc ---" >> diagnostic-output.txt
-          curl -s -D - -X POST \
-            -H "Origin: https://membersonly.cc" \
-            -H "Content-Type: application/json" \
-            -d '{"tokenId":1,"nonce":99999,"player":"0x0000000000000000000000000000000000000000","wager":1}' \
-            "https://last-chad-runner.severin20.workers.dev/craps/start" 2>&1 | grep -i "access-control\|HTTP/\|error" >> diagnostic-output.txt
-          echo "" >> diagnostic-output.txt
-          echo "--- POST with NO origin ---" >> diagnostic-output.txt
-          curl -s -D - -X POST \
-            -H "Content-Type: application/json" \
-            -d '{"tokenId":1,"nonce":99999,"player":"0x0000000000000000000000000000000000000000","wager":1}' \
-            "https://last-chad-runner.severin20.workers.dev/craps/start" 2>&1 | grep -i "access-control\|HTTP/\|error" >> diagnostic-output.txt
-
-      - name: Commit diagnostic results
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add diagnostic-output.txt
-          git commit -m "chore: craps diagnostic results [skip ci]" || true
-          git push origin main || true
