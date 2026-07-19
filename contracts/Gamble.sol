@@ -12,6 +12,8 @@ interface IMembersOnly {
 interface IMembersOnlyItems {
     function burnChips(address from, uint256 amount) external;
     function mintChips(address to, uint256 amount) external;
+    function burnTournamentChips(address from, uint256 amount) external;
+    function mintTournamentChips(address to, uint256 amount) external;
 }
 
 /// @title Gamble — chip-wagering games for Members Only
@@ -230,5 +232,60 @@ contract Gamble {
         }
 
         emit CageCashOut(tokenId, msg.sender, amount, nonce);
+    }
+
+    // ── The tournament-token cage: withdraw tokens to play / deposit back ──────
+    // Same two-signature custody as the chip cage, but for tournament TOKENS
+    // (id 1, free / no cash value). Withdraw burns tokens from the wallet and
+    // opens a play session against the returned nonce; the Worker credits your
+    // off-chain tournament stack. Deposit re-mints your remaining stack. Losses
+    // stay burned. Signatures are domain-tagged ("TOURNEY") so a token-cage
+    // signature can never be replayed against the AVAX-backed chip cage.
+    uint256 public tourneyCageLimit = 10_000_000;   // max tokens per withdraw
+
+    event TourneyWithdraw(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce);
+    event TourneyDeposit(uint256 indexed tokenId, address indexed player, uint256 amount, uint256 nonce);
+
+    function setTourneyCageLimit(uint256 limit) external onlyGameOwner {
+        require(limit > 0, "Limit must be > 0");
+        tourneyCageLimit = limit;
+    }
+
+    /// @notice Withdraw tournament tokens to play: burns `amount` tokens and
+    ///         opens a tournament play session. The Worker credits your stack
+    ///         against the returned nonce.
+    function tourneyWithdraw(uint256 tokenId, uint256 amount) external returns (uint256) {
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(amount > 0 && amount <= tourneyCageLimit, "Amount out of range");
+
+        uint256 nonce = nextNonce++;
+        items.burnTournamentChips(msg.sender, amount);
+
+        emit TourneyWithdraw(tokenId, msg.sender, amount, nonce);
+        return nonce;
+    }
+
+    /// @notice Deposit your remaining tournament stack back to your wallet: mints
+    ///         `amount` tokens. The Worker signs keccak256("TOURNEY", tokenId,
+    ///         amount, nonce, player) for the balance you're leaving with.
+    function tourneyDeposit(
+        uint256 tokenId,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata oracleSig
+    ) external {
+        require(membersOnly.ownerOf(tokenId) == msg.sender, "Not token owner");
+        require(!usedNonces[nonce], "Nonce already used");
+
+        bytes32 message = keccak256(abi.encodePacked("TOURNEY", tokenId, amount, nonce, msg.sender));
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(message);
+        require(ECDSA.recover(ethHash, oracleSig) == oracle, "Invalid oracle signature");
+
+        usedNonces[nonce] = true;
+        if (amount > 0) {
+            items.mintTournamentChips(msg.sender, amount);
+        }
+
+        emit TourneyDeposit(tokenId, msg.sender, amount, nonce);
     }
 }
