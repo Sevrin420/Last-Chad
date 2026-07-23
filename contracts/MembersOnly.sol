@@ -17,9 +17,15 @@ interface IMembersOnlyItems {
 }
 
 contract MembersOnly is ERC721Enumerable, Ownable {
-    uint256 public constant MAX_SUPPLY = 888;
+    uint256 public constant MAX_SUPPLY = 2222;
     uint256 public constant MINT_PRICE = 0.02 ether;              // 0.02 AVAX
     uint256 public constant MAX_MINT_PER_WALLET = 5;
+
+    // Exact tier counts (sum == MAX_SUPPLY). Tiers are DRAWN on-chain without
+    // replacement at reveal, so the final collection has exactly these counts.
+    uint256 public constant COMMON_SUPPLY    = 2000;   // 90%
+    uint256 public constant RARE_SUPPLY      = 200;    //  9%
+    uint256 public constant LEGENDARY_SUPPLY = 22;     // ~1%
     // Welcome bonus = the token's rarity weekly amount (20/40/100), paid once at
     // mint in TOURNAMENT tokens (free, prize-only currency). See effectiveTier().
 
@@ -51,8 +57,22 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     uint8 public constant TIER_RARE      = 2;
     uint8 public constant TIER_LEGENDARY = 3;
 
-    mapping(uint256 => uint8) public tokenTier;           // tokenId => tier (1=common, 2=rare, 3=legendary)
+    mapping(uint256 => uint8) public tokenTier;           // tokenId => tier (0=unrevealed, 1/2/3 once drawn)
     mapping(uint8 => uint256) public tierChipReward;      // tier => weekly chip amount
+
+    // ── Provably-fair reveal-on-mint (exact counts, drawn without replacement) ──
+    // Each token's tier is drawn from a shrinking pool, IN MINT ORDER, seeded by
+    // that token's OWN mint-block hash — fixed the instant it's minted, so it
+    // can't be simulated-and-reverted or re-rolled. Reveal happens on the next
+    // block (~2s on Avalanche); mints auto-advance the queue so tokens lock
+    // within seconds. Final counts are exactly COMMON/RARE/LEGENDARY_SUPPLY.
+    uint256 public commonLeft;
+    uint256 public rareLeft;
+    uint256 public legendaryLeft;
+    uint256 public revealCursor;                          // tokens revealed so far (in id order)
+    mapping(uint256 => uint64) public mintedInBlock;      // tokenId => block it was minted in
+    string  public preRevealURI;                          // placeholder metadata until a token reveals
+    event TierRevealed(uint256 indexed tokenId, uint8 tier);
 
     // ── Level Bonus (mint-order based) ──
     mapping(uint8 => uint256) public levelBonusChips;     // level (1-4) => bonus weekly chips
@@ -121,6 +141,12 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         tierChipReward[TIER_COMMON]    = 20;
         tierChipReward[TIER_RARE]      = 40;
         tierChipReward[TIER_LEGENDARY] = 100;
+
+        // Seed the exact-count draw pool (must sum to MAX_SUPPLY).
+        require(COMMON_SUPPLY + RARE_SUPPLY + LEGENDARY_SUPPLY == MAX_SUPPLY, "tier counts != supply");
+        commonLeft    = COMMON_SUPPLY;
+        rareLeft      = RARE_SUPPLY;
+        legendaryLeft = LEGENDARY_SUPPLY;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -225,10 +251,56 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         for (uint256 i = 0; i < quantity; i++) {
             totalMinted++;
             _safeMint(msg.sender, totalMinted);
-            lastClaimWeek[totalMinted] = currentWeek();   // weekly drop starts accruing from next week
-            welcomeChips += tierChipReward[effectiveTier(totalMinted)]; // rarity welcome (20/40/100)
+            mintedInBlock[totalMinted] = uint64(block.number);   // entropy source for this token's tier
+            lastClaimWeek[totalMinted] = currentWeek();          // weekly drop starts accruing from next week
+            welcomeChips += tierChipReward[TIER_COMMON];         // flat welcome; tier reveals next block
         }
         items.mintTournamentChips(msg.sender, welcomeChips);  // free welcome tournament tokens
+
+        // Auto-advance the reveal queue: lock in the tiers of earlier tokens
+        // (from prior blocks) so the collection reveals within seconds of minting.
+        revealUpTo(quantity + 20);
+    }
+
+    // ── Reveal: draw each token's tier from the shrinking pool, in mint order ──
+    /// @notice Lock in the tier of up to `maxCount` not-yet-revealed tokens (in
+    ///         id order). Permissionless — anyone can advance it; mints call it
+    ///         automatically. A token can only be revealed from the block AFTER
+    ///         it was minted (its own mint-block hash), so it can't be re-rolled.
+    function revealUpTo(uint256 maxCount) public {
+        uint256 end = totalMinted;
+        uint256 done;
+        while (revealCursor < end && done < maxCount) {
+            uint256 tokenId = revealCursor + 1;
+            uint256 mb = mintedInBlock[tokenId];
+            if (mb >= block.number) break;                       // minted this block — hash not available yet
+            bytes32 bh = blockhash(mb);
+            if (bh == bytes32(0)) bh = blockhash(block.number - 1); // aged past 256 blocks — fallback entropy
+            uint8 t = _drawTier(keccak256(abi.encodePacked(bh, tokenId)));
+            tokenTier[tokenId] = t;
+            emit TierRevealed(tokenId, t);
+            revealCursor = tokenId;
+            unchecked { done++; }
+        }
+    }
+
+    /// @notice Flush the whole reveal queue (bounded by gas). Use if minting has
+    ///         paused with tokens still unrevealed.
+    function reveal() external { revealUpTo(type(uint256).max); }
+
+    /// @notice How many minted tokens are still waiting to have their tier drawn.
+    function revealPending() external view returns (uint256) { return totalMinted - revealCursor; }
+
+    /// @dev Draw one tier from the remaining pool (without replacement).
+    function _drawTier(bytes32 seed) internal returns (uint8) {
+        uint256 leg = legendaryLeft;
+        uint256 rar = rareLeft;
+        uint256 com = commonLeft;
+        uint256 total = leg + rar + com;             // > 0: only called for a minted, unrevealed token
+        uint256 r = uint256(seed) % total;
+        if (r < leg)         { legendaryLeft = leg - 1; return TIER_LEGENDARY; }
+        if (r < leg + rar)   { rareLeft      = rar - 1; return TIER_RARE; }
+        commonLeft = com - 1;                        return TIER_COMMON;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -319,10 +391,10 @@ contract MembersOnly is ERC721Enumerable, Ownable {
     // ─────────────────────────────────────────────────────────
     function getLevel(uint256 tokenId) public pure returns (uint8) {
         require(tokenId >= 1 && tokenId <= MAX_SUPPLY, "Invalid token ID");
-        if (tokenId <= 222) return 1;
-        if (tokenId <= 444) return 2;
-        if (tokenId <= 666) return 3;
-        return 4; // 667-888
+        if (tokenId <= 555)  return 1;   // quartiles of the 2222 supply
+        if (tokenId <= 1111) return 2;
+        if (tokenId <= 1666) return 3;
+        return 4; // 1667-2222
     }
 
     function setLevelBonus(uint8 level, uint256 amount) external onlyOwner {
@@ -425,7 +497,13 @@ contract MembersOnly is ERC721Enumerable, Ownable {
         _requireOwned(tokenId);
         string memory _tokenURI = _tokenURIs[tokenId];
         if (bytes(_tokenURI).length > 0) return _tokenURI;
+        // Not yet revealed (tier still 0) → show the placeholder if one is set.
+        if (tokenTier[tokenId] == 0 && bytes(preRevealURI).length > 0) return preRevealURI;
         return super.tokenURI(tokenId);
+    }
+
+    function setPreRevealURI(string calldata uri) external onlyOwner {
+        preRevealURI = uri;
     }
 
     function setTokenURI(uint256 tokenId, string calldata uri) external onlyOwner {

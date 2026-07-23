@@ -60,7 +60,7 @@ All project assets (images, GIFs, audio, etc.) live in **`assets/membersonly/`**
 
 ## Project Overview
 
-**Members Only** is an NFT-gated casino on Avalanche. 888 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
+**Members Only** is an NFT-gated casino on Avalanche. 2222 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
 
 ### Elevator Pitch
 
@@ -85,22 +85,23 @@ without migrating balances; and everything that used to be its own operator
 
 | Contract | Purpose |
 |----------|---------|
-| `MembersOnly.sol` | ERC-721 NFT (888 max, 0.02 AVAX mint, 3 rarity tiers, levels, weekly tournament-token drop, partner bonus, Merkle whitelist). Identity/membership. |
+| `MembersOnly.sol` | ERC-721 NFT (2222 max, 0.02 AVAX mint, levels, weekly tournament-token drop, partner bonus, Merkle whitelist). **Provably-fair reveal-on-mint:** each token's tier is drawn without replacement from a shrinking pool (exactly 2000 Common / 200 Rare / 22 Legendary), in mint order, seeded by that token's own mint-block hash — locked ~2s later (next block), auto-advanced by mints, permissionless `reveal()`. Identity/membership. |
 | `MembersOnlyItems.sol` | ERC-1155 **vault**: regular chips (token 0, 0.01 AVAX-backed) + tournament tokens (token 1, free) + items. Holds the AVAX bankroll + is the mint/burn authority. `payFromChips(from, amount, recipient)` (authorized) burns a payer's chips and releases the backing AVAX to a payee — solvency-preserving. |
 | `Casino.sol` | The single oracle-authorized **operator**. Merges: chip wagering (`commitWager`/`claimWinnings`, `resolveGame`); the **chip cage** (`cageBuyIn`/`cageCashOut`) and **tournament-token cage** (`tourneyWithdraw`/`tourneyDeposit`) — one nonce space, tourney deposit sigs domain-tagged `"TOURNEY"` so they can't hit the chip cage; the **burn-for-yield leaderboard** (`burnForLeaderboard` min 2000 → monthly pro-rata `fundYield`/`closeEpoch`/`claim`); and **tip/buy routing** (`tipTeam`/`tipCreator`/`buyFromCreator` via `Items.payFromChips`, owner-set team wallet + creator registry). ~15.7KB, well under the 24KB limit. |
 
 **Authorization chain:** Owner calls `setGameContract(address, true)` on **MembersOnlyItems** to authorize **MembersOnly** (weekly/mint token grants) and **Casino** (all mint/burn + payFromChips). MembersOnly also needs `setItems(itemsAddress)`. `deployEverything.js` deploys all three and wires this in one run.
 
 **Key constants:**
-- `MAX_SUPPLY`: 888
+- `MAX_SUPPLY`: 2222
 - `MINT_PRICE`: 0.02 AVAX
 - `MAX_MINT_PER_WALLET`: 5
 - `CHIP_PRICE`: 0.01 AVAX per regular chip (buy & redeem, AVAX-backed)
-- Level by mint order: #1-222=L1, #223-444=L2, #445-666=L3, #667-888=L4
-- **Rarity tiers** (owner-set to match metadata, target split across 888):
-  - Tier 1 **Common** — 90% — **20** tournament tokens/week
-  - Tier 2 **Rare** — 9% — **40** tournament tokens/week
-  - Tier 3 **Legendary** — 1% — **100** tournament tokens/week
+- Level by mint order (quartiles): #1-555=L1, #556-1111=L2, #1112-1666=L3, #1667-2222=L4
+- **Rarity tiers** — **exact counts, drawn on-chain without replacement at reveal** (not owner-set):
+  - Tier 1 **Common** — 2000 (90%) — **20** tournament tokens/week
+  - Tier 2 **Rare** — 200 (9%) — **40** tournament tokens/week
+  - Tier 3 **Legendary** — 22 (~1%) — **100** tournament tokens/week
+  - `setTier` remains only as a visible emergency owner override; the canonical tier is the draw.
 
 ---
 

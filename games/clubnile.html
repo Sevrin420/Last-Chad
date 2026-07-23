@@ -523,7 +523,7 @@ body {
   <div id="mint-panel" class="popup-panel">
     <div class="popup-head"><span>MINT YOUR PASS</span><button class="popup-close" data-close="mint-panel" type="button">X</button></div>
     <div class="popup-body">
-      <p class="popup-lead">888 Club Nile members. 5 AVAX each · max 5 per wallet. Every holder rides free into the weekly tournament — plus chips and a seat at the tables.</p>
+      <p class="popup-lead">2222 Club Nile members. 0.02 AVAX each · max 5 per wallet. Every holder rides free into the weekly tournament — plus chips and a seat at the tables.</p>
       <button id="mint-connect" type="button">CONNECT WALLET</button>
       <div id="mint-form" style="display:none">
         <label>NAME YOUR GIRAFFE (12 max)<input id="mint-name" maxlength="12" autocomplete="off" spellcheck="false" placeholder="e.g. TWIGA"></label>
@@ -1488,7 +1488,7 @@ function buildFrontCanvas(id, scale) {
 }
 /* always-on API for the image generator and the future NFT gate */
 window.ClubNile = {
-  COUNT: 888,
+  COUNT: 2222,
   traits: traitsForToken,
   frontDataURL(id, scale) { return buildFrontCanvas(id, scale).toDataURL('image/png'); }
 };
@@ -1497,7 +1497,7 @@ window.ClubNile = {
 let PLAYER_TOKEN = 1;
 try {
   const s = JSON.parse(sessionStorage.getItem('clubnile_session') || 'null');
-  if (s && s.tokenId) PLAYER_TOKEN = Math.max(1, Math.min(888, parseInt(s.tokenId, 10) || 1));
+  if (s && s.tokenId) PLAYER_TOKEN = Math.max(1, Math.min(2222, parseInt(s.tokenId, 10) || 1));
 } catch (e) { /* guest play */ }
 
 const SPRITES = {
