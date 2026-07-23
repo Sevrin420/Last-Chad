@@ -4,7 +4,7 @@
  *
  * Handles:
  *  1. Poker session management (deal, draw, cashout)
- *  2. Craps session management (start, WebSocket relay, cashout)
+ *  2. Club Nile social rooms (lobby chat + table presence/emoji/tips) + cage
  *  3. HashCash craps tables
  *  4. Freeplay & PieFace minigame leaderboards
  *  5. Oracle-signed settlements (chips payout)
@@ -19,7 +19,6 @@
  */
 
 import { ethers } from 'ethers';
-export { CrapsTable } from './craps-table.js';
 export { HashCashTable } from './hashcash-table.js';
 export { ClubNileRoom } from './clubnile-room.js';
 import { issueSessionToken } from './clubnile-room.js';
@@ -35,19 +34,7 @@ function getCors(request) {
 }
 
 const POKER_SESSION_TTL = 900;    // 15 minutes per session (reset on every interaction)
-const CRAPS_SESSION_TTL = 1200;   // 20 minutes per craps session (longer game)
-const TABLE_PRESENCE_TTL = 120;   // 2 minutes — heartbeat refreshes this
-const TABLE_STALE_MS = 90_000;    // 90s — entries older than this are filtered out
-const MAX_PUBLIC_TABLES  = 6;
-const MAX_PRIVATE_TABLES = 10;
-const MAX_PLAYERS_PER_TABLE = 4;
-const PUBLIC_TABLES = Array.from({ length: MAX_PUBLIC_TABLES }, (_, i) => ({
-  name: `public-${i + 1}`,
-  label: `PUBLIC TABLE ${i + 1}`,
-}));
-function isValidTable(tableCode) {
-  return PUBLIC_TABLES.some(t => t.name === tableCode) || tableCode.startsWith('priv-');
-}
+const MAX_PLAYERS_PER_TABLE = 4;  // shared with HashCash table-list response
 const POKER_PAYOUTS = {
   'ROYAL FLUSH':      250,
   'STRAIGHT FLUSH':    50,
@@ -133,15 +120,6 @@ export default {
         return await handleBlackjackCashout(request, env);
       }
 
-      // Craps endpoints (game logic lives in CrapsTable DO;
-      // Worker handles on-chain verification + cashout signing only)
-      if (request.method === 'POST' && url.pathname === '/craps/start') {
-        return await handleCrapsStart(request, env);
-      }
-      if (request.method === 'POST' && url.pathname === '/craps/cashout') {
-        return await handleCrapsCashout(request, env);
-      }
-
       // ── The Cage: buy-in registration + cash-out signing ──
       if (request.method === 'POST' && url.pathname === '/cage/buyin') {
         return await handleCageBuyin(request, env);
@@ -170,11 +148,6 @@ export default {
         return await handleTourneySession(request, env);
       }
 
-      // ── WebSocket upgrade → Durable Object ──
-      if (url.pathname === '/craps/ws') {
-        return await handleCrapsWebSocket(request, url, env);
-      }
-
       // Club Nile social rooms (lobby chat + table presence/emoji/tips)
       if (url.pathname === '/clubnile/ws') {
         const room = (url.searchParams.get('room') || 'lobby').slice(0, 24);
@@ -189,11 +162,6 @@ export default {
       }
       if (request.method === 'GET' && url.pathname === '/clubnile/tip-leaderboard') {
         return await handleClubNileTipLeaderboard(env);
-      }
-
-      // Table list (queries Durable Objects for player counts)
-      if (request.method === 'GET' && url.pathname === '/tables/list') {
-        return await handleTableList(env);
       }
 
       // ── HashCash Craps ──
@@ -248,45 +216,6 @@ export default {
       }
       if (request.method === 'GET' && url.pathname === '/pieface/delete-entry') {
         return await handlePieFaceDeleteEntry(request, env);
-      }
-
-      // Admin: view kick log (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
-      if (request.method === 'GET' && url.pathname === '/craps/kick-log') {
-        const auth = request.headers.get('Authorization') || '';
-        const token = auth.replace('Bearer ', '');
-        if (!token || token !== env.ORACLE_PRIVATE_KEY) {
-          return json({ error: 'Unauthorized' }, 403);
-        }
-        const list = await env.RUNNER_KV.list({ prefix: 'kick:' });
-        const entries = [];
-        for (const key of list.keys) {
-          const val = await env.RUNNER_KV.get(key.name, { type: 'json' });
-          if (val) entries.push(val);
-        }
-        entries.sort((a, b) => new Date(b.kickedAt) - new Date(a.kickedAt));
-        return json({ kicks: entries });
-      }
-
-      // Admin: reset all public tables (owner-only, requires ORACLE_PRIVATE_KEY as bearer)
-      if (request.method === 'POST' && url.pathname === '/tables/reset-all') {
-        const auth = request.headers.get('Authorization') || '';
-        const token = auth.replace('Bearer ', '');
-        if (!token || token !== env.ORACLE_PRIVATE_KEY) {
-          return json({ error: 'Unauthorized' }, 403);
-        }
-        const results = [];
-        for (const t of PUBLIC_TABLES) {
-          try {
-            const id = env.CRAPS_TABLE.idFromName(t.name);
-            const stub = env.CRAPS_TABLE.get(id);
-            const res = await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
-            const body = await res.json();
-            results.push({ table: t.name, ...body });
-          } catch (err) {
-            results.push({ table: t.name, error: err.message });
-          }
-        }
-        return json({ ok: true, results });
       }
 
       // Agora RTC token
@@ -1099,155 +1028,6 @@ function shuffleDeckCrypto() {
   return deck;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CRAPS ENDPOINTS
-// ═══════════════════════════════════════════════════════════════════════════
-
-// POST /craps/start  { tokenId, nonce, player, tableCode }
-// Verifies on-chain wager, generates session token, registers player in the
-// CrapsTable Durable Object. Game state lives entirely in the DO — no KV.
-async function handleCrapsStart(request, env) {
-  const { tokenId, nonce, player, tableCode } = await parseBody(request);
-  if (tokenId == null || nonce == null || !player) {
-    return json({ error: 'Missing tokenId, nonce, or player' }, 400);
-  }
-  if (!ethers.isAddress(player)) {
-    return json({ error: 'Invalid player address' }, 400);
-  }
-
-  // Check if nonce was already cashed out (KV marker persists after DO cleanup)
-  const cashoutKey = `craps_done:${nonce}`;
-  const alreadyCashedOut = await env.RUNNER_KV.get(cashoutKey);
-  if (alreadyCashedOut) {
-    return json({ error: 'Nonce already used' }, 403);
-  }
-
-  // Verify wager on-chain
-  const provider = new ethers.JsonRpcProvider(env.READ_RPC);
-  const gamble   = new ethers.Contract(env.CASINO_ADDRESS, CASINO_ABI, provider);
-
-  const used = await gamble.usedNonces(BigInt(nonce));
-  if (used) {
-    return json({ error: 'Nonce already claimed on-chain' }, 403);
-  }
-
-  const wager = Number(await gamble.wagerAmounts(BigInt(nonce)));
-  if (wager === 0) {
-    return json({ error: 'No active wager for this nonce' }, 403);
-  }
-  const onChainPlayer = (await gamble.wagerPlayers(BigInt(nonce))).toLowerCase();
-  if (onChainPlayer !== player.toLowerCase()) {
-    return json({ error: 'Player mismatch' }, 403);
-  }
-
-  const { token: sessionToken, timestamp: sessionTokenTs } = await generateCrapsSessionToken(nonce, player.toLowerCase(), env);
-
-  // Register player in the CrapsTable Durable Object (if tableCode provided).
-  // If no tableCode yet (player picks table on craps.html), the DO registration
-  // happens when the client sends the 'auth' WS message — the DO verifies the HMAC token.
-  // We still pre-register if we have the table so the player data is ready.
-  if (tableCode) {
-    if (isValidTable(tableCode)) {
-      try {
-        const doId = env.CRAPS_TABLE.idFromName(tableCode);
-        const stub = env.CRAPS_TABLE.get(doId);
-        await stub.fetch(new Request('https://do/register', {
-          method: 'POST',
-          body: JSON.stringify({
-            nonce:        String(nonce),
-            tokenId:      String(tokenId),
-            player:       player.toLowerCase(),
-            stack:        wager,
-            sessionToken,
-            sessionTokenTs,
-            buyIn:        wager,
-          }),
-        }));
-      } catch (_) { /* best-effort; auth WS message will retry */ }
-    }
-  }
-
-  return json({ ok: true, stack: wager, sessionToken, sessionTokenTs });
-}
-
-// POST /craps/cashout  { tokenId, nonce, sessionToken, sessionTokenTs, tableCode }
-// Fetches player state from the CrapsTable DO, signs the payout, cleans up.
-async function handleCrapsCashout(request, env) {
-  const { tokenId, nonce, sessionToken, sessionTokenTs, tableCode } = await parseBody(request);
-  if (tokenId == null || nonce == null || !sessionToken) {
-    return json({ error: 'Missing tokenId, nonce, or sessionToken' }, 400);
-  }
-
-  // Quick-reject if KV already marked (avoids unnecessary DO call).
-  // The DO itself is the true serialization point — it caches the cashout
-  // result so duplicate requests return the same response idempotently.
-  const cashoutKey = `craps_done:${nonce}`;
-  const alreadyCashedOut = await env.RUNNER_KV.get(cashoutKey);
-  if (alreadyCashedOut) {
-    return json({ error: 'Already cashed out' }, 403);
-  }
-
-  // Fetch player state from DO and remove them from the table
-  if (!tableCode) return json({ error: 'Missing tableCode' }, 400);
-  if (!isValidTable(tableCode)) return json({ error: 'Invalid table' }, 400);
-
-  const doId  = env.CRAPS_TABLE.idFromName(tableCode);
-  const stub  = env.CRAPS_TABLE.get(doId);
-  const doRes = await stub.fetch(new Request('https://do/cashout', {
-    method: 'POST',
-    body: JSON.stringify({ nonce: String(nonce), sessionToken, sessionTokenTs }),
-  }));
-  const cashoutData = await doRes.json();
-
-  if (!cashoutData.ok) {
-    return json({ error: cashoutData.error || 'Cashout failed' }, doRes.status);
-  }
-
-  const payout = cashoutData.payout;
-  const playerAddr = cashoutData.player;
-
-  if (String(tokenId) !== cashoutData.tokenId) {
-    return json({ error: 'Token mismatch' }, 403);
-  }
-
-  // Mark nonce in KV as a fast-path reject for future requests.
-  // The DO's idempotency cache is the true guard against double-cashout.
-  await env.RUNNER_KV.put(cashoutKey, '1', { expirationTtl: 86_400 });
-
-  if (payout === 0) {
-    return json({ ok: true, payout: 0, nonce: Number(nonce), signature: '0x' });
-  }
-
-  const oracleWallet = new ethers.Wallet('0x' + env.ORACLE_PRIVATE_KEY);
-  const messageHash  = ethers.solidityPackedKeccak256(
-    ['uint256', 'uint256', 'uint256', 'address'],
-    [BigInt(tokenId), BigInt(payout), BigInt(nonce), playerAddr]
-  );
-  const signature = await oracleWallet.signMessage(ethers.getBytes(messageHash));
-
-  return json({ ok: true, payout, nonce: Number(nonce), signature });
-}
-
-// ── Removed: crapsResolveBets, crapsCalcOdds, verifyCrapsSessionToken ──
-// All game logic now lives in the CrapsTable Durable Object (craps-table.js).
-
-
-async function generateCrapsSessionToken(nonce, player, env) {
-  const timestamp = Date.now();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(env.ORACLE_PRIVATE_KEY),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const data = new TextEncoder().encode(`craps:${nonce}:${player}:${timestamp}`);
-  const sig = await crypto.subtle.sign('HMAC', key, data);
-  const token = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return { token, timestamp };
-}
-
-
 /** Convert card index (0-51) to { rank: 0-12, suit: 0-3 } */
 function cardFromIndex(idx) {
   return { rank: idx % 13, suit: Math.floor(idx / 13) };
@@ -1297,81 +1077,6 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json', ..._currentCors },
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  CRAPS TABLE — WebSocket routing via Durable Objects
-// ═══════════════════════════════════════════════════════════════════════════
-
-// GET /craps/ws?table=X&playerId=Y&name=Z&chadId=N  (WebSocket upgrade)
-// Routes the connection to the CrapsTable Durable Object for that table.
-async function handleCrapsWebSocket(request, url, env) {
-  const table = url.searchParams.get('table');
-  if (!table) {
-    return new Response(JSON.stringify({ error: 'Missing table' }), {
-      status: 400, headers: { 'Content-Type': 'application/json', ..._currentCors },
-    });
-  }
-
-  // Validate table name
-  if (!isValidTable(table)) {
-    return new Response(JSON.stringify({ error: 'Invalid table name' }), {
-      status: 400, headers: { 'Content-Type': 'application/json', ..._currentCors },
-    });
-  }
-
-  // Route to the Durable Object (one DO per table)
-  const id = env.CRAPS_TABLE.idFromName(table);
-  const stub = env.CRAPS_TABLE.get(id);
-
-  // If table has 0 players (including no grace-period reconnects), hard-reset all DO state.
-  // This nukes stale game state left by zombie Hibernation sockets.
-  // We use allCount (not count) so a briefly-disconnected player reconnecting doesn't
-  // accidentally wipe their own session data.
-  try {
-    const infoRes = await stub.fetch(new Request('https://do/info'));
-    const info = await infoRes.json();
-    if ((info.count || 0) === 0 && (info.allCount || 0) === 0) {
-      await stub.fetch(new Request('https://do/reset', { method: 'POST' }));
-    }
-  } catch (_) { /* best-effort; proceed with WS upgrade either way */ }
-
-  // Forward the entire request (including Upgrade headers + query params)
-  return stub.fetch(request);
-}
-
-// GET /tables/list — returns player counts by querying each public table's DO
-async function handleTableList(env) {
-  const tables = [];
-
-  // Query all public table DOs in parallel
-  const queries = PUBLIC_TABLES.map(async (t) => {
-    try {
-      const id = env.CRAPS_TABLE.idFromName(t.name);
-      const stub = env.CRAPS_TABLE.get(id);
-      const res = await stub.fetch(new Request('https://do/info'));
-      const data = await res.json();
-      return {
-        name: t.name,
-        label: t.label,
-        players: data.count || 0,
-        maxPlayers: MAX_PLAYERS_PER_TABLE,
-      };
-    } catch (_) {
-      return {
-        name: t.name,
-        label: t.label,
-        players: 0,
-        maxPlayers: MAX_PLAYERS_PER_TABLE,
-      };
-    }
-  });
-
-  const results = await Promise.all(queries);
-  return json({
-    tables: results,
-    limits: { maxPublic: MAX_PUBLIC_TABLES, maxPrivate: MAX_PRIVATE_TABLES, maxPerTable: MAX_PLAYERS_PER_TABLE },
   });
 }
 

@@ -60,6 +60,15 @@ All project assets (images, GIFs, audio, etc.) live in **`assets/membersonly/`**
 
 ## Project Overview
 
+> ⚠️ **Pivot in progress:** this repo is being reworked from the casino described
+> below into **Aeterna**, an invitation-only cult RPG (daily duties, Devotion,
+> streaks, gifts, bloodlines, Souls, Final Communion), keeping only the
+> pixel-art game presentation layer reskinned as a year-1200 abbey. The
+> **Smart Contracts**, **Chip System**, **Craps System**, and **Tournament
+> System** sections below describe the pre-pivot casino and will be rewritten
+> section-by-section as each phase of the rework lands (contracts, backend,
+> frontend). Treat them as historical/reference until then, not current truth.
+
 **Members Only** is an NFT-gated casino on Avalanche. 888 Club Nile NFTs grant access to multiplayer craps, poker, tournaments, and a player-to-player market. Hosted on GitHub Pages at membersonly.cc.
 
 ### Elevator Pitch
@@ -223,9 +232,12 @@ The DO is the **single source of truth** for all game state. One DO instance per
 
 | File | Purpose |
 |------|---------|
-| `runner-worker.js` | HTTP router: craps start/cashout, poker, hashcash, freeplay, pieface, table list |
-| `craps-table.js` | Durable Object: game state, WebSocket, dice, payouts |
+| `runner-worker.js` | HTTP router: poker, cage/tourney cage, Club Nile rooms, hashcash, freeplay, pieface |
+| `clubnile-room.js` | Durable Object: the live Club Nile game engine (chat, table games, cage sessions) |
+| `hashcash-table.js` | Durable Object: HashCash minigame (off-limits, see rules below) |
 | `wrangler.toml` | Config: bindings, KV, contract addresses, RPC URL |
+
+Note: `craps-table.js` (the legacy `CrapsTable` Durable Object) was deleted — it was dead code, superseded by `clubnile-room.js` and called by no shipped frontend.
 
 **Key endpoints:**
 ```
